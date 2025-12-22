@@ -82,19 +82,22 @@ kotlin {
                 // Common dependencies
                 api(libs.kotlinx.serialization.core)
                 api(libs.kotlinx.serialization.json)
-                api(libs.kotlinx.serialization.cbor)
                 api(libs.kotlinx.coroutines.core)
-                api(libs.ktor.client.core)
-                implementation(libs.ktor.client.serialization)
-                implementation(libs.ktor.client.content.negotiation)
-                implementation(libs.ktor.serialization.json)
+                api(libs.kotlinx.datetime)
+
             }
         }
 
         commonTest {
             dependencies {
+
                 implementation(kotlin("test"))
                 implementation(libs.kotlinx.coroutines.test)
+
+                implementation(libs.ktor.client.core)
+                implementation(libs.ktor.client.serialization)
+                implementation(libs.ktor.client.content.negotiation)
+                implementation(libs.ktor.serialization.json)
                 implementation(libs.ktor.client.mock)
             }
         }
