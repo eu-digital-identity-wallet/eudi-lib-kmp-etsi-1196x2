@@ -15,27 +15,20 @@
  */
 package eu.europa.ec.eudi.etsi119602
 
-import kotlinx.serialization.Required
-import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 @Serializable
-public data class MultiLanguageURI(
-    @SerialName(ETSI19602.LANG) @Required val language: Language,
-    @SerialName(ETSI19602.URI_VALUE) @Required val value: URIValue,
-) {
-    public companion object {
-        public fun en(value: URIValue): MultiLanguageURI = MultiLanguageURI(Language.ENGLISH, value)
-    }
-}
-
-// TODO Value is URI
-@Serializable
 @JvmInline
-public value class URIValue(public val value: String) {
+public value class Language(public val value: String) {
     init {
-        requireNotBlank(value, ETSI19602.URI_VALUE)
+        requireNotBlank(value, ETSI19602.LANG)
+        require(value.matches(ALPHA_2_PATTERN)) { "Invalid ${ETSI19602.LANG}" }
     }
 
     override fun toString(): String = value
+
+    public companion object {
+        public val ENGLISH: Language get() = Language(ETSI19602.LANG_ENGLISH)
+        private val ALPHA_2_PATTERN = Regex("^[a-z]{2}$")
+    }
 }

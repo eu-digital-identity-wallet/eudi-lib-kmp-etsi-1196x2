@@ -1,15 +1,31 @@
+/*
+ * Copyright (c) 2023 European Commission
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package eu.europa.ec.eudi.etsi119602
 
 /**
+ * [ETSI 119 602](https://www.etsi.org/deliver/etsi_ts/119600_119699/119602/01.01.01_60/ts_119602v010101p.pdf)
  * [JSON Schema](https://forge.etsi.org/rep/esi/x19_60201_lists_of_trusted_entities/-/blob/main/1960201_json_schema/1960201_json_schema.json?ref_type=heads)
  */
 public object ETSI19602 {
-    public const val VERSION : String = "1.1.1"
+    public const val VERSION: String = "1.1.1"
 
     public const val LOTE_VERSION: Int = 1
     public const val INITIAL_SEQUENCE_NUMBER: Int = 1
     public const val COUNTRY_CODE_EU: String = "EU"
-    public const val COUNTRY_CODE_SIZE : Int = 2
+    public const val COUNTRY_CODE_SIZE: Int = 2
 
     public const val LOTE: String = "LoTE"
     public const val LIST_AND_SCHEME_INFORMATION: String = "ListAndSchemeInformation"
@@ -49,31 +65,75 @@ public object ETSI19602 {
     public const val LOTE_LEGAL_NOTICE: String = "LoTELegalNotice"
 
     public const val LOTE_LOCATION: String = "LoTELocation"
-    public const val LOTE_QUALIFIERS :String = "LoTEQualifiers"
+    public const val LOTE_QUALIFIERS: String = "LoTEQualifiers"
 
     public const val SERVICE_DIGITAL_IDENTITIES: String = "ServiceDigitalIdentities"
 
     public const val TRUSTED_ENTITIES_LIST: String = "TrustedEntitiesList"
     public const val TRUSTED_ENTITY_INFORMATION: String = "TrustedEntityInformation"
-    public const val TE_NAME : String = "TEName"
-    public const val TE_TRADE_NAME : String = "TETradeName"
-    public const val TE_ADDRESS : String = "TEAddress"
-    public const val TE_INFORMATION_URI : String = "TEInformationURI"
-    public const val TE_POSTAL_ADDRESS : String = "TEPostalAddress"
-    public const val TE_ELECTRONIC_ADDRESS : String = "TEElectronicAddress"
+    public const val TE_NAME: String = "TEName"
+    public const val TE_TRADE_NAME: String = "TETradeName"
+    public const val TE_ADDRESS: String = "TEAddress"
+    public const val TE_INFORMATION_URI: String = "TEInformationURI"
+    public const val TE_POSTAL_ADDRESS: String = "TEPostalAddress"
+    public const val TE_ELECTRONIC_ADDRESS: String = "TEElectronicAddress"
     public const val TRUSTED_ENTITY_SERVICES: String = "TrustedEntityServices"
+
+    public const val LOTE_TYPE_URI: String = "http://uri.etsi.org/19602/LoTEType"
 
     //
     // PID Provider's LoTE
+    // A LoTE implementation of a list of providers of person identity data, which are notified by Member States
     //
-    public const val PID_PROVIDERS_LOTE_TYPE: String ="http://uri.etsi.org/19602/LoTEType/EUPIDProvidersList"
-    public const val PID_PROVIDERS_STATUS_DETERMINATION_APPROACH: String = "http://uri.etsi.org/19602/PIDProvidersList/StatusDetn/EU"
-    public const val PID_PROVIDERS_SCHEME_COMMUNITY_RULES: String = "http://uri.etsi.org/19602/PIDProviders/schemerules/EU"
+    public const val EU_PID_PROVIDERS_LOTE: String = "EUPIDProvidersList"
+    public const val EU_PID_PROVIDERS_STATUS_DETERMINATION_APPROACH: String = "http://uri.etsi.org/19602/PIDProvidersList/StatusDetn/EU"
+    public const val EU_PID_PROVIDERS_SCHEME_COMMUNITY_RULES: String = "http://uri.etsi.org/19602/PIDProviders/schemerules/EU"
 
     //
-    // Wallet Provider's LoTE
+    // EU Wallet Provider's LoTE
+    // A LoTE implementation of a list of wallet providers, which are notified by Member States
     //
-    public const val WALLET_PROVIDERS_LOTE_TYPE: String ="http://uri.etsi.org/19602/LoTEType/EUWalletProvidersList"
-    public const val WALLET_PROVIDERS_STATUS_DETERMINATION_APPROACH: String = "http://uri.etsi.org/19602/WalletProvidersList/StatusDetn/EU"
-    public const val WALLET_PROVIDERS_SCHEME_COMMUNITY_RULES: String = "http://uri.etsi.org/19602/WalletProvidersList/schemerules/EU"
+    public const val EU_WALLET_PROVIDERS_LOTE: String = "EUWalletProvidersList"
+    public const val EU_WALLET_PROVIDERS_STATUS_DETERMINATION_APPROACH: String = "http://uri.etsi.org/19602/WalletProvidersList/StatusDetn/EU"
+    public const val EU_WALLET_PROVIDERS_SCHEME_COMMUNITY_RULES: String = "http://uri.etsi.org/19602/WalletProvidersList/schemerules/EU"
+
+    //
+    // EU WRPAC
+    // A LoTE implementation of a list of providers of wallet relying party access certificates,
+    // which are notified by Member States
+    //
+    public const val EU_WRPAC_LOTE: String = "EUWRPACProvidersList"
+    public const val EU_WRPAC_STATUS_DETERMINATION_APPROACH: String = "http://uri.etsi.org/19602/WRPACProvidersList/StatusDetn/EU"
+    public const val EU_WRPAC_SCHEME_COMMUNITY_RULES: String = "http://uri.etsi.org/19602/WRPACProvidersList/schemerules/EU"
+
+    //
+    // EU WRPRC
+    // A LoTE implementation of a list of providers of wallet relying party registration certificates,
+    // which are notified by Member States
+    //
+    public const val EU_WRPRC_LOTE: String = "EUWRPRCProvidersList"
+    public const val EU_WRPRC_STATUS_DETERMINATION_APPROACH: String = "http://uri.etsi.org/19602/WRPRCrovidersList/StatusDetn/EU"
+    public const val EU_WRPRC_SCHEME_COMMUNITY_RULES: String = "http://uri.etsi.org/19602/WRPRCProvidersList/schemerules/EU"
+
+    //
+    // EU PUB EAA providers
+    // A LoTE implementation of a list of public sector bodies issuing electronic attestation of attribute,
+    // which are notified by Member States
+    //
+    public const val EU_PUB_EAA_LOTE: String = "EUPubEAAProvidersList"
+    public const val EU_PUB_EAA_STATUS_DETERMINATION_APPROACH: String = "http://uri.etsi.org/19602/PubEAAProvidersList/StatusDetn/EU"
+    public const val EU_PUB_EAA_SCHEME_COMMUNITY_RULES: String = "http://uri.etsi.org/19602/PubEAAProvidersList/schemerules/EU"
+
+    //
+    // EU RegistrarsAndRegisters
+    // A LoTE implementation of a list of registrars and registers, which are notified by Member States
+    //
+    public const val EU_REGISTRARS_AND_REGISTERS_LOTE: String = "EURegistrarsAndRegistersList"
+    public const val EU_REGISTRARS_AND_REGISTERS_STATUS_DETERMINATION_APPROACH: String = "http://uri.etsi.org/19602/RegistrarsAndRegistersList/StatusDetn/EU"
+    public const val EU_REGISTRARS_AND_REGISTERS_SCHEME_COMMUNITY_RULES: String = "http://uri.etsi.org/19602/RegistrarsAndRegistersList/schemerules/EU"
+
+    //
+    // Language codes
+    //
+    public const val LANG_ENGLISH: String = "en"
 }

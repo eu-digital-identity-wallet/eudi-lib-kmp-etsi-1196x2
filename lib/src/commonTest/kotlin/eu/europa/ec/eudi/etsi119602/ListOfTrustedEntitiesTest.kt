@@ -1,5 +1,23 @@
+/*
+ * Copyright (c) 2023 European Commission
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package eu.europa.ec.eudi.etsi119602
 
+import eu.europa.ec.eudi.etsi119602.profile.EUPIDProvidersList
+import eu.europa.ec.eudi.etsi119602.profile.EUWRPACProvidersList
+import eu.europa.ec.eudi.etsi119602.profile.EUWalletProvidersList
 import io.ktor.client.*
 import io.ktor.client.plugins.contentnegotiation.*
 import io.ktor.client.plugins.cookies.*
@@ -21,7 +39,7 @@ class ListOfTrustedEntitiesTest {
             getLoTE("https://acceptance.trust.tech.ec.europa.eu/lists/eudiw/pid-providers.json")
         println(listOfTrustedEntities.schemeInformation)
         listOfTrustedEntities.entities.forEach { println(it) }
-        with(PIDProvidersProfile) {
+        with(EUPIDProvidersList) {
             listOfTrustedEntities.ensureScheme()
         }
     }
@@ -32,14 +50,24 @@ class ListOfTrustedEntitiesTest {
             getLoTE("https://acceptance.trust.tech.ec.europa.eu/lists/eudiw/wallet-providers.json")
         println(listOfTrustedEntities.schemeInformation)
         listOfTrustedEntities.entities.forEach { println(it) }
-        with(WalletProvidersProfile) {
+        with(EUWalletProvidersList) {
             listOfTrustedEntities.ensureScheme()
         }
     }
 
+    @Test
+    fun wrpacLoTE() = runTest {
+        val listOfTrustedEntities =
+            getLoTE("https://acceptance.trust.tech.ec.europa.eu/lists/eudiw/wrpac-providers.json")
+        println(listOfTrustedEntities.schemeInformation)
+        listOfTrustedEntities.entities.forEach { println(it) }
+        with(EUWRPACProvidersList) {
+            listOfTrustedEntities.ensureScheme()
+        }
+    }
 
     private suspend fun getLoTE(uri: String): ListOfTrustedEntities =
-        createHttpClient(true).use { httpClient ->
+        createHttpClient().use { httpClient ->
             val (_, payload) = httpClient
                 .get(uri)
                 .bodyAsText()
@@ -47,17 +75,15 @@ class ListOfTrustedEntitiesTest {
             println(JsonSupportDebug.encodeToString(payload))
             val loTEClaims = JsonSupportDebug.decodeFromJsonElement<ListOfTrustedEntitiesClaims>(payload)
             loTEClaims.listOfTrustedEntities
-
         }
 }
 
-fun createHttpClient(enableLogging: Boolean = true): HttpClient =
+fun createHttpClient(): HttpClient =
     HttpClient {
         install(ContentNegotiation) {
             json(JsonSupportDebug)
         }
         install(HttpCookies)
-
     }
 
 private const val TWO_SPACES = "  "
