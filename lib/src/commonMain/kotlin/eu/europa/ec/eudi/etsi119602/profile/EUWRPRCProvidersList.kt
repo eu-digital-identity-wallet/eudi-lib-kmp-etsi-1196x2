@@ -15,17 +15,19 @@
  */
 package eu.europa.ec.eudi.etsi119602.profile
 
-import eu.europa.ec.eudi.etsi119602.*
+import eu.europa.ec.eudi.etsi119602.CountryCode
+import eu.europa.ec.eudi.etsi119602.ETSI19602
+import eu.europa.ec.eudi.etsi119602.MultiLanguageURI
+import eu.europa.ec.eudi.etsi119602.URIValue
 
-public object EUWRPRCProvidersList : ListOfTrustedEntitiesProfile {
-    override val name: String get() = ETSI19602.EU_WRPRC_LOTE
-    override val scheme: Scheme get() = Scheme.EXPLICIT
-    override val statusDeterminationApproach: String get() = ETSI19602.EU_WRPRC_STATUS_DETERMINATION_APPROACH
-    override val schemeCommunityRules: List<MultiLanguageURI>
-        get() = listOf(
-            MultiLanguageURI(Language.ENGLISH, URIValue(ETSI19602.EU_WRPRC_SCHEME_COMMUNITY_RULES)),
-        )
-    override val schemeTerritory: CountryCode get() = CountryCode.EU
-    override val maxMonthsUntilNextUpdate: Int get() = 6
-    override val historicalInformationPeriod: ValueRequirement get() = ValueRequirement.Absent
-}
+public val EUWRPRCProvidersList: ListOfTrustedEntitiesProfile =
+    DefaultListOfTrustedEntitiesProfile(
+        name = ETSI19602.EU_WRPRC_LOTE,
+        statusDeterminationApproach = ETSI19602.EU_WRPRC_STATUS_DETERMINATION_APPROACH,
+        schemeCommunityRules = listOf(
+            MultiLanguageURI.en(URIValue(ETSI19602.EU_WRPRC_SCHEME_COMMUNITY_RULES))
+        ),
+        schemeTerritory = CountryCode.EU,
+        maxMonthsUntilNextUpdate = 6,
+        historicalInformationPeriod = ValueRequirement.Absent
+    )

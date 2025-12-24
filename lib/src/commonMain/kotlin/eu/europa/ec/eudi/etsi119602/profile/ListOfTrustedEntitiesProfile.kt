@@ -18,42 +18,72 @@ package eu.europa.ec.eudi.etsi119602.profile
 import eu.europa.ec.eudi.etsi119602.*
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.monthsUntil
-import org.graalvm.compiler.lir.profiling.MoveProfiler.profile
 
-public enum class Scheme {
-    EXPLICIT,
-    IMPLICIT,
-    BOTH,
-}
-
-public sealed interface ValueRequirement {
-    public data object Requirement : ValueRequirement
-    public data object Optional : ValueRequirement
-    public data object Absent : ValueRequirement
+public sealed interface ValueRequirement<out T> {
+    public data class Required<out T>(val requirement: T) : ValueRequirement<T>
+    public data object Absent : ValueRequirement<Nothing>
 }
 
 public interface ListOfTrustedEntitiesProfile {
-    public val name: String
-    public val scheme: Scheme
-    public val type: LoTEType get() = LoTEType.of(name)
+    public val type: LoTEType
     public val statusDeterminationApproach: String
     public val schemeCommunityRules: List<MultiLanguageURI>
     public val schemeTerritory: CountryCode
     public val maxMonthsUntilNextUpdate: Int
-    public val historicalInformationPeriod: ValueRequirement
+    public val historicalInformationPeriod: ValueRequirement<HistoricalInformationPeriod>
 
-    public fun ListOfTrustedEntities.ensureScheme() {
-        with(ListAndSchemeInformationAssertions) {
-            try {
-                schemeInformation.ensureWalletProvidersScheme(this@ListOfTrustedEntitiesProfile)
-            } catch (e: IllegalArgumentException) {
-                throw IllegalArgumentException("Violation of $name: ${e.message}")
-            }
-        }
+    @Throws(IllegalStateException::class)
+    public fun ListOfTrustedEntities.checkSchemeInformation()
+
+    public companion object {
+        public operator fun invoke(
+            name: String,
+            statusDeterminationApproach: String,
+            schemeCommunityRules: List<MultiLanguageURI>,
+            schemeTerritory: CountryCode,
+            maxMonthsUntilNextUpdate: Int,
+            historicalInformationPeriod: ValueRequirement<HistoricalInformationPeriod>
+        ): ListOfTrustedEntitiesProfile =
+            DefaultListOfTrustedEntitiesProfile(
+                name,
+                statusDeterminationApproach,
+                schemeCommunityRules,
+                schemeTerritory,
+                maxMonthsUntilNextUpdate,
+                historicalInformationPeriod
+            )
     }
 }
 
-public object ListAndSchemeInformationAssertions {
+
+internal fun DefaultListOfTrustedEntitiesProfile(
+    name: String,
+    statusDeterminationApproach: String,
+    schemeCommunityRules: List<MultiLanguageURI>,
+    schemeTerritory: CountryCode,
+    maxMonthsUntilNextUpdate: Int,
+    historicalInformationPeriod: ValueRequirement<HistoricalInformationPeriod>
+): ListOfTrustedEntitiesProfile =
+    object : ListOfTrustedEntitiesProfile, ListAndSchemeInformationAssertions {
+        public override val type: LoTEType get() = LoTEType.of(name)
+        public override val statusDeterminationApproach: String = statusDeterminationApproach
+        public override val schemeCommunityRules: List<MultiLanguageURI> = schemeCommunityRules
+        public override val schemeTerritory: CountryCode = schemeTerritory
+        public override val maxMonthsUntilNextUpdate: Int = maxMonthsUntilNextUpdate
+        public override val historicalInformationPeriod: ValueRequirement<HistoricalInformationPeriod> =
+            historicalInformationPeriod
+        private val self: ListOfTrustedEntitiesProfile = this
+
+        public override fun ListOfTrustedEntities.checkSchemeInformation() =
+            try {
+                schemeInformation.ensureWalletProvidersScheme(self)
+            } catch (e: IllegalArgumentException) {
+                throw IllegalArgumentException("Violation of $name: ${e.message}")
+            }
+
+    }
+
+public interface ListAndSchemeInformationAssertions {
 
     public fun ListAndSchemeInformation.ensureIsExplicit() {
         checkNotNull(type, ETSI19602.LOTE_TYPE)
@@ -64,6 +94,14 @@ public object ListAndSchemeInformationAssertions {
         checkNotNull(schemeTypeCommunityRules, ETSI19602.SCHEME_TYPE_COMMUNITY_RULES)
         checkNotNull(schemeTerritory, ETSI19602.SCHEME_TERRITORY)
         checkNotNull(policyOrLegalNotice, ETSI19602.POLICY_OR_LEGAL_NOTICE)
+    }
+
+    public fun ListAndSchemeInformation.ensureIsImplicit() {
+        checkNull(schemeName, ETSI19602.SCHEME_NAME)
+        checkNull(schemeInformationURI, ETSI19602.SCHEME_INFORMATION_URI)
+        checkNull(statusDeterminationApproach, ETSI19602.STATUS_DETERMINATION_APPROACH)
+        checkNull(schemeTypeCommunityRules, ETSI19602.SCHEME_TYPE_COMMUNITY_RULES)
+        checkNull(policyOrLegalNotice, ETSI19602.POLICY_OR_LEGAL_NOTICE)
     }
 
     public fun ListAndSchemeInformation.ensureTypeIs(expected: LoTEType) {
@@ -101,22 +139,22 @@ public object ListAndSchemeInformationAssertions {
         }
     }
 
-    public fun ListAndSchemeInformation.ensureHistoricalInformationPeriod(requirement: ValueRequirement) {
+    public fun ListAndSchemeInformation.ensureHistoricalInformationPeriod(requirement: ValueRequirement<HistoricalInformationPeriod>) {
         when (requirement) {
-            is ValueRequirement.Requirement -> TODO()
-            is ValueRequirement.Optional -> TODO()
-            is ValueRequirement.Absent -> {
-                check(historicalInformationPeriod == null) {
-                    "${ETSI19602.HISTORICAL_INFORMATION_PERIOD} is not allowed"
+            is ValueRequirement.Required -> {
+                checkNotNull(historicalInformationPeriod, ETSI19602.HISTORICAL_INFORMATION_PERIOD)
+                check(historicalInformationPeriod == requirement.requirement) {
+                    "Invalid ${ETSI19602.HISTORICAL_INFORMATION_PERIOD}. Expected $requirement, got $historicalInformationPeriod"
                 }
             }
+
+            is ValueRequirement.Absent ->
+                checkNull(historicalInformationPeriod, ETSI19602.HISTORICAL_INFORMATION_PERIOD)
         }
     }
 
     public fun ListAndSchemeInformation.ensureWalletProvidersScheme(profile: ListOfTrustedEntitiesProfile) {
-        if (profile.scheme == Scheme.EXPLICIT) {
-            ensureIsExplicit()
-        }
+        ensureIsExplicit()
         ensureTypeIs(profile.type)
         ensureStatusDeterminationApproachIs(profile.statusDeterminationApproach)
         ensureSchemeCommunityRulesIs(profile.schemeCommunityRules)

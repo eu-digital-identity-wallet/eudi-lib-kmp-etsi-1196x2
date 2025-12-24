@@ -40,7 +40,7 @@ class ListOfTrustedEntitiesTest {
         println(listOfTrustedEntities.schemeInformation)
         listOfTrustedEntities.entities.forEach { println(it) }
         with(EUPIDProvidersList) {
-            listOfTrustedEntities.ensureScheme()
+            listOfTrustedEntities.checkSchemeInformation()
         }
     }
 
@@ -51,7 +51,7 @@ class ListOfTrustedEntitiesTest {
         println(listOfTrustedEntities.schemeInformation)
         listOfTrustedEntities.entities.forEach { println(it) }
         with(EUWalletProvidersList) {
-            listOfTrustedEntities.ensureScheme()
+            listOfTrustedEntities.checkSchemeInformation()
         }
     }
 
@@ -62,7 +62,7 @@ class ListOfTrustedEntitiesTest {
         println(listOfTrustedEntities.schemeInformation)
         listOfTrustedEntities.entities.forEach { println(it) }
         with(EUWRPACProvidersList) {
-            listOfTrustedEntities.ensureScheme()
+            listOfTrustedEntities.checkSchemeInformation()
         }
     }
 

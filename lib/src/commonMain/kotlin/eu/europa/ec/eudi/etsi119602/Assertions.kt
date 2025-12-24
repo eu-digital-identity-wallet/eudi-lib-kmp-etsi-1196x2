@@ -52,3 +52,15 @@ internal inline fun <reified T : Any> checkNotNull(
     }
     return checkNotNull(value) { "$field must be set" }
 }
+
+@OptIn(ExperimentalContracts::class)
+internal inline fun <reified T : Any> checkNull(
+    value: T?,
+    field: String,
+): T? {
+    contract {
+        returns() implies (value == null)
+    }
+    check(value == null) { "$field must not be set" }
+    return value
+}
