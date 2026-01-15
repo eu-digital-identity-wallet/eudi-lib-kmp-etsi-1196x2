@@ -15,8 +15,6 @@
  */
 package eu.europa.ec.eudi.etsi119602
 
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.flow
 import kotlinx.serialization.Required
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable

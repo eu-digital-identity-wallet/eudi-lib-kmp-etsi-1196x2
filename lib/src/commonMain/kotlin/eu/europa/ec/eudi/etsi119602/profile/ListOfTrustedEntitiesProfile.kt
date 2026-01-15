@@ -16,7 +16,6 @@
 package eu.europa.ec.eudi.etsi119602.profile
 
 import eu.europa.ec.eudi.etsi119602.*
-import eu.europa.ec.eudi.etsi119602.profile.ListAndSchemeInformationProfile
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.monthsUntil
 
@@ -42,7 +41,7 @@ public data class ListAndSchemeInformationProfile(
             schemeTerritory: CountryCode,
             maxMonthsUntilNextUpdate: Int,
             historicalInformationPeriod: ValueRequirement<HistoricalInformationPeriod>
-        ) : ListAndSchemeInformationProfile = ListAndSchemeInformationProfile(
+        ): ListAndSchemeInformationProfile = ListAndSchemeInformationProfile(
             LoTEType.of(name),
             statusDeterminationApproach,
             schemeCommunityRules,
@@ -86,7 +85,6 @@ internal fun DefaultListOfTrustedEntitiesProfile(
             get() = listAndSchemeInformation
         public override val trustedEntities: TrustedEntitiesProfile
             get() = trustedEntities
-
 
 
         @Throws(IllegalStateException::class)
