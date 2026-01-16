@@ -17,6 +17,7 @@ package eu.europa.ec.eudi.etsi119602.profile
 
 import eu.europa.ec.eudi.etsi119602.CountryCode
 import eu.europa.ec.eudi.etsi119602.ETSI19602
+import eu.europa.ec.eudi.etsi119602.LoTEType
 import eu.europa.ec.eudi.etsi119602.MultiLanguageURI
 import eu.europa.ec.eudi.etsi119602.URIValue
 
@@ -24,10 +25,11 @@ import eu.europa.ec.eudi.etsi119602.URIValue
  * A LoTE profile aimed at supporting the publication by the European Commission of a list of
  * wallet providers according to CIR 2024/2980 i.2 Article 5(2)
  */
-public val EUWalletProvidersList: ListOfTrustedEntitiesProfile =
-    DefaultListOfTrustedEntitiesProfile(
+public val EUWalletProvidersList: EUListOfTrustedEntitiesProfile =
+    EUListOfTrustedEntitiesProfile(
+        listAndSchemeInformation =
         ListAndSchemeInformationProfile(
-            name = ETSI19602.EU_WALLET_PROVIDERS_LOTE,
+            type = LoTEType.of(ETSI19602.EU_WALLET_PROVIDERS_LOTE),
             statusDeterminationApproach = ETSI19602.EU_WALLET_PROVIDERS_STATUS_DETERMINATION_APPROACH,
             schemeCommunityRules = listOf(
                 MultiLanguageURI.en(URIValue(ETSI19602.EU_WALLET_PROVIDERS_SCHEME_COMMUNITY_RULES)),
@@ -36,8 +38,13 @@ public val EUWalletProvidersList: ListOfTrustedEntitiesProfile =
             maxMonthsUntilNextUpdate = 6,
             historicalInformationPeriod = ValueRequirement.Absent,
         ),
-        TrustedEntitiesProfile(
-            issuanceServiceTypeIdentifier = ETSI19602.EU_WALLET_PROVIDERS_SVC_TYPE_ISSUANCE,
-            revocationServiceTypeIdentifier = ETSI19602.EU_WALLET_PROVIDERS_SVC_TYPE_REVOCATION,
+        trustedEntities =
+        EUTrustedEntitiesProfile(
+            serviceTypeIdentifiers = setOf(
+                ETSI19602.EU_WALLET_PROVIDERS_SVC_TYPE_ISSUANCE,
+                ETSI19602.EU_WALLET_PROVIDERS_SVC_TYPE_REVOCATION,
+            ),
+            mustContainX509Certificates = true,
+            serviceStatuses = emptySet(),
         ),
     )

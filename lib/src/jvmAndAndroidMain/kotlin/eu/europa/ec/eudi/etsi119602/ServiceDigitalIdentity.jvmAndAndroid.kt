@@ -41,23 +41,23 @@ public class IsTrustAnchorOfChain private constructor(
     private val chain: List<X509Certificate>,
     private val certificateFactory: CertificateFactory,
     private val certPathValidator: CertPathValidator,
-) : suspend (ServiceDigitalIdentity) -> Boolean{
+) : suspend (ServiceDigitalIdentity) -> Boolean {
     public constructor(chain: List<X509Certificate>) : this(
         chain,
         CertificateFactory.getInstance(X_509),
-        CertPathValidator.getInstance(PKIX)
+        CertPathValidator.getInstance(PKIX),
     )
 
     public constructor(chain: List<X509Certificate>, provider: String) : this(
         chain,
         CertificateFactory.getInstance(X_509, provider),
-        CertPathValidator.getInstance(PKIX, provider)
+        CertPathValidator.getInstance(PKIX, provider),
     )
 
     public constructor(chain: List<X509Certificate>, provider: Provider) : this(
         chain,
         CertificateFactory.getInstance(X_509, provider),
-        CertPathValidator.getInstance(PKIX, provider)
+        CertPathValidator.getInstance(PKIX, provider),
     )
 
     override suspend operator fun invoke(serviceDigitalIdentity: ServiceDigitalIdentity): Boolean {
@@ -76,5 +76,4 @@ public class IsTrustAnchorOfChain private constructor(
             false
         }
     }
-
 }

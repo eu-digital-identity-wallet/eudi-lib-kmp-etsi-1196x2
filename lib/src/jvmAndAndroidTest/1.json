@@ -1,0 +1,31 @@
+{
+  "credentials": [
+    {
+      "id": "query_for_place_of_birth_in_mdoc",
+      "format": "mso_mdoc",
+      "meta": {"doctype_value": "eu.europa.ec.eudi.pid.1"},
+      "claims": [
+        { "path": ["eu.europa.ec.eudi.pid.1", "place_of_birth"] }
+      ]
+    },
+    {
+      "id": "query_for_place_of_birth_in_sd_jwt_vc",
+      "format": "dc+sd-jwt",
+      "meta": {"vct_values": ["urn:eudi:pid:1"]},
+      "claims": [
+        { "path": ["place_of_birth", "locality"] },
+        { "path": ["place_of_birth", "country"] },
+        { "path": ["place_of_birth", "date_of_birth"] }
+      ]
+    }
+  ],
+
+  "credential_sets" : [
+    {
+      "options": [
+        [ "query_for_place_of_birth_in_mdoc" ],
+        [ "query_for_place_of_birth_in_sd_jwt_vc" ]
+      ]
+    }
+  ]
+}

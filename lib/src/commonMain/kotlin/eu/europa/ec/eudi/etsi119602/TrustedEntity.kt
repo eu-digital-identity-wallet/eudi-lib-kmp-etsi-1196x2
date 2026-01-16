@@ -33,9 +33,19 @@ public data class TrustedEntity(
 
 @Serializable
 public data class TrustedEntityInformation(
+    /**
+     * The name of the legal entity responsible for the services
+     */
     @SerialName(ETSI19602.TE_NAME) @Required val name: List<MultilanguageString>,
     @SerialName(ETSI19602.TE_ADDRESS) @Required val address: TEAddress,
     @SerialName(ETSI19602.TE_INFORMATION_URI) @Required val informationURI: List<MultiLanguageURI>,
+    /**
+     * An official registration identifier as registered in official records, where such
+     * a registered identifier exists, that unambiguously identifies the trusted entity.
+     *
+     * It may additionally include any name under which the legal entity, or when applicable the natural person, responsible
+     * for the TE operates, in the specific context of the delivery of those of its services which are to be found in this LoTE.
+     */
     @SerialName(ETSI19602.TE_TRADE_NAME) val tradeName: List<MultilanguageString>? = null,
 ) {
     init {

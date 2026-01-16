@@ -102,7 +102,12 @@ kotlin {
             }
         }
 
-        jvmTest {
+        val jvmAndAndroidMain by getting {
+            dependencies {
+                implementation("eu.europa.ec.joinup.sd-dss:dss-jades:6.3")
+            }
+        }
+        val jvmAndAndroidTest by getting {
             dependencies {
                 implementation(libs.ktor.client.java)
             }

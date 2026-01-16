@@ -201,7 +201,8 @@ internal constructor(
 
 @Serializable
 @JvmInline
-public value class LoTEType(public val value: String) {
+public value class LoTEType(public val value: URI) {
+    override fun toString(): String = value
     public companion object {
         public fun of(value: String): LoTEType =
             LoTEType("${ETSI19602.LOTE_TYPE_URI}/$value")

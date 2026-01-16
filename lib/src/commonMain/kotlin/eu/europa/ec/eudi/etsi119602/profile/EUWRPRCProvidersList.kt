@@ -17,13 +17,14 @@ package eu.europa.ec.eudi.etsi119602.profile
 
 import eu.europa.ec.eudi.etsi119602.CountryCode
 import eu.europa.ec.eudi.etsi119602.ETSI19602
+import eu.europa.ec.eudi.etsi119602.LoTEType
 import eu.europa.ec.eudi.etsi119602.MultiLanguageURI
 import eu.europa.ec.eudi.etsi119602.URIValue
 
-public val EUWRPRCProvidersList: ListOfTrustedEntitiesProfile =
-    DefaultListOfTrustedEntitiesProfile(
-        ListAndSchemeInformationProfile(
-            name = ETSI19602.EU_WRPRC_PROVIDERS_LOTE,
+public val EUWRPRCProvidersList: EUListOfTrustedEntitiesProfile =
+    EUListOfTrustedEntitiesProfile(
+        listAndSchemeInformation = ListAndSchemeInformationProfile(
+            type = LoTEType.of(ETSI19602.EU_WRPRC_PROVIDERS_LOTE),
             statusDeterminationApproach = ETSI19602.EU_WRPRC_PROVIDERS_STATUS_DETERMINATION_APPROACH,
             schemeCommunityRules = listOf(
                 MultiLanguageURI.en(URIValue(ETSI19602.EU_WRPRC_PROVIDERS_SCHEME_COMMUNITY_RULES)),
@@ -32,8 +33,13 @@ public val EUWRPRCProvidersList: ListOfTrustedEntitiesProfile =
             maxMonthsUntilNextUpdate = 6,
             historicalInformationPeriod = ValueRequirement.Absent,
         ),
-        TrustedEntitiesProfile(
-            issuanceServiceTypeIdentifier = ETSI19602.EU_WRPRC_PROVIDERS_SVC_TYPE_ISSUANCE,
-            revocationServiceTypeIdentifier = ETSI19602.EU_WRPRC_PROVIDERS_SVC_TYPE_REVOCATION,
-        )
+        trustedEntities =
+        EUTrustedEntitiesProfile(
+            serviceTypeIdentifiers = setOf(
+                ETSI19602.EU_WRPRC_PROVIDERS_SVC_TYPE_ISSUANCE,
+                ETSI19602.EU_WRPRC_PROVIDERS_SVC_TYPE_REVOCATION,
+            ),
+            mustContainX509Certificates = true,
+            serviceStatuses = emptySet(),
+        ),
     )

@@ -20,13 +20,14 @@ import kotlinx.serialization.Required
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonObject
 
 @Serializable
 public data class ServiceDigitalIdentity(
     @SerialName(ETSI19602.X509_CERTIFICATES) val x509Certificates: List<PkiOb>? = null,
     @SerialName(ETSI19602.X509_SUBJECT_NAMES) val x509SubjectNames: List<String>? = null,
-    @SerialName(ETSI19602.PUBLIC_KEY_VALUES) val publicKeyValues: JsonArray? = null,
-    @SerialName(ETSI19602.X509_SKIS) val x509SKIs: JsonArray? = null,
+    @SerialName(ETSI19602.PUBLIC_KEY_VALUES) val publicKeyValues: List<JsonObject>? = null,
+    @SerialName(ETSI19602.X509_SKIS) val x509SKIs: List<ByteArraySerializedInBase64>? = null,
     @SerialName(ETSI19602.OTHER_IDS) val otherIds: JsonArray? = null,
 ) {
     init {
