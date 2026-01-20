@@ -21,7 +21,6 @@ import eu.europa.ec.eudi.etsi119602.ListOfTrustedEntities
 import eu.europa.ec.eudi.etsi119602.LoTEType
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
-import org.graalvm.compiler.lir.profiling.MoveProfiler.profile
 import kotlin.test.Test
 
 class IsChainTrustedTest {
