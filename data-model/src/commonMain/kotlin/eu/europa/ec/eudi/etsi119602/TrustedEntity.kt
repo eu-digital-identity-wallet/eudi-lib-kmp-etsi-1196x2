@@ -15,11 +15,12 @@
  */
 package eu.europa.ec.eudi.etsi119602
 
+import eu.europa.ec.eudi.etsi119602.Assertions.requireNullOrNonEmpty
 import kotlinx.serialization.Required
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonArray
-import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonObject
 
 @Serializable
 public data class TrustedEntity
@@ -47,7 +48,7 @@ public constructor(
      * An official registration identifier as registered in official records, where such
      * a registered identifier exists, that unambiguously identifies the trusted entity.
      *
-     * It may additionally include any name under which the legal entity, or when applicable the natural person, responsible
+     * It may additionally include any name under which the legal entity, or when applicable, the natural person, responsible
      * for the TE operates, in the specific context of the delivery of those of its services which are to be found in this LoTE.
      */
     @SerialName(ETSI19602.TE_TRADE_NAME) val tradeName: List<MultilanguageString>? = null,
@@ -55,8 +56,8 @@ public constructor(
     init {
         with(Assertions) {
             requireNonEmpty(name, ETSI19602.TE_NAME)
-            requireNullOrNonEmpty(tradeName, ETSI19602.TE_TRADE_NAME)
             requireNonEmpty(informationURI, ETSI19602.TE_INFORMATION_URI)
+            requireNullOrNonEmpty(tradeName, ETSI19602.TE_TRADE_NAME)
         }
     }
 }
@@ -77,10 +78,16 @@ public constructor(
 }
 
 @Serializable
-public data class TrustedEntityService(
+public data class TrustedEntityService
+@Throws(IllegalArgumentException::class)
+public constructor(
     @SerialName(ETSI19602.SERVICE_INFORMATION) @Required val information: ServiceInformation,
-    @SerialName(ETSI19602.SERVICE_HISTORY) val history: ServiceHistory? = null,
-)
+    @SerialName(ETSI19602.SERVICE_HISTORY) val history: List<ServiceHistoryInstance>? = null,
+) {
+    init {
+        requireNullOrNonEmpty(history, ETSI19602.SERVICE_HISTORY)
+    }
+}
 
 @Serializable
 public data class ServiceInformation
@@ -107,13 +114,13 @@ public constructor(
     }
 }
 
-// TODO ServiceHistory
-//  Define the data model of ServiceHistory
-public typealias ServiceHistory = JsonElement
-public typealias URI = String
+// TODO Define the explicit data model of ServiceHistoryInstance
+public typealias ServiceHistoryInstance = JsonObject
 
 @Serializable
-public data class ServiceSupplyPointURI(
+public data class ServiceSupplyPointURI
+@Throws(IllegalArgumentException::class)
+public constructor(
     @SerialName(ETSI19602.SERVICE_SUPPLY_POINT_URI_VALUE) @Required val uriValue: URI,
     @SerialName(ETSI19602.SERVICE_SUPPLY_POINT_URI_TYPE) val serviceType: URI? = null,
 ) {
