@@ -117,7 +117,7 @@ fun interface CreateTrustAnchor {
 }
 
 fun interface GetListByProfile {
-    suspend operator fun invoke(loteType: LoTEType): ListOfTrustedEntities
+    suspend operator fun invoke(loteType: URI): ListOfTrustedEntities
 }
 
 data class LoTERemoteRegistry(

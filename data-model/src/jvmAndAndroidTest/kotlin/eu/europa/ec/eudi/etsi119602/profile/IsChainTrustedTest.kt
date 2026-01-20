@@ -18,7 +18,7 @@ package eu.europa.ec.eudi.etsi119602.profile
 import eu.europa.ec.eudi.etsi119602.DIGIT
 import eu.europa.ec.eudi.etsi119602.JwtUtil
 import eu.europa.ec.eudi.etsi119602.ListOfTrustedEntities
-import eu.europa.ec.eudi.etsi119602.LoTEType
+import eu.europa.ec.eudi.etsi119602.URI
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
@@ -38,7 +38,7 @@ class IsChainTrustedTest {
 }
 
 private object DownloadFromDIGIT : GetListByProfile {
-    override suspend fun invoke(loteType: LoTEType): ListOfTrustedEntities {
+    override suspend fun invoke(loteType: URI): ListOfTrustedEntities {
         val (_, jwt) = DIGIT.fetchLists { it.listAndSchemeInformation.type == loteType }.first()
         return JwtUtil.loteOfJwt(jwt)
     }

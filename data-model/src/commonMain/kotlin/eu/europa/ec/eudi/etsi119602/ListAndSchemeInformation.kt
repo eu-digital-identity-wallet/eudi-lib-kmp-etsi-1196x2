@@ -52,7 +52,7 @@ internal constructor(
     /**
      * The type of the list of trusted entities. I
      */
-    @SerialName(ETSI19602.LOTE_TYPE) val type: LoTEType? = null,
+    @SerialName(ETSI19602.LOTE_TYPE) val type: URI? = null,
     /**
      * The name of the entity in charge of establishing, publishing,
      * signing, and maintaining the list of trusted entities
@@ -111,7 +111,7 @@ internal constructor(
         @OptIn(ExperimentalTime::class)
         public fun implicit(
             sequenceNumber: Int = ETSI19602.INITIAL_SEQUENCE_NUMBER,
-            type: LoTEType? = null,
+            type: URI? = null,
             schemeOperatorName: List<MultilanguageString>,
             schemeOperatorAddress: SchemeOperatorAddress? = null,
             schemeTerritory: CountryCode? = null,
@@ -145,7 +145,7 @@ internal constructor(
         @OptIn(ExperimentalTime::class)
         public fun explicit(
             sequenceNumber: Int = ETSI19602.INITIAL_SEQUENCE_NUMBER,
-            type: LoTEType,
+            type: URI,
             schemeOperatorName: List<MultilanguageString>,
             schemeOperatorAddress: SchemeOperatorAddress,
             schemeName: List<MultilanguageString>,
@@ -197,16 +197,8 @@ internal constructor(
     }
 }
 
-// TODO Change LoTEType to URI
-
-@Serializable
-@JvmInline
-public value class LoTEType(public val value: URI) {
-    override fun toString(): String = value
-    public companion object {
-        public fun of(value: String): LoTEType =
-            LoTEType("${ETSI19602.LOTE_TYPE_URI}/$value")
-    }
+public object LoTEType {
+    public fun of(value: String): URI = "${ETSI19602.LOTE_TYPE_URI}/$value"
 }
 
 /**
@@ -269,7 +261,7 @@ public data class OtherLoTEPointer(
 
 @Serializable
 public data class LoTEQualifier(
-    @SerialName(ETSI19602.LOTE_TYPE) val type: LoTEType,
+    @SerialName(ETSI19602.LOTE_TYPE) val type: URI,
     @SerialName(ETSI19602.SCHEME_OPERATOR_NAME) @Required val schemeOperatorName: List<MultilanguageString>,
     @SerialName(ETSI19602.SCHEME_TYPE_COMMUNITY_RULES) val schemeTypeCommunityRules: List<MultiLanguageURI>? = null,
     @SerialName(ETSI19602.SCHEME_TERRITORY) val schemeTerritory: CountryCode? = null,

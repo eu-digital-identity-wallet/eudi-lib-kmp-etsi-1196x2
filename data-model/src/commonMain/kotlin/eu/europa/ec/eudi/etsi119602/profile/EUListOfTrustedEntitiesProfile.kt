@@ -48,7 +48,7 @@ public data class EUListOfTrustedEntitiesProfile(
                 schemeInformation.ensureListAndSchemeInformation(listAndSchemeInformation)
             }
         } catch (e: IllegalStateException) {
-            throw IllegalStateException("Violation of ${listAndSchemeInformation.type.value}: ${e.message}")
+            throw IllegalStateException("Violation of ${listAndSchemeInformation.type}: ${e.message}")
         }
     }
 
@@ -63,7 +63,7 @@ public data class EUListOfTrustedEntitiesProfile(
             }
         }
         if (trustedEntitiesErrors.isNotEmpty()) {
-            throw IllegalStateException("Violation of ${listAndSchemeInformation.type.value}, trusted entities errors: ${trustedEntitiesErrors.map { "${it.key}: ${it.value}" }}")
+            throw IllegalStateException("Violation of ${listAndSchemeInformation.type}, trusted entities errors: ${trustedEntitiesErrors.map { "${it.key}: ${it.value}" }}")
         }
     }
 }
@@ -80,7 +80,7 @@ public data class ListAndSchemeInformationProfile(
     /**
      * The type of the list of trusted entities.
      */
-    val type: LoTEType,
+    val type: URI,
     val statusDeterminationApproach: String,
     val schemeCommunityRules: List<MultiLanguageURI>,
     val schemeTerritory: CountryCode,
@@ -113,7 +113,7 @@ public data class EUTrustedEntitiesProfile(
 
 internal interface ListAndSchemeInformationAssertions {
 
-    fun ListAndSchemeInformation.ensureTypeIs(expected: LoTEType) {
+    fun ListAndSchemeInformation.ensureTypeIs(expected: URI) {
         check(type == expected) {
             "Invalid ${ETSI19602.LOTE_TYPE}. Expected $expected, got $type"
         }
