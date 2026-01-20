@@ -25,7 +25,7 @@ public data class MultilanguageString(
     @SerialName(ETSI19602.STRING_VALUE) @Required val value: String,
 ) {
     init {
-        requireNotBlank(value, ETSI19602.STRING_VALUE)
+        Assertions.requireNotBlank(value, ETSI19602.STRING_VALUE)
         require(MultilingualStringValue.isValid(value)) { "Invalid ${ETSI19602.STRING_VALUE}" }
     }
     public companion object {

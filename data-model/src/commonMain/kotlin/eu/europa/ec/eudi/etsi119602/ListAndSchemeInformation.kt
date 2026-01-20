@@ -80,13 +80,15 @@ internal constructor(
     init {
         versionIdentifier.requireValidVersionIdentifier()
         sequenceNumber.requireValidSequenceNumber()
-        requireNonEmpty(schemeOperatorName, ETSI19602.SCHEME_OPERATOR_NAME)
-        requireNullOrNonEmpty(schemeName, ETSI19602.SCHEME_NAME)
-        requireNullOrNonEmpty(schemeInformationURI, ETSI19602.SCHEME_INFORMATION_URI)
-        requireNullOrNonEmpty(schemeTypeCommunityRules, ETSI19602.SCHEME_TYPE_COMMUNITY_RULES)
-        requireNullOrNonEmpty(policyOrLegalNotice, ETSI19602.POLICY_OR_LEGAL_NOTICE)
-        requireNullOrNonEmpty(distributionPoints, ETSI19602.DISTRIBUTION_POINTS)
-        requireNullOrNonEmpty(schemeExtensions, ETSI19602.SCHEME_EXTENSIONS)
+        with(Assertions) {
+            requireNonEmpty(schemeOperatorName, ETSI19602.SCHEME_OPERATOR_NAME)
+            requireNullOrNonEmpty(schemeName, ETSI19602.SCHEME_NAME)
+            requireNullOrNonEmpty(schemeInformationURI, ETSI19602.SCHEME_INFORMATION_URI)
+            requireNullOrNonEmpty(schemeTypeCommunityRules, ETSI19602.SCHEME_TYPE_COMMUNITY_RULES)
+            requireNullOrNonEmpty(policyOrLegalNotice, ETSI19602.POLICY_OR_LEGAL_NOTICE)
+            requireNullOrNonEmpty(distributionPoints, ETSI19602.DISTRIBUTION_POINTS)
+            requireNullOrNonEmpty(schemeExtensions, ETSI19602.SCHEME_EXTENSIONS)
+        }
     }
 
     /**
@@ -103,14 +105,22 @@ internal constructor(
      */
     @Throws(IllegalStateException::class)
     public fun ensureIsExplicit() {
-        checkNotNull(type, ETSI19602.LOTE_TYPE)
-        checkNotNull(schemeOperatorAddress, ETSI19602.SCHEME_OPERATOR_ADDRESS)
-        checkNotNull(schemeName, ETSI19602.SCHEME_NAME)
-        checkNotNull(schemeInformationURI, ETSI19602.SCHEME_INFORMATION_URI)
-        checkNotNull(statusDeterminationApproach, ETSI19602.STATUS_DETERMINATION_APPROACH)
-        checkNotNull(schemeTypeCommunityRules, ETSI19602.SCHEME_TYPE_COMMUNITY_RULES)
-        checkNotNull(schemeTerritory, ETSI19602.SCHEME_TERRITORY)
-        checkNotNull(policyOrLegalNotice, ETSI19602.POLICY_OR_LEGAL_NOTICE)
+        with(Assertions) {
+            checkNotNull(type, ETSI19602.LOTE_TYPE)
+            checkNotNull(schemeOperatorAddress, ETSI19602.SCHEME_OPERATOR_ADDRESS)
+            checkNotNull(schemeName, ETSI19602.SCHEME_NAME)
+            checkNotNull(schemeInformationURI, ETSI19602.SCHEME_INFORMATION_URI)
+            checkNotNull(statusDeterminationApproach, ETSI19602.STATUS_DETERMINATION_APPROACH)
+            checkNotNull(schemeTypeCommunityRules, ETSI19602.SCHEME_TYPE_COMMUNITY_RULES)
+            checkNotNull(schemeTerritory, ETSI19602.SCHEME_TERRITORY)
+            checkNotNull(policyOrLegalNotice, ETSI19602.POLICY_OR_LEGAL_NOTICE)
+        }
+    }
+    val isExplicit: Boolean get() = try {
+        ensureIsExplicit()
+        true
+    } catch (_: IllegalStateException) {
+        false
     }
 
     /**
@@ -125,11 +135,20 @@ internal constructor(
      */
     @Throws(IllegalStateException::class)
     public fun ensureIsImplicit() {
-        checkIsNull(schemeName, ETSI19602.SCHEME_NAME)
-        checkIsNull(schemeInformationURI, ETSI19602.SCHEME_INFORMATION_URI)
-        checkIsNull(statusDeterminationApproach, ETSI19602.STATUS_DETERMINATION_APPROACH)
-        checkIsNull(schemeTypeCommunityRules, ETSI19602.SCHEME_TYPE_COMMUNITY_RULES)
-        checkIsNull(policyOrLegalNotice, ETSI19602.POLICY_OR_LEGAL_NOTICE)
+        with(Assertions) {
+            checkIsNull(schemeName, ETSI19602.SCHEME_NAME)
+            checkIsNull(schemeInformationURI, ETSI19602.SCHEME_INFORMATION_URI)
+            checkIsNull(statusDeterminationApproach, ETSI19602.STATUS_DETERMINATION_APPROACH)
+            checkIsNull(schemeTypeCommunityRules, ETSI19602.SCHEME_TYPE_COMMUNITY_RULES)
+            checkIsNull(policyOrLegalNotice, ETSI19602.POLICY_OR_LEGAL_NOTICE)
+        }
+    }
+
+    val isImplicit: Boolean get() = try {
+        ensureIsImplicit()
+        true
+    } catch (_: IllegalStateException) {
+        false
     }
 
     public companion object {
@@ -215,6 +234,7 @@ internal constructor(
                 schemeExtensions = schemeExtensions,
             )
 
+        @Throws(IllegalArgumentException::class)
         public fun Int.requireValidVersionIdentifier(): Int =
             apply {
                 require(this == ETSI19602.LOTE_VERSION) {
@@ -222,6 +242,7 @@ internal constructor(
                 }
             }
 
+        @Throws(IllegalArgumentException::class)
         public fun Int.requireValidSequenceNumber(): Int =
             apply {
                 require(this >= ETSI19602.INITIAL_SEQUENCE_NUMBER) {
@@ -245,7 +266,7 @@ public data class SchemeOperatorAddress(
     @SerialName(ETSI19602.SCHEME_OPERATOR_ELECTRONIC_ADDRESS) @Required val electronicAddresses: List<MultiLanguageURI>,
 ) {
     init {
-        requireNonEmpty(postalAddresses, ETSI19602.SCHEME_OPERATOR_POSTAL_ADDRESS)
+        Assertions.requireNonEmpty(postalAddresses, ETSI19602.SCHEME_OPERATOR_POSTAL_ADDRESS)
         require(electronicAddresses.size >= 2) {
             "${ETSI19602.SCHEME_OPERATOR_ELECTRONIC_ADDRESS} must contain at least an e-mail and a web-site address"
         }
@@ -288,8 +309,10 @@ public data class OtherLoTEPointer(
     @SerialName(ETSI19602.LOTE_QUALIFIERS) @Required val qualifiers: List<LoTEQualifier>,
 ) {
     init {
-        requireNonEmpty(serviceDigitalIdentities, ETSI19602.SERVICE_DIGITAL_IDENTITIES)
-        requireNonEmpty(qualifiers, ETSI19602.LOTE_QUALIFIERS)
+        with(Assertions) {
+            requireNonEmpty(serviceDigitalIdentities, ETSI19602.SERVICE_DIGITAL_IDENTITIES)
+            requireNonEmpty(qualifiers, ETSI19602.LOTE_QUALIFIERS)
+        }
     }
 }
 
@@ -302,7 +325,9 @@ public data class LoTEQualifier(
     @SerialName(ETSI19602.MIME_TYPE) val mimeType: String,
 ) {
     init {
-        requireNonEmpty(schemeOperatorName, ETSI19602.SCHEME_OPERATOR_NAME)
-        requireNotBlank(mimeType, ETSI19602.MIME_TYPE)
+        with(Assertions) {
+            requireNonEmpty(schemeOperatorName, ETSI19602.SCHEME_OPERATOR_NAME)
+            requireNotBlank(mimeType, ETSI19602.MIME_TYPE)
+        }
     }
 }

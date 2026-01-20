@@ -20,7 +20,7 @@ import java.security.Provider
 import java.security.cert.*
 
 @Throws(CertificateException::class, NoSuchProviderException::class)
-public fun PkiOb.x509Certificate(provider: String? = null): X509Certificate {
+public fun PKIObject.x509Certificate(provider: String? = null): X509Certificate {
     val factory = provider
         ?.let { CertificateFactory.getInstance(X_509, it) }
         ?: CertificateFactory.getInstance(X_509)
@@ -28,10 +28,10 @@ public fun PkiOb.x509Certificate(provider: String? = null): X509Certificate {
 }
 
 @Throws(CertificateException::class, NoSuchProviderException::class)
-public fun PkiOb.x509Certificate(provider: Provider): X509Certificate =
+public fun PKIObject.x509Certificate(provider: Provider): X509Certificate =
     CertificateFactory.getInstance(X_509, provider).x509CertificateOf(this)
 
-private fun CertificateFactory.x509CertificateOf(pkiOb: PkiOb): X509Certificate =
+private fun CertificateFactory.x509CertificateOf(pkiOb: PKIObject): X509Certificate =
     generateCertificate(pkiOb.value.inputStream()) as X509Certificate
 
 private const val X_509 = "X.509"

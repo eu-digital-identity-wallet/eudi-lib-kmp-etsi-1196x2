@@ -163,7 +163,7 @@ internal interface ListAndSchemeInformationAssertions {
     @Throws(IllegalStateException::class)
     fun ListAndSchemeInformation.ensureSchemeCommunityRulesIs(expected: List<MultiLanguageURI>) {
         val actual =
-            checkNotNull(schemeTypeCommunityRules, ETSI19602.SCHEME_TYPE_COMMUNITY_RULES)
+            Assertions.checkNotNull(schemeTypeCommunityRules, ETSI19602.SCHEME_TYPE_COMMUNITY_RULES)
         check(actual.size == expected.size && actual.none { it !in expected }) {
             "Invalid ${ETSI19602.SCHEME_TYPE_COMMUNITY_RULES}. Expected $expected, got $actual"
         }
@@ -208,14 +208,14 @@ internal interface ListAndSchemeInformationAssertions {
     fun ListAndSchemeInformation.ensureHistoricalInformationPeriod(requirement: ValueRequirement<HistoricalInformationPeriod>) {
         when (requirement) {
             is ValueRequirement.Required -> {
-                checkNotNull(historicalInformationPeriod, ETSI19602.HISTORICAL_INFORMATION_PERIOD)
+                Assertions.checkNotNull(historicalInformationPeriod, ETSI19602.HISTORICAL_INFORMATION_PERIOD)
                 check(historicalInformationPeriod == requirement.requirement) {
                     "Invalid ${ETSI19602.HISTORICAL_INFORMATION_PERIOD}. Expected $requirement, got $historicalInformationPeriod"
                 }
             }
 
             is ValueRequirement.Absent ->
-                checkIsNull(historicalInformationPeriod, ETSI19602.HISTORICAL_INFORMATION_PERIOD)
+                Assertions.checkIsNull(historicalInformationPeriod, ETSI19602.HISTORICAL_INFORMATION_PERIOD)
         }
     }
 
@@ -252,7 +252,7 @@ internal interface TrustedEntityAssertions {
      */
     @Throws(IllegalStateException::class)
     fun ServiceInformation.ensureServiceTypeIsAnyOf(expectedServiceTypes: Set<URI>) {
-        checkNotNull(typeIdentifier, ETSI19602.SERVICE_TYPE_IDENTIFIER)
+        Assertions.checkNotNull(typeIdentifier, ETSI19602.SERVICE_TYPE_IDENTIFIER)
         check(typeIdentifier in expectedServiceTypes) {
             "Invalid ${ETSI19602.SERVICE_TYPE_IDENTIFIER}. Expected one of $expectedServiceTypes, got $typeIdentifier"
         }
@@ -269,7 +269,7 @@ internal interface TrustedEntityAssertions {
         if (mustContainX509Certificates) {
             // We need to check only that x509Certificates is not null.
             // The ServiceInformation check that if this is not null,
-            checkNotNull(digitalIdentity.x509Certificates, ETSI19602.X509_CERTIFICATES)
+            Assertions.checkNotNull(digitalIdentity.x509Certificates, ETSI19602.X509_CERTIFICATES)
         }
     }
 
@@ -282,11 +282,11 @@ internal interface TrustedEntityAssertions {
     @Throws(IllegalStateException::class)
     fun ServiceInformation.ensureServiceStatusIn(statuses: Set<URI>) {
         if (statuses.isEmpty()) {
-            checkIsNull(status, ETSI19602.SERVICE_STATUS)
-            checkIsNull(statusStartingTime, ETSI19602.STATUS_STARTING_TIME)
+            Assertions.checkIsNull(status, ETSI19602.SERVICE_STATUS)
+            Assertions.checkIsNull(statusStartingTime, ETSI19602.STATUS_STARTING_TIME)
         } else {
-            checkNotNull(status, ETSI19602.SERVICE_STATUS)
-            checkNotNull(statusStartingTime, ETSI19602.STATUS_STARTING_TIME)
+            Assertions.checkNotNull(status, ETSI19602.SERVICE_STATUS)
+            Assertions.checkNotNull(statusStartingTime, ETSI19602.STATUS_STARTING_TIME)
             check(status in statuses) {
                 "Invalid ${ETSI19602.SERVICE_STATUS}. Expected one of $statuses, got $status"
             }

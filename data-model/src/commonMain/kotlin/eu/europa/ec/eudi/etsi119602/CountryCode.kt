@@ -19,7 +19,9 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 @JvmInline
-public value class CountryCode(
+public value class CountryCode
+@Throws(IllegalArgumentException::class)
+public constructor(
     public val value: String,
 ) {
     init {
@@ -34,6 +36,7 @@ public value class CountryCode(
         private val CAPITAL_LETTERS_PATTERN = Regex("^[A-Z]+$")
         private val ISO3166_1_ALPHA_2_PATTERN = Regex("^[A-Z]{2}$")
 
+        @Throws(IllegalArgumentException::class)
         public fun iso3166(value: String): CountryCode {
             require(value.matches(ISO3166_1_ALPHA_2_PATTERN)) { "Invalid ISO 3166-1 alpha-2 code: $value" }
             return CountryCode(value)

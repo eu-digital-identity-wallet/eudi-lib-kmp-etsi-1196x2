@@ -22,17 +22,21 @@ import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 
 @Serializable
-public data class TrustedEntity(
+public data class TrustedEntity
+@Throws(IllegalArgumentException::class)
+public constructor(
     @SerialName(ETSI19602.TRUSTED_ENTITY_INFORMATION) @Required val information: TrustedEntityInformation,
     @SerialName(ETSI19602.TRUSTED_ENTITY_SERVICES) @Required val services: List<TrustedEntityService>,
 ) {
     init {
-        requireNonEmpty(services, ETSI19602.TRUSTED_ENTITY_SERVICES)
+        Assertions.requireNonEmpty(services, ETSI19602.TRUSTED_ENTITY_SERVICES)
     }
 }
 
 @Serializable
-public data class TrustedEntityInformation(
+public data class TrustedEntityInformation
+@Throws(IllegalArgumentException::class)
+public constructor(
     /**
      * The name of the legal entity responsible for the services
      */
@@ -49,20 +53,26 @@ public data class TrustedEntityInformation(
     @SerialName(ETSI19602.TE_TRADE_NAME) val tradeName: List<MultilanguageString>? = null,
 ) {
     init {
-        requireNonEmpty(name, ETSI19602.TE_NAME)
-        requireNullOrNonEmpty(tradeName, ETSI19602.TE_TRADE_NAME)
-        requireNonEmpty(informationURI, ETSI19602.TE_INFORMATION_URI)
+        with(Assertions) {
+            requireNonEmpty(name, ETSI19602.TE_NAME)
+            requireNullOrNonEmpty(tradeName, ETSI19602.TE_TRADE_NAME)
+            requireNonEmpty(informationURI, ETSI19602.TE_INFORMATION_URI)
+        }
     }
 }
 
 @Serializable
-public data class TEAddress(
+public data class TEAddress
+@Throws(IllegalArgumentException::class)
+public constructor(
     @SerialName(ETSI19602.TE_POSTAL_ADDRESS) @Required val postalAddresses: List<PostalAddress>,
     @SerialName(ETSI19602.TE_ELECTRONIC_ADDRESS) @Required val electronicAddresses: List<MultiLanguageURI>,
 ) {
     init {
-        requireNonEmpty(postalAddresses, ETSI19602.TE_POSTAL_ADDRESS)
-        requireNonEmpty(electronicAddresses, ETSI19602.TE_ELECTRONIC_ADDRESS)
+        with(Assertions) {
+            requireNonEmpty(postalAddresses, ETSI19602.TE_POSTAL_ADDRESS)
+            requireNonEmpty(electronicAddresses, ETSI19602.TE_ELECTRONIC_ADDRESS)
+        }
     }
 }
 
@@ -73,7 +83,9 @@ public data class TrustedEntityService(
 )
 
 @Serializable
-public data class ServiceInformation(
+public data class ServiceInformation
+@Throws(IllegalArgumentException::class)
+public constructor(
     @SerialName(ETSI19602.SERVICE_NAME) @Required val name: List<MultilanguageString>,
     @SerialName(ETSI19602.SERVICE_DIGITAL_IDENTITY) @Required val digitalIdentity: ServiceDigitalIdentity,
     @SerialName(ETSI19602.SERVICE_TYPE_IDENTIFIER) val typeIdentifier: URI? = null,
@@ -85,14 +97,18 @@ public data class ServiceInformation(
     @SerialName(ETSI19602.SERVICE_INFORMATION_EXTENSIONS) val informationExtensions: JsonArray? = null,
 ) {
     init {
-        requireNonEmpty(name, ETSI19602.SERVICE_NAME)
-        requireNullOrNonEmpty(supplyPoints, ETSI19602.SERVICE_SUPPLY_POINTS)
-        requireNullOrNonEmpty(schemeServiceDefinitionURI, ETSI19602.SCHEME_SERVICE_DEFINITION_URI)
-        requireNullOrNonEmpty(definitionURI, ETSI19602.SERVICE_DEFINITION_URI)
-        requireNullOrNonEmpty(informationExtensions, ETSI19602.SERVICE_INFORMATION_EXTENSIONS)
+        with(Assertions) {
+            requireNonEmpty(name, ETSI19602.SERVICE_NAME)
+            requireNullOrNonEmpty(supplyPoints, ETSI19602.SERVICE_SUPPLY_POINTS)
+            requireNullOrNonEmpty(schemeServiceDefinitionURI, ETSI19602.SCHEME_SERVICE_DEFINITION_URI)
+            requireNullOrNonEmpty(definitionURI, ETSI19602.SERVICE_DEFINITION_URI)
+            requireNullOrNonEmpty(informationExtensions, ETSI19602.SERVICE_INFORMATION_EXTENSIONS)
+        }
     }
 }
 
+// TODO ServiceHistory
+//  Define the data model of ServiceHistory
 public typealias ServiceHistory = JsonElement
 public typealias URI = String
 
@@ -102,7 +118,9 @@ public data class ServiceSupplyPointURI(
     @SerialName(ETSI19602.SERVICE_SUPPLY_POINT_URI_TYPE) val serviceType: URI? = null,
 ) {
     init {
-        requireNotBlank(uriValue, ETSI19602.SERVICE_SUPPLY_POINT_URI_VALUE)
-        requireNullOrNotBlank(serviceType, ETSI19602.SERVICE_SUPPLY_POINT_URI_TYPE)
+        with(Assertions) {
+            requireNotBlank(uriValue, ETSI19602.SERVICE_SUPPLY_POINT_URI_VALUE)
+            requireNullOrNotBlank(serviceType, ETSI19602.SERVICE_SUPPLY_POINT_URI_TYPE)
+        }
     }
 }

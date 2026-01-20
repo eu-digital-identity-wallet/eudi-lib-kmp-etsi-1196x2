@@ -19,7 +19,7 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
 import kotlin.test.Test
 
-class PkiObTest {
+class PKIObjectTest {
 
     @Test
     fun happyPath() {
@@ -29,7 +29,7 @@ class PkiObTest {
         }
         """.trimIndent()
 
-        val pkiOb = Json.decodeFromString<PkiOb>(json)
+        val pkiOb = Json.decodeFromString<PKIObject>(json)
         val x509Certificate = pkiOb.x509Certificate()
         println(x509Certificate)
     }

@@ -19,9 +19,11 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 @JvmInline
-public value class Language(public val value: String) {
+public value class Language
+@Throws(IllegalArgumentException::class)
+public constructor(public val value: String) {
     init {
-        requireNotBlank(value, ETSI19602.LANG)
+        Assertions.requireNotBlank(value, ETSI19602.LANG)
         require(value.matches(ALPHA_2_PATTERN)) { "Invalid ${ETSI19602.LANG}" }
     }
 

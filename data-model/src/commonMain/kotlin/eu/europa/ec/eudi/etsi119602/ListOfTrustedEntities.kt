@@ -20,13 +20,14 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 @Serializable
-public data class ListOfTrustedEntities(
+public data class ListOfTrustedEntities
+public constructor(
     @SerialName(ETSI19602.LIST_AND_SCHEME_INFORMATION) @Required val schemeInformation: ListAndSchemeInformation,
     @SerialName(ETSI19602.TRUSTED_ENTITIES_LIST) val entities: List<TrustedEntity>? = null,
 ) {
     init {
         if (entities != null) {
-            requireNonEmpty(entities, ETSI19602.TRUSTED_ENTITIES_LIST)
+            Assertions.requireNonEmpty(entities, ETSI19602.TRUSTED_ENTITIES_LIST)
         }
     }
 }

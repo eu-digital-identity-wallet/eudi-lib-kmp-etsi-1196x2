@@ -15,15 +15,29 @@
  */
 package eu.europa.ec.eudi.etsi119602
 
+import java.security.Provider
 import java.security.cert.X509Certificate
 
-public fun ListOfTrustedEntities.certificatesOf(serviceTypeIdentifier: URI): List<X509Certificate> =
+public fun ListOfTrustedEntities.certificatesOf(
+    serviceTypeIdentifier: URI,
+    provider: String? = null,
+): List<X509Certificate> =
+    pkiObjsOf(serviceTypeIdentifier) { pkiObj -> pkiObj.x509Certificate(provider) }
+
+public fun ListOfTrustedEntities.certificatesOf(
+    serviceTypeIdentifier: URI,
+    provider: Provider,
+): List<X509Certificate> =
+    pkiObjsOf(serviceTypeIdentifier) { pkiObj -> pkiObj.x509Certificate(provider) }
+
+private fun <T> ListOfTrustedEntities.pkiObjsOf(serviceTypeIdentifier: URI, f: (PKIObject) -> T): List<T> =
     buildList {
         entities?.forEach { entity ->
             entity.services.forEach { service ->
-                if (service.information.typeIdentifier == serviceTypeIdentifier) {
-                    service.information.digitalIdentity.x509Certificates?.forEach { pkiObj ->
-                        add(pkiObj.x509Certificate())
+                val srvInformation = service.information
+                if (srvInformation.typeIdentifier == serviceTypeIdentifier) {
+                    srvInformation.digitalIdentity.x509Certificates?.forEach { pkiObj ->
+                        add(f(pkiObj))
                     }
                 }
             }
