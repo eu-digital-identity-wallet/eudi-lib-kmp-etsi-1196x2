@@ -204,7 +204,7 @@ mavenPublishing {
 
     coordinates(
         groupId = group.toString(),
-        artifactId = "eudi-lib-kmp-etsi-119602",
+        artifactId = "eudi-lib-kmp-etsi-119602-data-model",
         version = version.toString(),
     )
 

@@ -84,6 +84,11 @@ class IsChainTrustedJvm(
 fun interface GetTrustAnchorsByVerification {
     suspend operator fun invoke(signatureVerification: IsChainTrusted.SignatureVerification): Set<TrustAnchor>
 
+    operator fun plus(other: GetTrustAnchorsByVerification): GetTrustAnchorsByVerification =
+        GetTrustAnchorsByVerification { signatureVerification ->
+            this.invoke(signatureVerification) + other.invoke(signatureVerification)
+        }
+
     companion object {
         fun usingLoTE(
             getListByProfile: GetListByProfile,
@@ -91,7 +96,7 @@ fun interface GetTrustAnchorsByVerification {
         ): GetTrustAnchorsByVerification =
             GetTrustAnchorsByVerification { signatureVerification ->
                 suspend fun EUListOfTrustedEntitiesProfile.getList(): ListOfTrustedEntities =
-                    getListByProfile(this).also { it.ensureProfile() }
+                    getListByProfile(this.listAndSchemeInformation.type).also { it.ensureProfile() }
 
                 val profile = signatureVerification.profile
                 val serviceType = signatureVerification.serviceType()
@@ -112,5 +117,17 @@ fun interface CreateTrustAnchor {
 }
 
 fun interface GetListByProfile {
-    suspend operator fun invoke(profile: EUListOfTrustedEntitiesProfile): ListOfTrustedEntities
+    suspend operator fun invoke(loteType: LoTEType): ListOfTrustedEntities
 }
+
+data class LoTERemoteRegistry(
+    val locations: Map<LoTEType, Pair<URI, X509Certificate>>,
+)
+
+data class LoteRepoEntity(
+    val loteType: LoTEType,
+    val version: Int,
+    val content: String,
+    val listIssueDateTime: LoTEDateTime,
+    val nextUpdate: LoTEDateTime,
+)

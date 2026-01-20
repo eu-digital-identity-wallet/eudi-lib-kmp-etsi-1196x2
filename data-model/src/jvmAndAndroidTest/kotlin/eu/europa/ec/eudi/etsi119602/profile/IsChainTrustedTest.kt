@@ -18,8 +18,10 @@ package eu.europa.ec.eudi.etsi119602.profile
 import eu.europa.ec.eudi.etsi119602.DIGIT
 import eu.europa.ec.eudi.etsi119602.JwtUtil
 import eu.europa.ec.eudi.etsi119602.ListOfTrustedEntities
+import eu.europa.ec.eudi.etsi119602.LoTEType
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
+import org.graalvm.compiler.lir.profiling.MoveProfiler.profile
 import kotlin.test.Test
 
 class IsChainTrustedTest {
@@ -37,8 +39,8 @@ class IsChainTrustedTest {
 }
 
 private object DownloadFromDIGIT : GetListByProfile {
-    override suspend fun invoke(profile: EUListOfTrustedEntitiesProfile): ListOfTrustedEntities {
-        val (_, jwt) = DIGIT.fetchLists { it == profile }.first()
+    override suspend fun invoke(loteType: LoTEType): ListOfTrustedEntities {
+        val (_, jwt) = DIGIT.fetchLists { it.listAndSchemeInformation.type == loteType }.first()
         return JwtUtil.loteOfJwt(jwt)
     }
 }
