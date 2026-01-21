@@ -60,8 +60,7 @@ public class ValidateCertificateChainJvm(
             CertificateFactory.getInstance(X_509, provider)
 
         private const val PKIX = "PKIX"
-        internal fun revocationEnabled(enabled: Boolean): PKIXParameters.() -> Unit = { isRevocationEnabled = enabled }
-        internal val DEFAULT_CUSTOMIZATION: PKIXParameters.() -> Unit = revocationEnabled(false)
+        internal val DEFAULT_CUSTOMIZATION: PKIXParameters.() -> Unit = { }
         public fun pkixCertValidator(provider: Provider): CertPathValidator =
             CertPathValidator.getInstance(PKIX, provider)
     }

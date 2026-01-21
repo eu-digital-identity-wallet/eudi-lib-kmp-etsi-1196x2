@@ -19,7 +19,7 @@ import eu.europa.ec.eudi.etsi119602.PKIObject
 import eu.europa.ec.eudi.etsi119602.URI
 import eu.europa.ec.eudi.etsi119602.profile.EUListOfTrustedEntitiesProfile
 
-public fun interface CreateTrustAnchor<out TRUST_ANCHOR : Any> {
+public fun interface TrustAnchorCreatorByVerificationContext<out TRUST_ANCHOR : Any> {
 
     public operator fun invoke(
         profile: EUListOfTrustedEntitiesProfile,
@@ -27,7 +27,7 @@ public fun interface CreateTrustAnchor<out TRUST_ANCHOR : Any> {
     ): (PKIObject) -> TRUST_ANCHOR
 
     public operator fun invoke(
-        verificationContext: IsChainTrusted.VerificationContext,
+        verificationContext: VerificationContext,
     ): (PKIObject) -> TRUST_ANCHOR {
         val profile = verificationContext.profile
         val serviceType = verificationContext.serviceType()

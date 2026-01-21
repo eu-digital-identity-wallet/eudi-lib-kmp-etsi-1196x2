@@ -15,8 +15,11 @@
  */
 package eu.europa.ec.eudi.etsi119602.consultation
 
+import eu.europa.ec.eudi.etsi119602.ListOfTrustedEntities
+import eu.europa.ec.eudi.etsi119602.profile.EUListOfTrustedEntitiesProfile
+
 public fun interface GetTrustAnchorsByVerificationContext<out TRUST_ANCHOR : Any> {
-    public suspend operator fun invoke(verificationContext: IsChainTrusted.VerificationContext): Set<TRUST_ANCHOR>
+    public suspend operator fun invoke(verificationContext: VerificationContext): Set<TRUST_ANCHOR>
 
     public operator fun plus(other: GetTrustAnchorsByVerificationContext<@UnsafeVariance TRUST_ANCHOR>): GetTrustAnchorsByVerificationContext<TRUST_ANCHOR> =
         GetTrustAnchorsByVerificationContext { signatureVerification ->
@@ -26,26 +29,45 @@ public fun interface GetTrustAnchorsByVerificationContext<out TRUST_ANCHOR : Any
     public companion object {
         public fun <TRUST_ANCHOR : Any> usingLoTE(
             getListByProfile: GetListByProfile,
-            createTrustAnchor: CreateTrustAnchor<TRUST_ANCHOR>,
+            trustAnchorCreatorByVerificationContext: TrustAnchorCreatorByVerificationContext<TRUST_ANCHOR>,
         ): GetTrustAnchorsByVerificationContext<TRUST_ANCHOR> =
-            GetTrustAnchorsByVerificationContext { signatureVerification ->
-                val profile = signatureVerification.profile
-                val serviceType = signatureVerification.serviceType()
-                val listOfTrustedEntities = getListByProfile(profile)
-                checkNotNull(listOfTrustedEntities) { "Unable to find List of Trusted Entities for ${profile.listAndSchemeInformation.type}" }
-                val trustAnchorFactory = createTrustAnchor(profile, serviceType)
-                buildSet {
-                    listOfTrustedEntities.entities?.forEach { entity ->
-                        entity.services.forEach { service ->
-                            val srvInformation = service.information
-                            if (srvInformation.typeIdentifier == serviceType) {
-                                srvInformation.digitalIdentity.x509Certificates?.forEach { pkiObj ->
-                                    add(trustAnchorFactory(pkiObj))
-                                }
-                            }
+            UsingLote(getListByProfile, trustAnchorCreatorByVerificationContext)
+    }
+}
+
+internal class UsingLote<out TRUST_ANCHOR : Any>(
+    private val getListByProfile: GetListByProfile,
+    private val trustAnchorCreatorByVerificationContext: TrustAnchorCreatorByVerificationContext<TRUST_ANCHOR>,
+) : GetTrustAnchorsByVerificationContext<TRUST_ANCHOR> {
+
+    override suspend fun invoke(verificationContext: VerificationContext): Set<TRUST_ANCHOR> {
+        val profile = verificationContext.profile
+        val serviceType = verificationContext.serviceType()
+        val listOfTrustedEntities = listOf(profile)
+        return listOfTrustedEntities.trustAnchorsOfType(profile, serviceType)
+    }
+
+    @Throws(IllegalStateException::class)
+    private suspend fun listOf(profile: EUListOfTrustedEntitiesProfile): ListOfTrustedEntities {
+        val lote = getListByProfile(profile)
+        return checkNotNull(lote) { "Unable to find List of Trusted Entities for ${profile.listAndSchemeInformation.type}" }
+    }
+
+    private fun ListOfTrustedEntities.trustAnchorsOfType(
+        profile: EUListOfTrustedEntitiesProfile,
+        serviceType: String,
+    ): Set<TRUST_ANCHOR> =
+        buildSet {
+            val createTrustAnchor = trustAnchorCreatorByVerificationContext(profile, serviceType)
+            entities?.forEach { entity ->
+                entity.services.forEach { service ->
+                    val srvInformation = service.information
+                    if (srvInformation.typeIdentifier == serviceType) {
+                        srvInformation.digitalIdentity.x509Certificates?.forEach { pkiObj ->
+                            add(createTrustAnchor(pkiObj))
                         }
                     }
                 }
             }
-    }
+        }
 }
