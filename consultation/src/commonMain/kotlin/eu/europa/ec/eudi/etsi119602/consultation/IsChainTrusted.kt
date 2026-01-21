@@ -15,8 +15,6 @@
  */
 package eu.europa.ec.eudi.etsi119602.consultation
 
-import eu.europa.ec.eudi.etsi119602.profile.*
-
 /**
  * Interface for checking the trustworthiness of a certificate chain
  * in the context of a specific [verification][VerificationContext]
@@ -49,10 +47,10 @@ public fun interface IsChainTrusted<in CHAIN : Any> {
 
         public fun <CHAIN : Any, TRUST_ANCHOR : Any> usingLoTE(
             validateCertificateChain: ValidateCertificateChain<CHAIN, TRUST_ANCHOR>,
-            getListByProfile: GetListByProfile,
+            getListOfTrustedEntitiesByType: GetListOfTrustedEntitiesByType,
             trustAnchorCreatorByVerificationContext: TrustAnchorCreatorByVerificationContext<TRUST_ANCHOR>,
         ): IsChainTrusted<CHAIN> =
-            invoke(validateCertificateChain, GetTrustAnchorsByVerificationContext.usingLoTE(getListByProfile, trustAnchorCreatorByVerificationContext))
+            invoke(validateCertificateChain, GetTrustAnchorsByVerificationContext.usingLoTE(getListOfTrustedEntitiesByType, trustAnchorCreatorByVerificationContext))
     }
 }
 

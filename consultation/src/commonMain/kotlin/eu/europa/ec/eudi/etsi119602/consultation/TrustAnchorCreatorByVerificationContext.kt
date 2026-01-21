@@ -16,21 +16,7 @@
 package eu.europa.ec.eudi.etsi119602.consultation
 
 import eu.europa.ec.eudi.etsi119602.PKIObject
-import eu.europa.ec.eudi.etsi119602.URI
-import eu.europa.ec.eudi.etsi119602.profile.EUListOfTrustedEntitiesProfile
 
 public fun interface TrustAnchorCreatorByVerificationContext<out TRUST_ANCHOR : Any> {
-
-    public operator fun invoke(
-        profile: EUListOfTrustedEntitiesProfile,
-        serviceType: URI,
-    ): (PKIObject) -> TRUST_ANCHOR
-
-    public operator fun invoke(
-        verificationContext: VerificationContext,
-    ): (PKIObject) -> TRUST_ANCHOR {
-        val profile = verificationContext.profile
-        val serviceType = verificationContext.serviceType()
-        return invoke(profile, serviceType)
-    }
+    public operator fun invoke(verificationContext: VerificationContext): (PKIObject) -> TRUST_ANCHOR
 }

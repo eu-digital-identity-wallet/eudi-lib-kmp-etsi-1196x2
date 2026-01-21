@@ -16,6 +16,7 @@
 package eu.europa.ec.eudi.etsi119602.consultation
 
 import eu.europa.ec.eudi.etsi119602.ListOfTrustedEntities
+import eu.europa.ec.eudi.etsi119602.PKIObject
 import eu.europa.ec.eudi.etsi119602.profile.EUListOfTrustedEntitiesProfile
 
 public fun interface GetTrustAnchorsByVerificationContext<out TRUST_ANCHOR : Any> {
@@ -28,15 +29,15 @@ public fun interface GetTrustAnchorsByVerificationContext<out TRUST_ANCHOR : Any
 
     public companion object {
         public fun <TRUST_ANCHOR : Any> usingLoTE(
-            getListByProfile: GetListByProfile,
+            getListOfTrustedEntitiesByType: GetListOfTrustedEntitiesByType,
             trustAnchorCreatorByVerificationContext: TrustAnchorCreatorByVerificationContext<TRUST_ANCHOR>,
         ): GetTrustAnchorsByVerificationContext<TRUST_ANCHOR> =
-            UsingLote(getListByProfile, trustAnchorCreatorByVerificationContext)
+            UsingLote(getListOfTrustedEntitiesByType, trustAnchorCreatorByVerificationContext)
     }
 }
 
 internal class UsingLote<out TRUST_ANCHOR : Any>(
-    private val getListByProfile: GetListByProfile,
+    private val getListOfTrustedEntitiesByType: GetListOfTrustedEntitiesByType,
     private val trustAnchorCreatorByVerificationContext: TrustAnchorCreatorByVerificationContext<TRUST_ANCHOR>,
 ) : GetTrustAnchorsByVerificationContext<TRUST_ANCHOR> {
 
@@ -44,27 +45,29 @@ internal class UsingLote<out TRUST_ANCHOR : Any>(
         val profile = verificationContext.profile
         val serviceType = verificationContext.serviceType()
         val listOfTrustedEntities = listOf(profile)
-        return listOfTrustedEntities.trustAnchorsOfType(profile, serviceType)
+        val trustAnchorCreator = trustAnchorCreatorByVerificationContext(verificationContext)
+        return listOfTrustedEntities.trustAnchorsOfType(serviceType, trustAnchorCreator)
     }
 
     @Throws(IllegalStateException::class)
     private suspend fun listOf(profile: EUListOfTrustedEntitiesProfile): ListOfTrustedEntities {
-        val lote = getListByProfile(profile)
-        return checkNotNull(lote) { "Unable to find List of Trusted Entities for ${profile.listAndSchemeInformation.type}" }
+        val lote = getListOfTrustedEntitiesByType(profile.listAndSchemeInformation.type)
+        checkNotNull(lote) { "Unable to find List of Trusted Entities for ${profile.listAndSchemeInformation.type}" }
+        with(profile) { lote.ensureCompliesToProfile() }
+        return lote
     }
 
     private fun ListOfTrustedEntities.trustAnchorsOfType(
-        profile: EUListOfTrustedEntitiesProfile,
         serviceType: String,
+        trustAnchorCreator: (PKIObject) -> TRUST_ANCHOR,
     ): Set<TRUST_ANCHOR> =
         buildSet {
-            val createTrustAnchor = trustAnchorCreatorByVerificationContext(profile, serviceType)
             entities?.forEach { entity ->
                 entity.services.forEach { service ->
                     val srvInformation = service.information
                     if (srvInformation.typeIdentifier == serviceType) {
                         srvInformation.digitalIdentity.x509Certificates?.forEach { pkiObj ->
-                            add(createTrustAnchor(pkiObj))
+                            add(trustAnchorCreator(pkiObj))
                         }
                     }
                 }

@@ -32,13 +32,15 @@ public fun IsChainTrusted.Companion.jvm(
 
 public fun IsChainTrusted.Companion.jvmUsingLoTE(
     validateCertificateChain: ValidateCertificateChainJvm,
-    getListByProfile: GetListByProfile,
-    trustAnchorCreatorByVerificationContext: TrustAnchorCreatorByVerificationContext<TrustAnchor> = createTrustAnchorWithNoNameConstraints(validateCertificateChain.certificateFactory),
+    getListOfTrustedEntitiesByType: GetListOfTrustedEntitiesByType,
+    trustAnchorCreatorByVerificationContext: TrustAnchorCreatorByVerificationContext<TrustAnchor> = createTrustAnchorWithNoNameConstraints(
+        validateCertificateChain.certificateFactory,
+    ),
 ): IsChainTrusted<List<X509Certificate>> =
-    usingLoTE(validateCertificateChain, getListByProfile, trustAnchorCreatorByVerificationContext)
+    usingLoTE(validateCertificateChain, getListOfTrustedEntitiesByType, trustAnchorCreatorByVerificationContext)
 
 public fun createTrustAnchorWithNoNameConstraints(factory: CertificateFactory): TrustAnchorCreatorByVerificationContext<TrustAnchor> =
-    TrustAnchorCreatorByVerificationContext { _, _ ->
+    TrustAnchorCreatorByVerificationContext { _ ->
         { pkiObj ->
             val certificate = factory.x509CertificateOf(pkiObj)
             TrustAnchor(certificate, null)

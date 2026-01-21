@@ -17,10 +17,7 @@ package eu.europa.ec.eudi.etsi119602.consultation
 
 import eu.europa.ec.eudi.etsi119602.ListOfTrustedEntities
 import eu.europa.ec.eudi.etsi119602.URI
-import eu.europa.ec.eudi.etsi119602.profile.EUListOfTrustedEntitiesProfile
 
-public fun interface GetListByProfile {
+public fun interface GetListOfTrustedEntitiesByType {
     public suspend operator fun invoke(loteType: URI): ListOfTrustedEntities?
-    public suspend operator fun invoke(profile: EUListOfTrustedEntitiesProfile): ListOfTrustedEntities? =
-        invoke(profile.listAndSchemeInformation.type).also { with(profile) { it?.ensureCompliesToProfile() } }
 }
