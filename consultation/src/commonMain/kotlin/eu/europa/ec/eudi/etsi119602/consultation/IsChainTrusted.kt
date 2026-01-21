@@ -20,13 +20,13 @@ import eu.europa.ec.eudi.etsi119602.profile.*
 
 /**
  * Interface for checking the trustworthiness of a certificate chain
- * in the context of a specific [verification][SignatureVerification]
+ * in the context of a specific [verification][VerificationContext]
  *
  * @param CHAIN type representing a certificate chain
  */
 public fun interface IsChainTrusted<in CHAIN : Any> {
 
-    public enum class SignatureVerification {
+    public enum class VerificationContext {
         /**
          * Check the wallet provider's signature for a WIA
          * Can be used by an Authorization Server implementing
@@ -111,12 +111,30 @@ public fun interface IsChainTrusted<in CHAIN : Any> {
      * specific verification
      *
      * @param chain certificate chain to check
-     * @param signatureVerification verification context
+     * @param verificationContext verification context
      */
     public suspend operator fun invoke(
         chain: CHAIN,
-        signatureVerification: SignatureVerification,
+        verificationContext: VerificationContext,
     ): ValidateCertificateChain.Outcome
+
+    public companion object {
+        public operator fun <CHAIN : Any, TRUST_ANCHOR : Any> invoke(
+            validateCertificateChain: ValidateCertificateChain<CHAIN, TRUST_ANCHOR>,
+            getTrustAnchorsByVerificationContext: GetTrustAnchorsByVerificationContext<TRUST_ANCHOR>,
+        ): IsChainTrusted<CHAIN> =
+            IsChainTrusted { chain, signatureVerification ->
+                val trustAnchors = getTrustAnchorsByVerificationContext(signatureVerification)
+                validateCertificateChain(chain, trustAnchors)
+            }
+
+        public fun <CHAIN : Any, TRUST_ANCHOR : Any> usingLoTE(
+            validateCertificateChain: ValidateCertificateChain<CHAIN, TRUST_ANCHOR>,
+            getListByProfile: GetListByProfile,
+            createTrustAnchor: CreateTrustAnchor<TRUST_ANCHOR>,
+        ): IsChainTrusted<CHAIN> =
+            invoke(validateCertificateChain, GetTrustAnchorsByVerificationContext.usingLoTE(getListByProfile, createTrustAnchor))
+    }
 }
 
 public inline fun <C : Any, C1 : Any> IsChainTrusted<C>.contraMap(crossinline f: (C1) -> C): IsChainTrusted<C1> =
@@ -125,55 +143,55 @@ public inline fun <C : Any, C1 : Any> IsChainTrusted<C>.contraMap(crossinline f:
 /**
  * Associate a List of Trusted Entities Profile with a verification context
  */
-public val IsChainTrusted.SignatureVerification.profile: EUListOfTrustedEntitiesProfile
+public val IsChainTrusted.VerificationContext.profile: EUListOfTrustedEntitiesProfile
     get() = when (this) {
-        IsChainTrusted.SignatureVerification.EU_WIA,
-        IsChainTrusted.SignatureVerification.EU_WUA,
-        IsChainTrusted.SignatureVerification.EU_WUA_STATUS,
+        IsChainTrusted.VerificationContext.EU_WIA,
+        IsChainTrusted.VerificationContext.EU_WUA,
+        IsChainTrusted.VerificationContext.EU_WUA_STATUS,
         -> EUWalletProvidersList
 
-        IsChainTrusted.SignatureVerification.EU_PID,
-        IsChainTrusted.SignatureVerification.EU_PID_STATUS,
+        IsChainTrusted.VerificationContext.EU_PID,
+        IsChainTrusted.VerificationContext.EU_PID_STATUS,
         -> EUPIDProvidersList
 
-        IsChainTrusted.SignatureVerification.EU_PUB_EAA,
-        IsChainTrusted.SignatureVerification.EU_PUB_EAA_STATUS,
+        IsChainTrusted.VerificationContext.EU_PUB_EAA,
+        IsChainTrusted.VerificationContext.EU_PUB_EAA_STATUS,
         -> EUPubEAAProvidersList
 
-        IsChainTrusted.SignatureVerification.EU_WRPRC,
-        IsChainTrusted.SignatureVerification.EU_WRPRC_STATUS,
+        IsChainTrusted.VerificationContext.EU_WRPRC,
+        IsChainTrusted.VerificationContext.EU_WRPRC_STATUS,
         -> EUWRPRCProvidersList
 
-        IsChainTrusted.SignatureVerification.EU_WRPAC,
-        IsChainTrusted.SignatureVerification.EU_WRPAC_STATUS,
+        IsChainTrusted.VerificationContext.EU_WRPAC,
+        IsChainTrusted.VerificationContext.EU_WRPAC_STATUS,
         -> EUWRPACProvidersList
 
-        IsChainTrusted.SignatureVerification.EU_MDL,
-        IsChainTrusted.SignatureVerification.EU_MDL_STATUS,
+        IsChainTrusted.VerificationContext.EU_MDL,
+        IsChainTrusted.VerificationContext.EU_MDL_STATUS,
         -> EUMDLProvidersList
     }
 
 /**
  * Associate a Service Type Identifier with a verification context
  */
-public fun IsChainTrusted.SignatureVerification.serviceType(): URI {
+public fun IsChainTrusted.VerificationContext.serviceType(): URI {
     val suffix = run {
         val issuance = "Issuance"
         val revocation = "Revocation"
         when (this) {
-            IsChainTrusted.SignatureVerification.EU_WIA -> issuance
-            IsChainTrusted.SignatureVerification.EU_WUA -> issuance
-            IsChainTrusted.SignatureVerification.EU_WUA_STATUS -> revocation
-            IsChainTrusted.SignatureVerification.EU_PID -> issuance
-            IsChainTrusted.SignatureVerification.EU_PID_STATUS -> revocation
-            IsChainTrusted.SignatureVerification.EU_PUB_EAA -> issuance
-            IsChainTrusted.SignatureVerification.EU_PUB_EAA_STATUS -> revocation
-            IsChainTrusted.SignatureVerification.EU_WRPRC -> issuance
-            IsChainTrusted.SignatureVerification.EU_WRPRC_STATUS -> revocation
-            IsChainTrusted.SignatureVerification.EU_WRPAC -> issuance
-            IsChainTrusted.SignatureVerification.EU_WRPAC_STATUS -> revocation
-            IsChainTrusted.SignatureVerification.EU_MDL -> issuance
-            IsChainTrusted.SignatureVerification.EU_MDL_STATUS -> revocation
+            IsChainTrusted.VerificationContext.EU_WIA -> issuance
+            IsChainTrusted.VerificationContext.EU_WUA -> issuance
+            IsChainTrusted.VerificationContext.EU_WUA_STATUS -> revocation
+            IsChainTrusted.VerificationContext.EU_PID -> issuance
+            IsChainTrusted.VerificationContext.EU_PID_STATUS -> revocation
+            IsChainTrusted.VerificationContext.EU_PUB_EAA -> issuance
+            IsChainTrusted.VerificationContext.EU_PUB_EAA_STATUS -> revocation
+            IsChainTrusted.VerificationContext.EU_WRPRC -> issuance
+            IsChainTrusted.VerificationContext.EU_WRPRC_STATUS -> revocation
+            IsChainTrusted.VerificationContext.EU_WRPAC -> issuance
+            IsChainTrusted.VerificationContext.EU_WRPAC_STATUS -> revocation
+            IsChainTrusted.VerificationContext.EU_MDL -> issuance
+            IsChainTrusted.VerificationContext.EU_MDL_STATUS -> revocation
         }
     }
     val result = profile.trustedEntities.serviceTypeIdentifiers.firstOrNull { it.endsWith(suffix) }

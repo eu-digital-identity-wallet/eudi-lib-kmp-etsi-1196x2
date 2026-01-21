@@ -28,6 +28,12 @@ public class ValidateCertificateChainJvm(
     private val customization: PKIXParameters.() -> Unit,
 ) : ValidateCertificateChain<List<X509Certificate>, TrustAnchor> {
 
+    public constructor(customization: PKIXParameters.() -> Unit = DEFAULT_CUSTOMIZATION) :
+        this(X509_CERT_FACTORY, PKIX_CERT_VALIDATOR, customization)
+
+    public constructor(provider: Provider, customization: PKIXParameters.() -> Unit = DEFAULT_CUSTOMIZATION) :
+        this(x509CertFactory(provider), pkixCertValidator(provider), customization)
+
     override suspend fun invoke(
         chain: List<X509Certificate>,
         trustAnchors: Set<TrustAnchor>,
