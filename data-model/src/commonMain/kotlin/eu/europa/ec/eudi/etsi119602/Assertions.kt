@@ -17,30 +17,30 @@ package eu.europa.ec.eudi.etsi119602
 
 import kotlin.contracts.contract
 
-internal object Assertions {
-    internal fun requireNotBlank(
+public object Assertions {
+    public fun requireNotBlank(
         value: String,
         attributeName: String,
     ) {
         require(value.isNotBlank()) { "$attributeName cannot be blank" }
     }
 
-    internal fun requireNullOrNotBlank(
+    public fun requireNullOrNotBlank(
         value: String?,
         attributeName: String,
     ) {
         if (value != null) requireNotBlank(value, attributeName)
     }
 
-    internal fun requireNullOrNonEmpty(list: List<*>?, attributeName: String) {
+    public fun requireNullOrNonEmpty(list: List<*>?, attributeName: String) {
         if (null != list) require(list.isNotEmpty()) { "$attributeName cannot be empty" }
     }
 
-    internal fun requireNonEmpty(list: List<*>, attributeName: String) {
+    public fun requireNonEmpty(list: List<*>, attributeName: String) {
         require(list.isNotEmpty()) { "$attributeName cannot be empty" }
     }
 
-    internal inline fun <reified T : Any> checkNotNull(
+    public inline fun <reified T : Any> checkNotNull(
         value: T?,
         attributeName: String,
     ): T {
@@ -50,7 +50,7 @@ internal object Assertions {
         return checkNotNull(value) { "$attributeName must be set" }
     }
 
-    internal inline fun <reified T : Any> checkIsNull(
+    public inline fun <reified T : Any> checkIsNull(
         value: T?,
         attributeName: String,
     ) {

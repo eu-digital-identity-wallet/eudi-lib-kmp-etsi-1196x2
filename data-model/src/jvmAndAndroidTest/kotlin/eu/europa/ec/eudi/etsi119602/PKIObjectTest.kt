@@ -15,7 +15,6 @@
  */
 package eu.europa.ec.eudi.etsi119602
 
-import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
 import kotlin.test.Test
 
@@ -32,20 +31,5 @@ class PKIObjectTest {
         val pkiOb = Json.decodeFromString<PKIObject>(json)
         val x509Certificate = pkiOb.x509Certificate()
         println(x509Certificate)
-    }
-
-    @Test
-    fun testUsingDIGIT() = runTest {
-        DIGIT.fetchLists().collect { (profile, jwt) ->
-            println("\n\n\n====== ${profile.listAndSchemeInformation.type} ======")
-            val lote = JwtUtil.loteOfJwt(jwt)
-            with(profile) { lote.ensureCompliesToProfile() }
-            val certs = lote.entities.orEmpty()
-                .flatMap { it.services }
-                .flatMap { it.information.digitalIdentity.x509Certificates.orEmpty() }
-                .map { it.x509Certificate() }
-            println("Found ${certs.count()} certificates")
-            certs.forEach { println(it) }
-        }
     }
 }
