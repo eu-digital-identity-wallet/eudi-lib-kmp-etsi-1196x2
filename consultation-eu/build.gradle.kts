@@ -96,6 +96,18 @@ kotlin {
             }
         }
 
+        val jvmAndAndroidMain by getting {
+            dependencies {
+                implementation(libs.dss.jades)
+                implementation(libs.dss.validation)
+                implementation(libs.dss.policy.jaxb)
+                implementation(libs.dss.service)
+                implementation(libs.dss.tsl.validation)
+                implementation(libs.dss.utils)
+                implementation(libs.dss.utils.guava)
+            }
+        }
+
         val jvmAndAndroidTest by getting {
             dependencies {
                 implementation(libs.ktor.client.java)
@@ -118,6 +130,12 @@ android {
 
     defaultConfig {
         minSdk = properties["android.minSdk"].toString().toInt()
+    }
+
+    sourceSets {
+        getByName("test") {
+            resources.srcDirs("src/jvmAndAndroidTest/resources")
+        }
     }
 
     compileOptions {

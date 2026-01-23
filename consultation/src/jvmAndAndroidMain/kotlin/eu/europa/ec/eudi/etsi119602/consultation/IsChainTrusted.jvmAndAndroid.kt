@@ -15,27 +15,52 @@
  */
 package eu.europa.ec.eudi.etsi119602.consultation
 
+import eu.europa.ec.eudi.etsi119602.ListOfTrustedEntities
+import eu.europa.ec.eudi.etsi119602.PKIObject
+import eu.europa.ec.eudi.etsi119602.x509CertificateOf
+import java.security.cert.CertificateFactory
 import java.security.cert.TrustAnchor
 import java.security.cert.X509Certificate
 
 //
 // JVM Implementation
 //
-public fun IsChainTrusted.Companion.jvmUsingLoTE(
+public fun IsChainTrusted.Companion.jvmUsingLoTEs(
     validateCertificateChain: ValidateCertificateChainJvm = ValidateCertificateChainJvm(),
-    trustAnchorCreator: TrustAnchorCreator<TrustAnchor> = TrustAnchorCreator.jvm(validateCertificateChain.certificateFactory),
     getLatestListOfTrustedEntitiesByType: GetLatestListOfTrustedEntitiesByType,
 ): IsChainTrusted<List<X509Certificate>, TrustSource.LoTE> =
-    usingLoTEs(validateCertificateChain, trustAnchorCreator, getLatestListOfTrustedEntitiesByType)
+    invoke(validateCertificateChain) { trustSource ->
+        val trustAnchorCreator =
+            trustAnchorCreatorFromPkiObject(validateCertificateChain.certificateFactory)
+        getLatestListOfTrustedEntitiesByType(trustSource.loteType)?.let { lote ->
+            trustAnchorCreator.trustAnchorsOfType(lote, trustSource.serviceType)
+        }
+    }
 
-public fun IsChainTrusted.Companion.jvmUsingLoTL(
-    validateCertificateChain: ValidateCertificateChainJvm = ValidateCertificateChainJvm(),
-    trustAnchorCreator: TrustAnchorCreator<TrustAnchor> = TrustAnchorCreator.jvm(validateCertificateChain.certificateFactory),
-): IsChainTrusted<List<X509Certificate>, TrustSource.LoTL> =
-    TODO()
+private fun trustAnchorCreatorFromPkiObject(certificateFactory: CertificateFactory) =
+    TrustAnchorCreator.jvm().contraMap<X509Certificate, TrustAnchor, PKIObject> { pkiObj ->
+        certificateFactory.x509CertificateOf(pkiObj)
+    }
+
+internal fun <TRUST_ANCHOR : Any> TrustAnchorCreator<PKIObject, TRUST_ANCHOR>.trustAnchorsOfType(
+    lote: ListOfTrustedEntities,
+    serviceType: String,
+): List<TRUST_ANCHOR> =
+    buildList {
+        lote.entities?.forEach { entity ->
+            entity.services.forEach { service ->
+                val srvInformation = service.information
+                if (srvInformation.typeIdentifier == serviceType) {
+                    srvInformation.digitalIdentity.x509Certificates?.forEach { pkiObj ->
+                        add(invoke(pkiObj))
+                    }
+                }
+            }
+        }
+    }
 
 public fun IsChainTrusted.Companion.jvmUsingKeystore(
     validateCertificateChain: ValidateCertificateChainJvm = ValidateCertificateChainJvm(),
-    trustAnchorCreator: TrustAnchorCreator<TrustAnchor> = TrustAnchorCreator.jvm(validateCertificateChain.certificateFactory),
+    trustAnchorCreator: TrustAnchorCreator<X509Certificate, TrustAnchor> = TrustAnchorCreator.jvm(),
 ): IsChainTrusted<List<X509Certificate>, TrustSource.OutOfBand> =
     TODO()

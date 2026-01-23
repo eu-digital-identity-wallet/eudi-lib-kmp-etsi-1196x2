@@ -15,14 +15,10 @@
  */
 package eu.europa.ec.eudi.etsi119602.consultation
 
-import eu.europa.ec.eudi.etsi119602.x509CertificateOf
-import java.security.cert.CertificateFactory
 import java.security.cert.TrustAnchor
+import java.security.cert.X509Certificate
 
 public fun TrustAnchorCreator.Companion.jvm(
-    certificateFactory: CertificateFactory = JvmSecurity.X509_CERT_FACTORY,
     nameConstraints: ByteArray? = null,
-): TrustAnchorCreator<TrustAnchor> =
-    TrustAnchorCreator { pkiObject ->
-        TrustAnchor(certificateFactory.x509CertificateOf(pkiObject), nameConstraints)
-    }
+): TrustAnchorCreator<X509Certificate, TrustAnchor> =
+    TrustAnchorCreator { cert -> TrustAnchor(cert, nameConstraints) }

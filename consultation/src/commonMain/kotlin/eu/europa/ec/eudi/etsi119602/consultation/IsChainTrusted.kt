@@ -26,21 +26,18 @@ public fun interface IsChainTrusted<in CHAIN : Any, in TRUST_SOURCE : TrustSourc
     public suspend operator fun invoke(chain: CHAIN, trustSource: TRUST_SOURCE): Outcome
 
     public companion object {
-        public fun <CHAIN : Any, TRUST_ANCHOR : Any> usingLoTEs(
+        public operator fun <CHAIN : Any, TRUST_SOURCE : TrustSource, TRUST_ANCHOR : Any> invoke(
             validateCertificateChain: ValidateCertificateChain<CHAIN, TRUST_ANCHOR>,
-            trustAnchorCreator: TrustAnchorCreator<TRUST_ANCHOR>,
-            getLatestListOfTrustedEntitiesByType: GetLatestListOfTrustedEntitiesByType,
-        ): IsChainTrusted<CHAIN, TrustSource.LoTE> = IsChainTrusted { chain, trustSource ->
-            when (val lote = getLatestListOfTrustedEntitiesByType(trustSource.loteType)) {
-                null -> Outcome.TrustSourceNotFound
-                else -> with(trustAnchorCreator) {
-                    val trustAnchors = lote.trustAnchorsOfType(trustSource.serviceType)
-                    when (val outcome = validateCertificateChain(chain, trustAnchors.toSet())) {
+            getTrustAnchorsFromSource: suspend (TRUST_SOURCE) -> List<TRUST_ANCHOR>?,
+        ): IsChainTrusted<CHAIN, TRUST_SOURCE> =
+            IsChainTrusted { chain, trustSource ->
+                when (val trustAnchors = getTrustAnchorsFromSource(trustSource)) {
+                    null -> Outcome.TrustSourceNotFound
+                    else -> when (val outcome = validateCertificateChain(chain, trustAnchors.toSet())) {
                         is ValidateCertificateChain.Outcome.Trusted -> Outcome.Trusted
                         is ValidateCertificateChain.Outcome.Untrusted -> Outcome.NotTrusted(outcome.cause)
                     }
                 }
             }
-        }
     }
 }

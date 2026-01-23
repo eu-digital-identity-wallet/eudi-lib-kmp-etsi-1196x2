@@ -12,6 +12,7 @@ ktlint = "1.2.1"
 dependency-check = "12.1.1"
 kover = "0.9.1"
 dokka = "1.9.20"
+dss = "6.4.RC1"
 
 [libraries]
 kotlinx-serialization-core = { module = "org.jetbrains.kotlinx:kotlinx-serialization-core", version.ref = "kotlinx-serialization" }
@@ -26,6 +27,13 @@ ktor-serialization-json = { module = "io.ktor:ktor-serialization-kotlinx-json", 
 ktor-client-okhttp = { module = "io.ktor:ktor-client-okhttp", version.ref = "ktor" }
 ktor-client-java = { module = "io.ktor:ktor-client-java", version.ref = "ktor" }
 ktor-client-mock = { module = "io.ktor:ktor-client-mock", version.ref = "ktor" }
+dss-jades = { module = "eu.europa.ec.joinup.sd-dss:dss-jades", version.ref = "dss" }
+dss-validation = { module = "eu.europa.ec.joinup.sd-dss:dss-validation", version.ref = "dss" }
+dss-policy-jaxb = { module = "eu.europa.ec.joinup.sd-dss:dss-policy-jaxb", version.ref = "dss" }
+dss-utils = { module = "eu.europa.ec.joinup.sd-dss:dss-utils", version.ref = "dss" }
+dss-service = { module = "eu.europa.ec.joinup.sd-dss:dss-service", version.ref = "dss" }
+dss-tsl-validation = { module = "eu.europa.ec.joinup.sd-dss:dss-tsl-validation", version.ref = "dss" }
+dss-utils-guava = { module = "eu.europa.ec.joinup.sd-dss:dss-utils-google-guava", version.ref = "dss" }
 
 [plugins]
 kotlin-multiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }

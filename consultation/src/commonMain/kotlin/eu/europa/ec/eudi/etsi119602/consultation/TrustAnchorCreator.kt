@@ -15,7 +15,6 @@
  */
 package eu.europa.ec.eudi.etsi119602.consultation
 
-import eu.europa.ec.eudi.etsi119602.ListOfTrustedEntities
 import eu.europa.ec.eudi.etsi119602.PKIObject
 
 /**
@@ -23,22 +22,12 @@ import eu.europa.ec.eudi.etsi119602.PKIObject
  *
  * @param TRUST_ANCHOR the type representing a trust anchor
  */
-public fun interface TrustAnchorCreator<out TRUST_ANCHOR : Any> {
-    public fun invoke(pkiObject: PKIObject): TRUST_ANCHOR
-
-    public fun ListOfTrustedEntities.trustAnchorsOfType(serviceType: String): List<TRUST_ANCHOR> =
-        buildList {
-            entities?.forEach { entity ->
-                entity.services.forEach { service ->
-                    val srvInformation = service.information
-                    if (srvInformation.typeIdentifier == serviceType) {
-                        srvInformation.digitalIdentity.x509Certificates?.forEach { pkiObj ->
-                            add(invoke(pkiObj))
-                        }
-                    }
-                }
-            }
-        }
+public fun interface TrustAnchorCreator<in CERT : Any, out TRUST_ANCHOR : Any> {
+    public fun invoke(cert: CERT): TRUST_ANCHOR
 
     public companion object
 }
+
+public inline fun <CERT : Any, TRUST_ANCHOR : Any, CERT2 : Any> TrustAnchorCreator<CERT, TRUST_ANCHOR>.contraMap(
+    crossinline f: (CERT2) -> CERT,
+): TrustAnchorCreator<CERT2, TRUST_ANCHOR> = TrustAnchorCreator { cert2 -> invoke(f(cert2)) }
