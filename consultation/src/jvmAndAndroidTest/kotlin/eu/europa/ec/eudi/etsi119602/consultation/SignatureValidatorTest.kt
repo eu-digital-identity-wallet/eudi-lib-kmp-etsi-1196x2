@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package eu.europa.ec.eudi.etsi119602.consultation.eu
+package eu.europa.ec.eudi.etsi119602.consultation
 
 import eu.europa.esig.dss.model.DSSDocument
 import eu.europa.esig.dss.model.InMemoryDocument
@@ -60,8 +60,8 @@ class SignatureValidatorTest {
 
     @Test
     fun testDSSSignatureValidator() = runTest {
-        val jwt = SignatureValidatorTest::class.java.classLoader!!.getResourceAsStream("wallet-providers.txt")!!.bufferedReader().use { it.readText() }
-        val certificate = SignatureValidatorTest::class.java.classLoader!!.getResourceAsStream("wallet-providers.cer")!!.use { it.readBytes() }
+        val jwt = Thread.currentThread().contextClassLoader!!.getResourceAsStream("wallet-providers.txt")!!.bufferedReader().use { it.readText() }
+        val certificate = Thread.currentThread().contextClassLoader!!.getResourceAsStream("wallet-providers.cer")!!.use { it.readBytes() }
         val result = DSSSignatureValidator.validate(jwt, certificate)
         assertTrue(result)
     }

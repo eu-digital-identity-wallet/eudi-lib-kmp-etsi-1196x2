@@ -81,6 +81,7 @@ kotlin {
         commonMain {
             dependencies {
                 // Common dependencies
+                api(projects.eudiLibKmpEtsi119602DataModel)
                 api(projects.eudiLibKmpEtsi119602Consultation)
             }
         }
@@ -93,18 +94,6 @@ kotlin {
                 implementation(libs.ktor.client.serialization)
                 implementation(libs.ktor.client.content.negotiation)
                 implementation(libs.ktor.serialization.json)
-            }
-        }
-
-        val jvmAndAndroidMain by getting {
-            dependencies {
-                implementation(libs.dss.jades)
-                implementation(libs.dss.validation)
-                implementation(libs.dss.policy.jaxb)
-                implementation(libs.dss.service)
-                implementation(libs.dss.tsl.validation)
-                implementation(libs.dss.utils)
-                implementation(libs.dss.utils.guava)
             }
         }
 

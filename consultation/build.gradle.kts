@@ -81,7 +81,8 @@ kotlin {
         commonMain {
             dependencies {
                 // Common dependencies
-                api(projects.eudiLibKmpEtsi119602DataModel)
+                api(libs.kotlinx.coroutines.core)
+                api(libs.kotlinx.datetime)
             }
         }
 
@@ -89,6 +90,17 @@ kotlin {
             dependencies {
                 implementation(kotlin("test"))
                 implementation(libs.kotlinx.coroutines.test)
+            }
+        }
+        val jvmAndAndroidMain by getting {
+            dependencies {
+                implementation(libs.dss.jades)
+                implementation(libs.dss.validation)
+                implementation(libs.dss.policy.jaxb)
+                implementation(libs.dss.service)
+                implementation(libs.dss.tsl.validation)
+                implementation(libs.dss.utils)
+                implementation(libs.dss.utils.guava)
             }
         }
     }
@@ -102,6 +114,12 @@ android {
 
     defaultConfig {
         minSdk = properties["android.minSdk"].toString().toInt()
+    }
+
+    sourceSets {
+        getByName("test") {
+            resources.srcDirs("src/commonTest/resources")
+        }
     }
 
     compileOptions {

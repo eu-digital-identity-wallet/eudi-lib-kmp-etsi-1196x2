@@ -13,9 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package eu.europa.ec.eudi.etsi119602.consultation.eu
+package eu.europa.ec.eudi.etsi119602.consultation
 
-import eu.europa.ec.eudi.etsi119602.consultation.*
 import eu.europa.esig.dss.spi.tsl.TrustedListsCertificateSource
 import java.security.cert.TrustAnchor
 import java.security.cert.X509Certificate
