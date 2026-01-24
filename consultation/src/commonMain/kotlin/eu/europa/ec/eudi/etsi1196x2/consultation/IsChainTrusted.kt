@@ -56,6 +56,35 @@ public fun interface IsChainTrusted<in CHAIN : Any, out TRUST_ANCHOR : Any> {
     }
 }
 
+/**
+ * Transforms the input type of the IsChainTrusted instance using the provided function.
+ * @receiver The original IsChainTrusted instance.
+ * @param f The transformation function that maps from C2 to C1.
+ * @return A new IsChainTrusted instance with the input type transformed.
+ */
 public inline fun <C1 : Any, C2 : Any, TC : Any> IsChainTrusted<C1, TC>.contraMap(
     crossinline f: (C2) -> C1,
 ): IsChainTrusted<C2, TC> = IsChainTrusted { chain -> invoke(f(chain)) }
+
+/**
+ * Combines two IsChainTrusted instances into a single one, where the second one is used as a fallback if the first one fails.
+ * @receiver The primary IsChainTrusted instance.
+ * @param other The fallback IsChainTrusted instance.
+ * @return A new IsChainTrusted instance that combines the primary and fallback validators.
+ */
+public infix fun <C1 : Any, TC : Any> IsChainTrusted<C1, TC>.or(
+    other: IsChainTrusted<C1, TC>,
+): IsChainTrusted<C1, TC> =
+    IsChainTrustedWithAlternative(this, other)
+
+private class IsChainTrustedWithAlternative<in CHAIN : Any, out TRUST_ANCHOR : Any>(
+    private val primary: IsChainTrusted<CHAIN, TRUST_ANCHOR>,
+    private val fallback: IsChainTrusted<CHAIN, TRUST_ANCHOR>,
+) : IsChainTrusted<CHAIN, TRUST_ANCHOR> {
+
+    override suspend fun invoke(chain: CHAIN): CertificationChainValidation<TRUST_ANCHOR> =
+        when (val validation = primary(chain)) {
+            is CertificationChainValidation.Trusted<TRUST_ANCHOR> -> validation
+            is CertificationChainValidation.NotTrusted -> fallback(chain)
+        }
+}
