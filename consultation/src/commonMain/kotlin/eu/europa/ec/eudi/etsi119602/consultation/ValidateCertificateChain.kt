@@ -16,7 +16,7 @@
 package eu.europa.ec.eudi.etsi119602.consultation
 
 /**
- * An abstraction for validating a certificate chain
+ * An abstraction for validating a certificate chain, given a set of trust anchors
  *
  * @param CHAIN type representing a certificate chain
  * @param TRUST_ANCHOR type representing a trust anchor
@@ -29,13 +29,16 @@ public fun interface ValidateCertificateChain<in CHAIN : Any, TRUST_ANCHOR : Any
      * @param trustAnchors the set of trust anchors
      * @return the outcome of the validation
      */
-    public suspend operator fun invoke(chain: CHAIN, trustAnchors: Set<TRUST_ANCHOR>): Outcome<TRUST_ANCHOR>
+    public suspend operator fun invoke(chain: CHAIN, trustAnchors: Set<TRUST_ANCHOR>): CertificationChainValidation<TRUST_ANCHOR>
+}
 
-    /**
-     * Represents the outcome of the validation
-     */
-    public sealed interface Outcome<out TRUST_ANCHOR : Any> {
-        public data class Trusted<out TRUST_ANCHOR : Any>(val trustAnchor: TRUST_ANCHOR) : Outcome<TRUST_ANCHOR>
-        public data class NotTrusted(val cause: Throwable) : Outcome<Nothing>
-    }
+/**
+ * Represents the outcome of the validation
+ * - [Trusted] if the chain is trusted, with the trust anchor
+ * - [NotTrusted] if the chain is not trusted, with the cause of the failure
+ * @param TRUST_ANCHOR type representing a trust anchor
+ */
+public sealed interface CertificationChainValidation<out TRUST_ANCHOR : Any> {
+    public data class Trusted<out TRUST_ANCHOR : Any>(val trustAnchor: TRUST_ANCHOR) : CertificationChainValidation<TRUST_ANCHOR>
+    public data class NotTrusted(val cause: Throwable) : CertificationChainValidation<Nothing>
 }

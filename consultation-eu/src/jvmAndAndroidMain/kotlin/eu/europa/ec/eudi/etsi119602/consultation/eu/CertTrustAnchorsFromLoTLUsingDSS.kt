@@ -15,9 +15,9 @@
  */
 package eu.europa.ec.eudi.etsi119602.consultation.eu
 
+import eu.europa.ec.eudi.etsi119602.consultation.JvmSecurity
 import eu.europa.ec.eudi.etsi119602.consultation.TrustAnchorCreator
 import eu.europa.ec.eudi.etsi119602.consultation.eu.CertTrustAnchorsFromLoTLUsingDSS.Companion.DefaultTrustAnchorCreator
-import eu.europa.ec.eudi.etsi119602.consultation.jvm
 import eu.europa.esig.dss.spi.tsl.TrustedListsCertificateSource
 import java.security.cert.TrustAnchor
 import java.security.cert.X509Certificate
@@ -34,7 +34,7 @@ internal class CertTrustAnchorsFromLoTLUsingDSS(
 
     internal companion object {
         val DefaultTrustAnchorCreator: TrustAnchorCreator<X509Certificate, TrustAnchor>
-            get() = TrustAnchorCreator.jvm()
+            get() = JvmSecurity.trustAnchorCreator()
     }
 }
 

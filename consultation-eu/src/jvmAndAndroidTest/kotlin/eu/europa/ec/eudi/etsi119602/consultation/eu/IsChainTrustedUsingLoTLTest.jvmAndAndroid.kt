@@ -88,7 +88,7 @@ class IsChainTrustedUsingLoTLTest {
     fun verifyThatPidX5CIsTrustedUsingPIDSource() = runTest {
         val isChainTrusted = EUDIDev.isChainTrustedForPID.contraMap(::certsFromX5C)
         val outcome = isChainTrusted(pidX5c)
-        assertIs<ValidateCertificateChain.Outcome.Trusted<TrustAnchor>>(outcome)
+        assertIs<CertificationChainValidation.Trusted<TrustAnchor>>(outcome)
     }
 
     // TODO Check why this is not passing
@@ -96,7 +96,7 @@ class IsChainTrustedUsingLoTLTest {
     @Ignore("This is not passing")
     fun verifyThatPidX5CIsNotTrustedUsingPubEAA() = runTest {
         val isChainTrusted = EUDIDev.isChainTrustedForPubEEA.contraMap(::certsFromX5C)
-        assertIs<ValidateCertificateChain.Outcome.NotTrusted>(isChainTrusted(pidX5c))
+        assertIs<CertificationChainValidation.NotTrusted>(isChainTrusted(pidX5c))
     }
 
     @Test

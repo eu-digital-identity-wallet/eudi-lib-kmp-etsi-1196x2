@@ -15,9 +15,9 @@
  */
 package eu.europa.ec.eudi.etsi119602.consultation.eu
 
+import eu.europa.ec.eudi.etsi119602.consultation.CertificationChainValidation
 import eu.europa.ec.eudi.etsi119602.consultation.IsChainTrusted
 import eu.europa.ec.eudi.etsi119602.consultation.TrustSource
-import eu.europa.ec.eudi.etsi119602.consultation.ValidateCertificateChain
 
 /**
  * Interface for checking the trustworthiness of a certificate chain
@@ -59,8 +59,8 @@ public fun interface IsChainTrustedForContext<in CHAIN : Any> {
                         when (val isChainTrusted = sources[trustSource]) {
                             null -> Outcome.UnsupportedVerificationContext
                             else -> when (val validation = isChainTrusted(chain)) {
-                                is ValidateCertificateChain.Outcome.Trusted -> Outcome.Trusted
-                                is ValidateCertificateChain.Outcome.NotTrusted -> Outcome.NotTrusted(validation.cause)
+                                is CertificationChainValidation.Trusted -> Outcome.Trusted
+                                is CertificationChainValidation.NotTrusted -> Outcome.NotTrusted(validation.cause)
                             }
                         }
                     }

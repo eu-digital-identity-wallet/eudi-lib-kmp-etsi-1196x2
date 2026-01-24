@@ -60,14 +60,14 @@ public class ValidateCertificateChainJvm(
     override suspend fun invoke(
         chain: List<X509Certificate>,
         trustAnchors: Set<TrustAnchor>,
-    ): ValidateCertificateChain.Outcome<TrustAnchor> =
+    ): CertificationChainValidation<TrustAnchor> =
         withContext(CoroutineName(name = "ValidateCertificateChainJvm") + Dispatchers.Default) {
             require(chain.isNotEmpty()) { "Chain must not be empty" }
             try {
                 val pkixParameters = PKIXParameters(trustAnchors).apply(customization)
                 val certPath = certificateFactory.generateCertPath(chain)
-                val validationResult = certPathValidator.validate(certPath, pkixParameters)
-                validationResult.trusted()
+                val result = certPathValidator.validate(certPath, pkixParameters)
+                result.trusted()
             } catch (e: CertPathValidatorException) {
                 e.notTrusted()
             } catch (e: InvalidAlgorithmParameterException) {
@@ -75,14 +75,14 @@ public class ValidateCertificateChainJvm(
             }
         }
 
-    private fun CertPathValidatorResult.trusted(): ValidateCertificateChain.Outcome.Trusted<TrustAnchor> {
-        check(this is PKIXCertPathValidatorResult) { "Unexpected result type: ${this::class}" }
-        return ValidateCertificateChain.Outcome.Trusted(trustAnchor)
-    }
-    private fun Throwable.notTrusted(): ValidateCertificateChain.Outcome.NotTrusted =
-        cause?.notTrusted() ?: ValidateCertificateChain.Outcome.NotTrusted(this)
-
-    public companion object {
+    internal companion object {
         internal val DEFAULT_CUSTOMIZATION: PKIXParameters.() -> Unit = { }
+
+        private fun CertPathValidatorResult.trusted(): CertificationChainValidation.Trusted<TrustAnchor> {
+            check(this is PKIXCertPathValidatorResult) { "Unexpected result type: ${this::class}" }
+            return CertificationChainValidation.Trusted(trustAnchor)
+        }
+        private fun Throwable.notTrusted(): CertificationChainValidation.NotTrusted =
+            cause?.notTrusted() ?: CertificationChainValidation.NotTrusted(this)
     }
 }

@@ -15,11 +15,10 @@
  */
 package eu.europa.ec.eudi.etsi119602.consultation
 
-import eu.europa.ec.eudi.etsi119602.PKIObject
-
 /**
- * A way to create a trust anchor from a [PKIObject]
+ * A way to create a trust anchor from a certificate
  *
+ * @param CERT the type representing a certificate
  * @param TRUST_ANCHOR the type representing a trust anchor
  */
 public fun interface TrustAnchorCreator<in CERT : Any, out TRUST_ANCHOR : Any> {
@@ -28,6 +27,6 @@ public fun interface TrustAnchorCreator<in CERT : Any, out TRUST_ANCHOR : Any> {
     public companion object
 }
 
-public inline fun <CERT : Any, TRUST_ANCHOR : Any, CERT2 : Any> TrustAnchorCreator<CERT, TRUST_ANCHOR>.contraMap(
-    crossinline f: (CERT2) -> CERT,
-): TrustAnchorCreator<CERT2, TRUST_ANCHOR> = TrustAnchorCreator { cert2 -> invoke(f(cert2)) }
+public inline fun <C1 : Any, TA : Any, C2 : Any> TrustAnchorCreator<C1, TA>.contraMap(
+    crossinline f: (C2) -> C1,
+): TrustAnchorCreator<C2, TA> = TrustAnchorCreator { invoke(f(it)) }

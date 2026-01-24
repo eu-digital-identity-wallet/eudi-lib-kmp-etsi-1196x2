@@ -32,7 +32,7 @@ public fun interface IsChainTrusted<in CHAIN : Any, out TRUST_ANCHOR : Any> {
      * @param chain the certificate chain to validate
      * @return the validation outcome
      */
-    public suspend operator fun invoke(chain: CHAIN): ValidateCertificateChain.Outcome<TRUST_ANCHOR>
+    public suspend operator fun invoke(chain: CHAIN): CertificationChainValidation<TRUST_ANCHOR>
 
     public companion object {
 
