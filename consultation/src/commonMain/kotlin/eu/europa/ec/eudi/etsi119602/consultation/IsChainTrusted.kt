@@ -15,21 +15,47 @@
  */
 package eu.europa.ec.eudi.etsi119602.consultation
 
-public fun interface IsChainTrusted<in CHAIN : Any> {
+import kotlinx.coroutines.CoroutineName
+import kotlinx.coroutines.withContext
 
-    public suspend operator fun invoke(chain: CHAIN): ValidateCertificateChain.Outcome
+/**
+ * Interface for checking the trustworthiness of a certificate chain
+ *
+ * @param CHAIN type representing a certificate chain
+ * @param TRUST_ANCHOR type representing a trust anchor
+ */
+public fun interface IsChainTrusted<in CHAIN : Any, out TRUST_ANCHOR : Any> {
+
+    /**
+     * Validates the trustworthiness of a certificate chain
+     *
+     * @param chain the certificate chain to validate
+     * @return the validation outcome
+     */
+    public suspend operator fun invoke(chain: CHAIN): ValidateCertificateChain.Outcome<TRUST_ANCHOR>
 
     public companion object {
+
+        /**
+         * Creates an instance of IsChainTrusted with the given validation and trust anchor retrieval functions
+         *
+         * @param validateCertificateChain function to validate a certificate chain
+         * @param getTrustAnchors function to retrieve trust anchors
+         * @return an instance of IsChainTrusted
+         */
         public operator fun <CHAIN : Any, TRUST_ANCHOR : Any> invoke(
             validateCertificateChain: ValidateCertificateChain<CHAIN, TRUST_ANCHOR>,
             getTrustAnchors: suspend () -> List<TRUST_ANCHOR>,
-        ): IsChainTrusted<CHAIN> =
+        ): IsChainTrusted<CHAIN, TRUST_ANCHOR> =
             IsChainTrusted { chain ->
-                val trustAnchors = getTrustAnchors()
-                validateCertificateChain(chain, trustAnchors.toSet())
+                withContext(CoroutineName(name = "IsChainTrusted-$chain")) {
+                    val trustAnchors = getTrustAnchors()
+                    validateCertificateChain(chain, trustAnchors.toSet())
+                }
             }
     }
 }
 
-public inline fun <C1 : Any, C2 : Any> IsChainTrusted<C1>.contraMap(crossinline f: (C2) -> C1): IsChainTrusted<C2> =
-    IsChainTrusted { chain -> invoke(f(chain)) }
+public inline fun <C1 : Any, C2 : Any, TC : Any> IsChainTrusted<C1, TC>.contraMap(
+    crossinline f: (C2) -> C1,
+): IsChainTrusted<C2, TC> = IsChainTrusted { chain -> invoke(f(chain)) }

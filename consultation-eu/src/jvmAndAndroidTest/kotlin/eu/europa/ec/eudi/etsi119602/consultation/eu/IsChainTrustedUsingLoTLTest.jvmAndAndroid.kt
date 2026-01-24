@@ -32,6 +32,7 @@ import kotlinx.coroutines.test.runTest
 import java.io.ByteArrayInputStream
 import java.nio.file.Files
 import java.security.cert.CertificateFactory
+import java.security.cert.TrustAnchor
 import java.security.cert.X509Certificate
 import java.util.function.Predicate
 import kotlin.io.encoding.Base64
@@ -58,11 +59,11 @@ object EUDIDev {
     }
 
     private val validateCertificateChain = ValidateCertificateChainJvm { isRevocationEnabled = false }
-    val isChainTrustedForPubEEA: IsChainTrusted<List<X509Certificate>>
-        get() = IsChainTrusted(validateCertificateChain, pubEEASourceCertificateSource.asProvider())
+    val isChainTrustedForPubEEA: IsChainTrusted<List<X509Certificate>, TrustAnchor>
+        get() = IsChainTrusted(validateCertificateChain, pubEEASourceCertificateSource.asTrustAnchorsProvider())
 
-    val isChainTrustedForPID: IsChainTrusted<List<X509Certificate>>
-        get() = IsChainTrusted(validateCertificateChain, pidProviderCertificateSource.asProvider())
+    val isChainTrustedForPID: IsChainTrusted<List<X509Certificate>, TrustAnchor>
+        get() = IsChainTrusted(validateCertificateChain, pidProviderCertificateSource.asTrustAnchorsProvider())
 }
 
 class IsChainTrustedUsingLoTLTest {
@@ -86,7 +87,8 @@ class IsChainTrustedUsingLoTLTest {
     @Test
     fun verifyThatPidX5CIsTrustedUsingPIDSource() = runTest {
         val isChainTrusted = EUDIDev.isChainTrustedForPID.contraMap(::certsFromX5C)
-        assertIs<ValidateCertificateChain.Outcome.Trusted>(isChainTrusted(pidX5c))
+        val outcome = isChainTrusted(pidX5c)
+        assertIs<ValidateCertificateChain.Outcome.Trusted<TrustAnchor>>(outcome)
     }
 
     // TODO Check why this is not passing

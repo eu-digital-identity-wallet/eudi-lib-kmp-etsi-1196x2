@@ -48,9 +48,9 @@ public fun interface IsChainTrustedForContext<in CHAIN : Any> {
 
     public companion object {
 
-        public operator fun <CHAIN : Any> invoke(
+        public operator fun <CHAIN : Any, TRUST_ANCHOR : Any> invoke(
             trustSourcePerVerificationContext: (VerificationContext) -> TrustSource?,
-            sources: Map<TrustSource, IsChainTrusted<CHAIN>>,
+            sources: Map<TrustSource, IsChainTrusted<CHAIN, TRUST_ANCHOR>>,
         ): IsChainTrustedForContext<CHAIN> =
             IsChainTrustedForContext { chain, verificationContext ->
                 when (val trustSource = trustSourcePerVerificationContext(verificationContext)) {
@@ -59,7 +59,7 @@ public fun interface IsChainTrustedForContext<in CHAIN : Any> {
                         when (val isChainTrusted = sources[trustSource]) {
                             null -> Outcome.UnsupportedVerificationContext
                             else -> when (val validation = isChainTrusted(chain)) {
-                                ValidateCertificateChain.Outcome.Trusted -> Outcome.Trusted
+                                is ValidateCertificateChain.Outcome.Trusted -> Outcome.Trusted
                                 is ValidateCertificateChain.Outcome.NotTrusted -> Outcome.NotTrusted(validation.cause)
                             }
                         }

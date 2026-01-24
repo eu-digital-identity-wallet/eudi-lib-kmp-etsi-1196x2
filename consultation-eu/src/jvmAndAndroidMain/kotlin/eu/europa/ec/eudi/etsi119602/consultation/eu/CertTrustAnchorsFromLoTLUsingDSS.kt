@@ -15,19 +15,30 @@
  */
 package eu.europa.ec.eudi.etsi119602.consultation.eu
 
+import eu.europa.ec.eudi.etsi119602.consultation.TrustAnchorCreator
+import eu.europa.ec.eudi.etsi119602.consultation.eu.CertTrustAnchorsFromLoTLUsingDSS.Companion.DefaultTrustAnchorCreator
+import eu.europa.ec.eudi.etsi119602.consultation.jvm
 import eu.europa.esig.dss.spi.tsl.TrustedListsCertificateSource
 import java.security.cert.TrustAnchor
+import java.security.cert.X509Certificate
 
-public class CertTrustAnchorsFromLoTLUsingDSS(
+internal class CertTrustAnchorsFromLoTLUsingDSS(
     private val dssTrustedListsCertificateSource: TrustedListsCertificateSource,
+    private val trustAnchorCreator: TrustAnchorCreator<X509Certificate, TrustAnchor> = DefaultTrustAnchorCreator,
 ) : () -> List<TrustAnchor> {
 
-    override fun invoke(): List<TrustAnchor> {
-        return dssTrustedListsCertificateSource.certificates
+    override fun invoke(): List<TrustAnchor> =
+        dssTrustedListsCertificateSource.certificates
             .orEmpty()
-            .map { TrustAnchor(it.certificate, null) }
+            .map { trustAnchorCreator(it.certificate) }
+
+    internal companion object {
+        val DefaultTrustAnchorCreator: TrustAnchorCreator<X509Certificate, TrustAnchor>
+            get() = TrustAnchorCreator.jvm()
     }
 }
 
-public fun TrustedListsCertificateSource.asProvider(): () -> List<TrustAnchor> =
-    CertTrustAnchorsFromLoTLUsingDSS(this)
+public fun TrustedListsCertificateSource.asTrustAnchorsProvider(
+    trustAnchorCreator: TrustAnchorCreator<X509Certificate, TrustAnchor> = DefaultTrustAnchorCreator,
+): () -> List<TrustAnchor> =
+    CertTrustAnchorsFromLoTLUsingDSS(this, trustAnchorCreator)

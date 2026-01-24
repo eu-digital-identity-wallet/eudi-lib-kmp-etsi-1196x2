@@ -25,10 +25,11 @@ import java.security.cert.X509Certificate
 //
 // JVM Implementation
 //
+@Deprecated("Too complex")
 public fun IsChainTrusted.Companion.jvmUsingLoTEs(
     validateCertificateChain: ValidateCertificateChainJvm = ValidateCertificateChainJvm(),
     getLatestListOfTrustedEntitiesByType: GetLatestListOfTrustedEntitiesByType,
-): (TrustSource.LoTE) -> IsChainTrusted<List<X509Certificate>> = { trustSource ->
+): (TrustSource.LoTE) -> IsChainTrusted<List<X509Certificate>, TrustAnchor> = { trustSource ->
     IsChainTrusted(validateCertificateChain) {
         val list = getLatestListOfTrustedEntitiesByType(trustSource.loteType)
         val trustAnchorCreator =

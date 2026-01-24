@@ -15,6 +15,9 @@
  */
 package eu.europa.ec.eudi.etsi119602.consultation
 
+import kotlinx.coroutines.CoroutineName
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import java.security.InvalidAlgorithmParameterException
 import java.security.Provider
 import java.security.cert.*
@@ -28,29 +31,56 @@ public class ValidateCertificateChainJvm(
     private val customization: PKIXParameters.() -> Unit,
 ) : ValidateCertificateChain<List<X509Certificate>, TrustAnchor> {
 
-    public constructor(customization: PKIXParameters.() -> Unit = DEFAULT_CUSTOMIZATION) :
-        this(JvmSecurity.X509_CERT_FACTORY, JvmSecurity.PKIX_CERT_VALIDATOR, customization)
+    public constructor(
+        customization: PKIXParameters.() -> Unit = DEFAULT_CUSTOMIZATION,
+    ) : this(
+        JvmSecurity.X509_CERT_FACTORY,
+        JvmSecurity.PKIX_CERT_VALIDATOR,
+        customization,
+    )
 
-    public constructor(provider: Provider, customization: PKIXParameters.() -> Unit = DEFAULT_CUSTOMIZATION) :
-        this(JvmSecurity.x509CertFactory(provider), JvmSecurity.pkixCertValidator(provider), customization)
+    public constructor(
+        provider: Provider,
+        customization: PKIXParameters.() -> Unit = DEFAULT_CUSTOMIZATION,
+    ) : this(
+        JvmSecurity.x509CertFactory(provider),
+        JvmSecurity.pkixCertValidator(provider),
+        customization,
+    )
+
+    public constructor(
+        provider: String,
+        customization: PKIXParameters.() -> Unit = DEFAULT_CUSTOMIZATION,
+    ) : this(
+        JvmSecurity.x509CertFactory(provider),
+        JvmSecurity.pkixCertValidator(provider),
+        customization,
+    )
 
     override suspend fun invoke(
         chain: List<X509Certificate>,
         trustAnchors: Set<TrustAnchor>,
-    ): ValidateCertificateChain.Outcome {
-        require(chain.isNotEmpty()) { "Chain must not be empty" }
-        return try {
-            val pkixParameters =
-                PKIXParameters(trustAnchors).apply(customization)
-            val certPath = certificateFactory.generateCertPath(chain)
-            certPathValidator.validate(certPath, pkixParameters)
-            ValidateCertificateChain.Outcome.Trusted
-        } catch (e: CertPathValidatorException) {
-            ValidateCertificateChain.Outcome.NotTrusted(e)
-        } catch (e: InvalidAlgorithmParameterException) {
-            ValidateCertificateChain.Outcome.NotTrusted(e)
+    ): ValidateCertificateChain.Outcome<TrustAnchor> =
+        withContext(CoroutineName(name = "ValidateCertificateChainJvm") + Dispatchers.Default) {
+            require(chain.isNotEmpty()) { "Chain must not be empty" }
+            try {
+                val pkixParameters = PKIXParameters(trustAnchors).apply(customization)
+                val certPath = certificateFactory.generateCertPath(chain)
+                val validationResult = certPathValidator.validate(certPath, pkixParameters)
+                validationResult.trusted()
+            } catch (e: CertPathValidatorException) {
+                e.notTrusted()
+            } catch (e: InvalidAlgorithmParameterException) {
+                e.notTrusted()
+            }
         }
+
+    private fun CertPathValidatorResult.trusted(): ValidateCertificateChain.Outcome.Trusted<TrustAnchor> {
+        check(this is PKIXCertPathValidatorResult) { "Unexpected result type: ${this::class}" }
+        return ValidateCertificateChain.Outcome.Trusted(trustAnchor)
     }
+    private fun Throwable.notTrusted(): ValidateCertificateChain.Outcome.NotTrusted =
+        cause?.notTrusted() ?: ValidateCertificateChain.Outcome.NotTrusted(this)
 
     public companion object {
         internal val DEFAULT_CUSTOMIZATION: PKIXParameters.() -> Unit = { }
