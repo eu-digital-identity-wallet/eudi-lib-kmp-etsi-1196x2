@@ -15,9 +15,9 @@
  */
 package eu.europa.ec.eudi.etsi119602.consultation.eu
 
-import eu.europa.ec.eudi.etsi119602.consultation.*
-import eu.europa.ec.eudi.etsi119602.consultation.eu.EUDIDev.pidProviderSource
-import eu.europa.ec.eudi.etsi119602.consultation.eu.EUDIDev.pubEEASource
+import eu.europa.ec.eudi.etsi119602.consultation.CertificationChainValidation
+import eu.europa.ec.eudi.etsi119602.consultation.TrustSource
+import eu.europa.ec.eudi.etsi119602.consultation.ValidateCertificateChainJvm
 import eu.europa.esig.dss.service.http.commons.CommonsDataLoader
 import eu.europa.esig.dss.service.http.commons.FileCacheDataLoader
 import eu.europa.esig.dss.spi.client.http.DSSCacheFileLoader
@@ -28,82 +28,51 @@ import eu.europa.esig.dss.tsl.function.GrantedOrRecognizedAtNationalLevelTrustAn
 import eu.europa.esig.dss.tsl.job.TLValidationJob
 import eu.europa.esig.dss.tsl.source.LOTLSource
 import eu.europa.esig.dss.tsl.sync.ExpirationAndSignatureCheckStrategy
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.withContext
 import java.io.ByteArrayInputStream
 import java.nio.file.Files
 import java.security.cert.CertificateFactory
 import java.security.cert.TrustAnchor
 import java.security.cert.X509Certificate
+import java.sql.Date
 import java.util.function.Predicate
 import kotlin.io.encoding.Base64
 import kotlin.test.Ignore
 import kotlin.test.Test
 import kotlin.test.assertIs
 import kotlin.test.assertNull
+import kotlin.time.Clock
+import kotlin.time.toJavaInstant
 
 object EUDIDev {
-    val pubEEASource = TrustSource.LoTL(
+    private val pubEEASource = TrustSource.LoTL(
         "trustedlist.serviceproviders.eudiw.dev/PubEEA",
         "http://uri.etsi.org/TrstSvc/Svctype/EAA/Pub-EAA",
     )
-    val pidProviderSource = TrustSource.LoTL(
+    private val pidProviderSource = TrustSource.LoTL(
         "trustedlist.serviceproviders.eudiw.dev/PID",
         "http://uri.etsi.org/Svc/Svctype/Provider/PID",
     )
     private const val LOTL_URL = "https://trustedlist.serviceproviders.eudiw.dev/LOTL/01.xml"
 
-    val pubEEASourceCertificateSource: TrustedListsCertificateSource by lazy {
-        fetchLoTL(LOTL_URL, pubEEASource.serviceType)
-    }
-    val pidProviderCertificateSource: TrustedListsCertificateSource by lazy {
-        fetchLoTL(LOTL_URL, pidProviderSource.serviceType)
-    }
-
-    private val validateCertificateChain = ValidateCertificateChainJvm { isRevocationEnabled = false }
-    val isChainTrustedForPubEEA: IsChainTrusted<List<X509Certificate>, TrustAnchor>
-        get() = IsChainTrusted(validateCertificateChain, pubEEASourceCertificateSource.asTrustAnchorsProvider())
-
-    val isChainTrustedForPID: IsChainTrusted<List<X509Certificate>, TrustAnchor>
-        get() = IsChainTrusted(validateCertificateChain, pidProviderCertificateSource.asTrustAnchorsProvider())
+    val dssLoaderAndTrust =
+        buildLoTLTrust(revocationEnabled = false) {
+            put(VerificationContext.PID, pidProviderSource to LOTL_URL)
+            put(VerificationContext.PubEAA, pubEEASource to LOTL_URL)
+        }
 }
 
 class IsChainTrustedUsingLoTLTest {
 
-    val isChainTrusted by lazy {
-        IsChainTrustedForContext(
-            trustSourcePerVerificationContext = {
-                when (it) {
-                    is VerificationContext.PID -> pidProviderSource
-                    is VerificationContext.PubEAA -> pubEEASource
-                    else -> null
-                }
-            },
-            sources = mapOf(
-                pidProviderSource to EUDIDev.isChainTrustedForPID,
-                pubEEASource to EUDIDev.isChainTrustedForPubEEA,
-            ),
-        ).contraMap(::certsFromX5C)
-    }
-
-    @Test
-    fun verifyThatPidX5CIsTrustedUsingPIDSource() = runTest {
-        val isChainTrusted = EUDIDev.isChainTrustedForPID.contraMap(::certsFromX5C)
-        val outcome = isChainTrusted(pidX5c)
-        assertIs<CertificationChainValidation.Trusted<TrustAnchor>>(outcome)
-    }
-
-    // TODO Check why this is not passing
-    @Test
-    @Ignore("This is not passing")
-    fun verifyThatPidX5CIsNotTrustedUsingPubEAA() = runTest {
-        val isChainTrusted = EUDIDev.isChainTrustedForPubEEA.contraMap(::certsFromX5C)
-        assertIs<CertificationChainValidation.NotTrusted>(isChainTrusted(pidX5c))
-    }
+    val isChainTrustedForContext =
+        EUDIDev.dssLoaderAndTrust.isChainTrustedForContext.contraMap(::certsFromX5C)
 
     @Test
     fun verifyThatPidX5CIsTrustedForPIDContext() = runTest {
         assertIs<CertificationChainValidation.Trusted<TrustAnchor>>(
-            isChainTrusted(pidX5c, VerificationContext.PID),
+            isChainTrustedForContext(pidX5c, VerificationContext.PID),
         )
     }
 
@@ -112,14 +81,14 @@ class IsChainTrustedUsingLoTLTest {
     @Ignore("This is not passing")
     fun verifyThatPidX5CIsNotTrustedForPubEAAContext() = runTest {
         assertIs<CertificationChainValidation.NotTrusted>(
-            isChainTrusted(pidX5c, VerificationContext.PubEAA),
+            isChainTrustedForContext(pidX5c, VerificationContext.PubEAA),
         )
     }
 
     @Test
     fun verifyThatPidX5CFailsForAnUnsupportedContext() = runTest {
         assertNull(
-            isChainTrusted(pidX5c, VerificationContext.WalletUnitAttestation),
+            isChainTrustedForContext(pidX5c, VerificationContext.WalletUnitAttestation),
         )
     }
 
@@ -136,50 +105,103 @@ class IsChainTrustedUsingLoTLTest {
 }
 
 @Suppress("SameParameterValue")
-private fun fetchLoTL(lotlUrl: String, serviceType: String?): TrustedListsCertificateSource {
-    val trustedListsCertificateSource = TrustedListsCertificateSource()
+fun buildLoTLTrust(
+    clock: Clock = Clock.System,
+    revocationEnabled: Boolean = false,
+    builder: MutableMap<VerificationContext, Pair<TrustSource.LoTL, String>>.() -> Unit,
+): DssLoadAndTrust = DssLoadAndTrust(
+    clock,
+    revocationEnabled,
+    buildMap(builder),
+)
 
-    val tlCacheDirectory = Files.createTempDirectory("lotl-cache").toFile()
-
-    val offlineLoader: DSSCacheFileLoader = FileCacheDataLoader().apply {
-        setCacheExpirationTime(24 * 60 * 60 * 1000)
-        setFileCacheDirectory(tlCacheDirectory)
-        dataLoader = IgnoreDataLoader()
-    }
-
-    val onlineLoader: DSSCacheFileLoader = FileCacheDataLoader().apply {
-        setCacheExpirationTime(24 * 60 * 60 * 1000)
-        setFileCacheDirectory(tlCacheDirectory)
-        dataLoader = CommonsDataLoader()
-    }
-
-    val cacheCleaner = CacheCleaner().apply {
-        setCleanMemory(true)
-        setCleanFileSystem(true)
-        setDSSFileLoader(offlineLoader)
-    }
-
-    val lotlSource = LOTLSource().apply {
-        url = lotlUrl
-        trustAnchorValidityPredicate = GrantedOrRecognizedAtNationalLevelTrustAnchorPeriodPredicate()
-        tlVersions = listOf(5, 6)
-        serviceType?.let {
-            trustServicePredicate = Predicate { tspServiceType ->
-                tspServiceType.serviceInformation.serviceTypeIdentifier == serviceType
+data class DssLoadAndTrust private constructor(
+    val dssLoader: DSSLoader,
+    val isChainTrustedForContext: DefaultIsChainTrustedForContext<List<X509Certificate>, TrustAnchor>,
+) {
+    companion object {
+        operator fun invoke(
+            clock: Clock = Clock.System,
+            revocationEnabled: Boolean = false,
+            instructions: Map<VerificationContext, Pair<TrustSource.LoTL, String>>,
+        ): DssLoadAndTrust {
+            val dssLoader = DSSLoader(instructions.values.associate { it.first to it.second })
+            val config = instructions.mapValues { it.value.first to null }
+            val validateCertificateChain = ValidateCertificateChainJvm {
+                isRevocationEnabled = revocationEnabled
+                date = Date.from(clock.now().toJavaInstant())
             }
+            return DssLoadAndTrust(
+                dssLoader,
+                IsChainTrustedForContext.forLoTLUsingDSS(validateCertificateChain, config, dssLoader),
+            )
+        }
+    }
+}
+
+class DSSLoader(
+    private val lotlLocationPerSource: Map<TrustSource.LoTL, String>,
+    private val onlineLoader: DSSCacheFileLoader,
+    private val offlineLoader: DSSCacheFileLoader?,
+    private val cacheCleaner: CacheCleaner?,
+) : GetTrustedListsCertificateSourceFor {
+
+    override suspend fun invoke(
+        trustSource: TrustSource.LoTL,
+    ): TrustedListsCertificateSource = withContext(Dispatchers.IO) {
+        val lotlUrl = lotlLocationPerSource[trustSource]
+        requireNotNull(lotlUrl) { "No location for $trustSource" }
+
+        TrustedListsCertificateSource().also { source ->
+            val validationJob = TLValidationJob().apply {
+                setListOfTrustedListSources(trustSource.lotlSource(lotlUrl))
+                setOnlineDataLoader(onlineLoader)
+                setTrustedListCertificateSource(source)
+                setSynchronizationStrategy(ExpirationAndSignatureCheckStrategy())
+                offlineLoader?.let { setOfflineDataLoader(it) }
+                cacheCleaner?.let { setCacheCleaner(it) }
+            }
+
+            validationJob.onlineRefresh()
         }
     }
 
-    val validationJob = TLValidationJob().apply {
-        setListOfTrustedListSources(lotlSource)
-        setOfflineDataLoader(offlineLoader)
-        setOnlineDataLoader(onlineLoader)
-        setTrustedListCertificateSource(trustedListsCertificateSource)
-        setSynchronizationStrategy(ExpirationAndSignatureCheckStrategy())
-        setCacheCleaner(cacheCleaner)
+    private fun TrustSource.LoTL.lotlSource(lotlUrl: String): LOTLSource =
+        LOTLSource().apply {
+            url = lotlUrl
+            trustAnchorValidityPredicate = GrantedOrRecognizedAtNationalLevelTrustAnchorPeriodPredicate()
+            tlVersions = listOf(5, 6)
+            serviceType.let {
+                trustServicePredicate = Predicate { tspServiceType ->
+                    tspServiceType.serviceInformation.serviceTypeIdentifier == serviceType
+                }
+            }
+        }
+
+    companion object {
+        operator fun invoke(
+            lotlLocationPerSource: Map<TrustSource.LoTL, String>,
+        ): DSSLoader {
+            val tlCacheDirectory = Files.createTempDirectory("lotl-cache").toFile()
+
+            val offlineLoader: DSSCacheFileLoader = FileCacheDataLoader().apply {
+                setCacheExpirationTime(24 * 60 * 60 * 1000)
+                setFileCacheDirectory(tlCacheDirectory)
+                dataLoader = IgnoreDataLoader()
+            }
+
+            val onlineLoader: DSSCacheFileLoader = FileCacheDataLoader().apply {
+                setCacheExpirationTime(24 * 60 * 60 * 1000)
+                setFileCacheDirectory(tlCacheDirectory)
+                dataLoader = CommonsDataLoader()
+            }
+
+            val cacheCleaner = CacheCleaner().apply {
+                setCleanMemory(true)
+                setCleanFileSystem(true)
+                setDSSFileLoader(offlineLoader)
+            }
+            return DSSLoader(lotlLocationPerSource, onlineLoader, offlineLoader, cacheCleaner)
+        }
     }
-
-    validationJob.onlineRefresh()
-
-    return trustedListsCertificateSource
 }

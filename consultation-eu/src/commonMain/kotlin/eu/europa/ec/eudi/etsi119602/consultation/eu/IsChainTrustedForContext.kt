@@ -17,7 +17,6 @@ package eu.europa.ec.eudi.etsi119602.consultation.eu
 
 import eu.europa.ec.eudi.etsi119602.consultation.CertificationChainValidation
 import eu.europa.ec.eudi.etsi119602.consultation.IsChainTrusted
-import eu.europa.ec.eudi.etsi119602.consultation.TrustSource
 
 /**
  * Interface for checking the trustworthiness of a certificate chain
@@ -43,16 +42,25 @@ public fun interface IsChainTrustedForContext<in CHAIN : Any, out TRUST_ANCHOR :
 
     public companion object {
 
-        public operator fun <CHAIN : Any, TRUST_ANCHOR : Any> invoke(
-            trustSourcePerVerificationContext: (VerificationContext) -> TrustSource?,
-            sources: Map<TrustSource, IsChainTrusted<CHAIN, TRUST_ANCHOR>>,
-        ): IsChainTrustedForContext<CHAIN, TRUST_ANCHOR> =
-            IsChainTrustedForContext { chain, verificationContext ->
-                trustSourcePerVerificationContext(verificationContext)
-                    ?.let { trustSource -> sources[trustSource] }
-                    ?.invoke(chain)
-            }
+        public fun <CHAIN : Any, TRUST_ANCHOR : Any> default(
+            trust: Map<VerificationContext, IsChainTrusted<CHAIN, TRUST_ANCHOR>>,
+        ): DefaultIsChainTrustedForContext<CHAIN, TRUST_ANCHOR> = DefaultIsChainTrustedForContext(trust)
     }
+}
+
+public class DefaultIsChainTrustedForContext<CHAIN : Any, TRUST_ANCHOR : Any>(
+    private val trust: Map<VerificationContext, IsChainTrusted<CHAIN, TRUST_ANCHOR>>,
+) : IsChainTrustedForContext<CHAIN, TRUST_ANCHOR> {
+
+    override suspend fun invoke(
+        chain: CHAIN,
+        verificationContext: VerificationContext,
+    ): CertificationChainValidation<TRUST_ANCHOR>? = trust[verificationContext]?.invoke(chain)
+
+    public operator fun plus(
+        other: DefaultIsChainTrustedForContext<CHAIN, TRUST_ANCHOR>,
+    ): DefaultIsChainTrustedForContext<CHAIN, TRUST_ANCHOR> =
+        DefaultIsChainTrustedForContext(trust + other.trust)
 }
 
 public inline fun <C1 : Any, TA : Any, C2 : Any> IsChainTrustedForContext<C1, TA>.contraMap(crossinline f: (C2) -> C1): IsChainTrustedForContext<C2, TA> =
