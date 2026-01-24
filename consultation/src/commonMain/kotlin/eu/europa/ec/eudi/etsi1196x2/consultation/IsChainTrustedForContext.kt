@@ -93,7 +93,7 @@ public sealed interface VerificationContext {
  * @param TRUST_ANCHOR type representing a trust anchor
  */
 public class IsChainTrustedForContext<in CHAIN : Any, out TRUST_ANCHOR : Any>(
-    public val trust: Map<VerificationContext, IsChainTrusted<CHAIN, TRUST_ANCHOR>>,
+    private val trust: Map<VerificationContext, IsChainTrusted<CHAIN, TRUST_ANCHOR>>,
 ) {
 
     /**
@@ -109,14 +109,29 @@ public class IsChainTrustedForContext<in CHAIN : Any, out TRUST_ANCHOR : Any>(
         verificationContext: VerificationContext,
     ): CertificationChainValidation<TRUST_ANCHOR>? = trust[verificationContext]?.invoke(chain)
 
+    /**
+     * Combines two IsChainTrustedForContext instances into a single one
+     *
+     * @param other another IsChainTrustedForContext instance
+     * @return new IsChainTrustedForContext instance with combined trust
+     */
     public operator fun plus(
         other: IsChainTrustedForContext<@UnsafeVariance CHAIN, @UnsafeVariance TRUST_ANCHOR>,
     ): IsChainTrustedForContext<CHAIN, TRUST_ANCHOR> =
         IsChainTrustedForContext(trust + other.trust)
 
-    public inline fun <C1 : Any> contraMap(crossinline f: (C1) -> CHAIN): IsChainTrustedForContext<C1, TRUST_ANCHOR> =
+    /**
+     * Changes the chain of certificates representation
+     *
+     * @param transform transformation function
+     * @return new IsChainTrustedForContext accecpting the new chain representation
+     * @param C1 the new representation of the certificate chain
+     */
+    public fun <C1 : Any> contraMap(transform: (C1) -> CHAIN): IsChainTrustedForContext<C1, TRUST_ANCHOR> =
         IsChainTrustedForContext(
-            trust.mapValues { (_, value) -> value.contraMap(f) },
+            trust.mapValues { (_, isChainTrusted) ->
+                isChainTrusted.contraMap(transform)
+            },
         )
 
     public companion object

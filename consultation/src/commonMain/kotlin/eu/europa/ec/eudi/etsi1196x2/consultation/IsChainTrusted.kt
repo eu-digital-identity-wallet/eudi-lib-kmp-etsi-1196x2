@@ -46,25 +46,19 @@ public fun interface IsChainTrusted<in CHAIN : Any, out TRUST_ANCHOR : Any> {
         public operator fun <CHAIN : Any, TRUST_ANCHOR : Any> invoke(
             validateCertificateChain: ValidateCertificateChain<CHAIN, TRUST_ANCHOR>,
             getTrustAnchors: suspend () -> List<TRUST_ANCHOR>,
-        ): IsChainTrusted<CHAIN, TRUST_ANCHOR> =
-            IsChainTrusted { chain ->
-                withContext(CoroutineName(name = "IsChainTrusted-$chain")) {
-                    val trustAnchors = getTrustAnchors()
-                    validateCertificateChain(chain, trustAnchors.toSet())
-                }
-            }
+        ): IsChainTrusted<CHAIN, TRUST_ANCHOR> = IsChainTrustedDefault(validateCertificateChain, getTrustAnchors)
     }
 }
 
 /**
  * Transforms the input type of the IsChainTrusted instance using the provided function.
  * @receiver The original IsChainTrusted instance.
- * @param f The transformation function that maps from C2 to C1.
+ * @param transform The transformation function that maps from C2 to C1.
  * @return A new IsChainTrusted instance with the input type transformed.
  */
-public inline fun <C1 : Any, C2 : Any, TC : Any> IsChainTrusted<C1, TC>.contraMap(
-    crossinline f: (C2) -> C1,
-): IsChainTrusted<C2, TC> = IsChainTrusted { chain -> invoke(f(chain)) }
+public fun <C2 : Any, C1 : Any, TC : Any> IsChainTrusted<C1, TC>.contraMap(
+    transform: (C2) -> C1,
+): IsChainTrusted<C2, TC> = IsChainTrustedContraMap(this, transform)
 
 /**
  * Combines two IsChainTrusted instances into a single one, where the second one is used as a fallback if the first one fails.
@@ -76,6 +70,30 @@ public infix fun <C1 : Any, TC : Any> IsChainTrusted<C1, TC>.or(
     other: IsChainTrusted<C1, TC>,
 ): IsChainTrusted<C1, TC> =
     IsChainTrustedWithAlternative(this, other)
+
+//
+// Implementations
+//
+private class IsChainTrustedDefault<in CHAIN : Any, out TRUST_ANCHOR : Any>(
+    private val validateCertificateChain: ValidateCertificateChain<CHAIN, TRUST_ANCHOR>,
+    private val getTrustAnchors: suspend () -> List<TRUST_ANCHOR>,
+) : IsChainTrusted<CHAIN, TRUST_ANCHOR> {
+
+    override suspend fun invoke(chain: CHAIN): CertificationChainValidation<TRUST_ANCHOR> =
+        withContext(CoroutineName(name = "IsChainTrusted-$chain")) {
+            val trustAnchors = getTrustAnchors()
+            validateCertificateChain(chain, trustAnchors.toSet())
+        }
+}
+
+private class IsChainTrustedContraMap<in CHAIN2 : Any, CHAIN1 : Any, out TRUST_ANCHOR : Any>(
+    private val base: IsChainTrusted<CHAIN1, TRUST_ANCHOR>,
+    private val transform: (CHAIN2) -> CHAIN1,
+) : IsChainTrusted<CHAIN2, TRUST_ANCHOR> {
+
+    override suspend fun invoke(chain: CHAIN2): CertificationChainValidation<TRUST_ANCHOR> =
+        base(transform(chain))
+}
 
 private class IsChainTrustedWithAlternative<in CHAIN : Any, out TRUST_ANCHOR : Any>(
     private val primary: IsChainTrusted<CHAIN, TRUST_ANCHOR>,
