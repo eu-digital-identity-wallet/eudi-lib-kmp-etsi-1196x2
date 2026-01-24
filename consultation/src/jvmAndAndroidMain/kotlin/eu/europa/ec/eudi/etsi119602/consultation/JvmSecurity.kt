@@ -18,16 +18,38 @@ package eu.europa.ec.eudi.etsi119602.consultation
 import java.security.Provider
 import java.security.cert.CertPathValidator
 import java.security.cert.CertificateFactory
+import java.security.cert.PKIXParameters
+import java.util.Date
+import kotlin.time.Instant
+import kotlin.time.toJavaInstant
 
 public object JvmSecurity {
 
     private const val X_509 = "X.509"
-    public val X509_CERT_FACTORY: CertificateFactory get() = CertificateFactory.getInstance(X_509)
-    public val PKIX_CERT_VALIDATOR: CertPathValidator get() = CertPathValidator.getInstance(PKIX)
+    public val X509_CERT_FACTORY: CertificateFactory
+        get() = CertificateFactory.getInstance(X_509)
+
     public fun x509CertFactory(provider: Provider): CertificateFactory =
         CertificateFactory.getInstance(X_509, provider)
 
+    public fun x509CertFactory(provider: String): CertificateFactory =
+        CertificateFactory.getInstance(X_509, provider)
+
     private const val PKIX = "PKIX"
+    public val PKIX_CERT_VALIDATOR: CertPathValidator
+        get() = CertPathValidator.getInstance(PKIX)
+
     public fun pkixCertValidator(provider: Provider): CertPathValidator =
         CertPathValidator.getInstance(PKIX, provider)
+
+    public fun pkixCertValidator(provider: String): CertPathValidator =
+        CertPathValidator.getInstance(PKIX, provider)
+
+    public fun withRevocationEnabled(enabled: Boolean): PKIXParameters.() -> Unit = {
+        isRevocationEnabled = enabled
+    }
+
+    public fun withValidationDate(at: Instant): PKIXParameters.() -> Unit = {
+        date = Date.from(at.toJavaInstant())
+    }
 }
