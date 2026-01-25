@@ -24,7 +24,7 @@ import kotlinx.coroutines.withContext
  * @param CHAIN type representing a certificate chain
  * @param TRUST_ANCHOR type representing a trust anchor
  */
-public fun interface IsChainTrusted<in CHAIN : Any, out TRUST_ANCHOR : Any> {
+public sealed interface IsChainTrusted<in CHAIN : Any, out TRUST_ANCHOR : Any> {
 
     /**
      * Validates the trustworthiness of a certificate chain
