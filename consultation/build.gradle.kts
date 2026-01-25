@@ -196,7 +196,7 @@ mavenPublishing {
 
     coordinates(
         groupId = group.toString(),
-        artifactId = "eudi-lib-kmp-etsi-1196x2-consultation",
+        artifactId = "etsi-1196x2-consultation",
         version = version.toString(),
     )
 

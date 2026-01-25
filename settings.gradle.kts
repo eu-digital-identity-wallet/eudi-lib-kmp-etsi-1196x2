@@ -33,10 +33,10 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "eudi-lib-kmp-etsi-119602"
-include(":eudi-lib-kmp-etsi-119602-data-model")
-include(":eudi-lib-kmp-etsi-1196x2-consultation")
-include(":eudi-lib-kmp-etsi-119602-eu-profiles")
-project(":eudi-lib-kmp-etsi-119602-data-model").projectDir = file("data-model")
-project(":eudi-lib-kmp-etsi-1196x2-consultation").projectDir = file("consultation")
-project(":eudi-lib-kmp-etsi-119602-eu-profiles").projectDir = file("eu-profiles")
+rootProject.name = "eudi-lib-kmp-etsi-1196x2"
+include(":etsi-119602-data-model")
+include(":etsi-1196x2-consultation")
+include(":etsi-119602-eu-profiles")
+project(":etsi-119602-data-model").projectDir = file("data-model")
+project(":etsi-1196x2-consultation").projectDir = file("consultation")
+project(":etsi-119602-eu-profiles").projectDir = file("eu-profiles")
