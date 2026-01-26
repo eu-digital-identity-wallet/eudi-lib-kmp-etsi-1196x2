@@ -19,7 +19,6 @@ import eu.europa.ec.eudi.etsi1196x2.consultation.IsChainTrustedForContext
 import eu.europa.ec.eudi.etsi1196x2.consultation.TrustSource
 import eu.europa.ec.eudi.etsi1196x2.consultation.ValidateCertificateChainJvm
 import eu.europa.ec.eudi.etsi1196x2.consultation.VerificationContext
-import eu.europa.ec.eudi.etsi1196x2.consultation.dss.AsyncCache.Entry
 import eu.europa.esig.dss.service.http.commons.CommonsDataLoader
 import eu.europa.esig.dss.service.http.commons.FileCacheDataLoader
 import eu.europa.esig.dss.spi.client.http.DSSCacheFileLoader
@@ -33,19 +32,19 @@ import eu.europa.esig.dss.tsl.function.XMLOtherTSLPointer
 import eu.europa.esig.dss.tsl.job.TLValidationJob
 import eu.europa.esig.dss.tsl.source.LOTLSource
 import eu.europa.esig.dss.tsl.sync.ExpirationAndSignatureCheckStrategy
-import kotlinx.coroutines.*
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import java.nio.file.Path
 import java.security.cert.TrustAnchor
 import java.security.cert.X509Certificate
 import java.sql.Date
 import java.util.function.Predicate
 import kotlin.time.Clock
-import kotlin.time.Duration
-import kotlin.time.Duration.Companion.minutes
 import kotlin.time.toJavaInstant
 
 @Suppress("SameParameterValue")
-public fun buildLoTLTrust(
+fun buildLoTLTrust(
     clock: Clock = Clock.System,
     scope: CoroutineScope = CoroutineScope(Dispatchers.Default + SupervisorJob()),
     cacheDir: Path,
@@ -86,10 +85,10 @@ public data class DssLoadAndTrust private constructor(
                         date = Date.from(clock.now().toJavaInstant())
                     }
                 val getTrustedListsCertificateByTrustSource =
-                    GetTrustedListsCertificateByTrustSourceUsingDssLoader(
-                        dssLoader,
+                    GetTrustedListsCertificateByTrustSource.fromBlocking(
                         scope,
                         config.size,
+                        dssLoader::trustedListsCertificateSourceOf,
                     )
                 IsChainTrustedForContext.Companion.usingLoTL(
                     validateCertificateChain,
@@ -101,25 +100,6 @@ public data class DssLoadAndTrust private constructor(
             return DssLoadAndTrust(dssLoader, isChainTrustedForContext)
         }
     }
-}
-
-private class GetTrustedListsCertificateByTrustSourceUsingDssLoader(
-    dssLoader: DSSLoader,
-    scope: CoroutineScope,
-    maxCacheSize: Int,
-) : GetTrustedListsCertificateByTrustSource {
-
-    private val cached =
-        AsyncCache<TrustSource.LoTL, TrustedListsCertificateSource>(
-            scope = scope,
-            maxCacheSize = maxCacheSize,
-        ) { trustSource ->
-            withContext(Dispatchers.IO) {
-                dssLoader.trustedListsCertificateSourceOf(trustSource)
-            }
-        }
-
-    override suspend fun invoke(trustSource: TrustSource.LoTL): TrustedListsCertificateSource = cached(trustSource)
 }
 
 public class DSSLoader(
@@ -206,42 +186,5 @@ public class DSSLoader(
             }
             return DSSLoader(lotlLocationPerSource, onlineLoader, offlineLoader, cacheCleaner)
         }
-    }
-}
-
-private class AsyncCache<A : Any, B : Any>(
-    private val scope: CoroutineScope,
-    private val maxCacheSize: Int,
-    private val ttl: Duration = 10.minutes,
-    private val supplier: suspend (A) -> B,
-) : suspend (A) -> B {
-
-    private data class Entry<B>(val deferred: Deferred<B>, val createdAt: Long)
-
-    private val cache = object : LinkedHashMap<A, Entry<B>>(maxCacheSize, 0.75f, true) {
-        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<A, Entry<B>>) = size > maxCacheSize
-    }
-
-    override suspend fun invoke(key: A): B {
-        val now = System.currentTimeMillis()
-        val entry = synchronized(cache) {
-            val existing = cache[key]
-            if (existing != null && (now - existing.createdAt) < ttl.inWholeMilliseconds) {
-                existing
-            } else {
-                // Launch new computation
-                val newDeferred = scope.async(Dispatchers.IO) {
-                    try {
-                        supplier(key)
-                    } catch (e: Exception) {
-                        // Evict on failure so next call retries
-                        synchronized(cache) { cache.remove(key) }
-                        throw e
-                    }
-                }
-                Entry(newDeferred, now).also { cache[key] = it }
-            }
-        }
-        return entry.deferred.await()
     }
 }
