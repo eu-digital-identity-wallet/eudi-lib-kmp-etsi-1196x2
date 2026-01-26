@@ -80,8 +80,7 @@ kotlin {
         commonMain {
             dependencies {
                 // Common dependencies
-                api(libs.kotlinx.coroutines.core)
-                api(libs.kotlinx.datetime)
+                api(projects.etsi1196x2Consultation)
             }
         }
 
@@ -89,6 +88,17 @@ kotlin {
             dependencies {
                 implementation(kotlin("test"))
                 implementation(libs.kotlinx.coroutines.test)
+            }
+        }
+        val jvmAndAndroidMain by getting {
+            dependencies {
+                implementation(libs.dss.jades)
+                implementation(libs.dss.validation)
+                implementation(libs.dss.policy.jaxb)
+                implementation(libs.dss.service)
+                implementation(libs.dss.tsl.validation)
+                implementation(libs.dss.utils)
+                implementation(libs.dss.utils.guava)
             }
         }
     }
@@ -102,12 +112,6 @@ android {
 
     defaultConfig {
         minSdk = properties["android.minSdk"].toString().toInt()
-    }
-
-    sourceSets {
-        getByName("test") {
-            resources.srcDirs("src/commonTest/resources")
-        }
     }
 
     compileOptions {
@@ -184,7 +188,7 @@ mavenPublishing {
 
     coordinates(
         groupId = group.toString(),
-        artifactId = "etsi-1196x2-consultation",
+        artifactId = "etsi-1196x2-consultation-dss",
         version = version.toString(),
     )
 

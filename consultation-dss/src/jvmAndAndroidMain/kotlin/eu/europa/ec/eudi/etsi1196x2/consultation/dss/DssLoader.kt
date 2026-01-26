@@ -13,9 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package eu.europa.ec.eudi.etsi1196x2.consultation
+package eu.europa.ec.eudi.etsi1196x2.consultation.dss
 
-import eu.europa.ec.eudi.etsi1196x2.consultation.AsyncCache.Entry
+import eu.europa.ec.eudi.etsi1196x2.consultation.IsChainTrustedForContext
+import eu.europa.ec.eudi.etsi1196x2.consultation.TrustSource
+import eu.europa.ec.eudi.etsi1196x2.consultation.ValidateCertificateChainJvm
+import eu.europa.ec.eudi.etsi1196x2.consultation.VerificationContext
+import eu.europa.ec.eudi.etsi1196x2.consultation.dss.AsyncCache.Entry
 import eu.europa.esig.dss.service.http.commons.CommonsDataLoader
 import eu.europa.esig.dss.service.http.commons.FileCacheDataLoader
 import eu.europa.esig.dss.spi.client.http.DSSCacheFileLoader
@@ -39,7 +43,7 @@ import kotlin.time.Duration.Companion.minutes
 import kotlin.time.toJavaInstant
 
 @Suppress("SameParameterValue")
-fun buildLoTLTrust(
+public fun buildLoTLTrust(
     clock: Clock = Clock.System,
     scope: CoroutineScope = CoroutineScope(Dispatchers.Default + SupervisorJob()),
     cacheDir: Path? = null,
@@ -53,12 +57,12 @@ fun buildLoTLTrust(
     buildMap(builder),
 )
 
-data class DssLoadAndTrust private constructor(
+public data class DssLoadAndTrust private constructor(
     val dssLoader: DSSLoader,
     val isChainTrustedForContext: IsChainTrustedForContext<List<X509Certificate>, TrustAnchor>,
 ) {
-    companion object {
-        operator fun invoke(
+    public companion object {
+        public operator fun invoke(
             clock: Clock = Clock.System,
             scope: CoroutineScope,
             cacheDir: Path? = null,
@@ -85,7 +89,7 @@ data class DssLoadAndTrust private constructor(
                         scope,
                         config.size,
                     )
-                IsChainTrustedForContext.usingLoTL(
+                IsChainTrustedForContext.Companion.usingLoTL(
                     validateCertificateChain,
                     config,
                     getTrustedListsCertificateByTrustSource,
@@ -116,14 +120,14 @@ private class GetTrustedListsCertificateByTrustSourceUsingDssLoader(
     override suspend fun invoke(trustSource: TrustSource.LoTL): TrustedListsCertificateSource = cached(trustSource)
 }
 
-class DSSLoader(
+public class DSSLoader(
     private val lotlLocationPerSource: Map<TrustSource.LoTL, String>,
     private val onlineLoader: DSSCacheFileLoader,
     private val offlineLoader: DSSCacheFileLoader?,
     private val cacheCleaner: CacheCleaner?,
 ) {
 
-    fun trustedListsCertificateSourceOf(
+    public fun trustedListsCertificateSourceOf(
         trustSource: TrustSource.LoTL,
     ): TrustedListsCertificateSource {
         println("Loading trusted lists for ${trustSource.serviceType}...")
@@ -173,8 +177,8 @@ class DSSLoader(
             }
         }
 
-    companion object {
-        operator fun invoke(
+    public companion object {
+        public operator fun invoke(
             cacheDir: Path?,
             lotlLocationPerSource: Map<TrustSource.LoTL, String>,
         ): DSSLoader {

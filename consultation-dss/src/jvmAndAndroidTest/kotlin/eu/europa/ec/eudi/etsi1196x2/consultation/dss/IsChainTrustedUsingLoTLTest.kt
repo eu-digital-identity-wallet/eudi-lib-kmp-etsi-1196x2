@@ -13,8 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package eu.europa.ec.eudi.etsi1196x2.consultation
+package eu.europa.ec.eudi.etsi1196x2.consultation.dss
 
+import eu.europa.ec.eudi.etsi1196x2.consultation.CertificationChainValidation
+import eu.europa.ec.eudi.etsi1196x2.consultation.TrustSource
+import eu.europa.ec.eudi.etsi1196x2.consultation.VerificationContext
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.test.runTest

@@ -38,7 +38,7 @@ public fun IsChainTrusted.Companion.usingKeystore(
     getKeystore: suspend () -> KeyStore,
 ): IsChainTrusted<List<X509Certificate>, TrustAnchor> {
     val getTrustAnchorsFromKeystore = GetTrustAnchorsFromKeystore(trustAnchorCreator, filterAliases, getKeystore)
-    return IsChainTrusted(validateCertificateChain, getTrustAnchorsFromKeystore)
+    return IsChainTrusted.Companion(validateCertificateChain, getTrustAnchorsFromKeystore)
 }
 
 internal class GetTrustAnchorsFromKeystore(
