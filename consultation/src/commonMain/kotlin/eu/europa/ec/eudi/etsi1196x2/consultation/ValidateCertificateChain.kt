@@ -34,11 +34,24 @@ public fun interface ValidateCertificateChain<in CHAIN : Any, TRUST_ANCHOR : Any
 
 /**
  * Represents the outcome of the validation
+ *
  * - [Trusted] if the chain is trusted, with the trust anchor
  * - [NotTrusted] if the chain is not trusted, with the cause of the failure
+ *
  * @param TRUST_ANCHOR type representing a trust anchor
  */
 public sealed interface CertificationChainValidation<out TRUST_ANCHOR : Any> {
+    /**
+     * The chain is trusted
+     *
+     * @param trustAnchor the trust anchor that matched the chain
+     */
     public data class Trusted<out TRUST_ANCHOR : Any>(val trustAnchor: TRUST_ANCHOR) : CertificationChainValidation<TRUST_ANCHOR>
+
+    /**
+     * The chain is not trusted
+     *
+     * @param cause the cause of the failure
+     */
     public data class NotTrusted(val cause: Throwable) : CertificationChainValidation<Nothing>
 }

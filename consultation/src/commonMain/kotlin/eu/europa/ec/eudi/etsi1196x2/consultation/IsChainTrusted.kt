@@ -21,6 +21,7 @@ import kotlinx.coroutines.withContext
 /**
  * Interface for checking the trustworthiness of a certificate chain
  *
+ * - To get an instance of [IsChainTrusted], use the [IsChainTrusted.Companion.invoke] function.
  * @param CHAIN type representing a certificate chain
  * @param TRUST_ANCHOR type representing a trust anchor
  */

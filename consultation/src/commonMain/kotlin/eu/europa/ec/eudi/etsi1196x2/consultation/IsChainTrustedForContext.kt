@@ -17,23 +17,27 @@ package eu.europa.ec.eudi.etsi1196x2.consultation
 
 public sealed interface VerificationContext {
     /**
-     * Check the wallet provider's signature for a WIA
+     * Check the wallet provider's signature for a Wallet Instance Attestation (WIA)
+     *
      * Can be used by an Authorization Server implementing
      * Attestation-Based Client Authentication
      */
     public data object WalletInstanceAttestation : VerificationContext
 
     /**
-     * Check the wallet provider's signature for a WUA
+     * Check the wallet provider's signature for a Wallet Unit Attestation (WUA)
+     *
      * Can be used by a Credential Issuer, issuing device-bound attestations
      * that require WUA
      */
     public data object WalletUnitAttestation : VerificationContext
 
     /**
-     * Check the wallet provider's signature for the Token Status List that keeps the status of a WUA
+     * Check the wallet provider's signature for the Token Status List that keeps
+     * the status of a Wallet Unit Attestation (WUA)
      *
-     * Can be used by a Credential Issuer, issuing device-bound attestations to keep track of WUA status
+     * Can be used by a Credential Issuer, issuing device-bound attestations
+     * to keep track of WUA status
      */
     public data object WalletUnitAttestationStatus : VerificationContext
 
@@ -66,6 +70,40 @@ public sealed interface VerificationContext {
     public data object PubEAAStatus : VerificationContext
 
     /**
+     * Check the issuer's signature for a Qualified EAA
+     *
+     * Can be used by Wallets after issuance and Verifiers during presentation verification
+     */
+    public data object QEAA : VerificationContext
+
+    /**
+     * Check the signature of a Status Lists or Identifiers List that keeps the status of
+     * a qualified electronic attestation of attributes (QEAA), that supports revocation
+     *
+     * Can be used by Wallets and Verifiers to check the status of a QEAA
+     */
+    public data object QEAAStatus : VerificationContext
+
+    /**
+     * Check the issuer's signature for an electronic attestation of attributes (EAA)
+     *
+     * Can be used by Wallets after issuance and Verifiers during presentation verification
+     *
+     * @param useCase the use case of the EAA
+     */
+    public data class EAA(val useCase: String) : VerificationContext
+
+    /**
+     * Check the signature of a Status Lists or Identifiers List that keeps the status
+     * of an electronic attestation of attributes (EAA), that supports revocation
+     *
+     * Can be used by Wallets and Verifiers to check the status of an EAA
+     *
+     * @param useCase the use case of the EAA
+     */
+    public data class EAAStatus(val useCase: String) : VerificationContext
+
+    /**
      * Check the signature of a registration certificate of an Issuer or Verifier
      *
      * Can be used by Wallets to verify the signature of the registration certificate of an Issuer or Verifier, during
@@ -81,14 +119,17 @@ public sealed interface VerificationContext {
      */
     public data object WalletRelyingPartyAccessCertificate : VerificationContext
 
-    public data class EAA(val case: String) : VerificationContext
-    public data class EAAStatus(val case: String) : VerificationContext
+    /**
+     * Custom verification context
+     */
+    public data class Custom(val useCase: String) : VerificationContext
 }
 
 /**
  * Interface for checking the trustworthiness of a certificate chain
  * in the context of a specific [verification][VerificationContext]
  *
+ * @param trust the supported verification contexts and their corresponding validations
  * @param CHAIN type representing a certificate chain
  * @param TRUST_ANCHOR type representing a trust anchor
  */
@@ -102,7 +143,7 @@ public class IsChainTrustedForContext<in CHAIN : Any, out TRUST_ANCHOR : Any>(
      *
      * @param chain certificate chain to check
      * @param verificationContext verification context
-     * @return outcome of the check
+     * @return outcome of the check. A null value indicates that the given [verificationContext] has not been configured
      */
     public suspend operator fun invoke(
         chain: CHAIN,
