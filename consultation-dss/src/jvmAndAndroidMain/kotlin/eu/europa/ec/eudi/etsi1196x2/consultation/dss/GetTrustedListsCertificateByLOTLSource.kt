@@ -102,9 +102,7 @@ internal class GetTrustedListsCertificateByLOTLSourceBlocking(
 
     private val cached: AsyncCache<LOTLSource, TrustedListsCertificateSource> =
         AsyncCache(scope, dispatcher, clock, ttl, expectedTrustSourceNo) { trustSource ->
-            withContext(dispatcher) {
-                block(trustSource)
-            }
+            block(trustSource)
         }
 
     override suspend fun invoke(trustSource: LOTLSource): TrustedListsCertificateSource = cached(trustSource)
