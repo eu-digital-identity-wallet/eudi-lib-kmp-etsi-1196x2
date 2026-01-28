@@ -85,7 +85,7 @@ private class IsChainTrustedDefault<in CHAIN : Any, out TRUST_ANCHOR : Any>(
 ) : IsChainTrusted<CHAIN, TRUST_ANCHOR> {
 
     override suspend fun invoke(chain: CHAIN): CertificationChainValidation<TRUST_ANCHOR> =
-        withContext(CoroutineName(name = "IsChainTrusted-$chain")) {
+        withContext(CoroutineName(name = "IsChainTrusted")) {
             val trustAnchors = getTrustAnchors()
             validateCertificateChain(chain, trustAnchors.toSet())
         }
