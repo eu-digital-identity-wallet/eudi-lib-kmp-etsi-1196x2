@@ -73,6 +73,7 @@ public class ValidateCertificateChainJvm(
     ): CertificationChainValidation<TrustAnchor> =
         withContext(coroutineContext) {
             require(chain.isNotEmpty()) { "Chain must not be empty" }
+            require(trustAnchors.isNotEmpty()) { "Trust anchors must not be empty" }
             try {
                 val pkixParameters = PKIXParameters(trustAnchors).apply(customization)
                 val certPath = certificateFactory.generateCertPath(chain)
