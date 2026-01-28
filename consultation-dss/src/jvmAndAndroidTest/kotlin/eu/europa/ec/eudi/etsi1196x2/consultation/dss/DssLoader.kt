@@ -113,7 +113,7 @@ class DSSLoader(
         val trust = sourcePerVerification.mapValues { (_, lotlSource) ->
             val provider = getTrustedListsCertificateByLOTLSource.asProviderFor(lotlSource)
             val isChainTrusted = IsChainTrusted(validateCertificateChain, provider)
-            if (fallBack != null) isChainTrusted.or(fallBack) else isChainTrusted
+            if (fallBack != null) (isChainTrusted or fallBack) else isChainTrusted
         }
 
         return IsChainTrustedForContext(trust)

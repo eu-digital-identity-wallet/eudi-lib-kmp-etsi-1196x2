@@ -195,5 +195,20 @@ public class IsChainTrustedForContext<in CHAIN : Any, out TRUST_ANCHOR : Any>(
             },
         )
 
+    public fun or(other: IsChainTrustedForContext<@UnsafeVariance CHAIN, @UnsafeVariance TRUST_ANCHOR>): IsChainTrustedForContext<CHAIN, TRUST_ANCHOR> =
+        or(other.trust::get)
+
+    public fun or(other: IsChainTrusted<@UnsafeVariance CHAIN, @UnsafeVariance TRUST_ANCHOR>): IsChainTrustedForContext<CHAIN, TRUST_ANCHOR> =
+        or { other }
+
+    public fun or(other: (VerificationContext) -> IsChainTrusted<@UnsafeVariance CHAIN, @UnsafeVariance TRUST_ANCHOR>?): IsChainTrustedForContext<CHAIN, TRUST_ANCHOR> =
+        IsChainTrustedForContext(
+            trust.mapValues { (context, isChainTrusted) ->
+                other(context)?.let { alternative ->
+                    isChainTrusted or alternative
+                } ?: isChainTrusted
+            },
+        )
+
     public companion object
 }
