@@ -15,13 +15,19 @@
  */
 package eu.europa.ec.eudi.etsi1196x2.consultation.dss
 
-import eu.europa.ec.eudi.etsi1196x2.consultation.IsChainTrusted
-import eu.europa.ec.eudi.etsi1196x2.consultation.JvmSecurity
-import eu.europa.ec.eudi.etsi1196x2.consultation.TrustAnchorCreator
-import eu.europa.ec.eudi.etsi1196x2.consultation.ValidateCertificateChainJvm
+import eu.europa.ec.eudi.etsi1196x2.consultation.*
+import eu.europa.esig.dss.service.http.commons.FileCacheDataLoader
 import eu.europa.esig.dss.spi.tsl.TrustedListsCertificateSource
+import eu.europa.esig.dss.tsl.source.LOTLSource
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import java.security.cert.TrustAnchor
 import java.security.cert.X509Certificate
+import kotlin.time.Clock
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.minutes
 
 /**
  * Creates an instance of [IsChainTrusted] using a trusted list of trust anchors (LoTL).
@@ -46,3 +52,43 @@ public fun IsChainTrusted.Companion.usingLoTL(
 internal fun TrustedListsCertificateSource.trustAnchors(
     trustAnchorCreator: TrustAnchorCreator<X509Certificate, TrustAnchor>,
 ): List<TrustAnchor> = certificates.map { certToken -> trustAnchorCreator(certToken.certificate) }
+
+public fun IsChainTrustedForContext.Companion.usingLoTL(
+    validateCertificateChain: ValidateCertificateChain<List<X509Certificate>, TrustAnchor> = ValidateCertificateChainJvm(),
+    trustAnchorCreator: TrustAnchorCreator<X509Certificate, TrustAnchor> = JvmSecurity.TRUST_ANCHOR_WITH_NO_NAME_CONSTRAINTS,
+    sourcePerVerification: Map<VerificationContext, LOTLSource>,
+    getTrustedListsCertificateByLOTLSource: GetTrustedListsCertificateByLOTLSource,
+): IsChainTrustedForContext<List<X509Certificate>, TrustAnchor> {
+    val trust = sourcePerVerification.mapValues { (_, lotlSource) ->
+        val provider = getTrustedListsCertificateByLOTLSource.asProviderFor(lotlSource, trustAnchorCreator)
+        IsChainTrusted(validateCertificateChain, provider)
+    }
+    return IsChainTrustedForContext(trust)
+}
+
+public fun IsChainTrustedForContext.Companion.usingLoTL(
+    fileCacheLoader: FileCacheDataLoader,
+    sourcePerVerification: Map<VerificationContext, LOTLSource>,
+    validateCertificateChain: ValidateCertificateChain<List<X509Certificate>, TrustAnchor> = ValidateCertificateChainJvm(),
+    trustAnchorCreator: TrustAnchorCreator<X509Certificate, TrustAnchor> = JvmSecurity.TRUST_ANCHOR_WITH_NO_NAME_CONSTRAINTS,
+    clock: Clock = Clock.System,
+    coroutineScope: CoroutineScope = CoroutineScope(Dispatchers.Default + SupervisorJob()),
+    coroutineDispatcher: CoroutineDispatcher = Dispatchers.IO,
+    ttl: Duration = 10.minutes,
+): IsChainTrustedForContext<List<X509Certificate>, TrustAnchor> {
+    val dssLoader = DSSLoader(fileCacheLoader)
+    val getTrustedListsCertificateByLOTLSource = dssLoader
+        .getTrustedListsCertificateByLOTLSource(
+            coroutineScope = coroutineScope,
+            coroutineDispatcher = coroutineDispatcher,
+            expectedTrustSourceNo = sourcePerVerification.size,
+            ttl = ttl,
+            clock = clock,
+        )
+    return usingLoTL(
+        validateCertificateChain,
+        trustAnchorCreator,
+        sourcePerVerification,
+        getTrustedListsCertificateByLOTLSource,
+    )
+}

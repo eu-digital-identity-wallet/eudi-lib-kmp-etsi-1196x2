@@ -17,7 +17,10 @@ package eu.europa.ec.eudi.etsi1196x2.consultation.dss
 
 import eu.europa.ec.eudi.etsi1196x2.consultation.CertificationChainValidation
 import eu.europa.ec.eudi.etsi1196x2.consultation.IsChainTrustedForContext
+import eu.europa.ec.eudi.etsi1196x2.consultation.ValidateCertificateChainJvm
 import eu.europa.ec.eudi.etsi1196x2.consultation.VerificationContext
+import eu.europa.esig.dss.service.http.commons.FileCacheDataLoader
+import eu.europa.esig.dss.spi.client.http.NativeHTTPDataLoader
 import eu.europa.esig.dss.tsl.function.GrantedOrRecognizedAtNationalLevelTrustAnchorPeriodPredicate
 import eu.europa.esig.dss.tsl.function.TLPredicateFactory
 import eu.europa.esig.dss.tsl.function.TypeOtherTSLPointer
@@ -31,11 +34,13 @@ import java.security.cert.CertificateFactory
 import java.security.cert.TrustAnchor
 import java.security.cert.X509Certificate
 import java.util.function.Predicate
+import javax.imageio.ImageIO.setCacheDirectory
 import kotlin.io.encoding.Base64
 import kotlin.test.Ignore
 import kotlin.test.Test
 import kotlin.test.assertIs
 import kotlin.test.assertNull
+import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.seconds
 
 object EUDIRefDevEnv {
@@ -62,24 +67,23 @@ object EUDIRefDevEnv {
         return lotlSource
     }
 
-    private val dssLoader: DSSLoader by lazy {
-        DSSLoader(
-            cacheDir = createTempDirectory("lotl-cache"),
+    val isChainTrustedForContext =
+        IsChainTrustedForContext.usingLoTL(
+            fileCacheLoader = FileCacheDataLoader(NativeHTTPDataLoader()).apply {
+                setCacheExpirationTime(24.hours.inWholeMilliseconds)
+                setCacheDirectory(createTempDirectory("lotl-cache").toFile())
+            },
             sourcePerVerification = buildMap {
                 put(VerificationContext.PID, lotlSource(PID_SVC_TYPE))
                 put(VerificationContext.PubEAA, lotlSource(PUB_EAA_SVC_TYPE))
             },
-        )
-    }
-
-    val isChainTrustedForContext: IsChainTrustedForContext<List<X509Certificate>, TrustAnchor> by lazy {
-        dssLoader.isChainTrustedForContext(
+            validateCertificateChain = ValidateCertificateChainJvm(customization = {
+                isRevocationEnabled = false
+            }),
             coroutineScope = CoroutineScope(Dispatchers.Default + SupervisorJob()),
             coroutineDispatcher = Dispatchers.IO,
-            ttl = 30.seconds,
-            revocationEnabled = false,
+            ttl = 10.seconds,
         )
-    }
 }
 
 class IsChainTrustedUsingLoTLTest {
