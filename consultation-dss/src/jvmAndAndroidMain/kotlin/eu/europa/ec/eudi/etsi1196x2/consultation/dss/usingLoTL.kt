@@ -53,6 +53,18 @@ internal fun TrustedListsCertificateSource.trustAnchors(
     trustAnchorCreator: TrustAnchorCreator<X509Certificate, TrustAnchor>,
 ): List<TrustAnchor> = certificates.map { certToken -> trustAnchorCreator(certToken.certificate) }
 
+/**
+ * Creates an instance of [IsChainTrustedForContext] using a trusted list of trust anchors (LoTL).
+ *
+ * @param validateCertificateChain the function used to validate a given certificate chain
+ * @param trustAnchorCreator a function that creates a trust anchor from a certificate
+ * @param sourcePerVerification a map of verification contexts to trusted list sources
+ * @param getTrustedListsCertificateByLOTLSource a function that retrieves the trusted lists certificate
+ * source containing trust anchors for a given verification context
+ *
+ * @return an [IsChainTrustedForContext] instance configured to validate certificate chains
+ * using the provided trusted lists
+ */
 public fun IsChainTrustedForContext.Companion.usingLoTL(
     validateCertificateChain: ValidateCertificateChain<List<X509Certificate>, TrustAnchor> = ValidateCertificateChainJvm(),
     trustAnchorCreator: TrustAnchorCreator<X509Certificate, TrustAnchor> = JvmSecurity.TRUST_ANCHOR_WITH_NO_NAME_CONSTRAINTS,
@@ -66,6 +78,48 @@ public fun IsChainTrustedForContext.Companion.usingLoTL(
     return IsChainTrustedForContext(trust)
 }
 
+/**
+ * Creates an instance of [IsChainTrustedForContext] using a trusted list of trust anchors (LoTL) and a file cache loader.
+ * The implementation has the following characteristics:
+ * - Utilizes a file cache loader to load trusted lists from the file system
+ * - Depending on the file cache loader configuration, the file downloader may use an online fetcher to
+ *   refresh the file cache.
+ * - Given that [FileCacheDataLoader] is blocking, it creates a suspendable and cachable wrapper around it using
+ *   [GetTrustedListsCertificateByLOTLSource.fromBlocking].
+ *
+ * The example creates an [IsChainTrustedForContext] that:
+ * - Supports PUB EAA
+ * - Caches calls in memory for 10 minutes
+ * - Every 10 minutes, the file cache is being used
+ * - Every 24 hours, the trusted lists are fetched from the internet
+ *
+ * ```kotlin
+ * IsChainTrustedForContext.usingLoTL(
+ *   fileCacheLoader = FileCacheDataLoader(NativeHTTPDataLoader()).apply {
+ *       setCacheExpirationTime(24.hours.inWholeMilliseconds)
+ *       setCacheDirectory(createTempDirectory("lotl-cache").toFile())
+ *   },
+ *   sourcePerVerification = buildMap {
+ *       put(VerificationContext.PubEAA, lotlSource(PUB_EAA_SVC_TYPE))
+ *   },
+ *   validateCertificateChain = ValidateCertificateChainJvm(customization = {
+ *       isRevocationEnabled = false
+ *   }),
+ *   coroutineScope = CoroutineScope(Dispatchers.Default + SupervisorJob()),
+ *   coroutineDispatcher = Dispatchers.IO,
+ *   ttl = 10.minutes,
+ * )
+ * ````
+ *
+ * @param fileCacheLoader the file cache loader used to load the trusted lists from the file system
+ * @param sourcePerVerification a map of verification contexts to trusted list sources
+ * @param validateCertificateChain the function used to validate a given certificate chain
+ * @param trustAnchorCreator a function that creates a trust anchor from a certificate
+ * @param clock the clock used to retrieve the current time
+ * @param coroutineScope the overall scope that controls [fileCacheLoader]
+ * @param coroutineDispatcher the coroutine dispatcher for executing the blocking logic of [fileCacheLoader]
+ * @param ttl the time-to-live duration for caching the certificate source. It should be set to a value higher than the average duration of executing the [block]
+ */
 public fun IsChainTrustedForContext.Companion.usingLoTL(
     fileCacheLoader: FileCacheDataLoader,
     sourcePerVerification: Map<VerificationContext, LOTLSource>,
