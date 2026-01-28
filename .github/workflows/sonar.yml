@@ -47,13 +47,13 @@ jobs:
             -Dsonar.projectKey=${{ env.PROJECT_KEY }}
             -Dsonar.scanner.skipJreProvisioning=true
             -Dsonar.language=kotlin
-            -Dsonar.coverage.jacoco.xmlReportPaths=lib/build/reports/kover/report.xml
-            -Dsonar.kotlin.coverage.reportPaths=lib/build/reports/kover/report.xml
-            -Dsonar.kotlin.multiplatform.reportPaths=lib/build/reports/kover/report.xml
-            -Dsonar.sources=lib/src/commonMain,lib/src/jvmAndAndroidMain
-            -Dsonar.tests=lib/src/commonTest,lib/src/jvmAndAndroidTest
-            -Dsonar.java.binaries=lib/build/classes/kotlin/jvm
-            -Dsonar.kotlin.binaries=lib/build/classes/kotlin/jvm
+            -Dsonar.coverage.jacoco.xmlReportPaths=consultation/build/reports/kover/report.xml,consultation-dss/build/reports/kover/report.xml
+            -Dsonar.kotlin.coverage.reportPaths=consultation/build/reports/kover/report.xml,consultation-dss/build/reports/kover/report.xml
+            -Dsonar.kotlin.multiplatform.reportPaths=consultation/build/reports/kover/report.xml,consultation-dss/build/reports/kover/report.xml
+            -Dsonar.sources=consultation/src/commonMain,consultation/src/jvmAndAndroidMain,consultation-dss/src/jvmAndAndroidMain
+            -Dsonar.tests=consultation/src/jvmAndAndroidTest,consultation-dss/src/jvmAndAndroidTest
+            -Dsonar.java.binaries=consultation/build/classes/kotlin/jvm,consultation-dss/build/classes/kotlin/jvm
+            -Dsonar.kotlin.binaries=consultation/build/classes/kotlin/jvm,consultation-dss/build/classes/kotlin/jvm
       - uses: sonarsource/sonarqube-scan-action@v6.0.0
         if: (github.event_name == 'pull_request_target')
         with:
@@ -66,13 +66,13 @@ jobs:
             -Dsonar.pullrequest.branch=${{ github.event.pull_request.head.ref }}
             -Dsonar.scanner.skipJreProvisioning=true
             -Dsonar.language=kotlin
-            -Dsonar.coverage.jacoco.xmlReportPaths=lib/build/reports/kover/report.xml
-            -Dsonar.kotlin.coverage.reportPaths=lib/build/reports/kover/report.xml
-            -Dsonar.kotlin.multiplatform.reportPaths=lib/build/reports/kover/report.xml
-            -Dsonar.sources=lib/src/commonMain,lib/src/jvmAndAndroidMain
-            -Dsonar.tests=lib/src/commonTest,lib/src/jvmAndAndroidTest
-            -Dsonar.java.binaries=lib/build/classes/kotlin/jvm
-            -Dsonar.kotlin.binaries=lib/build/classes/kotlin/jvm
+            -Dsonar.coverage.jacoco.xmlReportPaths=consultation/build/reports/kover/report.xml,consultation-dss/build/reports/kover/report.xml
+            -Dsonar.kotlin.coverage.reportPaths=consultation/build/reports/kover/report.xml,consultation-dss/build/reports/kover/report.xml
+            -Dsonar.kotlin.multiplatform.reportPaths=consultation/build/reports/kover/report.xml,consultation-dss/build/reports/kover/report.xml
+            -Dsonar.sources=consultation/src/commonMain,consultation/src/jvmAndAndroidMain,consultation-dss/src/jvmAndAndroidMain
+            -Dsonar.tests=consultation/src/jvmAndAndroidTest,consultation-dss/src/jvmAndAndroidTest
+            -Dsonar.java.binaries=consultation/build/classes/kotlin/jvm,consultation-dss/build/classes/kotlin/jvm
+            -Dsonar.kotlin.binaries=consultation/build/classes/kotlin/jvm,consultation-dss/build/classes/kotlin/jvm
       - uses: actions/setup-node@v6
         if: (github.repository_owner == 'eu-digital-identity-wallet' && github.ref_name == 'main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch'))
         with:
