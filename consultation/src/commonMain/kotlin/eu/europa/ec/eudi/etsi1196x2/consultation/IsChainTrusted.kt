@@ -62,9 +62,9 @@ public sealed interface IsChainTrusted<in CHAIN : Any, out TRUST_ANCHOR : Any> {
  * @param transform The transformation function that maps from C2 to C1.
  * @return A new IsChainTrusted instance with the input type transformed.
  */
-public fun <C2 : Any, C1 : Any, TC : Any> IsChainTrusted<C1, TC>.contraMap(
+public fun <C2 : Any, C1 : Any, TA : Any> IsChainTrusted<C1, TA>.contraMap(
     transform: (C2) -> C1,
-): IsChainTrusted<C2, TC> = IsChainTrustedContraMap(this, transform)
+): IsChainTrusted<C2, TA> = IsChainTrustedContraMap(this, transform)
 
 /**
  * Combines two IsChainTrusted instances into a single one, where the second one is used as a fallback if the first one fails.
@@ -72,9 +72,9 @@ public fun <C2 : Any, C1 : Any, TC : Any> IsChainTrusted<C1, TC>.contraMap(
  * @param other The fallback IsChainTrusted instance.
  * @return A new IsChainTrusted instance that combines the primary and fallback validators.
  */
-public infix fun <C1 : Any, TC : Any> IsChainTrusted<C1, TC>.or(
-    other: IsChainTrusted<C1, TC>,
-): IsChainTrusted<C1, TC> = IsChainTrustedWithAlternative(this, other)
+public infix fun <C1 : Any, TA : Any> IsChainTrusted<C1, TA>.or(
+    other: IsChainTrusted<C1, TA>,
+): IsChainTrusted<C1, TA> = IsChainTrustedWithAlternative(this, other)
 
 //
 // Implementations

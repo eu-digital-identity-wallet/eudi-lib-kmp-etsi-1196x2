@@ -195,13 +195,44 @@ public class IsChainTrustedForContext<in CHAIN : Any, out TRUST_ANCHOR : Any>(
             },
         )
 
-    public fun or(other: IsChainTrustedForContext<@UnsafeVariance CHAIN, @UnsafeVariance TRUST_ANCHOR>): IsChainTrustedForContext<CHAIN, TRUST_ANCHOR> =
+    /**
+     * Combines `horizontally` the current `IsChainTrustedForContext` instance with another one, by extending the existing validation
+     * per `VerificationContext` with the alternative validations as defined in the passed `IsChainTrustedForContext`.
+     *
+     * @param other the `IsChainTrustedForContext` to be combined with the current one.
+     * @return a new `IsChainTrustedForContext` instance that combines the trust validation of the current instance
+     * and the provided `other`.
+     */
+    public fun or(
+        other: IsChainTrustedForContext<@UnsafeVariance CHAIN, @UnsafeVariance TRUST_ANCHOR>,
+    ): IsChainTrustedForContext<CHAIN, TRUST_ANCHOR> =
         or(other.trust::get)
 
-    public fun or(other: IsChainTrusted<@UnsafeVariance CHAIN, @UnsafeVariance TRUST_ANCHOR>): IsChainTrustedForContext<CHAIN, TRUST_ANCHOR> =
-        or { other }
+    /**
+     * Extends the existing validation performed per `VerificationContext` with the passed alternative validation.
+     *
+     * @param other another `IsChainTrusted` instance that will be added as an alternative validation for every `VerificationContext`.
+     * @return a new `IsChainTrustedForContext` instance that its existing validation per `VerificationContext` is extended with an
+     *        alternative validation.
+     */
+    public fun or(
+        other: IsChainTrusted<@UnsafeVariance CHAIN, @UnsafeVariance TRUST_ANCHOR>,
+    ): IsChainTrustedForContext<CHAIN, TRUST_ANCHOR> =
+        or { _ -> other }
 
-    public fun or(other: (VerificationContext) -> IsChainTrusted<@UnsafeVariance CHAIN, @UnsafeVariance TRUST_ANCHOR>?): IsChainTrustedForContext<CHAIN, TRUST_ANCHOR> =
+    /**
+     * Given a function that takes a `VerificationContext` and returns a `IsChainTrusted` instance (optionally),
+     * extends the existing validation performed per `VerificationContext` with alternative validation.
+     *
+     * @param other a function that takes a `VerificationContext` and returns optionally an
+     *        `IsChainTrusted` instance, which will be used as an alternative validator to the existing
+     *        validation for a specific `VerificationContext`.
+     * @return a new `IsChainTrustedForContext` instance that is extended with alternative validations
+     *        per `VerificationContext`.
+     */
+    public fun or(
+        other: (VerificationContext) -> IsChainTrusted<@UnsafeVariance CHAIN, @UnsafeVariance TRUST_ANCHOR>?,
+    ): IsChainTrustedForContext<CHAIN, TRUST_ANCHOR> =
         IsChainTrustedForContext(
             trust.mapValues { (context, isChainTrusted) ->
                 other(context)?.let { alternative ->
