@@ -45,6 +45,8 @@ private class InvokeOnce<T : Any>(
 ) : suspend () -> T {
 
     private val mutex = Mutex()
+
+    @Volatile
     private var cache: T? = null
 
     private suspend fun invokeOnce(): T = source.invoke()

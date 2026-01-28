@@ -233,11 +233,19 @@ public class IsChainTrustedForContext<in CHAIN : Any, out TRUST_ANCHOR : Any>(
     public fun or(
         other: (VerificationContext) -> IsChainTrusted<@UnsafeVariance CHAIN, @UnsafeVariance TRUST_ANCHOR>?,
     ): IsChainTrustedForContext<CHAIN, TRUST_ANCHOR> =
+        recoverWith { ctx -> { other(ctx) } }
+
+    public fun recoverWith(
+        recovery: (VerificationContext) -> ((Throwable) -> IsChainTrusted<@UnsafeVariance CHAIN, @UnsafeVariance TRUST_ANCHOR>?)?,
+    ): IsChainTrustedForContext<CHAIN, TRUST_ANCHOR> =
         IsChainTrustedForContext(
             trust.mapValues { (context, isChainTrusted) ->
-                other(context)?.let { alternative ->
-                    isChainTrusted or alternative
-                } ?: isChainTrusted
+                val fallBackForContext = recovery(context)
+                if (fallBackForContext == null) {
+                    isChainTrusted
+                } else {
+                    isChainTrusted recoverWith fallBackForContext
+                }
             },
         )
 

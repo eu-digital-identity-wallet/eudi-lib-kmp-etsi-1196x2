@@ -24,8 +24,10 @@ import kotlinx.coroutines.withContext
  * - To get an instance of [IsChainTrusted], use the [IsChainTrusted.Companion.invoke] function.
  *
  * Combinators:
+ * - [recoverWith]: combine two instances of IsChainTrusted into a single one, which will be used as a fallback if the first one fails
  * - [or]: combine two instances of IsChainTrusted into a single one, which will be used as a fallback if the first one fails
  * - [contraMap]: change the chain of certificates representation
+ *
  *
  * @param CHAIN type representing a certificate chain
  * @param TRUST_ANCHOR type representing a trust anchor
@@ -74,7 +76,17 @@ public fun <C2 : Any, C1 : Any, TA : Any> IsChainTrusted<C1, TA>.contraMap(
  */
 public infix fun <C1 : Any, TA : Any> IsChainTrusted<C1, TA>.or(
     other: IsChainTrusted<C1, TA>,
-): IsChainTrusted<C1, TA> = IsChainTrustedWithAlternative(this, other)
+): IsChainTrusted<C1, TA> = IsChainTrustedWithRecover(this) { other }
+
+/**
+ * Combines two instances into a single one, where the second one is used as a fallback if the first one fails.
+ * @receiver The primary IsChainTrusted instance.
+ * @param fallback The fallback instance.
+ * @return A new instance that combines the primary and fallback validators.
+ */
+public infix fun <C1 : Any, TA : Any> IsChainTrusted<C1, TA>.recoverWith(
+    fallback: (Throwable) -> IsChainTrusted<C1, TA>?,
+): IsChainTrusted<C1, TA> = IsChainTrustedWithRecover(this, fallback)
 
 //
 // Implementations
@@ -100,14 +112,16 @@ private class IsChainTrustedContraMap<in CHAIN2 : Any, CHAIN1 : Any, out TRUST_A
         base(transform(chain))
 }
 
-private class IsChainTrustedWithAlternative<in CHAIN : Any, out TRUST_ANCHOR : Any>(
+private class IsChainTrustedWithRecover<in CHAIN : Any, out TRUST_ANCHOR : Any>(
     private val primary: IsChainTrusted<CHAIN, TRUST_ANCHOR>,
-    private val fallback: IsChainTrusted<CHAIN, TRUST_ANCHOR>,
+    private val fallback: (Throwable) -> IsChainTrusted<CHAIN, TRUST_ANCHOR>?,
 ) : IsChainTrusted<CHAIN, TRUST_ANCHOR> {
 
     override suspend fun invoke(chain: CHAIN): CertificationChainValidation<TRUST_ANCHOR> =
         when (val validation = primary(chain)) {
             is CertificationChainValidation.Trusted<TRUST_ANCHOR> -> validation
-            is CertificationChainValidation.NotTrusted -> fallback(chain)
+            is CertificationChainValidation.NotTrusted -> {
+                fallback(validation.cause)?.invoke(chain) ?: validation
+            }
         }
 }
