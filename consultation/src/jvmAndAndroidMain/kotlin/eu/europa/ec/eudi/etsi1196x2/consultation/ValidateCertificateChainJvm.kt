@@ -95,6 +95,6 @@ public class ValidateCertificateChainJvm(
         }
 
         private fun Throwable.notTrusted(): CertificationChainValidation.NotTrusted =
-            cause?.notTrusted() ?: CertificationChainValidation.NotTrusted(this)
+            CertificationChainValidation.NotTrusted(this)
     }
 }
