@@ -16,16 +16,15 @@
 package eu.europa.ec.eudi.etsi1196x2.consultation.dss
 
 import eu.europa.ec.eudi.etsi1196x2.consultation.GetTrustAnchors
-import eu.europa.ec.eudi.etsi1196x2.consultation.JvmSecurity
 import eu.europa.ec.eudi.etsi1196x2.consultation.TrustAnchorCreator
 import eu.europa.ec.eudi.etsi1196x2.consultation.dss.AsyncCache.Entry
+import eu.europa.esig.dss.model.x509.CertificateToken
 import eu.europa.esig.dss.spi.tsl.TrustedListsCertificateSource
 import eu.europa.esig.dss.tsl.source.LOTLSource
 import kotlinx.coroutines.*
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.security.cert.TrustAnchor
-import java.security.cert.X509Certificate
 import kotlin.time.Clock
 import kotlin.time.Duration
 
@@ -52,7 +51,7 @@ public fun interface GetTrustedListsCertificateByLOTLSource {
 
     public fun asProviderFor(
         trustSource: LOTLSource,
-        trustAnchorCreator: TrustAnchorCreator<X509Certificate, TrustAnchor> = JvmSecurity.TRUST_ANCHOR_WITH_NO_NAME_CONSTRAINTS,
+        trustAnchorCreator: TrustAnchorCreator<CertificateToken, TrustAnchor> = DSSTrustAnchorCreator,
     ): GetTrustAnchors<TrustAnchor> =
         GetTrustAnchors {
             invoke(trustSource).trustAnchors(trustAnchorCreator)
