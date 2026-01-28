@@ -21,15 +21,15 @@ At the European Commission, we treat the security of our Communication and Infor
 - Do not reveal any data downloaded during the discovery to any other parties.
 - Do not reveal the problem to others until it has been resolved.
 - Do not perform the following actions:
-    - Placing malware (virus, worm, Trojan horse, etc.) within the system.
-    - Reading, copying, modifying or deleting data from the system.
-    - Making changes to the system.
-    - Repeatedly accessing the system or sharing access with others.
-    - Using any access obtained to attempt to access other systems.
-    - Changing access rights for any other users.
-    - Using automated scanning tools.
-    - Using the so-called "brute force" of access to the system.
-    - Using denial-of-service or social engineering (phishing, vishing, spam, etc.).
+  - Placing malware (virus, worm, Trojan horse, etc.) within the system.
+  - Reading, copying, modifying or deleting data from the system.
+  - Making changes to the system.
+  - Repeatedly accessing the system or sharing access with others.
+  - Using any access obtained to attempt to access other systems.
+  - Changing access rights for any other users.
+  - Using automated scanning tools.
+  - Using the so-called "brute force" of access to the system.
+  - Using denial-of-service or social engineering (phishing, vishing, spam, etc.).
 - Do not use attacks on physical security.
 
 ## What we promise

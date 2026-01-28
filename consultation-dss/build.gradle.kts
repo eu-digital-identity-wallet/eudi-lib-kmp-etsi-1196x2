@@ -1,7 +1,6 @@
 import com.vanniktech.maven.publish.JavadocJar
 import com.vanniktech.maven.publish.KotlinMultiplatform
-import org.jetbrains.dokka.DokkaConfiguration
-import org.jetbrains.dokka.gradle.DokkaTask
+import org.jetbrains.dokka.gradle.engine.parameters.VisibilityModifier
 import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.dsl.KotlinVersion
@@ -149,41 +148,36 @@ spotless {
     }
 }
 
-tasks.withType<DokkaTask>().configureEach {
-    dokkaSourceSets {
-        configureEach {
-            // used as project name in the header
-            moduleName.set(properties["POM_NAME"].toString())
-            moduleVersion.set(project.version.toString())
+//
+// Configuration of Dokka engine
+//
+dokka {
+    // used as project name in the header
+    moduleName = properties["POM_NAME"].toString()
+    moduleVersion = project.version.toString()
 
-            documentedVisibilities.set(
-                setOf(
-                    DokkaConfiguration.Visibility.PUBLIC,
-                    DokkaConfiguration.Visibility.PROTECTED,
-                ),
-            )
+    dokkaSourceSets.configureEach {
+        documentedVisibilities = setOf(VisibilityModifier.Public, VisibilityModifier.Protected)
 
-            val remoteSourceUrl =
-                System.getenv()["GIT_REF_NAME"]?.let {
-                    URI.create("${properties["POM_SCM_URL"]}/tree/$it/${project.layout.projectDirectory.asFile.name}/src")
-                        .toURL()
+        val remoteSourceUrl =
+            System.getenv()["GIT_REF_NAME"]?.let {
+                URI.create("${properties["POM_SCM_URL"]}/tree/$it/${project.layout.projectDirectory.asFile.name}/src")
+            }
+        remoteSourceUrl
+            ?.let {
+                sourceLink {
+                    localDirectory = projectDir.resolve("src")
+                    remoteUrl = it
+                    remoteLineSuffix = "#L"
                 }
-            remoteSourceUrl
-                ?.let {
-                    sourceLink {
-                        localDirectory.set(projectDir.resolve("src"))
-                        remoteUrl.set(it)
-                        remoteLineSuffix.set("#L")
-                    }
-                }
-        }
+            }
     }
 }
 
 mavenPublishing {
     configure(
         KotlinMultiplatform(
-            javadocJar = JavadocJar.Dokka(tasks.dokkaHtml.name),
+            javadocJar = JavadocJar.Dokka(tasks.dokkaGeneratePublicationHtml),
             sourcesJar = true,
             androidVariantsToPublish = listOf("release"),
         ),

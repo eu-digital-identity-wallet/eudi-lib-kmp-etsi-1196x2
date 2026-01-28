@@ -56,11 +56,11 @@ contributions to this project. This means that:
   a reviewer asking for a review in the pull request or a comment.
 
 * Post review:
-    * If a review requires you to change your commit(s), please test the changes again.
-    * Amend the affected commit(s) and force push onto your branch.
-    * Set respective comments in your GitHub review to resolved.
-    * Create a general PR comment to notify the reviewers that your amendments are ready for another
-      round of review.
+  * If a review requires you to change your commit(s), please test the changes again.
+  * Amend the affected commit(s) and force push onto your branch.
+  * Set respective comments in your GitHub review to resolved.
+  * Create a general PR comment to notify the reviewers that your amendments are ready for another
+    round of review.
 
 ## Branch Name Rules
 
@@ -71,13 +71,13 @@ Please name your branch using the following convention:
 ```
 
 - `type` should be one of the following:
-    - `feat` for a new feature,
-    - `fix` for a bug fix,
-    - `docs` for documentation changes,
-    - `style` for changes that do not affect the code, such as formatting or whitespace,
-    - `refactor` for code refactoring,
-    - `test` for adding or updating tests, or
-    - `chore` for any other miscellaneous tasks.
+  - `feat` for a new feature,
+  - `fix` for a bug fix,
+  - `docs` for documentation changes,
+  - `style` for changes that do not affect the code, such as formatting or whitespace,
+  - `refactor` for code refactoring,
+  - `test` for adding or updating tests, or
+  - `chore` for any other miscellaneous tasks.
 - `short-description` should be a short, descriptive name of the changes you are making.
 
 For example:
