@@ -25,7 +25,6 @@ import eu.europa.esig.dss.tsl.source.LOTLSource
 import eu.europa.esig.dss.tsl.sync.ExpirationAndSignatureCheckStrategy
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.coroutineScope
 import java.nio.file.Path
 import kotlin.time.Clock
 import kotlin.time.Duration
