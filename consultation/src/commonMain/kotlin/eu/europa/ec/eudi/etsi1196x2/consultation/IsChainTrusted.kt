@@ -69,14 +69,23 @@ public fun <C2 : Any, C1 : Any, TA : Any> IsChainTrusted<C1, TA>.contraMap(
 ): IsChainTrusted<C2, TA> = IsChainTrustedContraMap(this, transform)
 
 /**
- * Combines two IsChainTrusted instances into a single one, where the second one is used as a fallback if the first one fails.
+ * Combines two [IsChainTrusted] instances into a single one,
+ * where the second one is used as a fallback if the first one fails.
+ *
+ * Please be careful when using this operator. The second instance will be used if the first one fails.
+ * But the first instance may fail either because
+ * - it doesn't contain a matching trust anchor, or
+ * - the trusted anchor is found, but it isn't suitable (e.g. expired, not matching algorithm, usage etc.)
+ * The `or` operator should be used for the first case only.
+ * In general, it is recommended to use the `recoverWith` operator
+ *
  * @receiver The primary IsChainTrusted instance.
- * @param other The fallback IsChainTrusted instance.
+ * @param alternative The fallback IsChainTrusted instance.
  * @return A new IsChainTrusted instance that combines the primary and fallback validators.
  */
 public infix fun <C1 : Any, TA : Any> IsChainTrusted<C1, TA>.or(
-    other: IsChainTrusted<C1, TA>,
-): IsChainTrusted<C1, TA> = IsChainTrustedWithRecover(this) { other }
+    alternative: IsChainTrusted<C1, TA>,
+): IsChainTrusted<C1, TA> = IsChainTrustedWithRecover(this) { alternative }
 
 /**
  * Combines two instances into a single one, where the second one is used as a fallback if the first one fails.

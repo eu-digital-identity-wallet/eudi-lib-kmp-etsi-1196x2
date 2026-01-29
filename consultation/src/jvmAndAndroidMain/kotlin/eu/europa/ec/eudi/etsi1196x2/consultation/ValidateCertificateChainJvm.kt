@@ -25,6 +25,15 @@ import java.security.cert.*
 
 /**
  * A JVM-specific implementation of [ValidateCertificateChain]
+ *
+ * @param dispatcher the coroutine dispatcher to use for validating certificate chains.
+ *        Defaults to [ValidateCertificateChainJvm.DEFAULT_DISPATCHER]
+ * @param certificateFactory the certificate factory to use for validating certificate chains.
+ *        Defaults to [JvmSecurity.DefaultX509Factory]
+ * @param certPathValidator the certification path validator to use for validating certificate chains.
+ *        Defaults to [JvmSecurity.DefaultPKIXValidator]
+ * @param customization customization for PKIX parameters.
+ *        Defaults to [ValidateCertificateChainJvm.DEFAULT_CUSTOMIZATION]
  */
 public class ValidateCertificateChainJvm(
     dispatcher: CoroutineDispatcher = DEFAULT_DISPATCHER,
@@ -33,16 +42,28 @@ public class ValidateCertificateChainJvm(
     private val customization: PKIXParameters.() -> Unit,
 ) : ValidateCertificateChain<List<X509Certificate>, TrustAnchor> {
 
+    /**
+     * Alternative constructor that uses the default [Provider]s
+     * for certificate factory and certification path validator.
+     * @param customization customization for PKIX parameters. Defaults to [DEFAULT_CUSTOMIZATION]
+     * @param dispatcher the coroutine dispatcher to use for validating certificate chains. Defaults to [DEFAULT_DISPATCHER]
+     */
     public constructor(
         dispatcher: CoroutineDispatcher = DEFAULT_DISPATCHER,
         customization: PKIXParameters.() -> Unit = DEFAULT_CUSTOMIZATION,
     ) : this(
         dispatcher,
-        JvmSecurity.X509_CERT_FACTORY,
-        JvmSecurity.PKIX_CERT_VALIDATOR,
+        JvmSecurity.DefaultX509Factory,
+        JvmSecurity.DefaultPKIXValidator,
         customization,
     )
 
+    /**
+     * Alternative constructor that uses the default [Provider]s
+     * @param customization customization for PKIX parameters. Defaults to [DEFAULT_CUSTOMIZATION]
+     * @param dispatcher the coroutine dispatcher to use for validating certificate chains. Defaults to [DEFAULT_DISPATCHER]
+     * @param provider the provider to use for certificate factory and certification path validator.
+     */
     public constructor(
         dispatcher: CoroutineDispatcher = DEFAULT_DISPATCHER,
         provider: Provider,
@@ -54,6 +75,12 @@ public class ValidateCertificateChainJvm(
         customization,
     )
 
+    /**
+     * Alternative constructor that uses the default [Provider]s
+     * @param customization customization for PKIX parameters. Defaults to [DEFAULT_CUSTOMIZATION]
+     * @param dispatcher the coroutine dispatcher to use for validating certificate chains. Defaults to [DEFAULT_DISPATCHER]
+     * @param provider the provider name to use for certificate factory and certification path validator.
+     */
     public constructor(
         dispatcher: CoroutineDispatcher = DEFAULT_DISPATCHER,
         provider: String,
@@ -86,9 +113,30 @@ public class ValidateCertificateChainJvm(
             }
         }
 
-    internal companion object {
-        internal val DEFAULT_CUSTOMIZATION: PKIXParameters.() -> Unit = { }
-        internal val DEFAULT_DISPATCHER: CoroutineDispatcher = Dispatchers.IO
+    public companion object {
+
+        /**
+         * Default customization for PKIX parameters.
+         * Does nothing.
+         */
+        public val DEFAULT_CUSTOMIZATION: PKIXParameters.() -> Unit = { }
+
+        /**
+         * Default coroutine dispatcher for validating certificate chains.
+         * Points to [Dispatchers.IO]
+         */
+        public val DEFAULT_DISPATCHER: CoroutineDispatcher = Dispatchers.IO
+
+        /**
+         * Default implementation of [ValidateCertificateChainJvm] for JVM and Android platforms.
+         * Use as [DEFAULT_DISPATCHER] and [DEFAULT_CUSTOMIZATION] and
+         * [JvmSecurity.DefaultX509Factory] and
+         * [JvmSecurity.DefaultPKIXValidator]
+         */
+        public val Default: ValidateCertificateChainJvm get() = ValidateCertificateChainJvm(
+            customization = DEFAULT_CUSTOMIZATION,
+            dispatcher = DEFAULT_DISPATCHER,
+        )
 
         private fun CertPathValidatorResult.trusted(): CertificationChainValidation.Trusted<TrustAnchor> {
             check(this is PKIXCertPathValidatorResult) { "Unexpected result type: ${this::class}" }

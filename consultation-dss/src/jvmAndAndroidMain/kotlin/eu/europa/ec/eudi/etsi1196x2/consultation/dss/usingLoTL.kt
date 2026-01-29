@@ -22,19 +22,18 @@ import eu.europa.esig.dss.spi.tsl.TrustedListsCertificateSource
 import eu.europa.esig.dss.tsl.source.LOTLSource
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
 import java.security.cert.TrustAnchor
 import java.security.cert.X509Certificate
 import kotlin.time.Clock
 import kotlin.time.Duration
-import kotlin.time.Duration.Companion.minutes
 
 /**
  * Creates an instance of [IsChainTrusted] using a trusted list of trust anchors (LoTL).
  *
- * @param validateCertificateChain the function used to validate a given certificate chain
+ * @param validateCertificateChain the function used to validate a given certificate chain.
+ *        Defaults to [ValidateCertificateChainJvm.Default]
  * @param trustAnchorCreator a function that creates a trust anchor from a [CertificateToken]
+ *        Defaults to [DSSTrustAnchorCreator]
  * @param getTrustedListsCertificateSource a suspend function that retrieves the trusted lists certificate source containing trust anchors
  * @return an [IsChainTrusted] instance configured to validate certificate chains using the provided trusted list
  *
@@ -42,7 +41,7 @@ import kotlin.time.Duration.Companion.minutes
  * @see GetTrustedListsCertificateByLOTLSource
  */
 public fun IsChainTrusted.Companion.usingLoTL(
-    validateCertificateChain: ValidateCertificateChainJvm = ValidateCertificateChainJvm(),
+    validateCertificateChain: ValidateCertificateChainJvm = ValidateCertificateChainJvm.Default,
     trustAnchorCreator: TrustAnchorCreator<CertificateToken, TrustAnchor> = DSSTrustAnchorCreator,
     getTrustedListsCertificateSource: suspend () -> TrustedListsCertificateSource,
 ): IsChainTrusted<List<X509Certificate>, TrustAnchor> =
@@ -53,8 +52,10 @@ public fun IsChainTrusted.Companion.usingLoTL(
 /**
  * Creates an instance of [IsChainTrustedForContext] using a trusted list of trust anchors (LoTL).
  *
- * @param validateCertificateChain the function used to validate a given certificate chain
+ * @param validateCertificateChain the function used to validate a given certificate chain.
+ *        Defaults to [ValidateCertificateChainJvm.Default]
  * @param trustAnchorCreator a function that creates a trust anchor from a [CertificateToken]
+ *        Defaults to [DSSTrustAnchorCreator]
  * @param sourcePerVerification a map of verification contexts to trusted list sources
  * @param getTrustedListsCertificateByLOTLSource a function that retrieves the trusted lists certificate
  * source containing trust anchors for a given verification context
@@ -63,7 +64,7 @@ public fun IsChainTrusted.Companion.usingLoTL(
  * using the provided trusted lists
  */
 public fun IsChainTrustedForContext.Companion.usingLoTL(
-    validateCertificateChain: ValidateCertificateChain<List<X509Certificate>, TrustAnchor> = ValidateCertificateChainJvm(),
+    validateCertificateChain: ValidateCertificateChain<List<X509Certificate>, TrustAnchor> = ValidateCertificateChainJvm.Default,
     trustAnchorCreator: TrustAnchorCreator<CertificateToken, TrustAnchor> = DSSTrustAnchorCreator,
     sourcePerVerification: Map<VerificationContext, LOTLSource>,
     getTrustedListsCertificateByLOTLSource: GetTrustedListsCertificateByLOTLSource,
@@ -111,21 +112,27 @@ public fun IsChainTrustedForContext.Companion.usingLoTL(
  * @param fileCacheLoader the file cache loader used to load the trusted lists from the file system
  * @param sourcePerVerification a map of verification contexts to trusted list sources
  * @param validateCertificateChain the function used to validate a given certificate chain
+ *        Defaults to [ValidateCertificateChainJvm.Default]
  * @param trustAnchorCreator a function that creates a trust anchor from a [CertificateToken]
+ *        Defaults to [DSSTrustAnchorCreator]
  * @param clock the clock used to retrieve the current time
+ *        Defaults to [Clock.System]
  * @param coroutineScope the overall scope that controls [fileCacheLoader]
+ *        Defaults to [GetTrustedListsCertificateByLOTLSource.DEFAULT_SCOPE]
  * @param coroutineDispatcher the coroutine dispatcher for executing the blocking logic of [fileCacheLoader]
- * @param ttl the time-to-live duration for caching the certificate source. It should be set to a value higher than the average duration of executing the [block]
+ *        Defaults to [GetTrustedListsCertificateByLOTLSource.DEFAULT_DISPATCHER]
+ * @param ttl the time-to-live duration for caching the certificate source.
+ *
  */
 public fun IsChainTrustedForContext.Companion.usingLoTL(
     fileCacheLoader: FileCacheDataLoader,
     sourcePerVerification: Map<VerificationContext, LOTLSource>,
-    validateCertificateChain: ValidateCertificateChain<List<X509Certificate>, TrustAnchor> = ValidateCertificateChainJvm(),
+    validateCertificateChain: ValidateCertificateChain<List<X509Certificate>, TrustAnchor> = ValidateCertificateChainJvm.Default,
     trustAnchorCreator: TrustAnchorCreator<CertificateToken, TrustAnchor> = DSSTrustAnchorCreator,
     clock: Clock = Clock.System,
-    coroutineScope: CoroutineScope = CoroutineScope(Dispatchers.Default + SupervisorJob()),
-    coroutineDispatcher: CoroutineDispatcher = Dispatchers.IO,
-    ttl: Duration = 10.minutes,
+    coroutineScope: CoroutineScope = GetTrustedListsCertificateByLOTLSource.DEFAULT_SCOPE,
+    coroutineDispatcher: CoroutineDispatcher = GetTrustedListsCertificateByLOTLSource.DEFAULT_DISPATCHER,
+    ttl: Duration,
 ): IsChainTrustedForContext<List<X509Certificate>, TrustAnchor> {
     val dssLoader = DSSLoader(fileCacheLoader)
     val getTrustedListsCertificateByLOTLSource = dssLoader

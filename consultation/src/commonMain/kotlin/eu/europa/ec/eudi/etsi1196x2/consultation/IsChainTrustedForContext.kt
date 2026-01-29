@@ -135,6 +135,10 @@ public sealed interface VerificationContext {
  *
  * Combinators:
  * - [plus]: combine two instances of IsChainTrustedForContext into a single one
+ * - [recoverWith]: combine two instances of IsChainTrustedForContext into a single one,
+ *   where the second one is used as a fallback if the first one fails, conditionally
+ * - [or]: combine two instances of IsChainTrustedForContext into a single one,
+ *   where the second one is used as a fallback if the first one fails
  * - [contraMap]: change the chain of certificates representation
  *
  * @param trust the supported verification contexts and their corresponding validations
@@ -196,55 +200,81 @@ public class IsChainTrustedForContext<in CHAIN : Any, out TRUST_ANCHOR : Any>(
         )
 
     /**
-     * Combines `horizontally` the current `IsChainTrustedForContext` instance with another one, by extending the existing validation
-     * per `VerificationContext` with the alternative validations as defined in the passed `IsChainTrustedForContext`.
+     * Combines `horizontally` the current instance with another one, by extending the existing validation
+     * per [VerificationContext] with the alternative validations as defined in the passed [IsChainTrustedForContext]
      *
-     * @param other the `IsChainTrustedForContext` to be combined with the current one.
-     * @return a new `IsChainTrustedForContext` instance that combines the trust validation of the current instance
+     * Please be careful when using this operator. Ideally, prefer using the [recoverWith].
+     * For more details read [IsChainTrusted.or].
+     *
+     * @param alternative the second instance to be combined with the current one.
+     * @return a new instance that combines the trust validation of the current instance
      * and the provided `other`.
+     *
+     * @see IsChainTrusted.or
      */
     public fun or(
-        other: IsChainTrustedForContext<@UnsafeVariance CHAIN, @UnsafeVariance TRUST_ANCHOR>,
+        alternative: IsChainTrustedForContext<@UnsafeVariance CHAIN, @UnsafeVariance TRUST_ANCHOR>,
     ): IsChainTrustedForContext<CHAIN, TRUST_ANCHOR> =
-        or(other.trust::get)
+        or(alternative.trust::get)
 
     /**
      * Extends the existing validation performed per `VerificationContext` with the passed alternative validation.
      *
-     * @param other another `IsChainTrusted` instance that will be added as an alternative validation for every `VerificationContext`.
+     * Please be careful when using this operator. Ideally, prefer using the [recoverWith].
+     * For more details read [IsChainTrusted.or].
+     *
+     * @param alternative another `IsChainTrusted` instance that will be added as an alternative validation for every `VerificationContext`.
      * @return a new `IsChainTrustedForContext` instance that its existing validation per `VerificationContext` is extended with an
      *        alternative validation.
+     *
+     * @see IsChainTrusted.or
      */
     public fun or(
-        other: IsChainTrusted<@UnsafeVariance CHAIN, @UnsafeVariance TRUST_ANCHOR>,
+        alternative: IsChainTrusted<@UnsafeVariance CHAIN, @UnsafeVariance TRUST_ANCHOR>,
     ): IsChainTrustedForContext<CHAIN, TRUST_ANCHOR> =
-        or { _ -> other }
+        or { _ -> alternative }
 
     /**
      * Given a function that takes a `VerificationContext` and returns a `IsChainTrusted` instance (optionally),
      * extends the existing validation performed per `VerificationContext` with alternative validation.
      *
-     * @param other a function that takes a `VerificationContext` and returns optionally an
+     *  Please be careful when using this operator. Ideally, prefer using the [recoverWith].
+     *  For more details read [IsChainTrusted.or].
+     *
+     * @param alternative a function that takes a `VerificationContext` and returns optionally an
      *        `IsChainTrusted` instance, which will be used as an alternative validator to the existing
      *        validation for a specific `VerificationContext`.
      * @return a new `IsChainTrustedForContext` instance that is extended with alternative validations
      *        per `VerificationContext`.
+     *
+     * @see IsChainTrusted.or
      */
     public fun or(
-        other: (VerificationContext) -> IsChainTrusted<@UnsafeVariance CHAIN, @UnsafeVariance TRUST_ANCHOR>?,
+        alternative: (VerificationContext) -> IsChainTrusted<@UnsafeVariance CHAIN, @UnsafeVariance TRUST_ANCHOR>?,
     ): IsChainTrustedForContext<CHAIN, TRUST_ANCHOR> =
-        recoverWith { ctx -> { other(ctx) } }
+        recoverWith { ctx -> { alternative(ctx) } }
 
+    /**
+     * Extends the current instance by adding recovery logic for each `VerificationContext`.
+     * Allows defining a recovery function that generates alternative validations based on thrown exceptions during
+     * chain trust verification.
+     *
+     * @param recovery a function that takes a `VerificationContext` and returns another function. This returned function
+     *        maps a `Throwable` to an optional `IsChainTrusted` instance, which provides alternative validation logic
+     *        in the context of an error.
+     * @return a new `IsChainTrustedForContext` instance that applies the specified recovery logic in addition to the current
+     *         validation logic.
+     */
     public fun recoverWith(
         recovery: (VerificationContext) -> ((Throwable) -> IsChainTrusted<@UnsafeVariance CHAIN, @UnsafeVariance TRUST_ANCHOR>?)?,
     ): IsChainTrustedForContext<CHAIN, TRUST_ANCHOR> =
         IsChainTrustedForContext(
             trust.mapValues { (context, isChainTrusted) ->
-                val fallBackForContext = recovery(context)
-                if (fallBackForContext == null) {
+                val recoveryForContext = recovery(context)
+                if (recoveryForContext == null) {
                     isChainTrusted
                 } else {
-                    isChainTrusted recoverWith fallBackForContext
+                    isChainTrusted recoverWith recoveryForContext
                 }
             },
         )

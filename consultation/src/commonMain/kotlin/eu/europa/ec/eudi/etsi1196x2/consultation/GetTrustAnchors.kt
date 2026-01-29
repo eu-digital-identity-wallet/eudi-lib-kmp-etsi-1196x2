@@ -30,8 +30,9 @@ public fun interface GetTrustAnchors<out TRUST_ANCHORS : Any> :
 
     public companion object {
         /**
-         * Creates an instance of GetTrustAnchors that reads trust anchors from the given source only once.
+         * Creates an instance of [GetTrustAnchors] that reads trust anchors from the given source only once.
          * @param source the source of trust anchors.
+         * @param TRUST_ANCHORS the type representing trust anchors.
          */
         public fun <TRUST_ANCHOR : Any> once(source: suspend () -> List<TRUST_ANCHOR>): GetTrustAnchors<TRUST_ANCHOR> {
             val once = InvokeOnce(source)

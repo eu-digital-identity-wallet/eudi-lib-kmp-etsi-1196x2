@@ -215,7 +215,7 @@ private class SecCtx(val provider: Provider? = null) {
     fun certFactory(): CertificateFactory =
         provider
             ?.let { JvmSecurity.x509CertFactory(it) }
-            ?: JvmSecurity.X509_CERT_FACTORY
+            ?: JvmSecurity.DefaultX509Factory
 
     fun kpGenerator(): KeyPairGenerator =
         provider

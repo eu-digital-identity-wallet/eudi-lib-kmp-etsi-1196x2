@@ -26,15 +26,20 @@ import java.security.cert.X509Certificate
  * Creates an instance of [IsChainTrusted] using a keystore for trust anchor retrieval.
  *
  * @param validateCertificateChain the implementation of [ValidateCertificateChain] to validate a certificate chain.
+ *        Defaults to [ValidateCertificateChainJvm.Default]
  * @param trustAnchorCreator the function to create trust anchors from certificates.
+ *        Defaults to [JvmSecurity.DefaultTrustAnchorCreator]
  * @param filterAliases a predicate to filter the aliases in the keystore for trust anchor retrieval.
- * @param cache whether to cache the trust anchors retrieved from the keystore. In this case, keystore will be accessed only once.
+ *        Defaults to accepting all aliases.
+ * @param cache whether to cache the trust anchors retrieved from the keystore.
+ *        In this case, the keystore will be accessed only once.
+ *        Defaults to `true`.
  * @param getKeystore a supplier function to provide the [KeyStore] instance to fetch trust anchors.
  * @return an instance of [IsChainTrusted] configured with the provided certificate chain validator and trust anchor retrieval function.
  */
 public fun IsChainTrusted.Companion.usingKeystore(
-    validateCertificateChain: ValidateCertificateChainJvm = ValidateCertificateChainJvm(),
-    trustAnchorCreator: TrustAnchorCreator<X509Certificate, TrustAnchor> = JvmSecurity.TRUST_ANCHOR_WITH_NO_NAME_CONSTRAINTS,
+    validateCertificateChain: ValidateCertificateChainJvm = ValidateCertificateChainJvm.Default,
+    trustAnchorCreator: TrustAnchorCreator<X509Certificate, TrustAnchor> = JvmSecurity.DefaultTrustAnchorCreator,
     cache: Boolean = true,
     dispatcher: CoroutineDispatcher = Dispatchers.IO,
     filterAliases: (String) -> Boolean = { true },

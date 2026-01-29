@@ -28,7 +28,7 @@ import kotlin.time.toJavaInstant
 public object JvmSecurity {
 
     private const val X_509 = "X.509"
-    public val X509_CERT_FACTORY: CertificateFactory
+    public val DefaultX509Factory: CertificateFactory
         get() = CertificateFactory.getInstance(X_509)
 
     public fun x509CertFactory(provider: Provider): CertificateFactory =
@@ -38,7 +38,7 @@ public object JvmSecurity {
         CertificateFactory.getInstance(X_509, provider)
 
     private const val PKIX = "PKIX"
-    public val PKIX_CERT_VALIDATOR: CertPathValidator
+    public val DefaultPKIXValidator: CertPathValidator
         get() = CertPathValidator.getInstance(PKIX)
 
     public fun pkixCertValidator(provider: Provider): CertPathValidator =
@@ -55,7 +55,11 @@ public object JvmSecurity {
         date = Date.from(at.toJavaInstant())
     }
 
-    public val TRUST_ANCHOR_WITH_NO_NAME_CONSTRAINTS: TrustAnchorCreator<X509Certificate, TrustAnchor> = trustAnchorCreator()
+    /**
+     * Default trust anchor creator that creates a trust anchor with no name constraints.
+     */
+    public val DefaultTrustAnchorCreator: TrustAnchorCreator<X509Certificate, TrustAnchor> =
+        trustAnchorCreator()
 
     public fun trustAnchorCreator(
         nameConstraints: ByteArray? = null,

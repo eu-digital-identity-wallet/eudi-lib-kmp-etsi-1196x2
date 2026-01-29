@@ -17,7 +17,6 @@ package eu.europa.ec.eudi.etsi1196x2.consultation.dss
 
 import eu.europa.esig.dss.service.http.commons.FileCacheDataLoader
 import eu.europa.esig.dss.spi.client.http.DataLoader
-import eu.europa.esig.dss.spi.client.http.NativeHTTPDataLoader
 import eu.europa.esig.dss.spi.tsl.TrustedListsCertificateSource
 import eu.europa.esig.dss.tsl.cache.CacheCleaner
 import eu.europa.esig.dss.tsl.job.TLValidationJob
@@ -28,7 +27,6 @@ import kotlinx.coroutines.CoroutineScope
 import java.nio.file.Path
 import kotlin.time.Clock
 import kotlin.time.Duration
-import kotlin.time.Duration.Companion.hours
 
 internal class DSSLoader(
     private val loader: FileCacheDataLoader,
@@ -77,10 +75,10 @@ internal class DSSLoader(
     companion object {
         operator fun invoke(
             cacheDirectory: Path?,
-            fileCacheExpiration: Duration = 24.hours,
-            cleanMemory: Boolean = true,
-            cleanFileSystem: Boolean = false,
-            httpLoader: DataLoader = NativeHTTPDataLoader(),
+            fileCacheExpiration: Duration,
+            cleanMemory: Boolean,
+            cleanFileSystem: Boolean,
+            httpLoader: DataLoader,
         ): DSSLoader {
             val loader = FileCacheDataLoader(httpLoader)
                 .apply {

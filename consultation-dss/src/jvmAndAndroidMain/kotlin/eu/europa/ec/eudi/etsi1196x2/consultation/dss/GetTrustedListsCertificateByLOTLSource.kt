@@ -44,28 +44,48 @@ public fun interface GetTrustedListsCertificateByLOTLSource {
 
     /**
      * Retrieves a trusted lists certificate source based on the provided [LOTLSource].
-     * @param trustSource the LOTLSource to use for fetching the certificate source
+     * @param source the LOTLSource to use for fetching the certificate source
      * @return the [TrustedListsCertificateSource]
      */
-    public suspend operator fun invoke(trustSource: LOTLSource): TrustedListsCertificateSource
+    public suspend operator fun invoke(source: LOTLSource): TrustedListsCertificateSource
 
+    /**
+     * Creates a [GetTrustAnchors] instance from this [GetTrustedListsCertificateByLOTLSource]
+     * using the provided [trustAnchorCreator] and [source].
+     *
+     * @param trustAnchorCreator the [TrustAnchorCreator] to use for creating trust anchors from certificates
+     *       Defaults to [DSSTrustAnchorCreator]
+     * @param source the LOTLSource to use for fetching the certificate source
+     */
     public fun asProviderFor(
-        trustSource: LOTLSource,
+        source: LOTLSource,
         trustAnchorCreator: TrustAnchorCreator<CertificateToken, TrustAnchor> = DSSTrustAnchorCreator,
     ): GetTrustAnchors<TrustAnchor> =
         GetTrustAnchors {
-            invoke(trustSource).trustAnchors(trustAnchorCreator)
+            invoke(source).trustAnchors(trustAnchorCreator)
         }
 
     public companion object {
-        private val DEFAULT_SCOPE = CoroutineScope(Dispatchers.Default + SupervisorJob())
-        private val DEFAULT_DISPATCHER = Dispatchers.IO
+        /**
+         * The default scope for [GetTrustedListsCertificateByLOTLSourceBlocking] instances.
+         * [Dispatchers.Default] + [SupervisorJob]
+         */
+        public val DEFAULT_SCOPE: CoroutineScope get() = CoroutineScope(Dispatchers.Default + SupervisorJob())
+
+        /**
+         * The default coroutine dispatcher for [GetTrustedListsCertificateByLOTLSourceBlocking] instances.
+         * [Dispatchers.IO]
+         */
+        public val DEFAULT_DISPATCHER: CoroutineDispatcher get() = Dispatchers.IO
 
         /**
          * Creates a [GetTrustedListsCertificateByLOTLSource] instance from blocking logic.
          *
          * @param coroutineScope the overall scope of the resulting [GetTrustedListsCertificateByLOTLSource]. By default, adds [SupervisorJob]
+         *       Defaults to [DEFAULT_SCOPE]
          * @param coroutineDispatcher the coroutine dispatcher for executing the blocking logic
+         *       Defaults to [DEFAULT_DISPATCHER]
+         * @param clock the clock used to retrieve the current time. Defaults to [Clock.System]
          * @param expectedTrustSourceNo the expected number of trust sources
          * @param ttl the time-to-live duration for caching the certificate source. It should be set to a value higher than the average duration of executing the [block]
          * @param block the blocking function to retrieve the certificate source
@@ -104,13 +124,13 @@ internal class GetTrustedListsCertificateByLOTLSourceBlocking(
             block(trustSource)
         }
 
-    override suspend fun invoke(trustSource: LOTLSource): TrustedListsCertificateSource = cached(trustSource)
+    override suspend fun invoke(source: LOTLSource): TrustedListsCertificateSource = cached(source)
 }
 
 internal class AsyncCache<A : Any, B : Any>(
     coroutineScope: CoroutineScope,
     private val coroutineDispatcher: CoroutineDispatcher,
-    private val clock: Clock = Clock.System,
+    private val clock: Clock,
     private val ttl: Duration,
     private val maxCacheSize: Int,
     private val supplier: suspend (A) -> B,
