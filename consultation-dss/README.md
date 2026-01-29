@@ -17,14 +17,24 @@ Each `GetTrustedListsCertificateByLOTLSource` can act as a `GetTrustAnchors` ins
 
 `GetTrustedListsCertificateByLOTLSource` provides the factory method `fromBlocking()` which can be used to wrap blocking code from DSS with Kotlin coroutines.
 
+### DSSAdapter
+
+`DSSAdapter` bridges DSS with `GetTrustedListsCertificateByLOTLSource`.
+
+### usingLoTL
+
+Factory methods for creating `IsChainTrusted`, and `IsChainTrustedForContext` instance using either `DSSAdapter`, or custom implementations.
+
 ## Usage
 
 To use this library, you have to add the following dependency to your project:
+
 ```kotlin
 dependencies {
     implementation("eu.europa.ec.eudi:etsi-1196x2-consultation-dss:$version")
 }
 ```
+
 > [!IMPORTANT]
 > 
 > DSS abstracts certain utility APIs, and provides two implementations:
@@ -44,7 +54,7 @@ dependencies {
 ## Examples
 
 Usage examples can be found in:
-* [DssLoader.kt](src/jvmAndAndroidTest/kotlin/eu/europa/ec/eudi/etsi1196x2/consultation/dss/DssLoader.kt)
+
 * [IsChainTrustedUsingLoTLTest.kt](src/jvmAndAndroidTest/kotlin/eu/europa/ec/eudi/etsi1196x2/consultation/dss/IsChainTrustedUsingLoTLTest.kt)
 
 ## Platform Support
