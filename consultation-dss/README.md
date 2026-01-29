@@ -23,7 +23,7 @@ Each `GetTrustedListsCertificateByLOTLSource` can act as a `GetTrustAnchors` ins
 
 ### usingLoTL
 
-Factory methods for creating `IsChainTrusted`, and `IsChainTrustedForContext` instance using either `DSSAdapter`, or custom implementations.
+Factory methods for creating `IsChainTrusted`, and `IsChainTrustedForContext` instances using either `DSSAdapter`, or custom implementations.
 
 ## Usage
 
