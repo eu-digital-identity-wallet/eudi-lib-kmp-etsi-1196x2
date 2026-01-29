@@ -93,28 +93,32 @@ public fun IsChainTrustedForContext.Companion.usingLoTL(
  *
  * ```kotlin
  * IsChainTrustedForContext.usingLoTL(
- *   fileCacheLoader = FileCacheDataLoader(NativeHTTPDataLoader()).apply {
- *       setCacheExpirationTime(24.hours.inWholeMilliseconds)
- *       setCacheDirectory(createTempDirectory("lotl-cache").toFile())
- *   },
- *   sourcePerVerification = buildMap {
- *       put(VerificationContext.PubEAA, lotlSource(PUB_EAA_SVC_TYPE))
- *   },
- *   validateCertificateChain = ValidateCertificateChainJvm(customization = {
- *       isRevocationEnabled = false
- *   }),
- *   coroutineScope = CoroutineScope(Dispatchers.Default + SupervisorJob()),
- *   coroutineDispatcher = Dispatchers.IO,
- *   ttl = 10.minutes,
+ *   IsChainTrustedForContext.usingLoTL(
+ *     dssAdapter = DSSAdapter.usingFileCacheDataLoader(
+ *         fileCacheExpiration = 24.hours,
+ *         cacheDirectory = createTempDirectory("lotl-cache"),
+ *     ),
+ *     sourcePerVerification = buildMap {
+ *         put(VerificationContext.PubEAA, lotlSource(PUB_EAA_SVC_TYPE))
+ *     },
+ *     validateCertificateChain = ValidateCertificateChainJvm(customization = {
+ *         isRevocationEnabled = false
+ *     }),
+ *     coroutineScope = CoroutineScope(Dispatchers.Default + SupervisorJob()),
+ *     coroutineDispatcher = Dispatchers.IO,
+ *     ttl = 10.seconds,
+ *  )
  * )
  * ````
  *
- * @param fileCacheLoader the file cache loader used to load the trusted lists from the file system
+
  * @param sourcePerVerification a map of verification contexts to trusted list sources
  * @param validateCertificateChain the function used to validate a given certificate chain
  *        Defaults to [ValidateCertificateChainJvm.Default]
  * @param trustAnchorCreator a function that creates a trust anchor from a [CertificateToken]
  *        Defaults to [DSSTrustAnchorCreator]
+ * @param dssAdapter the DSS adapter to use for retrieving the trusted lists certificate source
+ *        Defaults to [DSSAdapter.Default]
  * @param clock the clock used to retrieve the current time
  *        Defaults to [Clock.System]
  * @param coroutineScope the overall scope that controls [fileCacheLoader]
@@ -125,24 +129,25 @@ public fun IsChainTrustedForContext.Companion.usingLoTL(
  *
  */
 public fun IsChainTrustedForContext.Companion.usingLoTL(
-    fileCacheLoader: FileCacheDataLoader,
     sourcePerVerification: Map<VerificationContext, LOTLSource>,
     validateCertificateChain: ValidateCertificateChain<List<X509Certificate>, TrustAnchor> = ValidateCertificateChainJvm.Default,
     trustAnchorCreator: TrustAnchorCreator<CertificateToken, TrustAnchor> = DSSTrustAnchorCreator,
+    dssAdapter: DSSAdapter = DSSAdapter.Default,
     clock: Clock = Clock.System,
     coroutineScope: CoroutineScope = GetTrustedListsCertificateByLOTLSource.DEFAULT_SCOPE,
     coroutineDispatcher: CoroutineDispatcher = GetTrustedListsCertificateByLOTLSource.DEFAULT_DISPATCHER,
     ttl: Duration,
 ): IsChainTrustedForContext<List<X509Certificate>, TrustAnchor> {
-    val dssLoader = DSSLoader(fileCacheLoader)
-    val getTrustedListsCertificateByLOTLSource = dssLoader
-        .getTrustedListsCertificateByLOTLSource(
-            coroutineScope = coroutineScope,
-            coroutineDispatcher = coroutineDispatcher,
-            expectedTrustSourceNo = sourcePerVerification.size,
-            ttl = ttl,
-            clock = clock,
-        )
+    val getTrustedListsCertificateByLOTLSource =
+        with(DSSAdapterOps) {
+            dssAdapter.getTrustedListsCertificateByLOTLSource(
+                coroutineScope = coroutineScope,
+                coroutineDispatcher = coroutineDispatcher,
+                expectedTrustSourceNo = sourcePerVerification.size,
+                ttl = ttl,
+                clock = clock,
+            )
+        }
     return usingLoTL(
         validateCertificateChain,
         trustAnchorCreator,
