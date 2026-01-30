@@ -15,9 +15,6 @@
  */
 package eu.europa.ec.eudi.etsi1196x2.consultation.dss
 
-import eu.europa.esig.dss.model.http.ResponseEnvelope
-import eu.europa.esig.dss.spi.client.http.AdvancedDataLoader
-import eu.europa.esig.dss.spi.client.http.DataLoader
 import eu.europa.esig.dss.spi.client.http.NativeHTTPDataLoader
 import eu.europa.esig.dss.tsl.function.GrantedOrRecognizedAtNationalLevelTrustAnchorPeriodPredicate
 import eu.europa.esig.dss.tsl.source.LOTLSource
@@ -26,7 +23,6 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withContext
 import java.nio.file.Files
 import java.nio.file.Path
-import java.util.concurrent.atomic.AtomicInteger
 import java.util.function.Predicate
 import kotlin.io.path.listDirectoryEntries
 import kotlin.test.Ignore
@@ -78,7 +74,7 @@ class DSSAdapterOpsTest {
         val secondCallCount = observableHttpLoader.callCount
         assert(secondCallCount == firstCallCount) {
             "FileCacheDataLoader should retrieve the list from path (no new HTTP calls). " +
-                "Expected $firstCallCount, got $secondCallCount"
+                    "Expected $firstCallCount, got $secondCallCount"
         }
         val secondCallFiles = path.listDirectoryEntries()
         assert(secondCallFiles == firstCallFiles) { "Cache files should be the same on second call" }
@@ -98,7 +94,7 @@ class DSSAdapterOpsTest {
         val thirdCallCount = observableHttpLoader.callCount
         assert(thirdCallCount > secondCallCount) {
             "ObservableHttpLoader should be invoked again after expiration. " +
-                "Expected > $secondCallCount, got $thirdCallCount"
+                    "Expected > $secondCallCount, got $thirdCallCount"
         }
         val thirdCallFiles = path.listDirectoryEntries()
         assert(thirdCallFiles.isNotEmpty()) { "Cache directory should not be empty after third call" }
@@ -112,79 +108,6 @@ class DSSAdapterOpsTest {
         }
 
         path.toFile().deleteRecursively()
-    }
-
-    private class ObservableHttpLoader(val proxied: AdvancedDataLoader) : AdvancedDataLoader {
-        private val _callCount = AtomicInteger(0)
-        val callCount: Int get() = _callCount.get()
-
-        override fun requestGet(url: String?): ResponseEnvelope? {
-            _callCount.incrementAndGet()
-            return proxied.requestGet(url)
-        }
-
-        override fun requestGet(
-            url: String?,
-            includeResponseDetails: Boolean,
-        ): ResponseEnvelope? {
-            _callCount.incrementAndGet()
-            return proxied.requestGet(url, includeResponseDetails)
-        }
-
-        override fun requestGet(
-            url: String?,
-            includeResponseDetails: Boolean,
-            includeResponseBody: Boolean,
-        ): ResponseEnvelope? {
-            _callCount.incrementAndGet()
-            return proxied.requestGet(url, includeResponseDetails, includeResponseBody)
-        }
-
-        override fun requestPost(
-            url: String?,
-            content: ByteArray?,
-        ): ResponseEnvelope? {
-            _callCount.incrementAndGet()
-            return proxied.requestPost(url, content)
-        }
-
-        override fun requestPost(
-            url: String?,
-            content: ByteArray?,
-            includeResponseDetails: Boolean,
-        ): ResponseEnvelope? {
-            _callCount.incrementAndGet()
-            return proxied.requestPost(url, content, includeResponseDetails)
-        }
-
-        override fun requestPost(
-            url: String?,
-            content: ByteArray?,
-            includeResponseDetails: Boolean,
-            includeResponseBody: Boolean,
-        ): ResponseEnvelope? {
-            _callCount.incrementAndGet()
-            return proxied.requestPost(url, content, includeResponseDetails, includeResponseBody)
-        }
-
-        override fun get(url: String?): ByteArray? {
-            _callCount.incrementAndGet()
-            return proxied.get(url)
-        }
-
-        override fun get(urlStrings: List<String?>?): DataLoader.DataAndUrl? {
-            _callCount.incrementAndGet()
-            return proxied.get(urlStrings)
-        }
-
-        override fun post(url: String?, content: ByteArray?): ByteArray? {
-            _callCount.incrementAndGet()
-            return proxied.post(url, content)
-        }
-
-        override fun setContentType(contentType: String?) {
-            proxied.setContentType(contentType)
-        }
     }
 
     private val pidSvcType = "http://uri.etsi.org/Svc/Svctype/Provider/PID"
