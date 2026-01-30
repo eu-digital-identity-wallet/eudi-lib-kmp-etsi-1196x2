@@ -159,7 +159,7 @@ internal object DSSAdapterOps {
             block = { refresh(it) },
         )
 
-    private fun DSSAdapter.refresh(
+    internal fun DSSAdapter.refresh(
         lotlSource: LOTLSource,
     ): TrustedListsCertificateSource {
         return TrustedListsCertificateSource().apply {
