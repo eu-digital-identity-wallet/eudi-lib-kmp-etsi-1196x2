@@ -28,7 +28,7 @@ jobs:
       - run: echo "ORGANIZATION=${{ github.repository_owner}}" >> $GITHUB_ENV
       - run: echo "PROJECT_KEY=${{ github.repository_owner}}_$(echo ${{ github.repository }} | sed 's/.*\///')" >> $GITHUB_ENV
       - run: echo "SCAN_DATE=$(TZ='EET' date '+%Y-%m-%d')" >> $GITHUB_ENV
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
       - uses: actions/setup-java@v5
@@ -38,7 +38,7 @@ jobs:
       - uses: gradle/actions/wrapper-validation@v5
       - uses: gradle/actions/setup-gradle@v5
       - run: ./gradlew clean test koverXmlReport
-      - uses: sonarsource/sonarqube-scan-action@v6.0.0
+      - uses: sonarsource/sonarqube-scan-action@v7.0.0
         if: (github.event_name == 'push'|| github.event_name == 'workflow_dispatch')
         with:
           projectBaseDir: ${{ github.workspace }}
@@ -54,7 +54,7 @@ jobs:
             -Dsonar.tests=consultation/src/jvmAndAndroidTest,consultation-dss/src/jvmAndAndroidTest
             -Dsonar.java.binaries=consultation/build/classes/kotlin/jvm,consultation-dss/build/classes/kotlin/jvm
             -Dsonar.kotlin.binaries=consultation/build/classes/kotlin/jvm,consultation-dss/build/classes/kotlin/jvm
-      - uses: sonarsource/sonarqube-scan-action@v6.0.0
+      - uses: sonarsource/sonarqube-scan-action@v7.0.0
         if: (github.event_name == 'pull_request_target')
         with:
           projectBaseDir: ${{ github.workspace }}
