@@ -28,11 +28,12 @@ ktor-serialization-json = { module = "io.ktor:ktor-serialization-kotlinx-json", 
 ktor-client-okhttp = { module = "io.ktor:ktor-client-okhttp", version.ref = "ktor" }
 ktor-client-java = { module = "io.ktor:ktor-client-java", version.ref = "ktor" }
 ktor-client-mock = { module = "io.ktor:ktor-client-mock", version.ref = "ktor" }
-dss-validation = { module = "eu.europa.ec.joinup.sd-dss:dss-validation", version.ref = "dss" }
-dss-utils = { module = "eu.europa.ec.joinup.sd-dss:dss-utils", version.ref = "dss" }
-dss-service = { module = "eu.europa.ec.joinup.sd-dss:dss-service", version.ref = "dss" }
-dss-tsl-validation = { module = "eu.europa.ec.joinup.sd-dss:dss-tsl-validation", version.ref = "dss" }
-dss-utils-guava = { module = "eu.europa.ec.joinup.sd-dss:dss-utils-google-guava", version.ref = "dss" }
+dss-bom = { module = "eu.europa.ec.joinup.sd-dss:dss-bom", version.ref = "dss" }
+dss-validation = { module = "eu.europa.ec.joinup.sd-dss:dss-validation" }
+dss-utils = { module = "eu.europa.ec.joinup.sd-dss:dss-utils"  }
+dss-service = { module = "eu.europa.ec.joinup.sd-dss:dss-service" }
+dss-tsl-validation = { module = "eu.europa.ec.joinup.sd-dss:dss-tsl-validation" }
+dss-utils-guava = { module = "eu.europa.ec.joinup.sd-dss:dss-utils-google-guava" }
 bouncy-castle = { module = "org.bouncycastle:bcpkix-jdk18on", version.ref = "bouncyCastle" }
 
 [plugins]
