@@ -29,11 +29,16 @@ import java.nio.file.Path
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.function.Predicate
 import kotlin.io.path.listDirectoryEntries
+import kotlin.test.Ignore
 import kotlin.test.Test
 import kotlin.time.Duration.Companion.seconds
 
 class DSSAdapterOpsTest {
 
+    /**
+     * Test is not deterministic
+     */
+    @Ignore("Requires internet connection, it is not deterministic due to hard-coded, non-clock based expiration checks")
     @Test
     fun verifyBehavior() = runTest {
         val path: Path = Files.createTempDirectory("dss-cache")
@@ -73,7 +78,7 @@ class DSSAdapterOpsTest {
         val secondCallCount = observableHttpLoader.callCount
         assert(secondCallCount == firstCallCount) {
             "FileCacheDataLoader should retrieve the list from path (no new HTTP calls). " +
-                "Expected $firstCallCount, got $secondCallCount"
+                    "Expected $firstCallCount, got $secondCallCount"
         }
         val secondCallFiles = path.listDirectoryEntries()
         assert(secondCallFiles == firstCallFiles) { "Cache files should be the same on second call" }
@@ -93,7 +98,7 @@ class DSSAdapterOpsTest {
         val thirdCallCount = observableHttpLoader.callCount
         assert(thirdCallCount > secondCallCount) {
             "ObservableHttpLoader should be invoked again after expiration. " +
-                "Expected > $secondCallCount, got $thirdCallCount"
+                    "Expected > $secondCallCount, got $thirdCallCount"
         }
         val thirdCallFiles = path.listDirectoryEntries()
         assert(thirdCallFiles.isNotEmpty()) { "Cache directory should not be empty after third call" }
