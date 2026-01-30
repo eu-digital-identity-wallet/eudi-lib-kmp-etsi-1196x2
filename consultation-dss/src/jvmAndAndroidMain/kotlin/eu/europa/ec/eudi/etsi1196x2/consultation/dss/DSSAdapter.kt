@@ -19,6 +19,7 @@ import eu.europa.ec.eudi.etsi1196x2.consultation.dss.DSSAdapter.Companion.DEFAUL
 import eu.europa.ec.eudi.etsi1196x2.consultation.dss.DSSAdapter.Companion.DEFAULT_CLEAN_MEMORY
 import eu.europa.ec.eudi.etsi1196x2.consultation.dss.DSSAdapter.Companion.DefaultFileCacheExpiration
 import eu.europa.ec.eudi.etsi1196x2.consultation.dss.DSSAdapter.Companion.DefaultHttpLoader
+import eu.europa.ec.eudi.etsi1196x2.consultation.dss.DSSAdapter.Companion.DefaultSynchronizationStrategy
 import eu.europa.esig.dss.service.http.commons.FileCacheDataLoader
 import eu.europa.esig.dss.spi.client.http.DSSCacheFileLoader
 import eu.europa.esig.dss.spi.client.http.DataLoader
@@ -28,6 +29,7 @@ import eu.europa.esig.dss.tsl.cache.CacheCleaner
 import eu.europa.esig.dss.tsl.job.TLValidationJob
 import eu.europa.esig.dss.tsl.source.LOTLSource
 import eu.europa.esig.dss.tsl.sync.ExpirationAndSignatureCheckStrategy
+import eu.europa.esig.dss.tsl.sync.SynchronizationStrategy
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import java.nio.file.Path
@@ -39,13 +41,18 @@ import kotlin.time.Duration.Companion.hours
  * Adapter for using the DSS library with the [GetTrustedListsCertificateByLOTLSource] functional interface.
  *
  * @param loader the [DSSCacheFileLoader] to use for fetching the trusted lists certificate source
- * @param cleanMemory whether to clean the memory cache. Defaults to [DEFAULT_CLEAN_MEMORY]
- * @param cleanFileSystem whether to clean the file system cache. Defaults to [DEFAULT_CLEAN_FILE_SYSTEM]
+ * @param cleanMemory whether to clean the memory cache.
+ *        Defaults to [DEFAULT_CLEAN_MEMORY]
+ * @param cleanFileSystem whether to clean the file system cache.
+ *        Defaults to [DEFAULT_CLEAN_FILE_SYSTEM]
+ * @param synchronizationStrategy the synchronization strategy to use for the validation job.
+ *        Defaults to [DefaultSynchronizationStrategy]
  */
 public data class DSSAdapter(
     val loader: DSSCacheFileLoader,
     val cleanMemory: Boolean = DEFAULT_CLEAN_MEMORY,
     val cleanFileSystem: Boolean = DEFAULT_CLEAN_FILE_SYSTEM,
+    val synchronizationStrategy: SynchronizationStrategy = DefaultSynchronizationStrategy,
 ) {
     public companion object {
         /**
@@ -69,9 +76,25 @@ public data class DSSAdapter(
         public val DefaultFileCacheExpiration: Duration = 24.hours
 
         /**
+         * Default synchronization strategy.
+         *
+         * - Accept expired trust lists: false
+         * - Accept invalid trust lists: false
+         * - Accept expired lists of trust lists: false
+         * - Accept invalid lists of trust lists: false
+         */
+        public val DefaultSynchronizationStrategy: SynchronizationStrategy
+            get() = ExpirationAndSignatureCheckStrategy().apply {
+                setAcceptExpiredTrustedList(false)
+                setAcceptInvalidTrustedList(false)
+                setAcceptExpiredListOfTrustedLists(false)
+                setAcceptInvalidListOfTrustedLists(false)
+            }
+
+        /**
          * Creates a [DSSAdapter] that uses [FileCacheDataLoader] with the following options:
          * - expiration time: [DefaultFileCacheExpiration]
-         * - cache directory: `null` (no cache directory)
+         * - cache directory: `null` [FileCacheDataLoader] will peek a temporary directory
          * - clean memory: [DEFAULT_CLEAN_MEMORY]
          * - clean file system: [DEFAULT_CLEAN_FILE_SYSTEM]
          * - HTTP loader: [DefaultHttpLoader]
@@ -87,11 +110,18 @@ public data class DSSAdapter(
 
         /**
          * Creates a [DSSAdapter] that uses [FileCacheDataLoader] with the given options.
-         * @param fileCacheExpiration the expiration time for the file cache. Defaults to [DefaultFileCacheExpiration]
-         * @param cacheDirectory the cache directory. Defaults to `null`, in this case [FileCacheDataLoader] will peek a directory
-         * @param cleanMemory whether to clean the memory cache. Defaults to [DEFAULT_CLEAN_MEMORY]
-         * @param cleanFileSystem whether to clean the file system cache. Defaults to [DEFAULT_CLEAN_FILE_SYSTEM]
-         * @param httpLoader the HTTP loader to use. Defaults to [DefaultHttpLoader]
+         * @param fileCacheExpiration the expiration time for the file cache.
+         *        Defaults to [DefaultFileCacheExpiration]
+         * @param cacheDirectory the cache directory.
+         *        Defaults to `null`, in this case [FileCacheDataLoader] will peek a temporary directory
+         * @param cleanMemory whether to clean the memory cache.
+         *        Defaults to [DEFAULT_CLEAN_MEMORY]
+         * @param cleanFileSystem whether to clean the file system cache.
+         *        Defaults to [DEFAULT_CLEAN_FILE_SYSTEM]
+         * @param httpLoader the HTTP loader to use.
+         *        Defaults to [DefaultHttpLoader]
+         * @param synchronizationStrategy the synchronization strategy to use for the validation job.
+         *        Defaults to [DefaultSynchronizationStrategy]
          */
         public fun usingFileCacheDataLoader(
             fileCacheExpiration: Duration = DefaultFileCacheExpiration,
@@ -99,13 +129,14 @@ public data class DSSAdapter(
             cleanMemory: Boolean = DEFAULT_CLEAN_MEMORY,
             cleanFileSystem: Boolean = DEFAULT_CLEAN_MEMORY,
             httpLoader: DataLoader = DefaultHttpLoader,
+            synchronizationStrategy: SynchronizationStrategy = DefaultSynchronizationStrategy,
         ): DSSAdapter {
             val loader = FileCacheDataLoader(httpLoader)
                 .apply {
                     setCacheExpirationTime(fileCacheExpiration.inWholeMilliseconds)
                     cacheDirectory?.let { setFileCacheDirectory(it.toFile()) }
                 }
-            return DSSAdapter(loader, cleanMemory, cleanFileSystem)
+            return DSSAdapter(loader, cleanMemory, cleanFileSystem, synchronizationStrategy)
         }
     }
 }
@@ -128,7 +159,9 @@ internal object DSSAdapterOps {
             block = { refresh(it) },
         )
 
-    private fun DSSAdapter.refresh(lotlSource: LOTLSource): TrustedListsCertificateSource {
+    private fun DSSAdapter.refresh(
+        lotlSource: LOTLSource,
+    ): TrustedListsCertificateSource {
         return TrustedListsCertificateSource().apply {
             runValidationJobFor(this@refresh, lotlSource)
         }
@@ -142,7 +175,7 @@ internal object DSSAdapterOps {
             setListOfTrustedListSources(lotlSource)
             setOnlineDataLoader(dssAdapter.loader)
             setTrustedListCertificateSource(this@runValidationJobFor)
-            setSynchronizationStrategy(ExpirationAndSignatureCheckStrategy())
+            setSynchronizationStrategy(dssAdapter.synchronizationStrategy)
             setCacheCleaner(
                 CacheCleaner().apply {
                     setCleanMemory(dssAdapter.cleanMemory)
