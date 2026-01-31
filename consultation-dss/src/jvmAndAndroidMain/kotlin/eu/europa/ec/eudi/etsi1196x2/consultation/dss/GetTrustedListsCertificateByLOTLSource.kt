@@ -17,13 +17,12 @@ package eu.europa.ec.eudi.etsi1196x2.consultation.dss
 
 import eu.europa.ec.eudi.etsi1196x2.consultation.GetTrustAnchors
 import eu.europa.ec.eudi.etsi1196x2.consultation.TrustAnchorCreator
-import eu.europa.ec.eudi.etsi1196x2.consultation.dss.AsyncCache.Entry
+import eu.europa.ec.eudi.etsi1196x2.consultation.dss.GetTrustedListsCertificateByLOTLSource.Companion.DEFAULT_DISPATCHER
+import eu.europa.ec.eudi.etsi1196x2.consultation.dss.GetTrustedListsCertificateByLOTLSource.Companion.DEFAULT_SCOPE
 import eu.europa.esig.dss.model.x509.CertificateToken
 import eu.europa.esig.dss.spi.tsl.TrustedListsCertificateSource
 import eu.europa.esig.dss.tsl.source.LOTLSource
 import kotlinx.coroutines.*
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import java.security.cert.TrustAnchor
 import kotlin.time.Clock
 import kotlin.time.Duration
@@ -125,55 +124,4 @@ internal class GetTrustedListsCertificateByLOTLSourceBlocking(
         }
 
     override suspend fun invoke(source: LOTLSource): TrustedListsCertificateSource = cached(source)
-}
-
-internal class AsyncCache<A : Any, B : Any>(
-    coroutineScope: CoroutineScope,
-    private val coroutineDispatcher: CoroutineDispatcher,
-    private val clock: Clock,
-    private val ttl: Duration,
-    private val maxCacheSize: Int,
-    private val supplier: suspend (A) -> B,
-) : suspend (A) -> B {
-
-    private val scope = coroutineScope + SupervisorJob(coroutineScope.coroutineContext[Job])
-
-    private data class Entry<B>(val deferred: Deferred<B>, val createdAt: Long)
-
-    private val mutex = Mutex()
-    private val cache =
-        object : LinkedHashMap<A, Entry<B>>(maxCacheSize, 0.75f, true) {
-            override fun removeEldestEntry(eldest: MutableMap.MutableEntry<A, Entry<B>>) =
-                size > maxCacheSize
-        }
-
-    override suspend fun invoke(key: A): B {
-        val now = clock.now().toEpochMilliseconds()
-        val entry = mutex.withLock {
-            val existing = cache[key]
-            if (existing != null && (now - existing.createdAt) < ttl.inWholeMilliseconds) {
-                existing
-            } else {
-                // Launch new computation
-                val newDeferred = scope.async(coroutineDispatcher) {
-                    supplier(key)
-                }
-                Entry(newDeferred, now).also { cache[key] = it }
-            }
-        }
-        return try {
-            entry.deferred.await()
-        } catch (e: Exception) {
-            handleFailure(key, entry)
-            throw e
-        }
-    }
-
-    private suspend fun handleFailure(key: A, entry: Entry<B>) {
-        mutex.withLock {
-            if (cache[key] === entry) {
-                cache.remove(key)
-            }
-        }
-    }
 }

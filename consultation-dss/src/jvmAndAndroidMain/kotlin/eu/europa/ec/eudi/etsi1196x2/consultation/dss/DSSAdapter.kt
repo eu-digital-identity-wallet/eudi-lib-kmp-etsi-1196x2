@@ -143,7 +143,7 @@ public data class DSSAdapter(
 
 internal object DSSAdapterOps {
 
-    fun DSSAdapter.getTrustedListsCertificateByLOTLSource(
+    fun DSSAdapter.asGetTrustedListsCertificateByLOTLSource(
         clock: Clock,
         coroutineScope: CoroutineScope,
         coroutineDispatcher: CoroutineDispatcher,
