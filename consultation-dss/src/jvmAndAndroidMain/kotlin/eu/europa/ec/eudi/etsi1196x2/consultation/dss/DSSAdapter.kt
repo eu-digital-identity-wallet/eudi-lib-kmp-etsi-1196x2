@@ -143,7 +143,7 @@ public data class DSSAdapter(
 
 internal object DSSAdapterOps {
 
-    fun DSSAdapter.getTrustedListsCertificateByLOTLSource(
+    fun DSSAdapter.asGetTrustedListsCertificateByLOTLSource(
         clock: Clock,
         coroutineScope: CoroutineScope,
         coroutineDispatcher: CoroutineDispatcher,
@@ -159,7 +159,7 @@ internal object DSSAdapterOps {
             block = { refresh(it) },
         )
 
-    private fun DSSAdapter.refresh(
+    internal fun DSSAdapter.refresh(
         lotlSource: LOTLSource,
     ): TrustedListsCertificateSource {
         return TrustedListsCertificateSource().apply {

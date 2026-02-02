@@ -94,7 +94,7 @@ public fun IsChainTrustedForContext.Companion.usingLoTL(
  * ```kotlin
  * IsChainTrustedForContext.usingLoTL(
  *   IsChainTrustedForContext.usingLoTL(
- *     dssAdapter = DSSAdapter.usingFileCacheDataLoader(
+ *     dssAdapter = DSSAdapter.asGetTrustedListsCertificateByLOTLSource(
  *         fileCacheExpiration = 24.hours,
  *         cacheDirectory = createTempDirectory("lotl-cache"),
  *     ),
@@ -140,7 +140,7 @@ public fun IsChainTrustedForContext.Companion.usingLoTL(
 ): IsChainTrustedForContext<List<X509Certificate>, TrustAnchor> {
     val getTrustedListsCertificateByLOTLSource =
         with(DSSAdapterOps) {
-            dssAdapter.getTrustedListsCertificateByLOTLSource(
+            dssAdapter.asGetTrustedListsCertificateByLOTLSource(
                 coroutineScope = coroutineScope,
                 coroutineDispatcher = coroutineDispatcher,
                 expectedTrustSourceNo = sourcePerVerification.size,

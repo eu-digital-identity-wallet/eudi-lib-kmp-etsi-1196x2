@@ -19,10 +19,9 @@ import eu.europa.ec.eudi.etsi1196x2.consultation.CertificationChainValidation
 import eu.europa.ec.eudi.etsi1196x2.consultation.IsChainTrustedForContext
 import eu.europa.ec.eudi.etsi1196x2.consultation.ValidateCertificateChainJvm
 import eu.europa.ec.eudi.etsi1196x2.consultation.VerificationContext
+import eu.europa.ec.eudi.etsi1196x2.consultation.dss.EUDIRefDevEnv.httpLoader
+import eu.europa.esig.dss.spi.client.http.NativeHTTPDataLoader
 import eu.europa.esig.dss.tsl.function.GrantedOrRecognizedAtNationalLevelTrustAnchorPeriodPredicate
-import eu.europa.esig.dss.tsl.function.TLPredicateFactory
-import eu.europa.esig.dss.tsl.function.TypeOtherTSLPointer
-import eu.europa.esig.dss.tsl.function.XMLOtherTSLPointer
 import eu.europa.esig.dss.tsl.source.LOTLSource
 import kotlinx.coroutines.*
 import kotlinx.coroutines.test.runTest
@@ -48,27 +47,27 @@ object EUDIRefDevEnv {
     private const val PUB_EAA_SVC_TYPE = "http://uri.etsi.org/TrstSvc/Svctype/EAA/Pub-EAA"
     private const val PID_SVC_TYPE = "http://uri.etsi.org/Svc/Svctype/Provider/PID"
     private const val LOTL_URL = "https://trustedlist.serviceproviders.eudiw.dev/LOTL/01.xml"
-    private const val TL_TYPE = "http://uri.etsi.org/TrstSvc/TrustedList/TSLType/EUgeneric"
     private fun lotlSource(serviceType: String): LOTLSource {
         val lotlSource = LOTLSource().apply {
-            lotlPredicate = TLPredicateFactory.createEULOTLPredicate()
-            tlPredicate = TypeOtherTSLPointer(TL_TYPE).and(XMLOtherTSLPointer())
             url = LOTL_URL
             trustAnchorValidityPredicate = GrantedOrRecognizedAtNationalLevelTrustAnchorPeriodPredicate()
-            tlVersions = listOf(5, 6)
+            tlVersions = listOf(6)
             trustServicePredicate =
                 Predicate { tspServiceType ->
                     tspServiceType.serviceInformation.serviceTypeIdentifier == serviceType
                 }
+            isPivotSupport = true
         }
         return lotlSource
     }
 
+    val httpLoader = ObservableHttpLoader(NativeHTTPDataLoader())
     val isChainTrustedForContext =
         IsChainTrustedForContext.usingLoTL(
             dssAdapter = DSSAdapter.usingFileCacheDataLoader(
                 fileCacheExpiration = 24.hours,
                 cacheDirectory = createTempDirectory("lotl-cache"),
+                httpLoader = httpLoader,
             ),
             sourcePerVerification = buildMap {
                 put(VerificationContext.PID, lotlSource(PID_SVC_TYPE))
@@ -108,15 +107,29 @@ class IsChainTrustedUsingLoTLTest {
             isX5CTrusted(pidX5c, VerificationContext.WalletUnitAttestation),
         )
     }
+}
+
+class IsChainTrustedUsingLoTLParallelTest {
+
+    val isX5CTrusted =
+        EUDIRefDevEnv.isChainTrustedForContext.contraMap(::certsFromX5C)
 
     @Test
     fun checkInParallel() = runTest {
-        buildList {
-            repeat(200) {
-                add(async { isX5CTrusted(pidX5c, VerificationContext.PID) })
-                add(async { isX5CTrusted(pidX5c, VerificationContext.PubEAA) })
-            }
-        }.awaitAll()
+        resetHttpLoaderAnd {
+            buildList {
+                repeat(200) {
+                    add(async { isX5CTrusted(pidX5c, VerificationContext.PID) })
+                    add(async { isX5CTrusted(pidX5c, VerificationContext.PubEAA) })
+                }
+            }.awaitAll()
+        }
+    }
+
+    private suspend fun resetHttpLoaderAnd(doit: suspend () -> Unit): Int {
+        httpLoader.reset()
+        doit()
+        return httpLoader.callCount.also { println("HTTP call count: $it") }
     }
 }
 
