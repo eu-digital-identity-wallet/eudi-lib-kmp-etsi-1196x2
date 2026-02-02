@@ -94,7 +94,7 @@ public fun IsChainTrustedForContext.Companion.usingLoTL(
  * ```kotlin
  * IsChainTrustedForContext.usingLoTL(
  *   IsChainTrustedForContext.usingLoTL(
- *     dssAdapter = DSSAdapter.asGetTrustedListsCertificateByLOTLSource(
+ *     dssAdapter = DSSAdapter.usingFileCacheDataLoader(
  *         fileCacheExpiration = 24.hours,
  *         cacheDirectory = createTempDirectory("lotl-cache"),
  *     ),
