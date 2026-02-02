@@ -95,7 +95,7 @@ kotlin {
                 implementation(project.dependencies.platform(libs.dss.bom))
                 implementation(libs.dss.validation)
                 implementation(libs.dss.service)
-                implementation(libs.dss.tsl.validation)
+                api(libs.dss.tsl.validation)
                 implementation(libs.dss.utils)
             }
         }
