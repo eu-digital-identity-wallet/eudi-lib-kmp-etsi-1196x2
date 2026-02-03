@@ -45,7 +45,9 @@ public sealed class AttestationClassification(private val attestations: List<Att
     public data class EAAs(val useCase: String, val attestations: List<Attestation>) :
         AttestationClassification(attestations)
 
-    public operator fun contains(attestation: Attestation): Boolean = attestation in attestations
+    public operator fun contains(attestation: Attestation): Boolean {
+        return (attestation in attestations) || attestations.any { it.docType == attestation.docType || it.vct == attestation.vct }
+    }
 
     public fun issuanceAndRevocationContexts(): Pair<VerificationContext, VerificationContext>? =
         when (this) {
@@ -62,28 +64,35 @@ public sealed class AttestationClassification(private val attestations: List<Att
 }
 
 public class IsChainTrustedForAttestation<in CHAIN : Any, TRUST_ANCHOR : Any>(
-    private val isChainTrustedForContext: IsChainTrustedForContext<CHAIN, TRUST_ANCHOR>,
+    private val isChainTrustedForContext: suspend (CHAIN, VerificationContext) -> CertificationChainValidation<TRUST_ANCHOR>?,
     private val attestationClassifications: List<AttestationClassification>,
 ) {
 
-    public suspend fun attestationSignature(
-        chain: CHAIN,
-        attestation: Attestation,
-    ): CertificationChainValidation<TRUST_ANCHOR>? =
-        attestation.contexts()?.let { (issuanceVerificationContext, _) ->
-            isChainTrustedForContext(chain, issuanceVerificationContext)
+    public suspend fun mdocIssuance(chain: CHAIN, docType: String): CertificationChainValidation<TRUST_ANCHOR>? =
+        mDocContexts(docType)?.let { (issuance, _) ->
+            isChainTrustedForContext(chain, issuance)
         }
 
-    public suspend fun attestationStatusSignature(
-        chain: CHAIN,
-        attestation: Attestation,
-    ): CertificationChainValidation<TRUST_ANCHOR>? =
-        attestation.contexts()?.let { (_, statusVerificationContext) ->
-            isChainTrustedForContext(chain, statusVerificationContext)
+    public suspend fun mdocRevocation(chain: CHAIN, docType: String): CertificationChainValidation<TRUST_ANCHOR>? =
+        mDocContexts(docType)?.let { (_, revocation) ->
+            isChainTrustedForContext(chain, revocation)
         }
 
-    private fun Attestation.contexts(): Pair<VerificationContext, VerificationContext>? =
-        attestationClassifications.firstOrNull { this in it }?.issuanceAndRevocationContexts()
+    public suspend fun sdJwtVcIssuance(chain: CHAIN, vct: List<String>): CertificationChainValidation<TRUST_ANCHOR>? =
+        sdJwtVcContexts(vct)?.let { (issuance, _) ->
+            isChainTrustedForContext(chain, issuance)
+        }
+
+    public suspend fun sdJwtVcRevocation(chain: CHAIN, vct: List<String>): CertificationChainValidation<TRUST_ANCHOR>? =
+        sdJwtVcContexts(vct)?.let { (_, revocation) ->
+            isChainTrustedForContext(chain, revocation)
+        }
+
+    private fun mDocContexts(docType: String): Pair<VerificationContext, VerificationContext>? =
+        attestationClassifications.firstOrNull { Attestation(docType = docType) in it }?.issuanceAndRevocationContexts()
+
+    private fun sdJwtVcContexts(vct: List<String>): Pair<VerificationContext, VerificationContext>? =
+        attestationClassifications.firstOrNull { Attestation(vct = vct) in it }?.issuanceAndRevocationContexts()
 
     public companion object {
         public operator fun <CHAIN : Any, TRUST_ANCHOR : Any> invoke(
@@ -92,7 +101,7 @@ public class IsChainTrustedForAttestation<in CHAIN : Any, TRUST_ANCHOR : Any>(
         ): IsChainTrustedForAttestation<CHAIN, TRUST_ANCHOR> {
             val attestationClassifications =
                 buildList(attestationClassificationsBuilder)
-            return IsChainTrustedForAttestation(isChainTrustedForContext, attestationClassifications)
+            return IsChainTrustedForAttestation(isChainTrustedForContext::invoke, attestationClassifications)
         }
     }
 }
