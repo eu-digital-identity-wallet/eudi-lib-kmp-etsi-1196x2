@@ -16,8 +16,6 @@
 package eu.europa.ec.eudi.etsi1196x2.consultation
 
 import eu.europa.ec.eudi.etsi1196x2.consultation.AttestationClassification.*
-import eu.europa.ec.eudi.etsi1196x2.consultation.AttestationIdentifierPredicate.Companion.isMdoc
-import eu.europa.ec.eudi.etsi1196x2.consultation.AttestationIdentifierPredicate.Companion.isSdJwtVc
 
 public sealed interface AttestationIdentifier {
     public data class MDoc(val docType: String) : AttestationIdentifier
@@ -56,22 +54,22 @@ public sealed interface AttestationClassification {
             is EAAs -> predicatePerUseCase.values.any { it(identifier) }
         }
     }
-
-    public companion object {
-        public const val PID_DOCTYPE: String = "eu.europa.ec.eudi.pid.1"
-        public const val PID_VCT: String = "urn:eudi:pid:1"
-        public const val MDL_DOCTYPE: String = "org.iso.18013.5.1.mDL"
-        public val PIDS: PIDs = PIDs(isSdJwtVc(PID_VCT) or isMdoc(PID_DOCTYPE))
-        public val MDLs: EAAs = EAAs(
-            mapOf("MDL" to isMdoc(MDL_DOCTYPE)),
-        )
-    }
 }
 
 public class IsChainTrustedForAttestation<in CHAIN : Any, TRUST_ANCHOR : Any>(
     private val isChainTrustedForContext: suspend (CHAIN, VerificationContext) -> CertificationChainValidation<TRUST_ANCHOR>?,
     private val attestationClassifications: List<AttestationClassification>,
 ) {
+
+    init {
+        val duplicates = attestationClassifications
+            .groupBy { it::class }
+            .filterValues { values -> values.size > 1 }
+        require(duplicates.isEmpty()) {
+            val ds = duplicates.keys.map { it.simpleName }.joinToString(", ")
+            "Duplicate attestation classifications: $ds"
+        }
+    }
 
     public suspend fun issuance(
         chain: CHAIN,
