@@ -15,62 +15,125 @@
  */
 package eu.europa.ec.eudi.etsi1196x2.consultation
 
-import eu.europa.ec.eudi.etsi1196x2.consultation.AttestationClassification.*
-
+/**
+ * An interface for attestation identifiers.
+ * - [MDoc] an ISO/IEC 18013-5 encoded attestation identified by its document type.
+ * - [SDJwtVc] an SD JWT VC encoded attestation identified by its vct claim.
+ */
 public sealed interface AttestationIdentifier {
+    /**
+     * ISO/IEC 18013-5 encoded attestation
+     * @param docType the document type of the attestation
+     */
     public data class MDoc(val docType: String) : AttestationIdentifier
+
+    /**
+     * SD JWT VC encoded attestation
+     * @param vct the vct claim of the attestation
+     */
     public data class SDJwtVc(val vct: String) : AttestationIdentifier
 }
 
+/**
+ * A predicate for attestation identifiers.
+ */
 public fun interface AttestationIdentifierPredicate {
 
-    public operator fun invoke(identifier: AttestationIdentifier): Boolean
+    /**
+     * Tests if the given attestation identifier matches the predicate.
+     * @param identifier the attestation identifier to test.
+     * @return true if the identifier matches the predicate, false otherwise.
+     */
+    public fun test(identifier: AttestationIdentifier): Boolean
 
+    /**
+     * Combines the current predicate with another one, by checking if either one matches.
+     * @param other the other predicate to combine with the current one.
+     * @return a new predicate that combines the current predicate with the other one.
+     */
     public infix fun or(other: AttestationIdentifierPredicate): AttestationIdentifierPredicate =
-        AttestationIdentifierPredicate { this(it) || other(it) }
+        AttestationIdentifierPredicate { this.test(it) || other.test(it) }
 
     public companion object {
+        /**
+         * A predicate that always returns false.
+         */
+        public val None: AttestationIdentifierPredicate = AttestationIdentifierPredicate { false }
+
+        /**
+         * A predicate that matches SD JWT VCs.
+         * @param vct the vct claim of the attestation
+         */
         public fun isSdJwtVc(vct: String): AttestationIdentifierPredicate =
             AttestationIdentifierPredicate { it is AttestationIdentifier.SDJwtVc && it.vct == vct }
 
+        /**
+         * A predicate that matches MDocs of a given type.
+         * @param docType the document type of the attestation
+         */
         public fun isMdoc(docType: String): AttestationIdentifierPredicate =
             AttestationIdentifierPredicate { it is AttestationIdentifier.MDoc && it.docType == docType }
     }
 }
 
-public sealed interface AttestationClassification {
-
-    public data class PIDs(val predicate: AttestationIdentifierPredicate) : AttestationClassification
-    public data class PubEAAs(val predicate: AttestationIdentifierPredicate) : AttestationClassification
-    public data class QEAAs(val predicate: AttestationIdentifierPredicate) : AttestationClassification
-    public data class EAAs(val predicatePerUseCase: Map<String, AttestationIdentifierPredicate>) :
-        AttestationClassification
-
-    public operator fun contains(identifier: AttestationIdentifier): Boolean {
-        return when (this) {
-            is PIDs -> predicate(identifier)
-            is PubEAAs -> predicate(identifier)
-            is QEAAs -> predicate(identifier)
-            is EAAs -> predicatePerUseCase.values.any { it(identifier) }
+/**
+ * A way of classifying attestations
+ * @param pids a predicate for PIDs
+ * @param pubEAAs a predicate for public EAA identifiers
+ * @param qEAAs a predicate for qualified EAA identifiers
+ * @param eaAs a map of use cases to predicates for EAA identifiers
+ */
+public data class AttestationClassifications(
+    val pids: AttestationIdentifierPredicate = AttestationIdentifierPredicate.None,
+    val pubEAAs: AttestationIdentifierPredicate = AttestationIdentifierPredicate.None,
+    val qEAAs: AttestationIdentifierPredicate = AttestationIdentifierPredicate.None,
+    val eaAs: Map<String, AttestationIdentifierPredicate> = emptyMap(),
+) {
+    public fun <T : Any> fold(
+        ifPid: () -> T,
+        ifPubEaa: () -> T,
+        ifQEaa: () -> T,
+        ifEaa: (String) -> T,
+    ): (AttestationIdentifier) -> T? = { identifier ->
+        when {
+            pids.test(identifier) -> ifPid()
+            pubEAAs.test(identifier) -> ifPubEaa()
+            qEAAs.test(identifier) -> ifQEaa()
+            else -> {
+                eaAs.firstNotNullOfOrNull { (useCase, predicate) ->
+                    if (predicate.test(identifier)) ifEaa(useCase) else null
+                }
+            }
         }
     }
 }
 
+/**
+ * A specialization of [IsChainTrustedForContext] for attestations
+ * @param isChainTrustedForContext the function used to validate a certificate chain in a [VerificationContext].
+ * @param classifications the way of classifying attestations
+ * @param CHAIN the type of the certificate chain to be validated
+ * @param TRUST_ANCHOR the type of the trust anchor to be used for validation
+ */
 public class IsChainTrustedForAttestation<in CHAIN : Any, TRUST_ANCHOR : Any>(
     private val isChainTrustedForContext: suspend (CHAIN, VerificationContext) -> CertificationChainValidation<TRUST_ANCHOR>?,
-    private val attestationClassifications: List<AttestationClassification>,
+    classifications: AttestationClassifications,
 ) {
 
-    init {
-        val duplicates = attestationClassifications
-            .groupBy { it::class }
-            .filterValues { values -> values.size > 1 }
-        require(duplicates.isEmpty()) {
-            val ds = duplicates.keys.map { it.simpleName }.joinToString(", ")
-            "Duplicate attestation classifications: $ds"
-        }
-    }
+    private val issuanceAndRevocationContextOf: (AttestationIdentifier) -> Pair<VerificationContext, VerificationContext>? =
+        classifications.fold(
+            ifPid = { VerificationContext.PID to VerificationContext.PIDStatus },
+            ifPubEaa = { VerificationContext.PubEAA to VerificationContext.PubEAAStatus },
+            ifQEaa = { VerificationContext.QEAA to VerificationContext.QEAAStatus },
+            ifEaa = { useCase -> VerificationContext.EAA(useCase) to VerificationContext.EAAStatus(useCase) },
+        )
 
+    /**
+     * Validates a certificate chain for issuance of an attestation.
+     * @param chain the certificate chain to be validated
+     * @param identifier the attestation identifier
+     * @return the result of the validation
+     */
     public suspend fun issuance(
         chain: CHAIN,
         identifier: AttestationIdentifier,
@@ -79,6 +142,12 @@ public class IsChainTrustedForAttestation<in CHAIN : Any, TRUST_ANCHOR : Any>(
             isChainTrustedForContext(chain, issuance)
         }
 
+    /**
+     * Validates a certificate chain for revocation of an attestation.
+     * @param chain the certificate chain to be validated
+     * @param identifier the attestation identifier
+     * @return the result of the validation
+     */
     public suspend fun revocation(
         chain: CHAIN,
         identifier: AttestationIdentifier,
@@ -86,51 +155,4 @@ public class IsChainTrustedForAttestation<in CHAIN : Any, TRUST_ANCHOR : Any>(
         issuanceAndRevocationContextOf(identifier)?.let { (_, revocation) ->
             isChainTrustedForContext(chain, revocation)
         }
-
-    private fun AttestationClassification.issuanceAndRevocationContextOf(
-        identifier: AttestationIdentifier,
-    ): Pair<VerificationContext, VerificationContext>? {
-        fun <T> takeIf(condition: Boolean, value: () -> T): T? = if (condition) value() else null
-        return when (this) {
-            is PIDs ->
-                takeIf(identifier in this) {
-                    VerificationContext.PID to VerificationContext.PIDStatus
-                }
-
-            is PubEAAs ->
-                takeIf(identifier in this) {
-                    VerificationContext.PubEAA to VerificationContext.PubEAAStatus
-                }
-
-            is QEAAs ->
-                takeIf(identifier in this) {
-                    VerificationContext.QEAA to VerificationContext.QEAAStatus
-                }
-
-            is EAAs ->
-                predicatePerUseCase.firstNotNullOfOrNull { (useCase, predicate) ->
-                    takeIf(predicate(identifier)) {
-                        VerificationContext.EAA(useCase) to VerificationContext.EAAStatus(useCase)
-                    }
-                }
-        }
-    }
-
-    private fun issuanceAndRevocationContextOf(
-        identifier: AttestationIdentifier,
-    ): Pair<VerificationContext, VerificationContext>? =
-        attestationClassifications.firstNotNullOfOrNull { classification ->
-            classification.issuanceAndRevocationContextOf(identifier)
-        }
-
-    public companion object {
-        public operator fun <CHAIN : Any, TRUST_ANCHOR : Any> invoke(
-            isChainTrustedForContext: IsChainTrustedForContext<CHAIN, TRUST_ANCHOR>,
-            attestationClassificationsBuilder: MutableList<AttestationClassification>.() -> Unit = {},
-        ): IsChainTrustedForAttestation<CHAIN, TRUST_ANCHOR> {
-            val attestationClassifications =
-                buildList(attestationClassificationsBuilder)
-            return IsChainTrustedForAttestation(isChainTrustedForContext::invoke, attestationClassifications)
-        }
-    }
 }
