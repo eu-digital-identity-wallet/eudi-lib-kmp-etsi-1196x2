@@ -15,34 +15,34 @@
  */
 package eu.europa.ec.eudi.etsi1196x2.consultation
 
-public sealed interface Attestation {
-    public interface FormatType : Attestation
-    public data class MDoc(val docType: String) : FormatType
-    public data class SDJwtVc(val vct: List<String>) : FormatType {
+public sealed interface AttestationIdentifier {
+    public interface FormatSpecificIdentifier : AttestationIdentifier
+    public data class MDoc(val docType: String) : FormatSpecificIdentifier
+    public data class SDJwtVc(val vct: List<String>) : FormatSpecificIdentifier {
         public constructor(vct: String) : this(listOf(vct))
         init {
             require(vct.isNotEmpty()) { "Attestation must have at least one VCT" }
         }
     }
-    public data class MultiFormat(val formatTypes: Set<FormatType>) : Attestation {
-        public constructor(vararg formatTypes: FormatType) : this(formatTypes.toSet())
+    public data class MultiFormat(val identifiers: Set<FormatSpecificIdentifier>) : AttestationIdentifier {
+        public constructor(vararg formatSpecificIdentifiers: FormatSpecificIdentifier) : this(formatSpecificIdentifiers.toSet())
         init {
-            require(formatTypes.size >= 2)
-            val duplicates = formatTypes.groupBy { it::class }.filterValues { it.size > 1 }
+            require(identifiers.size >= 2)
+            val duplicates = identifiers.groupBy { it::class }.filterValues { it.size > 1 }
             require(duplicates.isEmpty()) {
                 "Duplicate format types not allowed"
             }
         }
     }
 
-    public fun toSet(): Set<FormatType> = when (this) {
-        is FormatType -> setOf(this)
-        is MultiFormat -> formatTypes
+    public fun toSet(): Set<FormatSpecificIdentifier> = when (this) {
+        is FormatSpecificIdentifier -> setOf(this)
+        is MultiFormat -> identifiers
     }
 
-    public operator fun contains(format: FormatType): Boolean = when (this) {
-        is MultiFormat -> format in formatTypes
-        else -> this == format
+    public operator fun contains(identifier: FormatSpecificIdentifier): Boolean = when (this) {
+        is MultiFormat -> identifier in identifiers
+        else -> this == identifier
     }
 
     public companion object {
@@ -53,22 +53,22 @@ public sealed interface Attestation {
     }
 }
 
-public sealed class AttestationClassification(private val attestations: Set<Attestation.FormatType>) {
+public sealed class AttestationClassification(private val attestations: Set<AttestationIdentifier.FormatSpecificIdentifier>) {
     init {
         require(attestations.isNotEmpty()) { "Attestation classification must have at least one attestation" }
     }
 
-    public data class PIDs(val attestations: Set<Attestation.FormatType>) : AttestationClassification(attestations)
+    public data class PIDs(val attestations: Set<AttestationIdentifier.FormatSpecificIdentifier>) : AttestationClassification(attestations)
 
-    public data class PubEAAs(val attestations: Set<Attestation.FormatType>) : AttestationClassification(attestations)
+    public data class PubEAAs(val attestations: Set<AttestationIdentifier.FormatSpecificIdentifier>) : AttestationClassification(attestations)
 
-    public data class QEAAs(val attestations: Set<Attestation.FormatType>) : AttestationClassification(attestations)
+    public data class QEAAs(val attestations: Set<AttestationIdentifier.FormatSpecificIdentifier>) : AttestationClassification(attestations)
 
-    public data class EAAs(val useCase: String, val attestations: Set<Attestation.FormatType>) :
+    public data class EAAs(val useCase: String, val attestations: Set<AttestationIdentifier.FormatSpecificIdentifier>) :
         AttestationClassification(attestations)
 
-    public operator fun contains(formatType: Attestation.FormatType): Boolean {
-        return attestations.any { formatType in it }
+    public operator fun contains(formatSpecificIdentifier: AttestationIdentifier.FormatSpecificIdentifier): Boolean {
+        return attestations.any { formatSpecificIdentifier in it }
     }
 
     public fun issuanceAndRevocationContexts(): Pair<VerificationContext, VerificationContext>? =
@@ -80,8 +80,8 @@ public sealed class AttestationClassification(private val attestations: Set<Atte
         }
 
     public companion object {
-        public val PIDS: PIDs = PIDs(Attestation.PID.toSet())
-        public val MDLs: EAAs = EAAs("MDL", Attestation.MDL.toSet())
+        public val PIDS: PIDs = PIDs(AttestationIdentifier.PID.toSet())
+        public val MDLs: EAAs = EAAs("MDL", AttestationIdentifier.MDL.toSet())
     }
 }
 
@@ -92,22 +92,22 @@ public class IsChainTrustedForAttestation<in CHAIN : Any, TRUST_ANCHOR : Any>(
 
     public suspend fun issuance(
         chain: CHAIN,
-        formatType: Attestation.FormatType,
+        formatSpecificIdentifier: AttestationIdentifier.FormatSpecificIdentifier,
     ): CertificationChainValidation<TRUST_ANCHOR>? =
-        contexts(formatType)?.let { (issuance, _) ->
+        contexts(formatSpecificIdentifier)?.let { (issuance, _) ->
             isChainTrustedForContext(chain, issuance)
         }
 
     public suspend fun revocation(
         chain: CHAIN,
-        formatType: Attestation.FormatType,
+        formatSpecificIdentifier: AttestationIdentifier.FormatSpecificIdentifier,
     ): CertificationChainValidation<TRUST_ANCHOR>? =
-        contexts(formatType)?.let { (_, revocation) ->
+        contexts(formatSpecificIdentifier)?.let { (_, revocation) ->
             isChainTrustedForContext(chain, revocation)
         }
 
-    private fun contexts(formatType: Attestation.FormatType): Pair<VerificationContext, VerificationContext>? =
-        attestationClassifications.firstOrNull { formatType in it }?.issuanceAndRevocationContexts()
+    private fun contexts(formatSpecificIdentifier: AttestationIdentifier.FormatSpecificIdentifier): Pair<VerificationContext, VerificationContext>? =
+        attestationClassifications.firstOrNull { formatSpecificIdentifier in it }?.issuanceAndRevocationContexts()
 
     public companion object {
         public operator fun <CHAIN : Any, TRUST_ANCHOR : Any> invoke(
