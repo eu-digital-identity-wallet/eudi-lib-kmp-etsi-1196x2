@@ -17,22 +17,22 @@ package eu.europa.ec.eudi.etsi1196x2.consultation
 
 /**
  * An interface for attestation identifiers.
- * - [MDoc] an ISO/IEC 18013-5 encoded attestation identified by its document type.
- * - [SDJwtVc] an SD JWT VC encoded attestation identified by its vct claim.
+ * @see MDoc
+ * @see SDJwtVc
  */
-public sealed interface AttestationIdentifier {
-    /**
-     * ISO/IEC 18013-5 encoded attestation
-     * @param docType the document type of the attestation
-     */
-    public data class MDoc(val docType: String) : AttestationIdentifier
+public interface AttestationIdentifier
 
-    /**
-     * SD JWT VC encoded attestation
-     * @param vct the vct claim of the attestation
-     */
-    public data class SDJwtVc(val vct: String) : AttestationIdentifier
-}
+/**
+ * ISO/IEC 18013-5 encoded attestation
+ * @param docType the document type of the attestation
+ */
+public data class MDoc(val docType: String) : AttestationIdentifier
+
+/**
+ * SD JWT VC encoded attestation
+ * @param vct the vct claim of the attestation
+ */
+public data class SDJwtVc(val vct: String) : AttestationIdentifier
 
 /**
  * A predicate for attestation identifiers.
@@ -59,25 +59,30 @@ public fun interface AttestationIdentifierPredicate {
          * A predicate that always returns false.
          */
         public val None: AttestationIdentifierPredicate = AttestationIdentifierPredicate { false }
-
-        /**
-         * A predicate that matches SD JWT VCs.
-         * @param vct the vct claim of the attestation
-         */
-        public fun isSdJwtVc(vct: String): AttestationIdentifierPredicate =
-            AttestationIdentifierPredicate { it is AttestationIdentifier.SDJwtVc && it.vct == vct }
-
-        /**
-         * A predicate that matches MDocs of a given type.
-         * @param docType the document type of the attestation
-         */
-        public fun isMdoc(docType: String): AttestationIdentifierPredicate =
-            AttestationIdentifierPredicate { it is AttestationIdentifier.MDoc && it.docType == docType }
     }
 }
 
 /**
+ * An [AttestationIdentifierPredicate]
+ * that matches attestations with the same identifier as the current one.
+ */
+public val AttestationIdentifier.match: AttestationIdentifierPredicate
+    get() = AttestationIdentifierPredicate { this == it }
+
+/**
  * A way of classifying attestations
+ *
+ * ```kotlin
+ * val isPidInMdoc = MDoc(docType = "eu.europa.ec.eudi.pid.1").match
+ * val isPidInJwtVc = SDJwtVc(vct = "urn:eudi:pid:1").match
+ * val isMdl = MDoc(docType = "org.iso.18013.5.1.mDL").match
+ *
+ * val classifications = AttestationClassifications(
+ *    pids = isPidInMdoc or isPidInJwtVc,
+ *    eaAs = mapOf("mdl" to isMdl)
+ * )
+ * ```
+ *
  * @param pids a predicate for PIDs
  * @param pubEAAs a predicate for public EAA identifiers
  * @param qEAAs a predicate for qualified EAA identifiers
@@ -89,7 +94,7 @@ public data class AttestationClassifications(
     val qEAAs: AttestationIdentifierPredicate = AttestationIdentifierPredicate.None,
     val eaAs: Map<String, AttestationIdentifierPredicate> = emptyMap(),
 ) {
-    public fun <T : Any> fold(
+    public fun <T : Any> classifyAndMap(
         ifPid: () -> T,
         ifPubEaa: () -> T,
         ifQEaa: () -> T,
@@ -121,7 +126,7 @@ public class IsChainTrustedForAttestation<in CHAIN : Any, TRUST_ANCHOR : Any>(
 ) {
 
     private val issuanceAndRevocationContextOf: (AttestationIdentifier) -> Pair<VerificationContext, VerificationContext>? =
-        classifications.fold(
+        classifications.classifyAndMap(
             ifPid = { VerificationContext.PID to VerificationContext.PIDStatus },
             ifPubEaa = { VerificationContext.PubEAA to VerificationContext.PubEAAStatus },
             ifQEaa = { VerificationContext.QEAA to VerificationContext.QEAAStatus },
@@ -130,6 +135,7 @@ public class IsChainTrustedForAttestation<in CHAIN : Any, TRUST_ANCHOR : Any>(
 
     /**
      * Validates a certificate chain for issuance of an attestation.
+     *
      * @param chain the certificate chain to be validated
      * @param identifier the attestation identifier
      * @return the result of the validation
@@ -144,6 +150,7 @@ public class IsChainTrustedForAttestation<in CHAIN : Any, TRUST_ANCHOR : Any>(
 
     /**
      * Validates a certificate chain for revocation of an attestation.
+     *
      * @param chain the certificate chain to be validated
      * @param identifier the attestation identifier
      * @return the result of the validation
