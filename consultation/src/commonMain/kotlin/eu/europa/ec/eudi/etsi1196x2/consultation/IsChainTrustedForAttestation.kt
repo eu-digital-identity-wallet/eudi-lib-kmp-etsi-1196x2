@@ -15,38 +15,60 @@
  */
 package eu.europa.ec.eudi.etsi1196x2.consultation
 
-public data class Attestation(val docType: String? = null, val vct: List<String>? = null) {
-    init {
-        require(docType != null || vct != null) { "Attestation must have at least a docType or vct" }
+public sealed interface Attestation {
+    public interface FormatType : Attestation
+    public data class MDoc(val docType: String) : FormatType
+    public data class SDJwtVc(val vct: List<String>) : FormatType {
+        public constructor(vct: String) : this(listOf(vct))
+        init {
+            require(vct.isNotEmpty()) { "Attestation must have at least one VCT" }
+        }
+    }
+    public data class MultiFormat(val formatTypes: Set<FormatType>) : Attestation {
+        public constructor(vararg formatTypes: FormatType) : this(formatTypes.toSet())
+        init {
+            require(formatTypes.size >= 2)
+            val duplicates = formatTypes.groupBy { it::class }.filterValues { it.size > 1 }
+            require(duplicates.isEmpty()) {
+                "Duplicate format types not allowed"
+            }
+        }
+    }
+
+    public fun toSet(): Set<FormatType> = when (this) {
+        is FormatType -> setOf(this)
+        is MultiFormat -> formatTypes
+    }
+
+    public operator fun contains(format: FormatType): Boolean = when (this) {
+        is MultiFormat -> format in formatTypes
+        else -> this == format
     }
 
     public companion object {
-        public val PID: Attestation
-            get() =
-                Attestation("eu.europa.ec.eudi.pid.1", listOf("urn:eudi:pid:1"))
-
-        public val MDL: Attestation
-            get() =
-                Attestation("org.iso.18013.5.1.mDL")
+        public val PIDMdoc: MDoc = MDoc("eu.europa.ec.eudi.pid.1")
+        public val PIDSdJwtVC: SDJwtVc = SDJwtVc("urn:eudi:pid:1")
+        public val PID: MultiFormat = MultiFormat(PIDMdoc, PIDSdJwtVC)
+        public val MDL: MDoc = MDoc("org.iso.18013.5.1.mDL")
     }
 }
 
-public sealed class AttestationClassification(private val attestations: List<Attestation>) {
+public sealed class AttestationClassification(private val attestations: Set<Attestation.FormatType>) {
     init {
         require(attestations.isNotEmpty()) { "Attestation classification must have at least one attestation" }
     }
 
-    public data class PIDs(val attestations: List<Attestation>) : AttestationClassification(attestations)
+    public data class PIDs(val attestations: Set<Attestation.FormatType>) : AttestationClassification(attestations)
 
-    public data class PubEAAs(val attestations: List<Attestation>) : AttestationClassification(attestations)
+    public data class PubEAAs(val attestations: Set<Attestation.FormatType>) : AttestationClassification(attestations)
 
-    public data class QEAAs(val attestations: List<Attestation>) : AttestationClassification(attestations)
+    public data class QEAAs(val attestations: Set<Attestation.FormatType>) : AttestationClassification(attestations)
 
-    public data class EAAs(val useCase: String, val attestations: List<Attestation>) :
+    public data class EAAs(val useCase: String, val attestations: Set<Attestation.FormatType>) :
         AttestationClassification(attestations)
 
-    public operator fun contains(attestation: Attestation): Boolean {
-        return (attestation in attestations) || attestations.any { it.docType == attestation.docType || it.vct == attestation.vct }
+    public operator fun contains(formatType: Attestation.FormatType): Boolean {
+        return attestations.any { formatType in it }
     }
 
     public fun issuanceAndRevocationContexts(): Pair<VerificationContext, VerificationContext>? =
@@ -58,8 +80,8 @@ public sealed class AttestationClassification(private val attestations: List<Att
         }
 
     public companion object {
-        public val PIDS: PIDs = PIDs(listOf(Attestation.PID))
-        public val MDLs: EAAs = EAAs("MDL", listOf(Attestation.MDL))
+        public val PIDS: PIDs = PIDs(Attestation.PID.toSet())
+        public val MDLs: EAAs = EAAs("MDL", Attestation.MDL.toSet())
     }
 }
 
@@ -68,31 +90,24 @@ public class IsChainTrustedForAttestation<in CHAIN : Any, TRUST_ANCHOR : Any>(
     private val attestationClassifications: List<AttestationClassification>,
 ) {
 
-    public suspend fun mdocIssuance(chain: CHAIN, docType: String): CertificationChainValidation<TRUST_ANCHOR>? =
-        mDocContexts(docType)?.let { (issuance, _) ->
+    public suspend fun issuance(
+        chain: CHAIN,
+        formatType: Attestation.FormatType,
+    ): CertificationChainValidation<TRUST_ANCHOR>? =
+        contexts(formatType)?.let { (issuance, _) ->
             isChainTrustedForContext(chain, issuance)
         }
 
-    public suspend fun mdocRevocation(chain: CHAIN, docType: String): CertificationChainValidation<TRUST_ANCHOR>? =
-        mDocContexts(docType)?.let { (_, revocation) ->
+    public suspend fun revocation(
+        chain: CHAIN,
+        formatType: Attestation.FormatType,
+    ): CertificationChainValidation<TRUST_ANCHOR>? =
+        contexts(formatType)?.let { (_, revocation) ->
             isChainTrustedForContext(chain, revocation)
         }
 
-    public suspend fun sdJwtVcIssuance(chain: CHAIN, vct: List<String>): CertificationChainValidation<TRUST_ANCHOR>? =
-        sdJwtVcContexts(vct)?.let { (issuance, _) ->
-            isChainTrustedForContext(chain, issuance)
-        }
-
-    public suspend fun sdJwtVcRevocation(chain: CHAIN, vct: List<String>): CertificationChainValidation<TRUST_ANCHOR>? =
-        sdJwtVcContexts(vct)?.let { (_, revocation) ->
-            isChainTrustedForContext(chain, revocation)
-        }
-
-    private fun mDocContexts(docType: String): Pair<VerificationContext, VerificationContext>? =
-        attestationClassifications.firstOrNull { Attestation(docType = docType) in it }?.issuanceAndRevocationContexts()
-
-    private fun sdJwtVcContexts(vct: List<String>): Pair<VerificationContext, VerificationContext>? =
-        attestationClassifications.firstOrNull { Attestation(vct = vct) in it }?.issuanceAndRevocationContexts()
+    private fun contexts(formatType: Attestation.FormatType): Pair<VerificationContext, VerificationContext>? =
+        attestationClassifications.firstOrNull { formatType in it }?.issuanceAndRevocationContexts()
 
     public companion object {
         public operator fun <CHAIN : Any, TRUST_ANCHOR : Any> invoke(
