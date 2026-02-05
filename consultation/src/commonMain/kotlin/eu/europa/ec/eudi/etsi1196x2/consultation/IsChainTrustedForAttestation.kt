@@ -75,11 +75,7 @@ public fun interface AttestationIdentifierPredicate {
             crossinline contentToMatch: (AI) -> String,
         ): AttestationIdentifierPredicate =
             AttestationIdentifierPredicate { identifier ->
-                if (identifier is AI) {
-                    regex.matches(contentToMatch(identifier))
-                } else {
-                    false
-                }
+                identifier is AI && regex.matches(contentToMatch(identifier))
             }
 
         /**
@@ -88,7 +84,7 @@ public fun interface AttestationIdentifierPredicate {
          * @param identifier the identifier to match.
          * @return a predicate that matches the given identifier exactly.
          */
-        public fun equalsPredicate(identifier: AttestationIdentifier): AttestationIdentifierPredicate =
+        public fun equalsTo(identifier: AttestationIdentifier): AttestationIdentifierPredicate =
             AttestationIdentifierPredicate { it == identifier }
 
         /**
@@ -97,7 +93,7 @@ public fun interface AttestationIdentifierPredicate {
          * @param identifiers the identifiers to match.
          * @return a predicate that matches any of the given identifiers.
          */
-        public fun containsPredicate(identifiers: Set<AttestationIdentifier>): AttestationIdentifierPredicate =
+        public fun any(identifiers: Set<AttestationIdentifier>): AttestationIdentifierPredicate =
             AttestationIdentifierPredicate { it in identifiers }
 
         /**
@@ -125,7 +121,7 @@ public fun interface AttestationIdentifierPredicate {
  * that matches attestations with the same identifier as the current one.
  */
 public val AttestationIdentifier.predicate: AttestationIdentifierPredicate
-    get() = AttestationIdentifierPredicate.equalsPredicate(this)
+    get() = AttestationIdentifierPredicate.equalsTo(this)
 
 /**
  * A way of classifying attestations
