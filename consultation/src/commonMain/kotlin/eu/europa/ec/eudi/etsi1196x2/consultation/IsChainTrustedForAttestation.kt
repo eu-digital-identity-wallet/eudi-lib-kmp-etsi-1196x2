@@ -151,36 +151,62 @@ public data class AttestationClassifications(
     val qEAAs: AttestationIdentifierPredicate = AttestationIdentifierPredicate.None,
     val eaAs: Map<String, AttestationIdentifierPredicate> = emptyMap(),
 ) {
+
     /**
-     * Creates a function that classifies an [AttestationIdentifier] into one of the given categories,
-     * and then uses the given mappings functions to map the identifier to a result of type [T].
+     * Classifies an attestation identifier using the configured predicates.
+     * At most one match is expected.
      *
-     * @param ifPid the mapping function to use for PIDs
-     * @param ifPubEaa the mapping function to use for public EAA identifiers
-     * @param ifQEaa the mapping function to use for qualified EAA identifiers
-     * @param ifEaa the mapping function to use for EAA identifiers with a specific use case
-     *
-     * @return a function that classifies an [AttestationIdentifier] into one of the given categories,
-     * and then provides a result of type [T] based on the classification.
-     * If the [AttestationIdentifier] is not classified, returns null.
-     *
-     * @param T the type of the result of the mapping function
+     * @param identifier the attestation identifier to classify.
+     * @return the classification of the given identifier, or null if the identifier does not match any predicate.
+     * @throws IllegalStateException if the identifier matches multiple predicates.
      */
-    public fun <T : Any> classifyAndMap(
-        ifPid: () -> T,
-        ifPubEaa: () -> T,
-        ifQEaa: () -> T,
-        ifEaa: (String) -> T,
-    ): (AttestationIdentifier) -> T? = { identifier ->
-        when {
-            pids.test(identifier) -> ifPid()
-            pubEAAs.test(identifier) -> ifPubEaa()
-            qEAAs.test(identifier) -> ifQEaa()
-            else -> {
-                eaAs.firstNotNullOfOrNull { (useCase, predicate) ->
-                    if (predicate.test(identifier)) ifEaa(useCase) else null
-                }
+    @Throws(IllegalStateException::class)
+    public fun classify(identifier: AttestationIdentifier): Match? {
+        val matches = match(identifier)
+        check(matches.size <= 1) {
+            "AttestationIdentifier $identifier matches multiple predicates: ${matches.joinToString()}"
+        }
+        return matches.firstOrNull()
+    }
+
+    /**
+     * Matches an attestation identifier using the configured predicates.
+     * Normally, at most one match is expected.
+     * If multiple matches are found, this is a signed of an
+     * invalid configuration of the [AttestationClassifications] instance.
+     *
+     * @param identifier the attestation identifier to classify.
+     * @return a list of matches for the given identifier
+     */
+    public fun match(identifier: AttestationIdentifier): List<Match> =
+        buildList {
+            if (pids.test(identifier)) add(Match.PID)
+            if (pubEAAs.test(identifier)) add(Match.PubEAA)
+            if (qEAAs.test(identifier)) add(Match.QEAA)
+            eaAs.forEach { (useCase, predicate) ->
+                if (predicate.test(identifier)) add(Match.EAA(useCase))
             }
+        }
+
+    /**
+     * Represents the classification of an attestation identifier
+     */
+    public sealed interface Match {
+        public object PID : Match
+        public object PubEAA : Match
+        public object QEAA : Match
+        public data class EAA(val useCase: String) : Match
+
+        public fun <T> fold(
+            ifPid: T,
+            ifPubEaa: T,
+            ifQEaa: T,
+            ifEaa: (String) -> T,
+        ): T = when (this) {
+            PID -> ifPid
+            PubEAA -> ifPubEaa
+            QEAA -> ifQEaa
+            is EAA -> ifEaa(useCase)
         }
     }
 }
@@ -194,15 +220,23 @@ public data class AttestationClassifications(
  */
 public class IsChainTrustedForAttestation<in CHAIN : Any, TRUST_ANCHOR : Any>(
     private val isChainTrustedForContext: suspend (CHAIN, VerificationContext) -> CertificationChainValidation<TRUST_ANCHOR>?,
-    classifications: AttestationClassifications,
+    private val classifications: AttestationClassifications,
 ) {
 
-    private val issuanceAndRevocationContextOf: (AttestationIdentifier) -> Pair<VerificationContext, VerificationContext>? =
-        classifications.classifyAndMap(
-            ifPid = { VerificationContext.PID to VerificationContext.PIDStatus },
-            ifPubEaa = { VerificationContext.PubEAA to VerificationContext.PubEAAStatus },
-            ifQEaa = { VerificationContext.QEAA to VerificationContext.QEAAStatus },
-            ifEaa = { useCase -> VerificationContext.EAA(useCase) to VerificationContext.EAAStatus(useCase) },
+    private fun issuanceOf(identifier: AttestationIdentifier): VerificationContext? =
+        classifications.classify(identifier)?.fold(
+            ifPid = VerificationContext.PID,
+            ifPubEaa = VerificationContext.PubEAA,
+            ifQEaa = VerificationContext.QEAA,
+            ifEaa = { useCase: String -> VerificationContext.EAA(useCase) },
+        )
+
+    private fun revocationContextOf(identifier: AttestationIdentifier): VerificationContext? =
+        classifications.classify(identifier)?.fold(
+            ifPid = VerificationContext.PIDStatus,
+            ifPubEaa = VerificationContext.PubEAAStatus,
+            ifQEaa = VerificationContext.QEAAStatus,
+            ifEaa = { useCase: String -> VerificationContext.EAAStatus(useCase) },
         )
 
     /**
@@ -211,14 +245,15 @@ public class IsChainTrustedForAttestation<in CHAIN : Any, TRUST_ANCHOR : Any>(
      * @param chain the certificate chain to be validated
      * @param identifier the attestation identifier
      * @return the result of the validation
+     *
+     * @throws IllegalStateException if the identifier matches multiple classifications
      */
+    @Throws(IllegalStateException::class)
     public suspend fun issuance(
         chain: CHAIN,
         identifier: AttestationIdentifier,
     ): CertificationChainValidation<TRUST_ANCHOR>? =
-        issuanceAndRevocationContextOf(identifier)?.let { (issuance, _) ->
-            isChainTrustedForContext(chain, issuance)
-        }
+        issuanceOf(identifier)?.let { isChainTrustedForContext(chain, it) }
 
     /**
      * Validates a certificate chain for revocation of an attestation.
@@ -226,12 +261,13 @@ public class IsChainTrustedForAttestation<in CHAIN : Any, TRUST_ANCHOR : Any>(
      * @param chain the certificate chain to be validated
      * @param identifier the attestation identifier
      * @return the result of the validation
+     *
+     * @throws IllegalStateException if the identifier matches multiple classifications
      */
+    @Throws(IllegalStateException::class)
     public suspend fun revocation(
         chain: CHAIN,
         identifier: AttestationIdentifier,
     ): CertificationChainValidation<TRUST_ANCHOR>? =
-        issuanceAndRevocationContextOf(identifier)?.let { (_, revocation) ->
-            isChainTrustedForContext(chain, revocation)
-        }
+        revocationContextOf(identifier)?.let { isChainTrustedForContext(chain, it) }
 }
