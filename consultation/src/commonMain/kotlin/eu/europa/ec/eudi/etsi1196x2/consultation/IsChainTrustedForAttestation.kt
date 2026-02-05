@@ -59,6 +59,64 @@ public fun interface AttestationIdentifierPredicate {
          * A predicate that always returns false.
          */
         public val None: AttestationIdentifierPredicate = AttestationIdentifierPredicate { false }
+
+        /**
+         * Creates a predicate that for attestations of type [AI] where the given regex
+         * matches the content of the identifier.
+         *
+         * @param regex the regex to match the content against.
+         * @param contentToMatch a function that extracts the content from the identifier.
+         * @return a predicate that matches attestations of type [AI]
+         * where the given regex matches the content of the identifier.
+         * @param AI the type of the attestation identifier to match.
+         */
+        public inline fun <reified AI : AttestationIdentifier> matchingRegex(
+            regex: Regex,
+            crossinline contentToMatch: (AI) -> String,
+        ): AttestationIdentifierPredicate =
+            AttestationIdentifierPredicate { identifier ->
+                if (identifier is AI) {
+                    regex.matches(contentToMatch(identifier))
+                } else {
+                    false
+                }
+            }
+
+        /**
+         * Creates a predicate that matches an attestation identifier exactly.
+         *
+         * @param identifier the identifier to match.
+         * @return a predicate that matches the given identifier exactly.
+         */
+        public fun equalsPredicate(identifier: AttestationIdentifier): AttestationIdentifierPredicate =
+            AttestationIdentifierPredicate { it == identifier }
+
+        /**
+         * Creates a predicate that matches any of the given identifiers.
+         *
+         * @param identifiers the identifiers to match.
+         * @return a predicate that matches any of the given identifiers.
+         */
+        public fun containsPredicate(identifiers: Set<AttestationIdentifier>): AttestationIdentifierPredicate =
+            AttestationIdentifierPredicate { it in identifiers }
+
+        /**
+         * Creates a predicate that matches [MDoc] attestations having a document type matching the given regex.
+         *
+         * @param regex the regex to match the document type against.
+         *
+         * @return a predicate that matches [MDoc] attestations with a document type matching the given regex.
+         */
+        public fun mdocMatching(regex: Regex): AttestationIdentifierPredicate =
+            matchingRegex<MDoc>(regex, MDoc::docType)
+
+        /**
+         * Creates a predicate that matches [SDJwtVc] attestations having a vct claim matching the given regex.
+         * @param regex the regex to match the vct claim against.
+         * @return a predicate that matches [SDJwtVc] attestations with a vct claim matching the given regex.
+         */
+        public fun sdJwtVcMatching(regex: Regex): AttestationIdentifierPredicate =
+            matchingRegex<SDJwtVc>(regex, SDJwtVc::vct)
     }
 }
 
@@ -66,16 +124,19 @@ public fun interface AttestationIdentifierPredicate {
  * An [AttestationIdentifierPredicate]
  * that matches attestations with the same identifier as the current one.
  */
-public val AttestationIdentifier.match: AttestationIdentifierPredicate
-    get() = AttestationIdentifierPredicate { this == it }
+public val AttestationIdentifier.predicate: AttestationIdentifierPredicate
+    get() = AttestationIdentifierPredicate.equalsPredicate(this)
 
 /**
  * A way of classifying attestations
  *
  * ```kotlin
- * val isPidInMdoc = MDoc(docType = "eu.europa.ec.eudi.pid.1").match
- * val isPidInJwtVc = SDJwtVc(vct = "urn:eudi:pid:1").match
- * val isMdl = MDoc(docType = "org.iso.18013.5.1.mDL").match
+ * val pidInMDoc = MDoc(docType = "eu.europa.ec.eudi.pid.1")
+ * val pidInJwtVc = SDJwtVc(vct = "urn:eudi:pid:1")
+ * val mdl = MDoc(docType = "org.iso.18013.5.1.mDL")
+ * val isPidInMdoc = pidInMDoc.predicate
+ * val isPidInJwtVc = pidInJwtVc.predicate
+ * val isMdl = mdl.predicate
  *
  * val classifications = AttestationClassifications(
  *    pids = isPidInMdoc or isPidInJwtVc,
@@ -94,6 +155,21 @@ public data class AttestationClassifications(
     val qEAAs: AttestationIdentifierPredicate = AttestationIdentifierPredicate.None,
     val eaAs: Map<String, AttestationIdentifierPredicate> = emptyMap(),
 ) {
+    /**
+     * Creates a function that classifies an [AttestationIdentifier] into one of the given categories,
+     * and then uses the given mappings functions to map the identifier to a result of type [T].
+     *
+     * @param ifPid the mapping function to use for PIDs
+     * @param ifPubEaa the mapping function to use for public EAA identifiers
+     * @param ifQEaa the mapping function to use for qualified EAA identifiers
+     * @param ifEaa the mapping function to use for EAA identifiers with a specific use case
+     *
+     * @return a function that classifies an [AttestationIdentifier] into one of the given categories,
+     * and then provides a result of type [T] based on the classification.
+     * If the [AttestationIdentifier] is not classified, returns null.
+     *
+     * @param T the type of the result of the mapping function
+     */
     public fun <T : Any> classifyAndMap(
         ifPid: () -> T,
         ifPubEaa: () -> T,
