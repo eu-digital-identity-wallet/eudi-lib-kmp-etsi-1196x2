@@ -144,14 +144,19 @@ public sealed interface VerificationContext {
  *   where the second one is used as a fallback if the first one fails
  * - [contraMap]: change the chain of certificates representation
  *
+ * @param validateCertificateChain the certificate chain validation function
  * @param getTrustAnchorsByContext the supported verification contexts and their corresponding trust anchors sources
+ * @param getRecoveryTrustAnchors the supported verification contexts and their corresponding recovery functions for
+ *        failed certificate chain validation attempts. The recovery functions are used to generate alternative
+ *        validation functions in the context of an error.
+ *        Defaults to [noRecovery]
  * @param CHAIN type representing a certificate chain
  * @param TRUST_ANCHOR type representing a trust anchor
  */
 public class IsChainTrustedForContext<in CHAIN : Any, out TRUST_ANCHOR : Any>(
     private val validateCertificateChain: ValidateCertificateChain<CHAIN, TRUST_ANCHOR>,
     private val getTrustAnchorsByContext: Map<VerificationContext, GetTrustAnchors<TRUST_ANCHOR>>,
-    private val getRecoveryTrustAnchors: Map<VerificationContext, ((Throwable) -> GetTrustAnchors<TRUST_ANCHOR>?)> = emptyMap(),
+    private val getRecoveryTrustAnchors: Map<VerificationContext, ((Throwable) -> GetTrustAnchors<TRUST_ANCHOR>?)> = noRecovery(),
 ) {
 
     /**
@@ -201,7 +206,11 @@ public class IsChainTrustedForContext<in CHAIN : Any, out TRUST_ANCHOR : Any>(
     public operator fun plus(
         other: IsChainTrustedForContext<@UnsafeVariance CHAIN, @UnsafeVariance TRUST_ANCHOR>,
     ): IsChainTrustedForContext<CHAIN, TRUST_ANCHOR> =
-        IsChainTrustedForContext(validateCertificateChain, getTrustAnchorsByContext + other.getTrustAnchorsByContext)
+        IsChainTrustedForContext(
+            validateCertificateChain,
+            this.getTrustAnchorsByContext + other.getTrustAnchorsByContext,
+            combine(getRecoveryTrustAnchors, other.getRecoveryTrustAnchors),
+        )
 
     /**
      * Changes the chain of certificates representation
@@ -220,6 +229,7 @@ public class IsChainTrustedForContext<in CHAIN : Any, out TRUST_ANCHOR : Any>(
         IsChainTrustedForContext(
             validateCertificateChain.contraMap(transform),
             getTrustAnchorsByContext,
+            getRecoveryTrustAnchors,
         )
 
     /**
@@ -267,20 +277,43 @@ public class IsChainTrustedForContext<in CHAIN : Any, out TRUST_ANCHOR : Any>(
      */
     public fun recoverWith(
         recovery: (VerificationContext) -> ((Throwable) -> GetTrustAnchors<@UnsafeVariance TRUST_ANCHOR>?)?,
-    ): IsChainTrustedForContext<CHAIN, TRUST_ANCHOR> =
-        IsChainTrustedForContext(
-            validateCertificateChain = validateCertificateChain,
-            getTrustAnchorsByContext = getTrustAnchorsByContext,
-            getRecoveryTrustAnchors =
-            buildMap {
-                for (ctx in getTrustAnchorsByContext.keys) {
-                    val fallback = recovery(ctx)
-                    if (fallback != null) {
-                        put(ctx, fallback)
-                    }
+    ): IsChainTrustedForContext<CHAIN, TRUST_ANCHOR> {
+        val otherRecovery = buildMap {
+            for (ctx in getTrustAnchorsByContext.keys) {
+                val fallback = recovery(ctx)
+                if (fallback != null) {
+                    put(ctx, fallback)
                 }
-            },
+            }
+        }
+        return IsChainTrustedForContext(
+            validateCertificateChain,
+            getTrustAnchorsByContext,
+            combine(getRecoveryTrustAnchors, otherRecovery),
         )
+    }
 
-    public companion object
+    public companion object {
+        /**
+         * No recovery
+         */
+        public fun <TRUST_ANCHOR : Any> noRecovery(): Map<VerificationContext, ((Throwable) -> GetTrustAnchors<TRUST_ANCHOR>?)> =
+            emptyMap()
+
+        internal fun <TRUST_ANCHOR : Any> combine(
+            a: Map<VerificationContext, ((Throwable) -> GetTrustAnchors<TRUST_ANCHOR>?)>,
+            b: Map<VerificationContext, ((Throwable) -> GetTrustAnchors<TRUST_ANCHOR>?)>,
+        ): Map<VerificationContext, ((Throwable) -> GetTrustAnchors<TRUST_ANCHOR>?)> =
+            buildMap {
+                val ctxs = a.keys + b.keys
+                for (ctx in ctxs) {
+                    val fallbackA = a[ctx]
+                    val fallbackB = b[ctx]
+                    val combined = { cause: Throwable ->
+                        fallbackA?.invoke(cause) ?: fallbackB?.invoke(cause)
+                    }
+                    put(ctx, combined)
+                }
+            }
+    }
 }
