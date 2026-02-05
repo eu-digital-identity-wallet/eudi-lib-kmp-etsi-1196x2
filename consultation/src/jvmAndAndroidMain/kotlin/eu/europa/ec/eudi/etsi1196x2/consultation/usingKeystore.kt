@@ -23,50 +23,41 @@ import java.security.cert.TrustAnchor
 import java.security.cert.X509Certificate
 
 /**
- * Creates an instance of [IsChainTrusted] using a keystore for trust anchor retrieval.
+ * Creates an instance of [GetTrustAnchors] using a keystore for trust anchor retrieval.
  *
- * @param validateCertificateChain the implementation of [ValidateCertificateChain] to validate a certificate chain.
- *        Defaults to [ValidateCertificateChainJvm.Default]
+ * @param dispatcher the coroutine dispatcher to use for fetching trust anchors from the keystore.
+ *        Defaults to [Dispatchers.IO]
  * @param trustAnchorCreator the function to create trust anchors from certificates.
  *        Defaults to [JvmSecurity.DefaultTrustAnchorCreator]
+ * @param cache whether to cache the trust anchors retrieved from the keystore. If true keystore will be accessed only once.
+ *        Defaults to `true`.
  * @param filterAliases a predicate to filter the aliases in the keystore for trust anchor retrieval.
  *        Defaults to accepting all aliases.
  * @param cache whether to cache the trust anchors retrieved from the keystore.
  *        In this case, the keystore will be accessed only once.
  *        Defaults to `true`.
  * @param getKeystore a supplier function to provide the [KeyStore] instance to fetch trust anchors.
- * @return an instance of [IsChainTrusted] configured with the provided certificate chain validator and trust anchor retrieval function.
+ *
+ * @return an instance of [GetTrustAnchors] that reads trust anchors from the given keystore.
  */
-public fun IsChainTrusted.Companion.usingKeystore(
-    validateCertificateChain: ValidateCertificateChainJvm = ValidateCertificateChainJvm.Default,
+public fun GetTrustAnchors.Companion.usingKeystore(
+    dispatcher: CoroutineDispatcher = Dispatchers.IO,
     trustAnchorCreator: TrustAnchorCreator<X509Certificate, TrustAnchor> = JvmSecurity.DefaultTrustAnchorCreator,
     cache: Boolean = true,
-    dispatcher: CoroutineDispatcher = Dispatchers.IO,
     filterAliases: (String) -> Boolean = { true },
     getKeystore: () -> KeyStore,
-): IsChainTrusted<List<X509Certificate>, TrustAnchor> {
-    val getTrustAnchorsFromKeystore =
-        getTrustAnchorsFromKeyStore(trustAnchorCreator, dispatcher, filterAliases, getKeystore)
-    val actual =
-        if (cache) {
-            GetTrustAnchors.once(getTrustAnchorsFromKeystore::invoke)
-        } else {
-            getTrustAnchorsFromKeystore
-        }
-    return IsChainTrusted(validateCertificateChain, actual)
-}
-
-internal fun getTrustAnchorsFromKeyStore(
-    trustAnchorCreator: TrustAnchorCreator<X509Certificate, TrustAnchor>,
-    dispatcher: CoroutineDispatcher,
-    filterAliases: (String) -> Boolean,
-    getKeystore: () -> KeyStore,
-): GetTrustAnchors<TrustAnchor> =
-    GetTrustAnchors {
+): GetTrustAnchors<TrustAnchor> {
+    val getTrustAnchorsFromKeystore = GetTrustAnchors {
         withContext(dispatcher) {
             getKeystore().trustAnchors(trustAnchorCreator, filterAliases)
         }
     }
+    return if (cache) {
+        GetTrustAnchors.once(getTrustAnchorsFromKeystore::invoke)
+    } else {
+        getTrustAnchorsFromKeystore
+    }
+}
 
 private fun KeyStore.trustAnchors(
     trustAnchorCreator: TrustAnchorCreator<X509Certificate, TrustAnchor>,

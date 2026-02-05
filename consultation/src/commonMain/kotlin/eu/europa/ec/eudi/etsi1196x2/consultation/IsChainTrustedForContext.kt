@@ -15,6 +15,9 @@
  */
 package eu.europa.ec.eudi.etsi1196x2.consultation
 
+import kotlinx.coroutines.CoroutineName
+import kotlinx.coroutines.withContext
+
 /**
  * Represents contexts for validating a certificate chain that are specific
  * to EUDI Wallet
@@ -141,12 +144,14 @@ public sealed interface VerificationContext {
  *   where the second one is used as a fallback if the first one fails
  * - [contraMap]: change the chain of certificates representation
  *
- * @param trust the supported verification contexts and their corresponding validations
+ * @param getTrustAnchorsByContext the supported verification contexts and their corresponding trust anchors sources
  * @param CHAIN type representing a certificate chain
  * @param TRUST_ANCHOR type representing a trust anchor
  */
 public class IsChainTrustedForContext<in CHAIN : Any, out TRUST_ANCHOR : Any>(
-    private val trust: Map<VerificationContext, IsChainTrusted<CHAIN, TRUST_ANCHOR>>,
+    private val validateCertificateChain: ValidateCertificateChain<CHAIN, TRUST_ANCHOR>,
+    private val getTrustAnchorsByContext: Map<VerificationContext, GetTrustAnchors<TRUST_ANCHOR>>,
+    private val getRecoveryTrustAnchors: Map<VerificationContext, ((Throwable) -> GetTrustAnchors<TRUST_ANCHOR>?)> = emptyMap(),
 ) {
 
     /**
@@ -160,7 +165,26 @@ public class IsChainTrustedForContext<in CHAIN : Any, out TRUST_ANCHOR : Any>(
     public suspend operator fun invoke(
         chain: CHAIN,
         verificationContext: VerificationContext,
-    ): CertificationChainValidation<TRUST_ANCHOR>? = trust[verificationContext]?.invoke(chain)
+    ): CertificationChainValidation<TRUST_ANCHOR>? =
+        withContext(CoroutineName(name = "IsChainTrustedForContext - $verificationContext")) {
+            getTrustAnchorsByContext[verificationContext]?.let { getTrustAnchors ->
+                val trustAnchors = getTrustAnchors()
+                when (val validation = validateCertificateChain(chain, trustAnchors.toSet())) {
+                    is CertificationChainValidation.Trusted<TRUST_ANCHOR> -> validation
+                    is CertificationChainValidation.NotTrusted ->
+                        tryToRecover(chain, verificationContext, validation) ?: validation
+                }
+            }
+        }
+
+    private suspend fun tryToRecover(
+        chain: CHAIN,
+        verificationContext: VerificationContext,
+        notTrusted: CertificationChainValidation.NotTrusted,
+    ): CertificationChainValidation<TRUST_ANCHOR>? =
+        getRecoveryTrustAnchors[verificationContext]
+            ?.let { fallBack -> fallBack(notTrusted.cause) }
+            ?.let { getFallbackTrustAnchors -> validateCertificateChain(chain, getFallbackTrustAnchors().toSet()) }
 
     /**
      * Combines two IsChainTrustedForContext instances into a single one
@@ -177,7 +201,7 @@ public class IsChainTrustedForContext<in CHAIN : Any, out TRUST_ANCHOR : Any>(
     public operator fun plus(
         other: IsChainTrustedForContext<@UnsafeVariance CHAIN, @UnsafeVariance TRUST_ANCHOR>,
     ): IsChainTrustedForContext<CHAIN, TRUST_ANCHOR> =
-        IsChainTrustedForContext(trust + other.trust)
+        IsChainTrustedForContext(validateCertificateChain, getTrustAnchorsByContext + other.getTrustAnchorsByContext)
 
     /**
      * Changes the chain of certificates representation
@@ -189,48 +213,26 @@ public class IsChainTrustedForContext<in CHAIN : Any, out TRUST_ANCHOR : Any>(
      * ```
      *
      * @param transform transformation function
-     * @return new IsChainTrustedForContext accecpting the new chain representation
+     * @return new IsChainTrustedForContext accepting the new chain representation
      * @param C1 the new representation of the certificate chain
      */
     public fun <C1 : Any> contraMap(transform: (C1) -> CHAIN): IsChainTrustedForContext<C1, TRUST_ANCHOR> =
         IsChainTrustedForContext(
-            trust.mapValues { (_, isChainTrusted) ->
-                isChainTrusted.contraMap(transform)
-            },
+            validateCertificateChain.contraMap(transform),
+            getTrustAnchorsByContext,
         )
-
-    /**
-     * Combines `horizontally` the current instance with another one, by extending the existing validation
-     * per [VerificationContext] with the alternative validations as defined in the passed [IsChainTrustedForContext]
-     *
-     * Please be careful when using this operator. Ideally, prefer using the [recoverWith].
-     * For more details read [IsChainTrusted.or].
-     *
-     * @param alternative the second instance to be combined with the current one.
-     * @return a new instance that combines the trust validation of the current instance
-     * and the provided `other`.
-     *
-     * @see IsChainTrusted.or
-     */
-    public fun or(
-        alternative: IsChainTrustedForContext<@UnsafeVariance CHAIN, @UnsafeVariance TRUST_ANCHOR>,
-    ): IsChainTrustedForContext<CHAIN, TRUST_ANCHOR> =
-        or(alternative.trust::get)
 
     /**
      * Extends the existing validation performed per `VerificationContext` with the passed alternative validation.
      *
      * Please be careful when using this operator. Ideally, prefer using the [recoverWith].
-     * For more details read [IsChainTrusted.or].
      *
      * @param alternative another `IsChainTrusted` instance that will be added as an alternative validation for every `VerificationContext`.
      * @return a new `IsChainTrustedForContext` instance that its existing validation per `VerificationContext` is extended with an
      *        alternative validation.
-     *
-     * @see IsChainTrusted.or
      */
     public fun or(
-        alternative: IsChainTrusted<@UnsafeVariance CHAIN, @UnsafeVariance TRUST_ANCHOR>,
+        alternative: GetTrustAnchors<@UnsafeVariance TRUST_ANCHOR>,
     ): IsChainTrustedForContext<CHAIN, TRUST_ANCHOR> =
         or { _ -> alternative }
 
@@ -239,7 +241,6 @@ public class IsChainTrustedForContext<in CHAIN : Any, out TRUST_ANCHOR : Any>(
      * extends the existing validation performed per `VerificationContext` with alternative validation.
      *
      *  Please be careful when using this operator. Ideally, prefer using the [recoverWith].
-     *  For more details read [IsChainTrusted.or].
      *
      * @param alternative a function that takes a `VerificationContext` and returns optionally an
      *        `IsChainTrusted` instance, which will be used as an alternative validator to the existing
@@ -247,10 +248,9 @@ public class IsChainTrustedForContext<in CHAIN : Any, out TRUST_ANCHOR : Any>(
      * @return a new `IsChainTrustedForContext` instance that is extended with alternative validations
      *        per `VerificationContext`.
      *
-     * @see IsChainTrusted.or
      */
     public fun or(
-        alternative: (VerificationContext) -> IsChainTrusted<@UnsafeVariance CHAIN, @UnsafeVariance TRUST_ANCHOR>?,
+        alternative: (VerificationContext) -> GetTrustAnchors<@UnsafeVariance TRUST_ANCHOR>?,
     ): IsChainTrustedForContext<CHAIN, TRUST_ANCHOR> =
         recoverWith { ctx -> { alternative(ctx) } }
 
@@ -266,15 +266,18 @@ public class IsChainTrustedForContext<in CHAIN : Any, out TRUST_ANCHOR : Any>(
      *         validation logic.
      */
     public fun recoverWith(
-        recovery: (VerificationContext) -> ((Throwable) -> IsChainTrusted<@UnsafeVariance CHAIN, @UnsafeVariance TRUST_ANCHOR>?)?,
+        recovery: (VerificationContext) -> ((Throwable) -> GetTrustAnchors<@UnsafeVariance TRUST_ANCHOR>?)?,
     ): IsChainTrustedForContext<CHAIN, TRUST_ANCHOR> =
         IsChainTrustedForContext(
-            trust.mapValues { (context, isChainTrusted) ->
-                val recoveryForContext = recovery(context)
-                if (recoveryForContext == null) {
-                    isChainTrusted
-                } else {
-                    isChainTrusted recoverWith recoveryForContext
+            validateCertificateChain = validateCertificateChain,
+            getTrustAnchorsByContext = getTrustAnchorsByContext,
+            getRecoveryTrustAnchors =
+            buildMap {
+                for (ctx in getTrustAnchorsByContext.keys) {
+                    val fallback = recovery(ctx)
+                    if (fallback != null) {
+                        put(ctx, fallback)
+                    }
                 }
             },
         )

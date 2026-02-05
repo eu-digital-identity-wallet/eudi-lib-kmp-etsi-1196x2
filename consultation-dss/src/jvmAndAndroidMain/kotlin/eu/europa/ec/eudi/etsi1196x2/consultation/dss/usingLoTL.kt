@@ -18,7 +18,6 @@ package eu.europa.ec.eudi.etsi1196x2.consultation.dss
 import eu.europa.ec.eudi.etsi1196x2.consultation.*
 import eu.europa.esig.dss.model.x509.CertificateToken
 import eu.europa.esig.dss.service.http.commons.FileCacheDataLoader
-import eu.europa.esig.dss.spi.tsl.TrustedListsCertificateSource
 import eu.europa.esig.dss.tsl.source.LOTLSource
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
@@ -26,55 +25,6 @@ import java.security.cert.TrustAnchor
 import java.security.cert.X509Certificate
 import kotlin.time.Clock
 import kotlin.time.Duration
-
-/**
- * Creates an instance of [IsChainTrusted] using a trusted list of trust anchors (LoTL).
- *
- * @param validateCertificateChain the function used to validate a given certificate chain.
- *        Defaults to [ValidateCertificateChainJvm.Default]
- * @param trustAnchorCreator a function that creates a trust anchor from a [CertificateToken]
- *        Defaults to [DSSTrustAnchorCreator]
- * @param getTrustedListsCertificateSource a suspend function that retrieves the trusted lists certificate source containing trust anchors
- * @return an [IsChainTrusted] instance configured to validate certificate chains using the provided trusted list
- *
- * @see TrustedListsCertificateSource
- * @see GetTrustedListsCertificateByLOTLSource
- */
-public fun IsChainTrusted.Companion.usingLoTL(
-    validateCertificateChain: ValidateCertificateChainJvm = ValidateCertificateChainJvm.Default,
-    trustAnchorCreator: TrustAnchorCreator<CertificateToken, TrustAnchor> = DSSTrustAnchorCreator,
-    getTrustedListsCertificateSource: suspend () -> TrustedListsCertificateSource,
-): IsChainTrusted<List<X509Certificate>, TrustAnchor> =
-    IsChainTrusted(validateCertificateChain) {
-        getTrustedListsCertificateSource().trustAnchors(trustAnchorCreator)
-    }
-
-/**
- * Creates an instance of [IsChainTrustedForContext] using a trusted list of trust anchors (LoTL).
- *
- * @param validateCertificateChain the function used to validate a given certificate chain.
- *        Defaults to [ValidateCertificateChainJvm.Default]
- * @param trustAnchorCreator a function that creates a trust anchor from a [CertificateToken]
- *        Defaults to [DSSTrustAnchorCreator]
- * @param sourcePerVerification a map of verification contexts to trusted list sources
- * @param getTrustedListsCertificateByLOTLSource a function that retrieves the trusted lists certificate
- * source containing trust anchors for a given verification context
- *
- * @return an [IsChainTrustedForContext] instance configured to validate certificate chains
- * using the provided trusted lists
- */
-public fun IsChainTrustedForContext.Companion.usingLoTL(
-    validateCertificateChain: ValidateCertificateChain<List<X509Certificate>, TrustAnchor> = ValidateCertificateChainJvm.Default,
-    trustAnchorCreator: TrustAnchorCreator<CertificateToken, TrustAnchor> = DSSTrustAnchorCreator,
-    sourcePerVerification: Map<VerificationContext, LOTLSource>,
-    getTrustedListsCertificateByLOTLSource: GetTrustedListsCertificateByLOTLSource,
-): IsChainTrustedForContext<List<X509Certificate>, TrustAnchor> {
-    val trust = sourcePerVerification.mapValues { (_, lotlSource) ->
-        val provider = getTrustedListsCertificateByLOTLSource.asProviderFor(lotlSource, trustAnchorCreator)
-        IsChainTrusted(validateCertificateChain, provider)
-    }
-    return IsChainTrustedForContext(trust)
-}
 
 /**
  * Creates an instance of [IsChainTrustedForContext] using a trusted list of trust anchors (LoTL) and a file cache loader.
@@ -148,10 +98,10 @@ public fun IsChainTrustedForContext.Companion.usingLoTL(
                 clock = clock,
             )
         }
-    return usingLoTL(
-        validateCertificateChain,
-        trustAnchorCreator,
-        sourcePerVerification,
-        getTrustedListsCertificateByLOTLSource,
-    )
+
+    val getTrustAnchorsByContext =
+        sourcePerVerification.mapValues { (_, lotlSource) ->
+            getTrustedListsCertificateByLOTLSource.asProviderFor(lotlSource, trustAnchorCreator)
+        }
+    return IsChainTrustedForContext(validateCertificateChain, getTrustAnchorsByContext)
 }
