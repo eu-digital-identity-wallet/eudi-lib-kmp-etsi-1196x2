@@ -13,13 +13,15 @@ dependency-check = "12.1.1"
 kover = "0.9.1"
 dokka = "2.1.0"
 dss = "6.4.RC1"
-bouncyCastle = "1.80"
+atomicfu = "0.27.0"
+bouncyCastle = "1.83"
 
 [libraries]
 kotlinx-serialization-core = { module = "org.jetbrains.kotlinx:kotlinx-serialization-core", version.ref = "kotlinx-serialization" }
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinx-serialization" }
 kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "kotlinx-coroutines" }
 kotlinx-datetime = {module="org.jetbrains.kotlinx:kotlinx-datetime", version.ref = "kotlinx-datetime"}
+atomicfu = { module = "org.jetbrains.kotlinx:atomicfu", version.ref = "atomicfu" }
 kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "kotlinx-coroutines" }
 ktor-client-core = { module = "io.ktor:ktor-client-core", version.ref = "ktor" }
 ktor-client-serialization = { module = "io.ktor:ktor-client-serialization", version.ref = "ktor" }
@@ -45,3 +47,4 @@ spotless = { id = "com.diffplug.spotless", version.ref = "spotless" }
 dependency-check = { id = "org.owasp.dependencycheck", version.ref = "dependency-check" }
 kover = { id = "org.jetbrains.kotlinx.kover", version.ref = "kover" }
 dokka = { id = "org.jetbrains.dokka", version.ref = "dokka" }
+atomicfu = { id = "org.jetbrains.kotlinx.atomicfu", version.ref = "atomicfu" }

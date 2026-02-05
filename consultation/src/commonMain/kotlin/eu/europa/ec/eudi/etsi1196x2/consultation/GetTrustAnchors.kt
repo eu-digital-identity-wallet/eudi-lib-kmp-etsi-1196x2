@@ -41,7 +41,7 @@ public fun interface GetTrustAnchors<out TRUST_ANCHORS : Any> :
     }
 }
 
-private class InvokeOnce<T : Any>(
+internal class InvokeOnce<T : Any>(
     private val source: suspend () -> T,
 ) : suspend () -> T {
 
