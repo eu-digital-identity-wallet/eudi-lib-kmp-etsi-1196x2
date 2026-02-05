@@ -15,6 +15,7 @@ plugins {
     alias(libs.plugins.dokka)
     alias(libs.plugins.maven.publish)
     alias(libs.plugins.dependency.check)
+    alias(libs.plugins.atomicfu)
 }
 
 repositories {
@@ -88,6 +89,7 @@ kotlin {
             dependencies {
                 implementation(kotlin("test"))
                 implementation(libs.kotlinx.coroutines.test)
+                implementation(libs.atomicfu)
             }
         }
         val jvmAndAndroidTest by getting {
