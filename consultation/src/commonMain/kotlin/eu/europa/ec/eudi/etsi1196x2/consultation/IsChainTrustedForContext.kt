@@ -133,8 +133,30 @@ public sealed interface VerificationContext {
 }
 
 /**
- * A class for checking the trustworthiness of a certificate chain
+ * An interface for checking the trustworthiness of a certificate chain
  * in the context of a specific [verification][VerificationContext]
+ *
+ * @param CHAIN type representing a certificate chain
+ * @param TRUST_ANCHOR type representing a trust anchor
+ */
+public fun interface IsChainTrustedForContextF<in CHAIN : Any, out TRUST_ANCHOR : Any> {
+
+    /**
+     * Check certificate chain is trusted in the context of
+     * specific verification
+     *
+     * @param chain certificate chain to check
+     * @param verificationContext verification context
+     * @return outcome of the check. A null value indicates that the given [verificationContext] has not been configured
+     */
+    public suspend operator fun invoke(
+        chain: CHAIN,
+        verificationContext: VerificationContext,
+    ): CertificationChainValidation<TRUST_ANCHOR>?
+}
+
+/**
+ * A default implementation of [IsChainTrustedForContextF]
  *
  * Combinators:
  * - [plus]: combine two instances of IsChainTrustedForContext into a single one
@@ -149,7 +171,7 @@ public sealed interface VerificationContext {
 public class IsChainTrustedForContext<in CHAIN : Any, out TRUST_ANCHOR : Any>(
     private val validateCertificateChain: ValidateCertificateChain<CHAIN, TRUST_ANCHOR>,
     private val getTrustAnchorsByContext: Map<VerificationContext, GetTrustAnchors<TRUST_ANCHOR>>,
-) {
+) : IsChainTrustedForContextF<CHAIN, TRUST_ANCHOR> {
 
     /**
      * Check certificate chain is trusted in the context of
@@ -159,7 +181,7 @@ public class IsChainTrustedForContext<in CHAIN : Any, out TRUST_ANCHOR : Any>(
      * @param verificationContext verification context
      * @return outcome of the check. A null value indicates that the given [verificationContext] has not been configured
      */
-    public suspend operator fun invoke(
+    public override suspend operator fun invoke(
         chain: CHAIN,
         verificationContext: VerificationContext,
     ): CertificationChainValidation<TRUST_ANCHOR>? =
@@ -208,6 +230,23 @@ public class IsChainTrustedForContext<in CHAIN : Any, out TRUST_ANCHOR : Any>(
             validateCertificateChain.contraMap(transform),
             getTrustAnchorsByContext,
         )
+
+    /**
+     * Creates a new [IsChainTrustedForContext]
+     * that applies the specified recovery logic in addition to the current
+     *
+     * Do not use this method unless you know what you are doing.
+     *
+     * @param recovery  a recovery function that generates alternative validations based on a
+     *     [VerificationContext] and a [CertificationChainValidation.NotTrusted] result.
+     * @return a new instance that applies the specified recovery logic in addition to the current
+     *         validation logic.
+     */
+    @SensitiveApi
+    public fun recoverWith(
+        recovery: (VerificationContext) -> ((CertificationChainValidation.NotTrusted) -> GetTrustAnchors<@UnsafeVariance TRUST_ANCHOR>?),
+    ): IsChainTrustedForContextF<CHAIN, TRUST_ANCHOR> =
+        UnsafeIsChainTrustedForContext(validateCertificateChain, getTrustAnchorsByContext, recovery)
 
     public companion object
 }
