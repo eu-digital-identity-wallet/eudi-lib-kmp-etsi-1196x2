@@ -9,55 +9,9 @@ The module automates the process of fetching and verifying the
 European List of Trusted Lists (LOTL). 
 It wraps the stateful DSS `TLValidationJob` into the library's functional `GetTrustAnchors` interface.
 
-🔄 **Multi-Tier Caching Strategy**
-The library implements a robust three-tier caching strategy to ensure the 
-Wallet remains performant and offline-capable:
-
-- **In-Memory** (AsyncCache): Results are cached in RAM (e.g., for 10 minutes) to handle concurrent validation requests without re-parsing.
-- **File System** (FileCacheDataLoader): Persists the LOTL/TL data on the device (e.g., for 24 hours), enabling offline validation.
-- **Source of Truth**: The official European Commission remote URL, fetched only when the file cache expires.
-
-## Architecture Overview
-
-```mermaid
-graph TD
-A[Attestation] --> B{AttestationClassifications}
-B -->|Match| C[VerificationContext]
-C --> D[IsChainTrustedForContext]
-D --> E{GetTrustAnchors}
-E -->|DSS Adapter| F[EU LOTL Source]
-F -->|Synchronize| G[National Trusted Lists]
-G -->|Extract| H[List of TrustAnchors]
-H --> I[ValidateCertificateChainJvm]
-I -->|PKIX Validation| J[Trusted / NotTrusted]
-```
 ## Quick Start
 
-```kotlin
-// Setup DSS options with a 24-hour file cache
-val dssOptions = DssOptions.usingFileCacheDataLoader(
-    fileCacheExpiration = 24.hours,
-    cacheDirectory = Paths.get(cachePath)
-)
-
-// Define the LOTL sources per context
-val trustSource = GetTrustAnchorsForSupportedQueries.usingLoTL(
-    ttl = 10.minutes, // In-memory cache TTL
-    queryPerVerificationContext = mapOf(
-        VerificationContext.PID to lotlSource(PID_SERVICE_TYPE),
-        VerificationContext.PubEAA to lotlSource(EAA_SERVICE_TYPE)
-    ),
-    dssOptions = dssOptions
-)
-
-// Instantiate the final validator
-val validator = IsChainTrustedForContext(
-    validateCertificateChain = ValidateCertificateChainJvm.Default,
-    getTrustAnchorsByContext = trustSource
-)
-```
-
-## Usage
+### 1. Add dependency
 
 To use this library, you have to add the following dependency to your project:
 
@@ -101,11 +55,85 @@ dependencies {
 > 
 > More information is available [here](https://github.com/esig/dss/blob/master/dss-cookbook/src/main/asciidoc/_chapters/signature-validation.adoc#12-ades-validation-constraintspolicy).
 
-## Examples
+### 2. Setup and Use
+
+```kotlin
+// 1. Setup DSS options with a 24-hour file cache
+val dssOptions = DssOptions.usingFileCacheDataLoader(
+    fileCacheExpiration = 24.hours,
+    cacheDirectory = Paths.get(cachePath)
+)
+
+// 2. Define LOTL Source (DSS class)
+val lotlSource = LOTLSource().apply {
+    url = "https://example.com/LOTL.xml"
+    // ... further configuration (predicates, etc.)
+}
+
+// 3. Define the trust source per context
+val trustSource = GetTrustAnchorsForSupportedQueries.usingLoTL(
+    ttl = 10.minutes, // In-memory cache TTL
+    queryPerVerificationContext = mapOf(
+        VerificationContext.PID to lotlSource
+    ),
+    dssOptions = dssOptions
+)
+
+// 4. Instantiate the final validator
+val validator = IsChainTrustedForContext(
+    validateCertificateChain = ValidateCertificateChainJvm.Default,
+    getTrustAnchorsByContext = trustSource
+)
+
+// 5. Use it
+val result = validator(chain, VerificationContext.PID)
+```
+
+### Examples
 
 Usage examples can be found in:
 
 * [IsChainTrustedUsingLoTLTest.kt](src/jvmAndAndroidTest/kotlin/eu/europa/ec/eudi/etsi1196x2/consultation/dss/IsChainTrustedUsingLoTLTest.kt)
+
+## Architecture Overview
+
+```mermaid
+graph TD
+A[Attestation] --> B{AttestationClassifications}
+B -->|Match| C[VerificationContext]
+C --> D[IsChainTrustedForContext]
+D --> E{GetTrustAnchors}
+E -->|DSS Adapter| F[EU LOTL Source]
+F -->|Synchronize| G[National Trusted Lists]
+G -->|Extract| H[List of TrustAnchors]
+H --> I[ValidateCertificateChainJvm]
+I -->|PKIX Validation| J[Trusted / NotTrusted]
+```
+
+## Multi-Tier Caching Strategy
+
+The library implements a robust three-tier caching strategy to ensure the Wallet remains performant and offline-capable:
+
+1.  **In-Memory** (`AsyncCache`): Results are cached in RAM (e.g., for 10 minutes) to handle concurrent validation requests without re-parsing.
+2.  **File System** (`FileCacheDataLoader`): Persists the LOTL/TL data on the device (e.g., for 24 hours), enabling offline validation.
+3.  **Source of Truth**: The official European Commission remote URL (or any other LOTL provider), fetched only when the file cache expires.
+
+## DssOptions
+
+`DssOptions` allow you to configure the DSS-based trust anchor retrieval:
+
+- `loader`: The DSS `DSSCacheFileLoader` to use (defaults to `FileCacheDataLoader`).
+- `cleanMemory`: Whether to clean the memory cache of DSS (default: `true`).
+- `cleanFileSystem`: Whether to clean the file system cache of DSS (default: `true`).
+- `synchronizationStrategy`: The strategy for LOTL/TL synchronization (default: `ExpirationAndSignatureCheckStrategy` which rejects expired/invalid lists).
+
+You can easily create `DssOptions` with a file cache using:
+```kotlin
+DssOptions.usingFileCacheDataLoader(
+    fileCacheExpiration = 24.hours,
+    cacheDirectory = Paths.get(cachePath)
+)
+```
 
 ## Platform Support
 
