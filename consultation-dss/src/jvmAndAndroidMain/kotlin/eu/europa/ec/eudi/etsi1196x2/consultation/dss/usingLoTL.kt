@@ -21,6 +21,7 @@ import eu.europa.esig.dss.service.http.commons.FileCacheDataLoader
 import eu.europa.esig.dss.tsl.source.LOTLSource
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import java.security.cert.TrustAnchor
 import java.security.cert.X509Certificate
 import kotlin.time.Clock
@@ -33,7 +34,7 @@ import kotlin.time.Duration
  * - Depending on the file cache loader configuration, the file downloader may use an online fetcher to
  *   refresh the file cache.
  * - Given that [FileCacheDataLoader] is blocking, it creates a suspendable and cachable wrapper around it using
- *   [GetTrustedListsCertificateByLOTLSource.fromBlocking].
+ *   [GetTrustAnchorsUsingDss].
  *
  * The example creates an [IsChainTrustedForContext] that:
  * - Supports PUB EAA
@@ -82,26 +83,29 @@ public fun IsChainTrustedForContext.Companion.usingLoTL(
     sourcePerVerification: Map<VerificationContext, LOTLSource>,
     validateCertificateChain: ValidateCertificateChain<List<X509Certificate>, TrustAnchor> = ValidateCertificateChainJvm.Default,
     trustAnchorCreator: TrustAnchorCreator<CertificateToken, TrustAnchor> = DSSTrustAnchorCreator,
-    dssAdapter: DSSAdapter = DSSAdapter.Default,
+    dssOptions: DssOptions = DssOptions.Default,
     clock: Clock = Clock.System,
-    coroutineScope: CoroutineScope = GetTrustedListsCertificateByLOTLSource.DEFAULT_SCOPE,
-    coroutineDispatcher: CoroutineDispatcher = GetTrustedListsCertificateByLOTLSource.DEFAULT_DISPATCHER,
+    coroutineScope: CoroutineScope = GetTrustAnchorsFromSource.DEFAULT_SCOPE,
+    coroutineDispatcher: CoroutineDispatcher = Dispatchers.IO,
     ttl: Duration,
 ): IsChainTrustedForContext<List<X509Certificate>, TrustAnchor> {
-    val getTrustedListsCertificateByLOTLSource =
-        with(DSSAdapterOps) {
-            dssAdapter.asGetTrustedListsCertificateByLOTLSource(
-                coroutineScope = coroutineScope,
-                coroutineDispatcher = coroutineDispatcher,
-                expectedTrustSourceNo = sourcePerVerification.size,
-                ttl = ttl,
-                clock = clock,
-            )
-        }
+    require(sourcePerVerification.isNotEmpty()) { "At least one trusted list source must be provided" }
+    val getTrustAnchorsUsingDss =
+        GetTrustAnchorsUsingDss(
+            dispatcher = coroutineDispatcher,
+            trustAnchorCreator = trustAnchorCreator,
+            dssOptions = dssOptions,
+        ).cached(
+            coroutineScope = coroutineScope,
+            expectedSources = sourcePerVerification.size,
+            ttl = ttl,
+            clock = clock,
+        ).contraMap { ctx: VerificationContext -> checkNotNull(sourcePerVerification[ctx]) }
 
-    val getTrustAnchorsByContext =
-        sourcePerVerification.mapValues { (_, lotlSource) ->
-            getTrustedListsCertificateByLOTLSource.asProviderFor(lotlSource, trustAnchorCreator)
-        }
-    return IsChainTrustedForContext(validateCertificateChain, getTrustAnchorsByContext)
+    val supportedCtxs = sourcePerVerification.keys
+    return IsChainTrustedForContext(
+        validateCertificateChain,
+        getTrustAnchorsUsingDss,
+        supportedCtxs,
+    )
 }

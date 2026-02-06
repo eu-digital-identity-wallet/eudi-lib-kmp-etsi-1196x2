@@ -248,5 +248,16 @@ public class IsChainTrustedForContext<in CHAIN : Any, out TRUST_ANCHOR : Any>(
     ): IsChainTrustedForContextF<CHAIN, TRUST_ANCHOR> =
         UnsafeIsChainTrustedForContext(validateCertificateChain, getTrustAnchorsByContext, recovery)
 
-    public companion object
+    public companion object {
+
+        public operator fun <CHAIN : Any, TRUST_ANCHOR : Any> invoke(
+            validateCertificateChain: ValidateCertificateChain<CHAIN, TRUST_ANCHOR>,
+            getTrustAnchorsFromSource: GetTrustAnchorsFromSource<VerificationContext, TRUST_ANCHOR>,
+            supportedContexts: Set<VerificationContext>,
+        ): IsChainTrustedForContext<CHAIN, TRUST_ANCHOR> {
+            val getTrustAnchorsByContext: Map<VerificationContext, GetTrustAnchors<TRUST_ANCHOR>> =
+                supportedContexts.associateWith { GetTrustAnchors { getTrustAnchorsFromSource(it) } }
+            return IsChainTrustedForContext(validateCertificateChain, getTrustAnchorsByContext)
+        }
+    }
 }

@@ -64,7 +64,7 @@ object EUDIRefDevEnv {
     val httpLoader = ObservableHttpLoader(NativeHTTPDataLoader())
     val isChainTrustedForContext =
         IsChainTrustedForContext.usingLoTL(
-            dssAdapter = DSSAdapter.usingFileCacheDataLoader(
+            dssOptions = DssOptions.usingFileCacheDataLoader(
                 fileCacheExpiration = 24.hours,
                 cacheDirectory = createTempDirectory("lotl-cache"),
                 httpLoader = httpLoader,
