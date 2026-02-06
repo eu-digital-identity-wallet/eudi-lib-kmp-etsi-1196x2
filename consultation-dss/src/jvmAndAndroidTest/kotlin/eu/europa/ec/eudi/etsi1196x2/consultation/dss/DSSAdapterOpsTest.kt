@@ -15,6 +15,7 @@
  */
 package eu.europa.ec.eudi.etsi1196x2.consultation.dss
 
+import eu.europa.ec.eudi.etsi1196x2.consultation.JvmSecurity
 import eu.europa.esig.dss.spi.client.http.NativeHTTPDataLoader
 import eu.europa.esig.dss.tsl.function.GrantedOrRecognizedAtNationalLevelTrustAnchorPeriodPredicate
 import eu.europa.esig.dss.tsl.source.LOTLSource
@@ -49,7 +50,7 @@ class DSSAdapterOpsTest {
 
         val getTrustAnchorsFromLoTL = GetTrustAnchorsFromLoTL(
             dispatcher = Dispatchers.IO,
-            trustAnchorCreator = DSSTrustAnchorCreator,
+            trustAnchorCreator = JvmSecurity.DefaultTrustAnchorCreator,
             dssOptions = config,
         )
 

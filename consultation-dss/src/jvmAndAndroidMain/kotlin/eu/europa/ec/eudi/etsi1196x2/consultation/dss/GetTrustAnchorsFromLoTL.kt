@@ -22,7 +22,6 @@ import eu.europa.ec.eudi.etsi1196x2.consultation.dss.DssOptions.Companion.DEFAUL
 import eu.europa.ec.eudi.etsi1196x2.consultation.dss.DssOptions.Companion.DefaultFileCacheExpiration
 import eu.europa.ec.eudi.etsi1196x2.consultation.dss.DssOptions.Companion.DefaultHttpLoader
 import eu.europa.ec.eudi.etsi1196x2.consultation.dss.DssOptions.Companion.DefaultSynchronizationStrategy
-import eu.europa.esig.dss.model.x509.CertificateToken
 import eu.europa.esig.dss.service.http.commons.FileCacheDataLoader
 import eu.europa.esig.dss.spi.client.http.DSSCacheFileLoader
 import eu.europa.esig.dss.spi.client.http.DataLoader
@@ -37,6 +36,7 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
 import java.nio.file.Path
 import java.security.cert.TrustAnchor
+import java.security.cert.X509Certificate
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.hours
 
@@ -144,9 +144,9 @@ public data class DssOptions(
     }
 }
 
-internal class GetTrustAnchorsFromLoTL(
+public class GetTrustAnchorsFromLoTL(
     private val dispatcher: CoroutineDispatcher,
-    private val trustAnchorCreator: TrustAnchorCreator<CertificateToken, TrustAnchor>,
+    private val trustAnchorCreator: TrustAnchorCreator<X509Certificate>,
     private val dssOptions: DssOptions,
 ) : GetTrustAnchors<LOTLSource, TrustAnchor> {
 
@@ -156,6 +156,10 @@ internal class GetTrustAnchorsFromLoTL(
                 TrustedListsCertificateSource().apply { runValidationJobFor(query) }
             trustedListsCertificateSource.trustAnchors(trustAnchorCreator)
         }
+
+    private fun TrustedListsCertificateSource.trustAnchors(
+        trustAnchorCreator: TrustAnchorCreator<X509Certificate>,
+    ): List<TrustAnchor> = certificates.map { certificateToken -> trustAnchorCreator(certificateToken.certificate) }
 
     private fun TrustedListsCertificateSource.runValidationJobFor(lotlSource: LOTLSource) {
         TLValidationJob().apply {

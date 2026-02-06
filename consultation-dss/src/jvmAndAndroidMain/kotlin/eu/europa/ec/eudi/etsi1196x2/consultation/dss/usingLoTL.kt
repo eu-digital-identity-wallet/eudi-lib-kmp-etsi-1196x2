@@ -16,13 +16,13 @@
 package eu.europa.ec.eudi.etsi1196x2.consultation.dss
 
 import eu.europa.ec.eudi.etsi1196x2.consultation.*
-import eu.europa.esig.dss.model.x509.CertificateToken
 import eu.europa.esig.dss.service.http.commons.FileCacheDataLoader
 import eu.europa.esig.dss.tsl.source.LOTLSource
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import java.security.cert.TrustAnchor
+import java.security.cert.X509Certificate
 import kotlin.time.Clock
 import kotlin.time.Duration
 
@@ -78,7 +78,7 @@ import kotlin.time.Duration
 public fun GetTrustAnchorsForSupportedQueries.Companion.usingLoTL(
     coroutineScope: CoroutineScope = GetTrustAnchors.DEFAULT_SCOPE,
     coroutineDispatcher: CoroutineDispatcher = Dispatchers.IO,
-    trustAnchorCreator: TrustAnchorCreator<CertificateToken, TrustAnchor> = DSSTrustAnchorCreator,
+    trustAnchorCreator: TrustAnchorCreator<X509Certificate> = JvmSecurity.DefaultTrustAnchorCreator,
     clock: Clock = Clock.System,
     ttl: Duration,
     dssOptions: DssOptions = DssOptions.Default,

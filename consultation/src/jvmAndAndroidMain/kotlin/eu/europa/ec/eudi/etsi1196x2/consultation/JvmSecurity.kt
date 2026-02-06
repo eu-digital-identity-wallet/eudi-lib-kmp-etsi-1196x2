@@ -58,11 +58,11 @@ public object JvmSecurity {
     /**
      * Default trust anchor creator that creates a trust anchor with no name constraints.
      */
-    public val DefaultTrustAnchorCreator: TrustAnchorCreator<X509Certificate, TrustAnchor> =
+    public val DefaultTrustAnchorCreator: TrustAnchorCreator<X509Certificate> =
         trustAnchorCreator()
 
     public fun trustAnchorCreator(
         nameConstraints: ByteArray? = null,
-    ): TrustAnchorCreator<X509Certificate, TrustAnchor> =
+    ): TrustAnchorCreator<X509Certificate> =
         TrustAnchorCreator { TrustAnchor(it, nameConstraints) }
 }

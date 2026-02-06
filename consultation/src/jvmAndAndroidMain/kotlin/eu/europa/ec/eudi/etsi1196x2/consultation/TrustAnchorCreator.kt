@@ -15,12 +15,13 @@
  */
 package eu.europa.ec.eudi.etsi1196x2.consultation
 
+import java.security.cert.TrustAnchor
+
 /**
  * A way to create a trust anchor from a certificate
  *
  * @param CERT the type representing a certificate, or structure holding a certificate
- * @param TRUST_ANCHOR the type representing a trust anchor
  */
-public fun interface TrustAnchorCreator<in CERT : Any, out TRUST_ANCHOR : Any> {
-    public operator fun invoke(cert: CERT): TRUST_ANCHOR
+public fun interface TrustAnchorCreator<in CERT : Any> {
+    public operator fun invoke(cert: CERT): TrustAnchor
 }
