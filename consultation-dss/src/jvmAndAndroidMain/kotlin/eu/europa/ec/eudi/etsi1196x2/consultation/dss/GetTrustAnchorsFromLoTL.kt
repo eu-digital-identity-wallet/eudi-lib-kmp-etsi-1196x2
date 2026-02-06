@@ -152,29 +152,33 @@ public class GetTrustAnchorsFromLoTL(
 
     override suspend fun invoke(query: LOTLSource): NonEmptyList<TrustAnchor>? =
         withContext(dispatcher) {
-            runValidationJobFor(query).certificates.map { certificateToken ->
-                trustAnchorFrom(certificateToken)
-            }.let { NonEmptyList.nelOrNull(it) }
+            val trustAnchors = runValidationJobFor(query)
+            NonEmptyList.nelOrNull(trustAnchors)
         }
 
-    private fun trustAnchorFrom(token: CertificateToken): TrustAnchor =
-        TrustAnchor(token.certificate, null)
-
-    private fun runValidationJobFor(lotlSource: LOTLSource): TrustedListsCertificateSource =
-        TrustedListsCertificateSource().apply {
-            val self = this
-            TLValidationJob().apply {
-                setListOfTrustedListSources(lotlSource)
-                setOnlineDataLoader(dssOptions.loader)
-                setTrustedListCertificateSource(self)
-                setSynchronizationStrategy(dssOptions.synchronizationStrategy)
-                setCacheCleaner(
-                    CacheCleaner().apply {
-                        setCleanMemory(dssOptions.cleanMemory)
-                        setCleanFileSystem(dssOptions.cleanFileSystem)
-                        setDSSFileLoader(dssOptions.loader)
-                    },
-                )
-            }.onlineRefresh()
+    private fun runValidationJobFor(lotlSource: LOTLSource): List<TrustAnchor> =
+        with(TrustedListsCertificateSource()) {
+            createValidationJob(lotlSource).onlineRefresh()
+            certificates.map { it.toTrustAnchor() }
         }
+
+    private fun TrustedListsCertificateSource.createValidationJob(
+        lotlSource: LOTLSource,
+    ): TLValidationJob =
+        TLValidationJob().apply {
+            setListOfTrustedListSources(lotlSource)
+            setOnlineDataLoader(dssOptions.loader)
+            setTrustedListCertificateSource(this@createValidationJob)
+            setSynchronizationStrategy(dssOptions.synchronizationStrategy)
+            setCacheCleaner(
+                CacheCleaner().apply {
+                    setCleanMemory(dssOptions.cleanMemory)
+                    setCleanFileSystem(dssOptions.cleanFileSystem)
+                    setDSSFileLoader(dssOptions.loader)
+                },
+            )
+        }
+
+    private fun CertificateToken.toTrustAnchor(): TrustAnchor =
+        TrustAnchor(certificate, null)
 }

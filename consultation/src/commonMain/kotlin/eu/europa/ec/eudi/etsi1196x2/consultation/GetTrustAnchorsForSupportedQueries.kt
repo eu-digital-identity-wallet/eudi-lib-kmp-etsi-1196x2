@@ -15,15 +15,28 @@
  */
 package eu.europa.ec.eudi.etsi1196x2.consultation
 
+/**
+ * A function that retrieves trust anchors for a given query.
+ *
+ * @param getTrustAnchors a way to retrieve from a source trust anchors for a given query
+ * @param supportedQueries the queries supported by the source
+ *
+ * @param QUERY the type of the query
+ * @param TRUST_ANCHOR the type of the trust anchors returned by the source
+ */
 public class GetTrustAnchorsForSupportedQueries<QUERY : Any, out TRUST_ANCHOR : Any>(
     private val getTrustAnchors: GetTrustAnchors<QUERY, TRUST_ANCHOR>,
-    private val queries: Set<QUERY>,
+    private val supportedQueries: Set<QUERY>,
 ) {
 
-    @Throws(IllegalStateException::class)
+    /**
+     * Queries the source for trust anchors matching the given [query].
+     * @param query the query to execute
+     * @return the outcome of the query
+     */
     public suspend operator fun invoke(query: QUERY): Outcome<TRUST_ANCHOR> =
         when (query) {
-            in queries -> {
+            in supportedQueries -> {
                 when (val trustAnchors = getTrustAnchors(query)) {
                     null -> Outcome.MisconfiguredSource
                     else -> Outcome.Found(trustAnchors)
@@ -33,16 +46,28 @@ public class GetTrustAnchorsForSupportedQueries<QUERY : Any, out TRUST_ANCHOR : 
             else -> Outcome.QueryNotSupported
         }
 
+    /**
+     * Change the representation of the queries.
+     *
+     * @param contraMapF the function to apply to the transformed queries
+     * @param mapF the function to apply to the original queries
+     * @return a new instance of [GetTrustAnchorsForSupportedQueries] with the transformed queries
+     * @throws IllegalArgumentException if [Q2] is a type, that doesn't implement proper equality
+     * @param Q2 the new representation of the query
+     */
     @Throws(IllegalArgumentException::class)
     public fun <Q2 : Any> transform(
         contraMapF: (Q2) -> QUERY,
         mapF: (QUERY) -> Q2,
     ): GetTrustAnchorsForSupportedQueries<Q2, TRUST_ANCHOR> {
-        val qs = queries.map(mapF).toSet()
-        require(qs.size == queries.size) { "Queries must be unique: $qs" }
+        val mappedQueries = supportedQueries.map(mapF).toSet()
+        require(mappedQueries.size == supportedQueries.size) {
+            "Invalid transformation: current queries = ${supportedQueries.size}, mapped queries = ${mappedQueries.size}"
+        }
+
         return GetTrustAnchorsForSupportedQueries(
             getTrustAnchors.contraMap(contraMapF),
-            qs,
+            mappedQueries,
         )
     }
 
@@ -50,17 +75,35 @@ public class GetTrustAnchorsForSupportedQueries<QUERY : Any, out TRUST_ANCHOR : 
     public infix operator fun plus(
         other: GetTrustAnchorsForSupportedQueries<@UnsafeVariance QUERY, @UnsafeVariance TRUST_ANCHOR>,
     ): GetTrustAnchorsForSupportedQueries<QUERY, TRUST_ANCHOR> {
-        val common = this.queries.intersect(other.queries)
+        val common = this.supportedQueries.intersect(other.supportedQueries)
         require(common.isEmpty()) { "Sources have overlapping queries: $common" }
         return GetTrustAnchorsForSupportedQueries(
-            queries = queries + other.queries,
+            supportedQueries = supportedQueries + other.supportedQueries,
             getTrustAnchors = this.getTrustAnchors or other.getTrustAnchors,
         )
     }
 
-    public sealed interface Outcome<out T> {
-        public data class Found<out T>(val trustAnchors: NonEmptyList<T>) : Outcome<T>
+    /**
+     * Represents the result of a trust anchor retrieval operation.
+     *
+     * @param TRUST_ANCHOR the type of the trust anchors returned by the source
+     */
+    public sealed interface Outcome<out TRUST_ANCHOR> {
+
+        /**
+         * The source returned trust anchors
+         */
+        public data class Found<out TRUST_ANCHOR>(val trustAnchors: NonEmptyList<TRUST_ANCHOR>) : Outcome<TRUST_ANCHOR>
+
+        /**
+         * The source did not support the query
+         */
         public data object QueryNotSupported : Outcome<Nothing>
+
+        /**
+         * A query that is supported didn't return any trust anchors.
+         * This indicates a misconfiguration of the source.
+         */
         public data object MisconfiguredSource : Outcome<Nothing>
     }
 
