@@ -23,4 +23,6 @@ package eu.europa.ec.eudi.etsi1196x2.consultation
  */
 public fun interface TrustAnchorCreator<in CERT : Any, out TRUST_ANCHOR : Any> {
     public operator fun invoke(cert: CERT): TRUST_ANCHOR
+
+    public companion object
 }

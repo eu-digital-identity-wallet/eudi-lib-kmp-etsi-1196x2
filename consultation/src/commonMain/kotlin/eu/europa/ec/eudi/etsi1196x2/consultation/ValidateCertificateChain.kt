@@ -33,6 +33,8 @@ public fun interface ValidateCertificateChain<in CHAIN : Any, TRUST_ANCHOR : Any
         chain: CHAIN,
         trustAnchors: Set<TRUST_ANCHOR>,
     ): CertificationChainValidation<TRUST_ANCHOR>
+
+    public companion object
 }
 
 /**

@@ -153,6 +153,8 @@ public fun interface IsChainTrustedForContextF<in CHAIN : Any, out TRUST_ANCHOR 
         chain: CHAIN,
         verificationContext: VerificationContext,
     ): CertificationChainValidation<TRUST_ANCHOR>?
+
+    public companion object
 }
 
 /**

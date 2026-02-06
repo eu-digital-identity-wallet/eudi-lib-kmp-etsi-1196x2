@@ -270,4 +270,6 @@ public class IsChainTrustedForAttestation<in CHAIN : Any, TRUST_ANCHOR : Any>(
         identifier: AttestationIdentifier,
     ): CertificationChainValidation<TRUST_ANCHOR>? =
         revocationContextOf(identifier)?.let { isChainTrustedForContext(chain, it) }
+
+    public companion object
 }
