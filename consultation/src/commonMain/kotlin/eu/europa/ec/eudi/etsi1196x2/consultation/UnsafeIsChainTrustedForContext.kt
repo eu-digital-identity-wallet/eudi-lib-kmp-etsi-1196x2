@@ -59,6 +59,4 @@ internal class UnsafeIsChainTrustedForContext<in CHAIN : Any, out TRUST_ANCHOR :
         notTrusted: CertificationChainValidation.NotTrusted,
     ): CertificationChainValidation<TRUST_ANCHOR>? =
         recovery(notTrusted)?.let { fallback -> fallback(chain, verificationContext) }
-
-    companion object
 }

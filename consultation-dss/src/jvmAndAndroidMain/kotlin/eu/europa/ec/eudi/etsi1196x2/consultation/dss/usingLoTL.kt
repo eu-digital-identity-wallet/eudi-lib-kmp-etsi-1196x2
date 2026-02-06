@@ -93,7 +93,7 @@ public fun GetTrustAnchorsForSupportedQueries.Companion.usingLoTL(
             dssOptions = dssOptions,
         ).cached(
             coroutineScope = coroutineScope,
-            expectedSources = queryPerVerificationContext.size,
+            expectedQueries = queryPerVerificationContext.size,
             ttl = ttl,
             clock = clock,
         ).contraMap { ctx -> checkNotNull(queryPerVerificationContext[ctx]) }

@@ -158,9 +158,6 @@ public fun interface IsChainTrustedForContextF<in CHAIN : Any, out TRUST_ANCHOR 
 /**
  * A default implementation of [IsChainTrustedForContextF]
  *
- * Combinators:
- * - [contraMap]: change the chain of certificates representation
- *
  * @param validateCertificateChain the certificate chain validation function
  * @param getTrustAnchorsByContext the supported verification contexts and their corresponding trust anchors sources
 
