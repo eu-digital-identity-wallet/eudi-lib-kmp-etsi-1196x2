@@ -59,25 +59,25 @@ object EUDIRefDevEnv {
     }
 
     val httpLoader = ObservableHttpLoader(NativeHTTPDataLoader())
+
+    val trustAnchorsPerContext =
+        GetTrustAnchorsForSupportedQueries.usingLoTL(
+            dssOptions = DssOptions.usingFileCacheDataLoader(
+                fileCacheExpiration = 24.hours,
+                cacheDirectory = createTempDirectory("lotl-cache"),
+                httpLoader = httpLoader,
+            ),
+            queryPerVerificationContext = buildMap {
+                put(VerificationContext.PID, lotlSource(PID_SVC_TYPE))
+                put(VerificationContext.PubEAA, lotlSource(PUB_EAA_SVC_TYPE))
+            },
+            ttl = 10.seconds,
+        )
+
     val isChainTrustedForContext =
         IsChainTrustedForContext(
-            validateCertificateChain = ValidateCertificateChainJvm(customization = {
-                isRevocationEnabled = false
-            }),
-            getTrustAnchorsByContext = GetTrustAnchorsForSupportedQueries.usingLoTL(
-                dssOptions = DssOptions.usingFileCacheDataLoader(
-                    fileCacheExpiration = 24.hours,
-                    cacheDirectory = createTempDirectory("lotl-cache"),
-                    httpLoader = httpLoader,
-                ),
-                sourcePerVerification = buildMap {
-                    put(VerificationContext.PID, lotlSource(PID_SVC_TYPE))
-                    put(VerificationContext.PubEAA, lotlSource(PUB_EAA_SVC_TYPE))
-                },
-                coroutineScope = CoroutineScope(Dispatchers.Default + SupervisorJob()),
-                coroutineDispatcher = Dispatchers.IO,
-                ttl = 10.seconds,
-            ),
+            ValidateCertificateChainJvm(customization = { isRevocationEnabled = false }),
+            trustAnchorsPerContext,
         )
 }
 

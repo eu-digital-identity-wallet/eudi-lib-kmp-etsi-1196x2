@@ -16,28 +16,33 @@
 package eu.europa.ec.eudi.etsi1196x2.consultation
 
 public class GetTrustAnchorsForSupportedQueries<QUERY : Any, out TRUST_ANCHOR : Any>(
-    private val getTrustAnchorsFromSource: GetTrustAnchorsFromSource<QUERY, TRUST_ANCHOR>,
+    private val getTrustAnchors: GetTrustAnchors<QUERY, TRUST_ANCHOR>,
     private val queries: Set<QUERY>,
 ) {
 
+    @Throws(IllegalStateException::class)
     public suspend operator fun invoke(query: QUERY): List<TRUST_ANCHOR>? =
         if (query in queries) {
-            val trustAnchors = getTrustAnchorsFromSource(query)
+            val trustAnchors = getTrustAnchors(query)
             checkNotNull(trustAnchors) { "No trust anchors found for supported $query" }
         } else {
             null
         }
 
+    @Throws(IllegalArgumentException::class)
     public fun <Q2 : Any> transform(
         contraMapF: (Q2) -> QUERY,
         mapF: (QUERY) -> Q2,
     ): GetTrustAnchorsForSupportedQueries<Q2, TRUST_ANCHOR> {
+        val qs = queries.map(mapF).toSet()
+        require(qs.size == queries.size) { "Queries must be unique: $qs" }
         return GetTrustAnchorsForSupportedQueries(
-            getTrustAnchorsFromSource.contraMap(contraMapF),
-            queries.map(mapF).toSet(),
+            getTrustAnchors.contraMap(contraMapF),
+            qs,
         )
     }
 
+    @Throws(IllegalArgumentException::class)
     public infix operator fun plus(
         other: GetTrustAnchorsForSupportedQueries<@UnsafeVariance QUERY, @UnsafeVariance TRUST_ANCHOR>,
     ): GetTrustAnchorsForSupportedQueries<QUERY, TRUST_ANCHOR> {
@@ -45,7 +50,7 @@ public class GetTrustAnchorsForSupportedQueries<QUERY : Any, out TRUST_ANCHOR : 
         require(common.isEmpty()) { "Sources have overlapping queries: $common" }
         return GetTrustAnchorsForSupportedQueries(
             queries = queries + other.queries,
-            getTrustAnchorsFromSource = this.getTrustAnchorsFromSource or other.getTrustAnchorsFromSource,
+            getTrustAnchors = this.getTrustAnchors or other.getTrustAnchors,
         )
     }
 

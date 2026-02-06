@@ -15,7 +15,7 @@
  */
 package eu.europa.ec.eudi.etsi1196x2.consultation.dss
 
-import eu.europa.ec.eudi.etsi1196x2.consultation.GetTrustAnchorsFromSource
+import eu.europa.ec.eudi.etsi1196x2.consultation.GetTrustAnchors
 import eu.europa.ec.eudi.etsi1196x2.consultation.TrustAnchorCreator
 import eu.europa.ec.eudi.etsi1196x2.consultation.dss.DssOptions.Companion.DEFAULT_CLEAN_FILE_SYSTEM
 import eu.europa.ec.eudi.etsi1196x2.consultation.dss.DssOptions.Companion.DEFAULT_CLEAN_MEMORY
@@ -41,7 +41,7 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.hours
 
 /**
- * Adapter for using the DSS library with the [GetTrustAnchorsUsingDss] functional interface.
+ * Adapter for using the DSS library with the [GetTrustAnchorsFromLoTL] functional interface.
  *
  * @param loader the [DSSCacheFileLoader] to use for fetching the trusted lists certificate source
  * @param cleanMemory whether to clean the memory cache.
@@ -144,11 +144,11 @@ public data class DssOptions(
     }
 }
 
-internal class GetTrustAnchorsUsingDss(
+internal class GetTrustAnchorsFromLoTL(
     private val dispatcher: CoroutineDispatcher,
     private val trustAnchorCreator: TrustAnchorCreator<CertificateToken, TrustAnchor>,
     private val dssOptions: DssOptions,
-) : GetTrustAnchorsFromSource<LOTLSource, TrustAnchor> {
+) : GetTrustAnchors<LOTLSource, TrustAnchor> {
 
     override suspend fun invoke(query: LOTLSource): List<TrustAnchor> =
         withContext(dispatcher) {

@@ -33,7 +33,7 @@ import kotlin.time.Duration
  * - Depending on the file cache loader configuration, the file downloader may use an online fetcher to
  *   refresh the file cache.
  * - Given that [FileCacheDataLoader] is blocking, it creates a suspendable and cachable wrapper around it using
- *   [GetTrustAnchorsUsingDss].
+ *   [GetTrustAnchorsFromLoTL].
  *
  * The example creates an [IsChainTrustedForContext] that:
  * - Supports PUB EAA
@@ -76,34 +76,31 @@ import kotlin.time.Duration
  *
  */
 public fun GetTrustAnchorsForSupportedQueries.Companion.usingLoTL(
-    sourcePerVerification: Map<VerificationContext, LOTLSource>,
+    queryPerVerificationContext: Map<VerificationContext, LOTLSource>,
     trustAnchorCreator: TrustAnchorCreator<CertificateToken, TrustAnchor> = DSSTrustAnchorCreator,
     dssOptions: DssOptions = DssOptions.Default,
     clock: Clock = Clock.System,
-    coroutineScope: CoroutineScope = GetTrustAnchorsFromSource.DEFAULT_SCOPE,
+    coroutineScope: CoroutineScope = GetTrustAnchors.DEFAULT_SCOPE,
     coroutineDispatcher: CoroutineDispatcher = Dispatchers.IO,
     ttl: Duration,
 ): GetTrustAnchorsForSupportedQueries<VerificationContext, TrustAnchor> {
-    require(sourcePerVerification.isNotEmpty()) {
+    require(queryPerVerificationContext.isNotEmpty()) {
         "At least one trusted list source must be provided"
     }
 
-    val getTrustAnchorsUsingDss = GetTrustAnchorsUsingDss(
+    val doubleQueries = queryPerVerificationContext.values.groupBy { it }.filterValues { it.size > 1 }.keys
+    require(doubleQueries.isEmpty()) { "Queries must be unique: $doubleQueries" }
+
+    val getTrustAnchorsFromLoTL: GetTrustAnchors<VerificationContext, TrustAnchor> = GetTrustAnchorsFromLoTL(
         dispatcher = coroutineDispatcher,
         trustAnchorCreator = trustAnchorCreator,
         dssOptions = dssOptions,
     ).cached(
         coroutineScope = coroutineScope,
-        expectedSources = sourcePerVerification.size,
+        expectedSources = queryPerVerificationContext.size,
         ttl = ttl,
         clock = clock,
-    )
+    ).contraMap { ctx -> checkNotNull(queryPerVerificationContext[ctx]) }
 
-    return GetTrustAnchorsForSupportedQueries(
-        getTrustAnchorsUsingDss,
-        sourcePerVerification.values.toSet(),
-    ).transform(
-        contraMapF = { ctx: VerificationContext -> checkNotNull(sourcePerVerification[ctx]) },
-        mapF = { lotlSource: LOTLSource -> sourcePerVerification.filterValues { it == lotlSource }.keys.first() },
-    )
+    return GetTrustAnchorsForSupportedQueries(getTrustAnchorsFromLoTL, queryPerVerificationContext.keys)
 }

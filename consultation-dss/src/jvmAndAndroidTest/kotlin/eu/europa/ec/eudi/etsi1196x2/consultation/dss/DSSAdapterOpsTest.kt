@@ -47,7 +47,7 @@ class DSSAdapterOpsTest {
             httpLoader = observableHttpLoader,
         )
 
-        val getTrustAnchorsUsingDss = GetTrustAnchorsUsingDss(
+        val getTrustAnchorsFromLoTL = GetTrustAnchorsFromLoTL(
             dispatcher = Dispatchers.IO,
             trustAnchorCreator = DSSTrustAnchorCreator,
             dssOptions = config,
@@ -59,7 +59,7 @@ class DSSAdapterOpsTest {
         // Expectations:
         // - FileCacheDataLoader should use HTTP loader
         // - Files downloaded
-        getTrustAnchorsUsingDss(lotlSource)
+        getTrustAnchorsFromLoTL(lotlSource)
         val firstCallCount = observableHttpLoader.callCount
         assert(firstCallCount > 0) { "ObservableHttpLoader should be called on first call" }
         val firstCallFiles = path.listDirectoryEntries()
@@ -68,7 +68,7 @@ class DSSAdapterOpsTest {
         // 2) 2nd call (within expiration time from 1st)
         // Expectations:
         // - FileCacheDataLoader should use cached files
-        getTrustAnchorsUsingDss(lotlSource)
+        getTrustAnchorsFromLoTL(lotlSource)
         val secondCallCount = observableHttpLoader.callCount
         assert(secondCallCount == firstCallCount) {
             "FileCacheDataLoader should retrieve the list from path (no new HTTP calls). " +
@@ -88,7 +88,7 @@ class DSSAdapterOpsTest {
         // Capture last modified times of some files
         val lastModifiedBefore = firstCallFiles.associateWith { Files.getLastModifiedTime(it) }
 
-        getTrustAnchorsUsingDss(lotlSource)
+        getTrustAnchorsFromLoTL(lotlSource)
         val thirdCallCount = observableHttpLoader.callCount
         assert(thirdCallCount > secondCallCount) {
             "ObservableHttpLoader should be invoked again after expiration. " +

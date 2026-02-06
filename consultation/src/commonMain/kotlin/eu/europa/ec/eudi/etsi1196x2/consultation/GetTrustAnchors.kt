@@ -16,52 +16,52 @@
 package eu.europa.ec.eudi.etsi1196x2.consultation
 
 import eu.europa.ec.eudi.etsi1196x2.consultation.AsyncCache.Entry
-import eu.europa.ec.eudi.etsi1196x2.consultation.GetTrustAnchorsFromSource.Companion.DEFAULT_SCOPE
+import eu.europa.ec.eudi.etsi1196x2.consultation.GetTrustAnchors.Companion.DEFAULT_SCOPE
 import kotlinx.coroutines.*
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlin.time.Clock
 import kotlin.time.Duration
 
-public fun interface GetTrustAnchorsFromSource<in QUERY : Any, out TRUST_ANCHOR : Any> {
+public fun interface GetTrustAnchors<in QUERY : Any, out TRUST_ANCHOR : Any> {
     public suspend operator fun invoke(query: QUERY): List<TRUST_ANCHOR>?
 
     public companion object {
         /**
-         * The default scope for [GetTrustAnchorsFromSource] instances.
+         * The default scope for [GetTrustAnchors] instances.
          * [Dispatchers.Default] + [SupervisorJob]
          */
         public val DEFAULT_SCOPE: CoroutineScope get() = CoroutineScope(Dispatchers.Default + SupervisorJob())
     }
 }
 
-public infix fun <Q : Any, TA : Any> GetTrustAnchorsFromSource<Q, TA>.or(
-    other: GetTrustAnchorsFromSource<Q, TA>,
-): GetTrustAnchorsFromSource<Q, TA> =
-    GetTrustAnchorsFromSource { source -> this.invoke(source) ?: other(source) }
+public infix fun <Q : Any, TA : Any> GetTrustAnchors<Q, TA>.or(
+    other: GetTrustAnchors<Q, TA>,
+): GetTrustAnchors<Q, TA> =
+    GetTrustAnchors { source -> this.invoke(source) ?: other(source) }
 
-public fun <Q : Any, TA : Any, Q2 : Any> GetTrustAnchorsFromSource<Q, TA>.contraMap(
+public fun <Q : Any, TA : Any, Q2 : Any> GetTrustAnchors<Q, TA>.contraMap(
     transformation: (Q2) -> Q,
-): GetTrustAnchorsFromSource<Q2, TA> = GetTrustAnchorsFromSource { source -> invoke(transformation(source)) }
+): GetTrustAnchors<Q2, TA> = GetTrustAnchors { source -> invoke(transformation(source)) }
 
 /**
- * Creates a [GetTrustAnchorsFromSource] instance that caches invocations.
+ * Creates a [GetTrustAnchors] instance that caches invocations.
  *
- * @param coroutineScope the overall scope of the resulting [GetTrustAnchorsFromSource]. By default, adds [SupervisorJob]
+ * @param coroutineScope the overall scope of the resulting [GetTrustAnchors]. By default, adds [SupervisorJob]
  *       Defaults to [DEFAULT_SCOPE]
  * @param clock the clock used to retrieve the current time. Defaults to [Clock.System]
  * @param expectedSources the expected number of trust sources
  * @param ttl the time-to-live duration for caching the certificate source.
- * @receiver The [GetTrustAnchorsFromSource] instance to cache
+ * @receiver The [GetTrustAnchors] instance to cache
  *
- * @return the [GetTrustAnchorsFromSource] instance that caches invocations
+ * @return the [GetTrustAnchors] instance that caches invocations
  */
-public fun <QUERY : Any, TRUST_ANCHOR : Any> GetTrustAnchorsFromSource<QUERY, TRUST_ANCHOR>.cached(
+public fun <QUERY : Any, TRUST_ANCHOR : Any> GetTrustAnchors<QUERY, TRUST_ANCHOR>.cached(
     coroutineScope: CoroutineScope = DEFAULT_SCOPE,
     clock: Clock = Clock.System,
     ttl: Duration,
     expectedSources: Int,
-): GetTrustAnchorsFromSource<QUERY, TRUST_ANCHOR> =
+): GetTrustAnchors<QUERY, TRUST_ANCHOR> =
     GetTrustAnchorsCachedSource(coroutineScope, clock, ttl, expectedSources, this)
 
 internal class GetTrustAnchorsCachedSource<in QUERY : Any, out TRUST_ANCHOR : Any>(
@@ -69,12 +69,12 @@ internal class GetTrustAnchorsCachedSource<in QUERY : Any, out TRUST_ANCHOR : An
     clock: Clock,
     ttl: Duration,
     expectedTrustSourceNo: Int,
-    val original: GetTrustAnchorsFromSource<QUERY, TRUST_ANCHOR>,
-) : GetTrustAnchorsFromSource<QUERY, TRUST_ANCHOR> {
+    val proxied: GetTrustAnchors<QUERY, TRUST_ANCHOR>,
+) : GetTrustAnchors<QUERY, TRUST_ANCHOR> {
 
     private val cached: AsyncCache<QUERY, List<TRUST_ANCHOR>?> =
         AsyncCache(scope, clock, ttl, expectedTrustSourceNo) { trustSource ->
-            original(trustSource)
+            proxied(trustSource)
         }
 
     override suspend fun invoke(query: QUERY): List<TRUST_ANCHOR>? = cached(query)
