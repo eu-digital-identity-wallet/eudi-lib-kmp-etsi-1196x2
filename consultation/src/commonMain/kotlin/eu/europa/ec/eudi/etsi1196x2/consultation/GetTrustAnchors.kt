@@ -22,8 +22,6 @@ import kotlinx.coroutines.sync.withLock
  * Functional interface for retrieving a list of trust anchors.
  *
  * @param TRUST_ANCHORS the type representing trust anchors.
- *
- * @see IsChainTrusted
  */
 public fun interface GetTrustAnchors<out TRUST_ANCHORS : Any> :
     suspend () -> List<TRUST_ANCHORS> {

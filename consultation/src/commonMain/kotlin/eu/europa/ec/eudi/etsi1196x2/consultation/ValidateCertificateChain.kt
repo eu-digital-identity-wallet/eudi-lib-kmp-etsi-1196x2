@@ -29,7 +29,26 @@ public fun interface ValidateCertificateChain<in CHAIN : Any, TRUST_ANCHOR : Any
      * @param trustAnchors the set of trust anchors
      * @return the outcome of the validation
      */
-    public suspend operator fun invoke(chain: CHAIN, trustAnchors: Set<TRUST_ANCHOR>): CertificationChainValidation<TRUST_ANCHOR>
+    public suspend operator fun invoke(
+        chain: CHAIN,
+        trustAnchors: Set<TRUST_ANCHOR>,
+    ): CertificationChainValidation<TRUST_ANCHOR>
+}
+
+/**
+ * Changes the representation of the certificate chain
+ *
+ * @param transform the transformation function
+ * @return a new [ValidateCertificateChain] instance
+ *
+ * @param C1 type representing the input certificate chain
+ * @param C2 type representing the output certificate chain
+ * @param TA type representing a trust anchor
+ */
+public fun <C1 : Any, TA : Any, C2 : Any> ValidateCertificateChain<C1, TA>.contraMap(
+    transform: (C2) -> C1,
+): ValidateCertificateChain<C2, TA> = ValidateCertificateChain { chain, trustAnchors ->
+    this(transform(chain), trustAnchors)
 }
 
 /**
@@ -46,7 +65,8 @@ public sealed interface CertificationChainValidation<out TRUST_ANCHOR : Any> {
      *
      * @param trustAnchor the trust anchor that matched the chain
      */
-    public data class Trusted<out TRUST_ANCHOR : Any>(val trustAnchor: TRUST_ANCHOR) : CertificationChainValidation<TRUST_ANCHOR>
+    public data class Trusted<out TRUST_ANCHOR : Any>(val trustAnchor: TRUST_ANCHOR) :
+        CertificationChainValidation<TRUST_ANCHOR>
 
     /**
      * The chain is not trusted
