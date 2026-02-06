@@ -23,7 +23,7 @@ import java.security.cert.TrustAnchor
 import java.security.cert.X509Certificate
 
 /**
- * Creates an instance of [GetTrustAnchors] using a keystore for trust anchor retrieval.
+ * Creates an instance of [GetTrustAnchorsFromSource] using a keystore for trust anchor retrieval.
  *
  * @param dispatcher the coroutine dispatcher to use for fetching trust anchors from the keystore.
  *        Defaults to [Dispatchers.IO]
@@ -36,34 +36,78 @@ import java.security.cert.X509Certificate
  * @param cache whether to cache the trust anchors retrieved from the keystore.
  *        In this case, the keystore will be accessed only once.
  *        Defaults to `true`.
- * @param getKeystore a supplier function to provide the [KeyStore] instance to fetch trust anchors.
+ * @param block a supplier function to provide the [KeyStore] instance to fetch trust anchors.
  *
- * @return an instance of [GetTrustAnchors] that reads trust anchors from the given keystore.
+ * @return an instance of [GetTrustAnchorsFromSource] that reads trust anchors from the given keystore.
  */
-public fun GetTrustAnchors.Companion.usingKeystore(
+public fun GetTrustAnchorsForSupportedQueries.Companion.usingKeyStore(
     dispatcher: CoroutineDispatcher = Dispatchers.IO,
     trustAnchorCreator: TrustAnchorCreator<X509Certificate, TrustAnchor> = JvmSecurity.DefaultTrustAnchorCreator,
     cache: Boolean = true,
-    filterAliases: (String) -> Boolean = { true },
-    getKeystore: () -> KeyStore,
-): GetTrustAnchors<TrustAnchor> {
-    val getTrustAnchorsFromKeystore = GetTrustAnchors {
-        withContext(dispatcher) {
-            getKeystore().trustAnchors(trustAnchorCreator, filterAliases)
-        }
-    }
-    return if (cache) {
-        GetTrustAnchors.once(getTrustAnchorsFromKeystore::invoke)
-    } else {
-        getTrustAnchorsFromKeystore
-    }
+    queryPerVerificationContext: Map<VerificationContext, Regex>,
+    block: () -> KeyStore,
+): GetTrustAnchorsForSupportedQueries<VerificationContext, TrustAnchor> {
+    require(queryPerVerificationContext.isNotEmpty()) { "At least one query must be provided" }
+    val doubleQueries = queryPerVerificationContext.values.groupBy { it }.filterValues { it.size > 1 }.keys
+    require(doubleQueries.isEmpty()) { "Queries must be unique: $doubleQueries" }
+
+    return GetTrustAnchorsForSupportedQueries(
+        GetTrustAnchorsFromSource.usingKeyStore(
+            dispatcher = dispatcher,
+            trustAnchorCreator = trustAnchorCreator,
+            cache = cache,
+            { checkNotNull(queryPerVerificationContext[it]) },
+            block,
+        ),
+        queryPerVerificationContext.keys,
+    )
 }
 
-private fun KeyStore.trustAnchors(
-    trustAnchorCreator: TrustAnchorCreator<X509Certificate, TrustAnchor>,
-    filterAliases: (String) -> Boolean,
-): List<TrustAnchor> =
-    aliases().toList().filter(filterAliases).mapNotNull { alias ->
-        val cert = (getCertificate(alias) as? X509Certificate)
-        cert?.let(trustAnchorCreator::invoke)
+public fun GetTrustAnchorsFromSource.Companion.usingKeyStore(
+    dispatcher: CoroutineDispatcher = Dispatchers.IO,
+    trustAnchorCreator: TrustAnchorCreator<X509Certificate, TrustAnchor> = JvmSecurity.DefaultTrustAnchorCreator,
+    cache: Boolean = true,
+    regexForContext: (VerificationContext) -> Regex,
+    block: () -> KeyStore,
+): GetTrustAnchorsFromSource<VerificationContext, TrustAnchor> =
+    GetTrustAnchorsFromKeystore.fromBlocking(dispatcher, trustAnchorCreator, cache, block)
+        .contraMap(regexForContext)
+
+private class GetTrustAnchorsFromKeystore(
+    private val trustAnchorCreator: TrustAnchorCreator<X509Certificate, TrustAnchor>,
+    private val getKeystore: suspend () -> KeyStore,
+) : GetTrustAnchorsFromSource<Regex, TrustAnchor> {
+
+    override suspend fun invoke(query: Regex): List<TrustAnchor>? =
+        getKeystore().getTrustAnchors(trustAnchorCreator, query).takeIf { it.isNotEmpty() }
+
+    private fun KeyStore.getTrustAnchors(
+        trustAnchorCreator: TrustAnchorCreator<X509Certificate, TrustAnchor>,
+        query: Regex,
+    ): List<TrustAnchor> {
+        val filter = { alias: String -> query.matches(alias) }
+        return aliases().toList().filter(filter).mapNotNull { alias ->
+            val cert = (getCertificate(alias) as? X509Certificate)
+            cert?.let(trustAnchorCreator::invoke)
+        }
     }
+
+    companion object {
+        fun fromBlocking(
+            dispatcher: CoroutineDispatcher = Dispatchers.IO,
+            trustAnchorCreator: TrustAnchorCreator<X509Certificate, TrustAnchor> = JvmSecurity.DefaultTrustAnchorCreator,
+            cache: Boolean = true,
+            block: () -> KeyStore,
+        ): GetTrustAnchorsFromKeystore {
+            val getK = run {
+                val suspendable = object : suspend () -> KeyStore {
+                    override suspend fun invoke(): KeyStore {
+                        return withContext(dispatcher) { block() }
+                    }
+                }
+                if (cache) InvokeOnce(suspendable) else suspendable
+            }
+            return GetTrustAnchorsFromKeystore(trustAnchorCreator, getK)
+        }
+    }
+}

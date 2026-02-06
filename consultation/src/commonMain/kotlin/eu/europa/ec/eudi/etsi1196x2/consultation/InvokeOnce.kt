@@ -18,28 +18,6 @@ package eu.europa.ec.eudi.etsi1196x2.consultation
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
-/**
- * Functional interface for retrieving a list of trust anchors.
- *
- * @param TRUST_ANCHORS the type representing trust anchors.
- */
-@Deprecated("ddd")
-public fun interface GetTrustAnchors<out TRUST_ANCHORS : Any> :
-    suspend () -> List<TRUST_ANCHORS> {
-
-    public companion object {
-        /**
-         * Creates an instance of [GetTrustAnchors] that reads trust anchors from the given source only once.
-         * @param source the source of trust anchors.
-         * @param TRUST_ANCHORS the type representing trust anchors.
-         */
-        public fun <TRUST_ANCHOR : Any> once(source: suspend () -> List<TRUST_ANCHOR>): GetTrustAnchors<TRUST_ANCHOR> {
-            val once = InvokeOnce(source)
-            return GetTrustAnchors { once() }
-        }
-    }
-}
-
 internal class InvokeOnce<T : Any>(
     private val source: suspend () -> T,
 ) : suspend () -> T {
