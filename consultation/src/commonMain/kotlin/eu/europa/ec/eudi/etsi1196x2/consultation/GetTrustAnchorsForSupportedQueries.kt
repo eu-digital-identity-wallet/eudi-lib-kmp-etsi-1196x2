@@ -21,12 +21,16 @@ public class GetTrustAnchorsForSupportedQueries<QUERY : Any, out TRUST_ANCHOR : 
 ) {
 
     @Throws(IllegalStateException::class)
-    public suspend operator fun invoke(query: QUERY): List<TRUST_ANCHOR>? =
-        if (query in queries) {
-            val trustAnchors = getTrustAnchors(query)
-            checkNotNull(trustAnchors) { "No trust anchors found for supported $query" }
-        } else {
-            null
+    public suspend operator fun invoke(query: QUERY): Outcome<TRUST_ANCHOR> =
+        when (query) {
+            in queries -> {
+                when (val trustAnchors = getTrustAnchors(query)) {
+                    null -> Outcome.MisconfiguredSource
+                    else -> Outcome.Found(trustAnchors)
+                }
+            }
+
+            else -> Outcome.QueryNotSupported
         }
 
     @Throws(IllegalArgumentException::class)
@@ -52,6 +56,12 @@ public class GetTrustAnchorsForSupportedQueries<QUERY : Any, out TRUST_ANCHOR : 
             queries = queries + other.queries,
             getTrustAnchors = this.getTrustAnchors or other.getTrustAnchors,
         )
+    }
+
+    public sealed interface Outcome<out T> {
+        public data class Found<out T>(val trustAnchors: NonEmptyList<T>) : Outcome<T>
+        public data object QueryNotSupported : Outcome<Nothing>
+        public data object MisconfiguredSource : Outcome<Nothing>
     }
 
     public companion object

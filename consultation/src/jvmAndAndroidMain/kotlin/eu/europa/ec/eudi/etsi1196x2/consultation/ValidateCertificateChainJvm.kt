@@ -96,13 +96,12 @@ public class ValidateCertificateChainJvm(
 
     override suspend fun invoke(
         chain: List<X509Certificate>,
-        trustAnchors: Set<TrustAnchor>,
+        trustAnchors: NonEmptyList<TrustAnchor>,
     ): CertificationChainValidation<TrustAnchor> =
         withContext(coroutineContext) {
             require(chain.isNotEmpty()) { "Chain must not be empty" }
-            require(trustAnchors.isNotEmpty()) { "Trust anchors must not be empty" }
             try {
-                val pkixParameters = PKIXParameters(trustAnchors).apply(customization)
+                val pkixParameters = PKIXParameters(trustAnchors.list.toSet()).apply(customization)
                 val certPath = certificateFactory.generateCertPath(chain)
                 val result = certPathValidator.validate(certPath, pkixParameters)
                 result.trusted()

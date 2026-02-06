@@ -16,6 +16,7 @@
 package eu.europa.ec.eudi.etsi1196x2.consultation.dss
 
 import eu.europa.ec.eudi.etsi1196x2.consultation.GetTrustAnchors
+import eu.europa.ec.eudi.etsi1196x2.consultation.NonEmptyList
 import eu.europa.ec.eudi.etsi1196x2.consultation.dss.DssOptions.Companion.DEFAULT_CLEAN_FILE_SYSTEM
 import eu.europa.ec.eudi.etsi1196x2.consultation.dss.DssOptions.Companion.DEFAULT_CLEAN_MEMORY
 import eu.europa.ec.eudi.etsi1196x2.consultation.dss.DssOptions.Companion.DefaultFileCacheExpiration
@@ -149,11 +150,11 @@ public class GetTrustAnchorsFromLoTL(
     private val dssOptions: DssOptions = DssOptions.Default,
 ) : GetTrustAnchors<LOTLSource, TrustAnchor> {
 
-    override suspend fun invoke(query: LOTLSource): List<TrustAnchor> =
+    override suspend fun invoke(query: LOTLSource): NonEmptyList<TrustAnchor>? =
         withContext(dispatcher) {
             runValidationJobFor(query).certificates.map { certificateToken ->
                 trustAnchorFrom(certificateToken)
-            }
+            }.let { NonEmptyList.nelOrNull(it) }
         }
 
     private fun trustAnchorFrom(token: CertificateToken): TrustAnchor =

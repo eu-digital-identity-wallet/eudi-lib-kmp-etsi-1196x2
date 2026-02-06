@@ -54,8 +54,8 @@ public class GetTrustAnchorsFromKeystore(
     private val getKeystore: suspend () -> KeyStore,
 ) : GetTrustAnchors<Regex, TrustAnchor> {
 
-    override suspend fun invoke(query: Regex): List<TrustAnchor>? =
-        getKeystore().getTrustAnchors(query).takeIf { it.isNotEmpty() }
+    override suspend fun invoke(query: Regex): NonEmptyList<TrustAnchor>? =
+        getKeystore().getTrustAnchors(query).let { NonEmptyList.nelOrNull(it) }
 
     private fun KeyStore.getTrustAnchors(query: Regex): List<TrustAnchor> {
         val filter = { alias: String -> query.matches(alias) }

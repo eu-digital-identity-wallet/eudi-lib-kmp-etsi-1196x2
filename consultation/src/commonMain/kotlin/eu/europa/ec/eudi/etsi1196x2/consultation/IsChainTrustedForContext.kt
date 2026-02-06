@@ -179,14 +179,18 @@ public class IsChainTrustedForContext<in CHAIN : Any, out TRUST_ANCHOR : Any>(
      * @param chain certificate chain to check
      * @param verificationContext verification context
      * @return outcome of the check. A null value indicates that the given [verificationContext] has not been configured
+     * @throws IllegalStateException if the given [verificationContext] was configured but underlying source didn't return anchors
      */
+    @Throws(IllegalStateException::class)
     public override suspend operator fun invoke(
         chain: CHAIN,
         verificationContext: VerificationContext,
     ): CertificationChainValidation<TRUST_ANCHOR>? =
         withContext(CoroutineName(name = "IsChainTrustedForContext - $verificationContext")) {
-            getTrustAnchorsByContext(verificationContext)?.let { trustAnchors ->
-                validateCertificateChain(chain, trustAnchors.toSet())
+            when (val outcome = getTrustAnchorsByContext(verificationContext)) {
+                is GetTrustAnchorsForSupportedQueries.Outcome.Found<TRUST_ANCHOR> -> validateCertificateChain(chain, outcome.trustAnchors)
+                GetTrustAnchorsForSupportedQueries.Outcome.MisconfiguredSource -> error("Could not get trust anchors for verification context $verificationContext")
+                GetTrustAnchorsForSupportedQueries.Outcome.QueryNotSupported -> null
             }
         }
 

@@ -24,7 +24,7 @@ import kotlin.time.Clock
 import kotlin.time.Duration
 
 public fun interface GetTrustAnchors<in QUERY : Any, out TRUST_ANCHOR : Any> {
-    public suspend operator fun invoke(query: QUERY): List<TRUST_ANCHOR>?
+    public suspend operator fun invoke(query: QUERY): NonEmptyList<TRUST_ANCHOR>?
 
     public companion object {
         /**
@@ -72,12 +72,12 @@ internal class GetTrustAnchorsCachedSource<in QUERY : Any, out TRUST_ANCHOR : An
     val proxied: GetTrustAnchors<QUERY, TRUST_ANCHOR>,
 ) : GetTrustAnchors<QUERY, TRUST_ANCHOR> {
 
-    private val cached: AsyncCache<QUERY, List<TRUST_ANCHOR>?> =
+    private val cached: AsyncCache<QUERY, NonEmptyList<TRUST_ANCHOR>?> =
         AsyncCache(scope, clock, ttl, expectedTrustSourceNo) { trustSource ->
             proxied(trustSource)
         }
 
-    override suspend fun invoke(query: QUERY): List<TRUST_ANCHOR>? = cached(query)
+    override suspend fun invoke(query: QUERY): NonEmptyList<TRUST_ANCHOR>? = cached(query)
 }
 
 internal class AsyncCache<A : Any, B>(
