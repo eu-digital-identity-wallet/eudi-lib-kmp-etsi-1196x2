@@ -5,25 +5,57 @@ published in [ETSI TS 119 612 Trusted Lists](https://www.etsi.org/deliver/etsi_t
 
 Trusted Lists are fetched, parsed, and validated using [Digital Signature Service (DSS)](https://github.com/esig/dss).
 
-## Key Components
+The module automates the process of fetching and verifying the 
+European List of Trusted Lists (LOTL). 
+It wraps the stateful DSS `TLValidationJob` into the library's functional `GetTrustAnchors` interface.
 
-### GetTrustedListsCertificateByLOTLSource
+🔄 **Multi-Tier Caching Strategy**
+The library implements a robust three-tier caching strategy to ensure the 
+Wallet remains performant and offline-capable:
 
-`GetTrustedListsCertificateByLOTLSource` is a low level entry point used to fetch certificates published in Trusted Lists.
-The details of the Trusted List and those of the certificates to fetch are defined using [LOTLSource](https://github.com/esig/dss/blob/master/dss-tsl-validation/src/main/java/eu/europa/esig/dss/tsl/source/LOTLSource.java).
-The fetched certificates are represented using [TrustedListsCertificateSource](https://github.com/esig/dss/blob/master/dss-spi/src/main/java/eu/europa/esig/dss/spi/tsl/TrustedListsCertificateSource.java).
+- **In-Memory** (AsyncCache): Results are cached in RAM (e.g., for 10 minutes) to handle concurrent validation requests without re-parsing.
+- **File System** (FileCacheDataLoader): Persists the LOTL/TL data on the device (e.g., for 24 hours), enabling offline validation.
+- **Source of Truth**: The official European Commission remote URL, fetched only when the file cache expires.
 
-Each `GetTrustedListsCertificateByLOTLSource` can act as a `GetTrustAnchors` instace for a specific `LOTLSource`, allowing bridging DSS with components of [Consultation](../consultation).
+## Architecture Overview
 
-`GetTrustedListsCertificateByLOTLSource` provides the factory method `fromBlocking()` which can be used to wrap blocking code from DSS with Kotlin coroutines.
+```mermaid
+graph TD
+A[Attestation] --> B{AttestationClassifications}
+B -->|Match| C[VerificationContext]
+C --> D[IsChainTrustedForContext]
+D --> E{GetTrustAnchors}
+E -->|DSS Adapter| F[EU LOTL Source]
+F -->|Synchronize| G[National Trusted Lists]
+G -->|Extract| H[List of TrustAnchors]
+H --> I[ValidateCertificateChainJvm]
+I -->|PKIX Validation| J[Trusted / NotTrusted]
+```
+## Quick Start
 
-### DSSAdapter
+```kotlin
+// Setup DSS options with a 24-hour file cache
+val dssOptions = DssOptions.usingFileCacheDataLoader(
+    fileCacheExpiration = 24.hours,
+    cacheDirectory = Paths.get(cachePath)
+)
 
-`DSSAdapter` bridges DSS with `GetTrustedListsCertificateByLOTLSource`.
+// Define the LOTL sources per context
+val trustSource = GetTrustAnchorsForSupportedQueries.usingLoTL(
+    ttl = 10.minutes, // In-memory cache TTL
+    queryPerVerificationContext = mapOf(
+        VerificationContext.PID to lotlSource(PID_SERVICE_TYPE),
+        VerificationContext.PubEAA to lotlSource(EAA_SERVICE_TYPE)
+    ),
+    dssOptions = dssOptions
+)
 
-### usingLoTL
-
-Factory methods for creating `IsChainTrusted`, and `IsChainTrustedForContext` instances using either `DSSAdapter`, or custom implementations.
+// Instantiate the final validator
+val validator = IsChainTrustedForContext(
+    validateCertificateChain = ValidateCertificateChainJvm.Default,
+    getTrustAnchorsByContext = trustSource
+)
+```
 
 ## Usage
 
@@ -78,3 +110,4 @@ Usage examples can be found in:
 ## Platform Support
 
 The library targets JVM and Android.
+
