@@ -76,13 +76,13 @@ import kotlin.time.Duration
  *
  */
 public fun GetTrustAnchorsForSupportedQueries.Companion.usingLoTL(
-    queryPerVerificationContext: Map<VerificationContext, LOTLSource>,
-    trustAnchorCreator: TrustAnchorCreator<CertificateToken, TrustAnchor> = DSSTrustAnchorCreator,
-    dssOptions: DssOptions = DssOptions.Default,
-    clock: Clock = Clock.System,
     coroutineScope: CoroutineScope = GetTrustAnchors.DEFAULT_SCOPE,
     coroutineDispatcher: CoroutineDispatcher = Dispatchers.IO,
+    trustAnchorCreator: TrustAnchorCreator<CertificateToken, TrustAnchor> = DSSTrustAnchorCreator,
+    clock: Clock = Clock.System,
     ttl: Duration,
+    dssOptions: DssOptions = DssOptions.Default,
+    queryPerVerificationContext: Map<VerificationContext, LOTLSource>,
 ): GetTrustAnchorsForSupportedQueries<VerificationContext, TrustAnchor> {
     require(queryPerVerificationContext.isNotEmpty()) {
         "At least one trusted list source must be provided"

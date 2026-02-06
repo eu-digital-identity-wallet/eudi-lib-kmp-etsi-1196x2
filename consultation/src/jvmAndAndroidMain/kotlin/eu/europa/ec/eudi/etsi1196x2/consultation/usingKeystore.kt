@@ -42,21 +42,18 @@ public fun GetTrustAnchorsForSupportedQueries.Companion.usingKeyStore(
     dispatcher: CoroutineDispatcher = Dispatchers.IO,
     trustAnchorCreator: TrustAnchorCreator<X509Certificate, TrustAnchor> = JvmSecurity.DefaultTrustAnchorCreator,
     cache: Boolean = true,
-    queryPerVerificationContext: Map<VerificationContext, Regex>,
+    supportedVerificationContexts: Set<VerificationContext>,
+    regexPerVerificationContext: (VerificationContext) -> Regex,
     block: () -> KeyStore,
 ): GetTrustAnchorsForSupportedQueries<VerificationContext, TrustAnchor> {
-    require(queryPerVerificationContext.isNotEmpty()) { "At least one query must be provided" }
-    val doubleQueries = queryPerVerificationContext.values.groupBy { it }.filterValues { it.size > 1 }.keys
-    require(doubleQueries.isEmpty()) { "Queries must be unique: $doubleQueries" }
-
+    val getTrustAnchors = GetTrustAnchorsFromKeystore.fromBlocking(dispatcher, trustAnchorCreator, cache, block)
     return GetTrustAnchorsForSupportedQueries(
-        GetTrustAnchorsFromKeystore.fromBlocking(dispatcher, trustAnchorCreator, cache, block)
-            .contraMap { checkNotNull(queryPerVerificationContext[it]) },
-        queryPerVerificationContext.keys,
+        getTrustAnchors.contraMap(regexPerVerificationContext),
+        supportedVerificationContexts,
     )
 }
 
-private class GetTrustAnchorsFromKeystore(
+public class GetTrustAnchorsFromKeystore(
     private val trustAnchorCreator: TrustAnchorCreator<X509Certificate, TrustAnchor>,
     private val getKeystore: suspend () -> KeyStore,
 ) : GetTrustAnchors<Regex, TrustAnchor> {
@@ -75,8 +72,8 @@ private class GetTrustAnchorsFromKeystore(
         }
     }
 
-    companion object {
-        fun fromBlocking(
+    public companion object {
+        public fun fromBlocking(
             dispatcher: CoroutineDispatcher = Dispatchers.IO,
             trustAnchorCreator: TrustAnchorCreator<X509Certificate, TrustAnchor> = JvmSecurity.DefaultTrustAnchorCreator,
             cache: Boolean = true,
