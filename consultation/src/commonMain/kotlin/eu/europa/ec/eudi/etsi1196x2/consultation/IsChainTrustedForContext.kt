@@ -159,7 +159,6 @@ public fun interface IsChainTrustedForContextF<in CHAIN : Any, out TRUST_ANCHOR 
  * A default implementation of [IsChainTrustedForContextF]
  *
  * Combinators:
- * - [plus]: combine two instances of IsChainTrustedForContext into a single one
  * - [contraMap]: change the chain of certificates representation
  *
  * @param validateCertificateChain the certificate chain validation function
@@ -170,7 +169,7 @@ public fun interface IsChainTrustedForContextF<in CHAIN : Any, out TRUST_ANCHOR 
  */
 public class IsChainTrustedForContext<in CHAIN : Any, out TRUST_ANCHOR : Any>(
     private val validateCertificateChain: ValidateCertificateChain<CHAIN, TRUST_ANCHOR>,
-    private val getTrustAnchorsByContext: Map<VerificationContext, GetTrustAnchors<TRUST_ANCHOR>>,
+    private val getTrustAnchorsByContext: GetTrustAnchorsForSupportedQueries<VerificationContext, TRUST_ANCHOR>,
 ) : IsChainTrustedForContextF<CHAIN, TRUST_ANCHOR> {
 
     /**
@@ -186,31 +185,10 @@ public class IsChainTrustedForContext<in CHAIN : Any, out TRUST_ANCHOR : Any>(
         verificationContext: VerificationContext,
     ): CertificationChainValidation<TRUST_ANCHOR>? =
         withContext(CoroutineName(name = "IsChainTrustedForContext - $verificationContext")) {
-            getTrustAnchorsByContext[verificationContext]?.let { getTrustAnchors ->
-                val trustAnchors = getTrustAnchors()
+            getTrustAnchorsByContext(verificationContext)?.let { trustAnchors ->
                 validateCertificateChain(chain, trustAnchors.toSet())
             }
         }
-
-    /**
-     * Combines two instances into a single one
-     *
-     * ```kotlin
-     * val a : IsChainTrustedForContext<CertificateChain, TrustAnchor> = ...
-     * val b : IsChainTrustedForContext<CertificateChain, TrustAnchor> = ...
-     * val combined = a + b
-     * ```
-     *
-     * @param other another IsChainTrustedForContext instance
-     * @return new instance with combined sources
-     */
-    public operator fun plus(
-        other: IsChainTrustedForContext<@UnsafeVariance CHAIN, @UnsafeVariance TRUST_ANCHOR>,
-    ): IsChainTrustedForContext<CHAIN, TRUST_ANCHOR> =
-        IsChainTrustedForContext(
-            validateCertificateChain,
-            this.getTrustAnchorsByContext + other.getTrustAnchorsByContext,
-        )
 
     /**
      * Changes the chain of certificates representation
@@ -244,20 +222,13 @@ public class IsChainTrustedForContext<in CHAIN : Any, out TRUST_ANCHOR : Any>(
      */
     @SensitiveApi
     public fun recoverWith(
-        recovery: (VerificationContext) -> ((CertificationChainValidation.NotTrusted) -> GetTrustAnchors<@UnsafeVariance TRUST_ANCHOR>?),
+        recovery: (CertificationChainValidation.NotTrusted) -> GetTrustAnchorsForSupportedQueries<VerificationContext, @UnsafeVariance TRUST_ANCHOR>?,
     ): IsChainTrustedForContextF<CHAIN, TRUST_ANCHOR> =
-        UnsafeIsChainTrustedForContext(validateCertificateChain, getTrustAnchorsByContext, recovery)
-
-    public companion object {
-
-        public operator fun <CHAIN : Any, TRUST_ANCHOR : Any> invoke(
-            validateCertificateChain: ValidateCertificateChain<CHAIN, TRUST_ANCHOR>,
-            getTrustAnchorsFromSource: GetTrustAnchorsFromSource<VerificationContext, TRUST_ANCHOR>,
-            supportedContexts: Set<VerificationContext>,
-        ): IsChainTrustedForContext<CHAIN, TRUST_ANCHOR> {
-            val getTrustAnchorsByContext: Map<VerificationContext, GetTrustAnchors<TRUST_ANCHOR>> =
-                supportedContexts.associateWith { GetTrustAnchors { getTrustAnchorsFromSource(it) } }
-            return IsChainTrustedForContext(validateCertificateChain, getTrustAnchorsByContext)
+        UnsafeIsChainTrustedForContext(this) { notTrusted ->
+            recovery(notTrusted)?.let {
+                IsChainTrustedForContext(validateCertificateChain, it)
+            }
         }
-    }
+
+    public companion object
 }

@@ -150,10 +150,10 @@ internal class GetTrustAnchorsUsingDss(
     private val dssOptions: DssOptions,
 ) : GetTrustAnchorsFromSource<LOTLSource, TrustAnchor> {
 
-    override suspend fun invoke(source: LOTLSource): List<TrustAnchor> =
+    override suspend fun invoke(query: LOTLSource): List<TrustAnchor> =
         withContext(dispatcher) {
             val trustedListsCertificateSource =
-                TrustedListsCertificateSource().apply { runValidationJobFor(source) }
+                TrustedListsCertificateSource().apply { runValidationJobFor(query) }
             trustedListsCertificateSource.trustAnchors(trustAnchorCreator)
         }
 

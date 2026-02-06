@@ -23,8 +23,8 @@ import kotlinx.coroutines.sync.withLock
 import kotlin.time.Clock
 import kotlin.time.Duration
 
-public fun interface GetTrustAnchorsFromSource<in SRC : Any, out TRUST_ANCHOR : Any> {
-    public suspend operator fun invoke(source: SRC): List<TRUST_ANCHOR>
+public fun interface GetTrustAnchorsFromSource<in QUERY : Any, out TRUST_ANCHOR : Any> {
+    public suspend operator fun invoke(query: QUERY): List<TRUST_ANCHOR>?
 
     public companion object {
         /**
@@ -35,9 +35,14 @@ public fun interface GetTrustAnchorsFromSource<in SRC : Any, out TRUST_ANCHOR : 
     }
 }
 
-public fun <SRC : Any, TA : Any, SRC2 : Any> GetTrustAnchorsFromSource<SRC, TA>.contraMap(
-    transformation: (SRC2) -> SRC,
-): GetTrustAnchorsFromSource<SRC2, TA> = GetTrustAnchorsFromSource { source -> invoke(transformation(source)) }
+public infix fun <Q : Any, TA : Any> GetTrustAnchorsFromSource<Q, TA>.or(
+    other: GetTrustAnchorsFromSource<Q, TA>,
+): GetTrustAnchorsFromSource<Q, TA> =
+    GetTrustAnchorsFromSource { source -> this.invoke(source) ?: other(source) }
+
+public fun <Q : Any, TA : Any, Q2 : Any> GetTrustAnchorsFromSource<Q, TA>.contraMap(
+    transformation: (Q2) -> Q,
+): GetTrustAnchorsFromSource<Q2, TA> = GetTrustAnchorsFromSource { source -> invoke(transformation(source)) }
 
 /**
  * Creates a [GetTrustAnchorsFromSource] instance that caches invocations.
@@ -51,28 +56,28 @@ public fun <SRC : Any, TA : Any, SRC2 : Any> GetTrustAnchorsFromSource<SRC, TA>.
  *
  * @return the [GetTrustAnchorsFromSource] instance that caches invocations
  */
-public fun <SRC : Any, TRUST_ANCHOR : Any> GetTrustAnchorsFromSource<SRC, TRUST_ANCHOR>.cached(
+public fun <QUERY : Any, TRUST_ANCHOR : Any> GetTrustAnchorsFromSource<QUERY, TRUST_ANCHOR>.cached(
     coroutineScope: CoroutineScope = DEFAULT_SCOPE,
     clock: Clock = Clock.System,
     ttl: Duration,
     expectedSources: Int,
-): GetTrustAnchorsFromSource<SRC, TRUST_ANCHOR> =
+): GetTrustAnchorsFromSource<QUERY, TRUST_ANCHOR> =
     GetTrustAnchorsCachedSource(coroutineScope, clock, ttl, expectedSources, this)
 
-internal class GetTrustAnchorsCachedSource<in SRC : Any, out TRUST_ANCHOR : Any>(
+internal class GetTrustAnchorsCachedSource<in QUERY : Any, out TRUST_ANCHOR : Any>(
     scope: CoroutineScope,
     clock: Clock,
     ttl: Duration,
     expectedTrustSourceNo: Int,
-    val original: GetTrustAnchorsFromSource<SRC, TRUST_ANCHOR>,
-) : GetTrustAnchorsFromSource<SRC, TRUST_ANCHOR> {
+    val original: GetTrustAnchorsFromSource<QUERY, TRUST_ANCHOR>,
+) : GetTrustAnchorsFromSource<QUERY, TRUST_ANCHOR> {
 
-    private val cached: AsyncCache<SRC, List<TRUST_ANCHOR>> =
+    private val cached: AsyncCache<QUERY, List<TRUST_ANCHOR>?> =
         AsyncCache(scope, clock, ttl, expectedTrustSourceNo) { trustSource ->
             original(trustSource)
         }
 
-    override suspend fun invoke(source: SRC): List<TRUST_ANCHOR> = cached(source)
+    override suspend fun invoke(query: QUERY): List<TRUST_ANCHOR>? = cached(query)
 }
 
 internal class AsyncCache<A : Any, B>(
@@ -122,5 +127,40 @@ internal class AsyncCache<A : Any, B>(
                 cache.remove(key)
             }
         }
+    }
+}
+
+public class GetTrustAnchorsForSupportedQueries<QUERY : Any, out TRUST_ANCHOR : Any>(
+    private val getTrustAnchorsFromSource: GetTrustAnchorsFromSource<QUERY, TRUST_ANCHOR>,
+    private val queries: Set<QUERY>,
+) {
+
+    public suspend operator fun invoke(query: QUERY): List<TRUST_ANCHOR>? =
+        if (query in queries) {
+            val trustAnchors = getTrustAnchorsFromSource(query)
+            checkNotNull(trustAnchors) { "No trust anchors found for supported $query" }
+        } else {
+            null
+        }
+
+    public fun <Q2 : Any> transform(
+        contraMapF: (Q2) -> QUERY,
+        mapF: (QUERY) -> Q2,
+    ): GetTrustAnchorsForSupportedQueries<Q2, TRUST_ANCHOR> {
+        return GetTrustAnchorsForSupportedQueries(
+            getTrustAnchorsFromSource.contraMap(contraMapF),
+            queries.map(mapF).toSet(),
+        )
+    }
+
+    public infix operator fun plus(
+        other: GetTrustAnchorsForSupportedQueries<@UnsafeVariance QUERY, @UnsafeVariance TRUST_ANCHOR>,
+    ): GetTrustAnchorsForSupportedQueries<QUERY, TRUST_ANCHOR> {
+        val common = this.queries.intersect(other.queries)
+        require(common.isEmpty()) { "Sources have overlapping queries: $common" }
+        return GetTrustAnchorsForSupportedQueries(
+            queries = queries + other.queries,
+            getTrustAnchorsFromSource = this.getTrustAnchorsFromSource or other.getTrustAnchorsFromSource,
+        )
     }
 }

@@ -23,6 +23,7 @@ import kotlinx.coroutines.sync.withLock
  *
  * @param TRUST_ANCHORS the type representing trust anchors.
  */
+@Deprecated("ddd")
 public fun interface GetTrustAnchors<out TRUST_ANCHORS : Any> :
     suspend () -> List<TRUST_ANCHORS> {
 

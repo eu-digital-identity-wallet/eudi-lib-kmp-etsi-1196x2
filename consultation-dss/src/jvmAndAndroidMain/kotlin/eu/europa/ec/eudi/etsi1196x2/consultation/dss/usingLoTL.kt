@@ -89,7 +89,10 @@ public fun IsChainTrustedForContext.Companion.usingLoTL(
     coroutineDispatcher: CoroutineDispatcher = Dispatchers.IO,
     ttl: Duration,
 ): IsChainTrustedForContext<List<X509Certificate>, TrustAnchor> {
-    require(sourcePerVerification.isNotEmpty()) { "At least one trusted list source must be provided" }
+    require(sourcePerVerification.isNotEmpty()) {
+        "At least one trusted list source must be provided"
+    }
+
     val getTrustAnchorsUsingDss =
         GetTrustAnchorsUsingDss(
             dispatcher = coroutineDispatcher,
@@ -100,12 +103,16 @@ public fun IsChainTrustedForContext.Companion.usingLoTL(
             expectedSources = sourcePerVerification.size,
             ttl = ttl,
             clock = clock,
-        ).contraMap { ctx: VerificationContext -> checkNotNull(sourcePerVerification[ctx]) }
+        )
 
-    val supportedCtxs = sourcePerVerification.keys
-    return IsChainTrustedForContext(
-        validateCertificateChain,
-        getTrustAnchorsUsingDss,
-        supportedCtxs,
-    )
+    val getTrustAnchorsByContext =
+        GetTrustAnchorsForSupportedQueries(
+            getTrustAnchorsUsingDss,
+            sourcePerVerification.values.toSet(),
+        ).transform(
+            contraMapF = { ctx: VerificationContext -> checkNotNull(sourcePerVerification[ctx]) },
+            mapF = { lotlSource: LOTLSource -> sourcePerVerification.filterValues { it == lotlSource }.keys.first() },
+        )
+
+    return IsChainTrustedForContext(validateCertificateChain, getTrustAnchorsByContext)
 }
