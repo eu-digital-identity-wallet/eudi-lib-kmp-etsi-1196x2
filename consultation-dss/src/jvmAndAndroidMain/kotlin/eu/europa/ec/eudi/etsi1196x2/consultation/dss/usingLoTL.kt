@@ -22,7 +22,6 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import java.security.cert.TrustAnchor
-import java.security.cert.X509Certificate
 import kotlin.time.Clock
 import kotlin.time.Duration
 
@@ -62,8 +61,6 @@ import kotlin.time.Duration
  * @param sourcePerVerification a map of verification contexts to trusted list sources
  * @param validateCertificateChain the function used to validate a given certificate chain
  *        Defaults to [ValidateCertificateChainJvm.Default]
- * @param trustAnchorCreator a function that creates a trust anchor from a [CertificateToken]
- *        Defaults to [DSSTrustAnchorCreator]
  * @param dssAdapter the DSS adapter to use for retrieving the trusted lists certificate source
  *        Defaults to [DSSAdapter.Default]
  * @param clock the clock used to retrieve the current time
@@ -78,7 +75,6 @@ import kotlin.time.Duration
 public fun GetTrustAnchorsForSupportedQueries.Companion.usingLoTL(
     coroutineScope: CoroutineScope = GetTrustAnchors.DEFAULT_SCOPE,
     coroutineDispatcher: CoroutineDispatcher = Dispatchers.IO,
-    trustAnchorCreator: TrustAnchorCreator<X509Certificate> = JvmSecurity.DefaultTrustAnchorCreator,
     clock: Clock = Clock.System,
     ttl: Duration,
     dssOptions: DssOptions = DssOptions.Default,
@@ -91,16 +87,16 @@ public fun GetTrustAnchorsForSupportedQueries.Companion.usingLoTL(
     val doubleQueries = queryPerVerificationContext.values.groupBy { it }.filterValues { it.size > 1 }.keys
     require(doubleQueries.isEmpty()) { "Queries must be unique: $doubleQueries" }
 
-    val getTrustAnchorsFromLoTL: GetTrustAnchors<VerificationContext, TrustAnchor> = GetTrustAnchorsFromLoTL(
-        dispatcher = coroutineDispatcher,
-        trustAnchorCreator = trustAnchorCreator,
-        dssOptions = dssOptions,
-    ).cached(
-        coroutineScope = coroutineScope,
-        expectedSources = queryPerVerificationContext.size,
-        ttl = ttl,
-        clock = clock,
-    ).contraMap { ctx -> checkNotNull(queryPerVerificationContext[ctx]) }
+    val getTrustAnchorsFromLoTL: GetTrustAnchors<VerificationContext, TrustAnchor> =
+        GetTrustAnchorsFromLoTL(
+            dispatcher = coroutineDispatcher,
+            dssOptions = dssOptions,
+        ).cached(
+            coroutineScope = coroutineScope,
+            expectedSources = queryPerVerificationContext.size,
+            ttl = ttl,
+            clock = clock,
+        ).contraMap { ctx -> checkNotNull(queryPerVerificationContext[ctx]) }
 
     return GetTrustAnchorsForSupportedQueries(getTrustAnchorsFromLoTL, queryPerVerificationContext.keys)
 }

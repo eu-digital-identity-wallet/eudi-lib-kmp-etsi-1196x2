@@ -19,9 +19,7 @@ import java.security.Provider
 import java.security.cert.CertPathValidator
 import java.security.cert.CertificateFactory
 import java.security.cert.PKIXParameters
-import java.security.cert.TrustAnchor
-import java.security.cert.X509Certificate
-import java.util.Date
+import java.util.*
 import kotlin.time.Instant
 import kotlin.time.toJavaInstant
 
@@ -54,15 +52,4 @@ public object JvmSecurity {
     public fun withValidationDate(at: Instant): PKIXParameters.() -> Unit = {
         date = Date.from(at.toJavaInstant())
     }
-
-    /**
-     * Default trust anchor creator that creates a trust anchor with no name constraints.
-     */
-    public val DefaultTrustAnchorCreator: TrustAnchorCreator<X509Certificate> =
-        trustAnchorCreator()
-
-    public fun trustAnchorCreator(
-        nameConstraints: ByteArray? = null,
-    ): TrustAnchorCreator<X509Certificate> =
-        TrustAnchorCreator { TrustAnchor(it, nameConstraints) }
 }

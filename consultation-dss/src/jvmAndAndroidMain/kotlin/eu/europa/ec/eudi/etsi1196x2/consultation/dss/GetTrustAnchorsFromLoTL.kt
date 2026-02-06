@@ -16,12 +16,12 @@
 package eu.europa.ec.eudi.etsi1196x2.consultation.dss
 
 import eu.europa.ec.eudi.etsi1196x2.consultation.GetTrustAnchors
-import eu.europa.ec.eudi.etsi1196x2.consultation.TrustAnchorCreator
 import eu.europa.ec.eudi.etsi1196x2.consultation.dss.DssOptions.Companion.DEFAULT_CLEAN_FILE_SYSTEM
 import eu.europa.ec.eudi.etsi1196x2.consultation.dss.DssOptions.Companion.DEFAULT_CLEAN_MEMORY
 import eu.europa.ec.eudi.etsi1196x2.consultation.dss.DssOptions.Companion.DefaultFileCacheExpiration
 import eu.europa.ec.eudi.etsi1196x2.consultation.dss.DssOptions.Companion.DefaultHttpLoader
 import eu.europa.ec.eudi.etsi1196x2.consultation.dss.DssOptions.Companion.DefaultSynchronizationStrategy
+import eu.europa.esig.dss.model.x509.CertificateToken
 import eu.europa.esig.dss.service.http.commons.FileCacheDataLoader
 import eu.europa.esig.dss.spi.client.http.DSSCacheFileLoader
 import eu.europa.esig.dss.spi.client.http.DataLoader
@@ -33,10 +33,10 @@ import eu.europa.esig.dss.tsl.source.LOTLSource
 import eu.europa.esig.dss.tsl.sync.ExpirationAndSignatureCheckStrategy
 import eu.europa.esig.dss.tsl.sync.SynchronizationStrategy
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.nio.file.Path
 import java.security.cert.TrustAnchor
-import java.security.cert.X509Certificate
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.hours
 
@@ -145,35 +145,35 @@ public data class DssOptions(
 }
 
 public class GetTrustAnchorsFromLoTL(
-    private val dispatcher: CoroutineDispatcher,
-    private val trustAnchorCreator: TrustAnchorCreator<X509Certificate>,
-    private val dssOptions: DssOptions,
+    private val dispatcher: CoroutineDispatcher = Dispatchers.IO,
+    private val dssOptions: DssOptions = DssOptions.Default,
 ) : GetTrustAnchors<LOTLSource, TrustAnchor> {
 
     override suspend fun invoke(query: LOTLSource): List<TrustAnchor> =
         withContext(dispatcher) {
-            val trustedListsCertificateSource =
-                TrustedListsCertificateSource().apply { runValidationJobFor(query) }
-            trustedListsCertificateSource.trustAnchors(trustAnchorCreator)
+            runValidationJobFor(query).certificates.map { certificateToken ->
+                trustAnchorFrom(certificateToken)
+            }
         }
 
-    private fun TrustedListsCertificateSource.trustAnchors(
-        trustAnchorCreator: TrustAnchorCreator<X509Certificate>,
-    ): List<TrustAnchor> = certificates.map { certificateToken -> trustAnchorCreator(certificateToken.certificate) }
+    private fun trustAnchorFrom(token: CertificateToken): TrustAnchor =
+        TrustAnchor(token.certificate, null)
 
-    private fun TrustedListsCertificateSource.runValidationJobFor(lotlSource: LOTLSource) {
-        TLValidationJob().apply {
-            setListOfTrustedListSources(lotlSource)
-            setOnlineDataLoader(dssOptions.loader)
-            setTrustedListCertificateSource(this@runValidationJobFor)
-            setSynchronizationStrategy(dssOptions.synchronizationStrategy)
-            setCacheCleaner(
-                CacheCleaner().apply {
-                    setCleanMemory(dssOptions.cleanMemory)
-                    setCleanFileSystem(dssOptions.cleanFileSystem)
-                    setDSSFileLoader(dssOptions.loader)
-                },
-            )
-        }.onlineRefresh()
-    }
+    private fun runValidationJobFor(lotlSource: LOTLSource): TrustedListsCertificateSource =
+        TrustedListsCertificateSource().apply {
+            val self = this
+            TLValidationJob().apply {
+                setListOfTrustedListSources(lotlSource)
+                setOnlineDataLoader(dssOptions.loader)
+                setTrustedListCertificateSource(self)
+                setSynchronizationStrategy(dssOptions.synchronizationStrategy)
+                setCacheCleaner(
+                    CacheCleaner().apply {
+                        setCleanMemory(dssOptions.cleanMemory)
+                        setCleanFileSystem(dssOptions.cleanFileSystem)
+                        setDSSFileLoader(dssOptions.loader)
+                    },
+                )
+            }.onlineRefresh()
+        }
 }

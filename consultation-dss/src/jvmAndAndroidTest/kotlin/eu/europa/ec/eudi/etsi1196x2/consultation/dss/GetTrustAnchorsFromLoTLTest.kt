@@ -15,11 +15,9 @@
  */
 package eu.europa.ec.eudi.etsi1196x2.consultation.dss
 
-import eu.europa.ec.eudi.etsi1196x2.consultation.JvmSecurity
 import eu.europa.esig.dss.spi.client.http.NativeHTTPDataLoader
 import eu.europa.esig.dss.tsl.function.GrantedOrRecognizedAtNationalLevelTrustAnchorPeriodPredicate
 import eu.europa.esig.dss.tsl.source.LOTLSource
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.test.runTest
 import java.nio.file.Files
 import java.nio.file.Path
@@ -29,7 +27,7 @@ import kotlin.test.Ignore
 import kotlin.test.Test
 import kotlin.time.Duration.Companion.seconds
 
-class DSSAdapterOpsTest {
+class GetTrustAnchorsFromLoTLTest {
 
     /**
      * Test is not deterministic
@@ -40,7 +38,7 @@ class DSSAdapterOpsTest {
         val path: Path = Files.createTempDirectory("dss-cache")
         val expiration = 2.seconds
         val observableHttpLoader = ObservableHttpLoader(NativeHTTPDataLoader())
-        val config = DssOptions.usingFileCacheDataLoader(
+        val dssOptions = DssOptions.usingFileCacheDataLoader(
             cacheDirectory = path,
             fileCacheExpiration = expiration,
             cleanFileSystem = true,
@@ -48,11 +46,7 @@ class DSSAdapterOpsTest {
             httpLoader = observableHttpLoader,
         )
 
-        val getTrustAnchorsFromLoTL = GetTrustAnchorsFromLoTL(
-            dispatcher = Dispatchers.IO,
-            trustAnchorCreator = JvmSecurity.DefaultTrustAnchorCreator,
-            dssOptions = config,
-        )
+        val getTrustAnchorsFromLoTL = GetTrustAnchorsFromLoTL(dssOptions = dssOptions)
 
         val lotlSource = lotlSource(pidSvcType)
 

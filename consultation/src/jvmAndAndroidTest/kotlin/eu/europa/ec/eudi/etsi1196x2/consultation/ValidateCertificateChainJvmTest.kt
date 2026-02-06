@@ -180,6 +180,6 @@ private suspend fun validate(
             ?: ValidateCertificateChainJvm(customization = customization)
 
     val trustAnchors =
-        trust.map(JvmSecurity.DefaultTrustAnchorCreator::invoke).toSet()
+        trust.map { TrustAnchor(it, null) }.toSet()
     return validateCertificateChain(chain, trustAnchors)
 }
