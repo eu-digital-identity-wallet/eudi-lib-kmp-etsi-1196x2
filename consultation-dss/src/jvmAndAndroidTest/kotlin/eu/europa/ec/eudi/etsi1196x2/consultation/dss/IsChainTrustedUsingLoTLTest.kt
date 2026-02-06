@@ -15,10 +15,7 @@
  */
 package eu.europa.ec.eudi.etsi1196x2.consultation.dss
 
-import eu.europa.ec.eudi.etsi1196x2.consultation.CertificationChainValidation
-import eu.europa.ec.eudi.etsi1196x2.consultation.IsChainTrustedForContext
-import eu.europa.ec.eudi.etsi1196x2.consultation.ValidateCertificateChainJvm
-import eu.europa.ec.eudi.etsi1196x2.consultation.VerificationContext
+import eu.europa.ec.eudi.etsi1196x2.consultation.*
 import eu.europa.ec.eudi.etsi1196x2.consultation.dss.EUDIRefDevEnv.httpLoader
 import eu.europa.esig.dss.spi.client.http.NativeHTTPDataLoader
 import eu.europa.esig.dss.tsl.function.GrantedOrRecognizedAtNationalLevelTrustAnchorPeriodPredicate
@@ -63,22 +60,24 @@ object EUDIRefDevEnv {
 
     val httpLoader = ObservableHttpLoader(NativeHTTPDataLoader())
     val isChainTrustedForContext =
-        IsChainTrustedForContext.usingLoTL(
-            dssOptions = DssOptions.usingFileCacheDataLoader(
-                fileCacheExpiration = 24.hours,
-                cacheDirectory = createTempDirectory("lotl-cache"),
-                httpLoader = httpLoader,
-            ),
-            sourcePerVerification = buildMap {
-                put(VerificationContext.PID, lotlSource(PID_SVC_TYPE))
-                put(VerificationContext.PubEAA, lotlSource(PUB_EAA_SVC_TYPE))
-            },
+        IsChainTrustedForContext(
             validateCertificateChain = ValidateCertificateChainJvm(customization = {
                 isRevocationEnabled = false
             }),
-            coroutineScope = CoroutineScope(Dispatchers.Default + SupervisorJob()),
-            coroutineDispatcher = Dispatchers.IO,
-            ttl = 10.seconds,
+            getTrustAnchorsByContext = GetTrustAnchorsForSupportedQueries.usingLoTL(
+                dssOptions = DssOptions.usingFileCacheDataLoader(
+                    fileCacheExpiration = 24.hours,
+                    cacheDirectory = createTempDirectory("lotl-cache"),
+                    httpLoader = httpLoader,
+                ),
+                sourcePerVerification = buildMap {
+                    put(VerificationContext.PID, lotlSource(PID_SVC_TYPE))
+                    put(VerificationContext.PubEAA, lotlSource(PUB_EAA_SVC_TYPE))
+                },
+                coroutineScope = CoroutineScope(Dispatchers.Default + SupervisorJob()),
+                coroutineDispatcher = Dispatchers.IO,
+                ttl = 10.seconds,
+            ),
         )
 }
 

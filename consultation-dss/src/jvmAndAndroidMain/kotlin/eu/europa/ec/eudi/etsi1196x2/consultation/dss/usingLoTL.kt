@@ -23,12 +23,11 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import java.security.cert.TrustAnchor
-import java.security.cert.X509Certificate
 import kotlin.time.Clock
 import kotlin.time.Duration
 
 /**
- * Creates an instance of [IsChainTrustedForContext] using a trusted list of trust anchors (LoTL) and a file cache loader.
+ * Creates an instance of [GetTrustAnchorsForSupportedQueries] using a trusted list of trust anchors (LoTL) and a file cache loader.
  * The implementation has the following characteristics:
  * - Utilizes a file cache loader to load trusted lists from the file system
  * - Depending on the file cache loader configuration, the file downloader may use an online fetcher to
@@ -43,23 +42,20 @@ import kotlin.time.Duration
  * - Every 24 hours, the trusted lists are fetched from the internet
  *
  * ```kotlin
- * IsChainTrustedForContext.usingLoTL(
- *   IsChainTrustedForContext.usingLoTL(
- *     dssAdapter = DSSAdapter.usingFileCacheDataLoader(
+ *
+ *   GetTrustAnchorsForSupportedQueries.usingLoTL(
+ *     dssOptions = DssOptions.usingFileCacheDataLoader(
  *         fileCacheExpiration = 24.hours,
  *         cacheDirectory = createTempDirectory("lotl-cache"),
  *     ),
  *     sourcePerVerification = buildMap {
  *         put(VerificationContext.PubEAA, lotlSource(PUB_EAA_SVC_TYPE))
  *     },
- *     validateCertificateChain = ValidateCertificateChainJvm(customization = {
- *         isRevocationEnabled = false
- *     }),
  *     coroutineScope = CoroutineScope(Dispatchers.Default + SupervisorJob()),
  *     coroutineDispatcher = Dispatchers.IO,
  *     ttl = 10.seconds,
  *  )
- * )
+ *
  * ````
  *
 
@@ -79,40 +75,35 @@ import kotlin.time.Duration
  * @param ttl the time-to-live duration for caching the certificate source.
  *
  */
-public fun IsChainTrustedForContext.Companion.usingLoTL(
+public fun GetTrustAnchorsForSupportedQueries.Companion.usingLoTL(
     sourcePerVerification: Map<VerificationContext, LOTLSource>,
-    validateCertificateChain: ValidateCertificateChain<List<X509Certificate>, TrustAnchor> = ValidateCertificateChainJvm.Default,
     trustAnchorCreator: TrustAnchorCreator<CertificateToken, TrustAnchor> = DSSTrustAnchorCreator,
     dssOptions: DssOptions = DssOptions.Default,
     clock: Clock = Clock.System,
     coroutineScope: CoroutineScope = GetTrustAnchorsFromSource.DEFAULT_SCOPE,
     coroutineDispatcher: CoroutineDispatcher = Dispatchers.IO,
     ttl: Duration,
-): IsChainTrustedForContext<List<X509Certificate>, TrustAnchor> {
+): GetTrustAnchorsForSupportedQueries<VerificationContext, TrustAnchor> {
     require(sourcePerVerification.isNotEmpty()) {
         "At least one trusted list source must be provided"
     }
 
-    val getTrustAnchorsUsingDss =
-        GetTrustAnchorsUsingDss(
-            dispatcher = coroutineDispatcher,
-            trustAnchorCreator = trustAnchorCreator,
-            dssOptions = dssOptions,
-        ).cached(
-            coroutineScope = coroutineScope,
-            expectedSources = sourcePerVerification.size,
-            ttl = ttl,
-            clock = clock,
-        )
+    val getTrustAnchorsUsingDss = GetTrustAnchorsUsingDss(
+        dispatcher = coroutineDispatcher,
+        trustAnchorCreator = trustAnchorCreator,
+        dssOptions = dssOptions,
+    ).cached(
+        coroutineScope = coroutineScope,
+        expectedSources = sourcePerVerification.size,
+        ttl = ttl,
+        clock = clock,
+    )
 
-    val getTrustAnchorsByContext =
-        GetTrustAnchorsForSupportedQueries(
-            getTrustAnchorsUsingDss,
-            sourcePerVerification.values.toSet(),
-        ).transform(
-            contraMapF = { ctx: VerificationContext -> checkNotNull(sourcePerVerification[ctx]) },
-            mapF = { lotlSource: LOTLSource -> sourcePerVerification.filterValues { it == lotlSource }.keys.first() },
-        )
-
-    return IsChainTrustedForContext(validateCertificateChain, getTrustAnchorsByContext)
+    return GetTrustAnchorsForSupportedQueries(
+        getTrustAnchorsUsingDss,
+        sourcePerVerification.values.toSet(),
+    ).transform(
+        contraMapF = { ctx: VerificationContext -> checkNotNull(sourcePerVerification[ctx]) },
+        mapF = { lotlSource: LOTLSource -> sourcePerVerification.filterValues { it == lotlSource }.keys.first() },
+    )
 }
