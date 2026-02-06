@@ -9,19 +9,53 @@ to verify the trustworthiness of credentials (PIDs, EAAs)
 and attestation objects (WIA, WUA) by navigating trust trees within 
 the European Union's identity framework.
 
+## Quick Start
+
+### 1. Add dependency
+
+Add the following to your `build.gradle.kts`:
+
+```kotlin
+dependencies {
+    implementation("eu.europa.ec.eudi:etsi-1196x2-consultation:$version")
+}
+```
+
+### 2. Configure Attestation Classifications
+
+Define how different attestation types (MDoc, SD-JWT VC) map to your `VerificationContext`.
+
+```kotlin
+val classifications = AttestationClassifications(
+    pids = AttestationIdentifierPredicate.mdocMatching(Regex(".*PID.*")),
+    pubEAAs = AttestationIdentifierPredicate.sdJwtVcMatching(Regex(".*PublicEAA.*"))
+)
+```
+
+### 3. Use the High-Level API
+
+```kotlin
+val validator = IsChainTrustedForAttestation(
+    isChainTrustedForContext = myIsChainTrustedForContext, // Implementation of IsChainTrustedForContext
+    classifications = classifications
+)
+
+val result = validator.issuance(chain, MDoc("eu.europa.ec.eudi.pid.1"))
+```
+
 ## Core abstractions
 
 The library separates the discovery of trust from the execution of validation logic using 
-a high-level functional approach
+a high-level functional approach.
 
 🛡️ **Validation & Context**
 
-- `VerificationContext`: A sealed hierarchy representing specific EUDI use cases (
-   e.g., PID issuance, Wallet Unit Attestation, or Relying Party registration).
-- `ValidateCertificateChain`: A functional abstaction of an engine that 
-   performs cryptographic PKIX validation of an X.509 chain against trust anchors.
-- `IsChainTrustedForContext`: The high-level orchestrator that resolves the correct trust  
-   anchors for a given context and triggers the validation engine
+- `VerificationContext`: A sealed hierarchy representing specific EUDI use cases.
+  - `PID`, `PubEAA`, `QEAA`: For credentials.
+  - `WalletInstanceAttestation`, `WalletUnitAttestation`: For wallet-specific attestations.
+  - `WalletRelyingPartyRegistrationCertificate`: For Verifier/Issuer certificates.
+- `ValidateCertificateChain`: A functional abstraction of an engine that performs cryptographic PKIX validation of an X.509 chain against trust anchors.
+- `IsChainTrustedForContext`: The high-level orchestrator that resolves the correct trust anchors for a given context and triggers the validation engine.
 
 🔍 **Trust Discovery**
 
@@ -62,8 +96,13 @@ the seamless merging of multiple trust sources.
 Designed from the ground up for asynchronous environments (KMP):
 - `suspend` everywhere: All I/O-bound and CPU-intensive tasks are suspendable.
 - **Structured Concurrency**: Uses `SupervisorJob` and explicit `CoroutineDispatchers` to ensure stability.
-- **Concurrency Guarding**: Features a custom `InvokeOnce` utility and an `AsyncCache` 
-  to prevent redundant computations and "cache stampedes.
+- **Concurrency Guarding**: Features a custom `InvokeOnce` utility and an `AsyncCache` to prevent redundant computations and "cache stampedes".
+
+## Platform Support
+
+The consultation module is a **Kotlin Multiplatform (KMP)** module.
+- **commonMain**: Core logic and abstractions.
+- **jvmAndAndroidMain**: Specific implementations for JVM and Android (e.g., `ValidateCertificateChainJvm`).
 
 
 

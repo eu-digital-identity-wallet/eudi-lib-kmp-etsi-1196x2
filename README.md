@@ -1,1 +1,43 @@
-# eudi-lib-kmp-etsi-1196x2
+# EUDI ETSI 119 6x2 Consultation Library
+
+The **EUDI ETSI 119 6x2 Consultation Library** is a Kotlin Multiplatform (KMP) project designed for the European Digital Identity (EUDI) Wallet ecosystem. It provides an extensible and secure framework for Certificate Chain Validation against dynamic Trust Anchors, enabling the verification of credentials and attestation objects by navigating trust trees within the European Union's identity framework.
+
+## Problem Solved
+
+In the EUDI ecosystem, verifying the trustworthiness of credentials (like PID or EAA) and attestations (like Wallet Unit Attestation) requires validating certificate chains against specific trust roots. These trust roots are often dynamic and published in various formats, such as ETSI TS 119 612 Trusted Lists.
+
+This library simplifies this process by:
+- Separating trust discovery from validation logic.
+- Providing high-level abstractions for common EUDI use cases.
+- Offering implementations for automated fetching and verification of the European List of Trusted Lists (LOTL).
+
+## Target Audience
+
+This library is designed for:
+- **Wallets**: To verify the trustworthiness of credentials they receive and to handle attestation objects.
+- **Verifiers (Relying Parties)**: To verify credentials presented by a Wallet against the required trust anchors.
+- **Issuers**: To verify Wallet attestations during the credential issuance process.
+
+## Project Structure
+
+The library is divided into two main modules:
+
+### 1. [Consultation](./consultation/README.md)
+The core module providing the fundamental abstractions and common validation logic.
+- **Features**: Functional architecture for trust discovery, attestation classification, and certificate chain validation.
+- **Platform Support**: Common (KMP).
+
+### 2. [Consultation-DSS](./consultation-dss/README.md)
+An extension module that leverages the [Digital Signature Service (DSS)](https://github.com/esig/dss) to support ETSI Trusted Lists.
+- **Features**: Automated LOTL/TL synchronization, multi-tier caching (In-Memory, File System), and DSS-based validation.
+- **Platform Support**: JVM and Android.
+
+## Key Abstractions
+
+- `VerificationContext`: Represents specific EUDI use cases (e.g., PID issuance).
+- `GetTrustAnchors`: A functional interface for retrieving anchors based on a query.
+- `IsChainTrustedForContext`: The orchestrator that resolves trust anchors and triggers validation.
+
+## License
+
+This project is licensed under the Apache License 2.0. See the [LICENSE](LICENSE) file for details.
