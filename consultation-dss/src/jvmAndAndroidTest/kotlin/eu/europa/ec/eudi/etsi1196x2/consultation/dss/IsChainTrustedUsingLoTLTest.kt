@@ -15,10 +15,7 @@
  */
 package eu.europa.ec.eudi.etsi1196x2.consultation.dss
 
-import eu.europa.ec.eudi.etsi1196x2.consultation.CertificationChainValidation
-import eu.europa.ec.eudi.etsi1196x2.consultation.IsChainTrustedForContext
-import eu.europa.ec.eudi.etsi1196x2.consultation.ValidateCertificateChainJvm
-import eu.europa.ec.eudi.etsi1196x2.consultation.VerificationContext
+import eu.europa.ec.eudi.etsi1196x2.consultation.*
 import eu.europa.ec.eudi.etsi1196x2.consultation.dss.EUDIRefDevEnv.httpLoader
 import eu.europa.esig.dss.spi.client.http.NativeHTTPDataLoader
 import eu.europa.esig.dss.tsl.function.GrantedOrRecognizedAtNationalLevelTrustAnchorPeriodPredicate
@@ -62,23 +59,25 @@ object EUDIRefDevEnv {
     }
 
     val httpLoader = ObservableHttpLoader(NativeHTTPDataLoader())
-    val isChainTrustedForContext =
-        IsChainTrustedForContext.usingLoTL(
-            dssAdapter = DSSAdapter.usingFileCacheDataLoader(
+
+    val trustAnchorsPerContext =
+        GetTrustAnchorsForSupportedQueries.usingLoTL(
+            dssOptions = DssOptions.usingFileCacheDataLoader(
                 fileCacheExpiration = 24.hours,
                 cacheDirectory = createTempDirectory("lotl-cache"),
                 httpLoader = httpLoader,
             ),
-            sourcePerVerification = buildMap {
+            queryPerVerificationContext = buildMap {
                 put(VerificationContext.PID, lotlSource(PID_SVC_TYPE))
                 put(VerificationContext.PubEAA, lotlSource(PUB_EAA_SVC_TYPE))
             },
-            validateCertificateChain = ValidateCertificateChainJvm(customization = {
-                isRevocationEnabled = false
-            }),
-            coroutineScope = CoroutineScope(Dispatchers.Default + SupervisorJob()),
-            coroutineDispatcher = Dispatchers.IO,
             ttl = 10.seconds,
+        )
+
+    val isChainTrustedForContext =
+        IsChainTrustedForContext(
+            ValidateCertificateChainJvm(customization = { isRevocationEnabled = false }),
+            trustAnchorsPerContext,
         )
 }
 

@@ -158,10 +158,6 @@ public fun interface IsChainTrustedForContextF<in CHAIN : Any, out TRUST_ANCHOR 
 /**
  * A default implementation of [IsChainTrustedForContextF]
  *
- * Combinators:
- * - [plus]: combine two instances of IsChainTrustedForContext into a single one
- * - [contraMap]: change the chain of certificates representation
- *
  * @param validateCertificateChain the certificate chain validation function
  * @param getTrustAnchorsByContext the supported verification contexts and their corresponding trust anchors sources
 
@@ -170,7 +166,7 @@ public fun interface IsChainTrustedForContextF<in CHAIN : Any, out TRUST_ANCHOR 
  */
 public class IsChainTrustedForContext<in CHAIN : Any, out TRUST_ANCHOR : Any>(
     private val validateCertificateChain: ValidateCertificateChain<CHAIN, TRUST_ANCHOR>,
-    private val getTrustAnchorsByContext: Map<VerificationContext, GetTrustAnchors<TRUST_ANCHOR>>,
+    private val getTrustAnchorsByContext: GetTrustAnchorsForSupportedQueries<VerificationContext, TRUST_ANCHOR>,
 ) : IsChainTrustedForContextF<CHAIN, TRUST_ANCHOR> {
 
     /**
@@ -180,37 +176,20 @@ public class IsChainTrustedForContext<in CHAIN : Any, out TRUST_ANCHOR : Any>(
      * @param chain certificate chain to check
      * @param verificationContext verification context
      * @return outcome of the check. A null value indicates that the given [verificationContext] has not been configured
+     * @throws IllegalStateException if the given [verificationContext] was configured but underlying source didn't return anchors
      */
+    @Throws(IllegalStateException::class)
     public override suspend operator fun invoke(
         chain: CHAIN,
         verificationContext: VerificationContext,
     ): CertificationChainValidation<TRUST_ANCHOR>? =
         withContext(CoroutineName(name = "IsChainTrustedForContext - $verificationContext")) {
-            getTrustAnchorsByContext[verificationContext]?.let { getTrustAnchors ->
-                val trustAnchors = getTrustAnchors()
-                validateCertificateChain(chain, trustAnchors.toSet())
+            when (val outcome = getTrustAnchorsByContext(verificationContext)) {
+                is GetTrustAnchorsForSupportedQueries.Outcome.Found<TRUST_ANCHOR> -> validateCertificateChain(chain, outcome.trustAnchors)
+                GetTrustAnchorsForSupportedQueries.Outcome.MisconfiguredSource -> error("Could not get trust anchors for verification context $verificationContext")
+                GetTrustAnchorsForSupportedQueries.Outcome.QueryNotSupported -> null
             }
         }
-
-    /**
-     * Combines two instances into a single one
-     *
-     * ```kotlin
-     * val a : IsChainTrustedForContext<CertificateChain, TrustAnchor> = ...
-     * val b : IsChainTrustedForContext<CertificateChain, TrustAnchor> = ...
-     * val combined = a + b
-     * ```
-     *
-     * @param other another IsChainTrustedForContext instance
-     * @return new instance with combined sources
-     */
-    public operator fun plus(
-        other: IsChainTrustedForContext<@UnsafeVariance CHAIN, @UnsafeVariance TRUST_ANCHOR>,
-    ): IsChainTrustedForContext<CHAIN, TRUST_ANCHOR> =
-        IsChainTrustedForContext(
-            validateCertificateChain,
-            this.getTrustAnchorsByContext + other.getTrustAnchorsByContext,
-        )
 
     /**
      * Changes the chain of certificates representation
@@ -244,9 +223,13 @@ public class IsChainTrustedForContext<in CHAIN : Any, out TRUST_ANCHOR : Any>(
      */
     @SensitiveApi
     public fun recoverWith(
-        recovery: (VerificationContext) -> ((CertificationChainValidation.NotTrusted) -> GetTrustAnchors<@UnsafeVariance TRUST_ANCHOR>?),
+        recovery: (CertificationChainValidation.NotTrusted) -> GetTrustAnchorsForSupportedQueries<VerificationContext, @UnsafeVariance TRUST_ANCHOR>?,
     ): IsChainTrustedForContextF<CHAIN, TRUST_ANCHOR> =
-        UnsafeIsChainTrustedForContext(validateCertificateChain, getTrustAnchorsByContext, recovery)
+        UnsafeIsChainTrustedForContext(this) { notTrusted ->
+            recovery(notTrusted)?.let {
+                IsChainTrustedForContext(validateCertificateChain, it)
+            }
+        }
 
     public companion object
 }

@@ -13,10 +13,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package eu.europa.ec.eudi.etsi1196x2.consultation.dss
+package eu.europa.ec.eudi.etsi1196x2.consultation
 
-import kotlinx.coroutines.*
-import kotlinx.coroutines.test.*
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.TestCoroutineScheduler
+import kotlinx.coroutines.test.advanceTimeBy
+import kotlinx.coroutines.test.runCurrent
+import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.time.Clock
@@ -36,11 +43,10 @@ class AsyncCacheTest {
     @Test
     fun failureInOneKeyDoesNotCancelScopeAndAffectOtherKeys() = runTest {
         val scope = CoroutineScope(StandardTestDispatcher(testScheduler))
-        val dispatcher = StandardTestDispatcher(testScheduler)
         val ttl = 1000.milliseconds
         val clock = TestClock(testScheduler)
 
-        val cache = AsyncCache<String, String>(scope, dispatcher, clock, ttl, 10) { key ->
+        val cache = AsyncCache<String, String>(scope, clock, ttl, 10) { key ->
             if (key == "fail") {
                 throw RuntimeException("Planned failure")
             }
@@ -63,11 +69,10 @@ class AsyncCacheTest {
     fun failingTaskDoesNotEvictNewerValidEntry() = runTest {
         var supplierCalls = 0
         val scope = CoroutineScope(StandardTestDispatcher(testScheduler))
-        val dispatcher = StandardTestDispatcher(testScheduler)
         val ttl = 100.milliseconds
         val clock = TestClock(testScheduler)
 
-        val cache = AsyncCache<String, String>(scope, dispatcher, clock, ttl, 10) { key ->
+        val cache = AsyncCache<String, String>(scope, clock, ttl, 10) { key ->
             supplierCalls++
             if (key == "fail" && supplierCalls == 1) {
                 delay(200) // Longer than TTL

@@ -15,12 +15,23 @@
  */
 package eu.europa.ec.eudi.etsi1196x2.consultation
 
-/**
- * A way to create a trust anchor from a certificate
- *
- * @param CERT the type representing a certificate, or structure holding a certificate
- * @param TRUST_ANCHOR the type representing a trust anchor
- */
-public fun interface TrustAnchorCreator<in CERT : Any, out TRUST_ANCHOR : Any> {
-    public operator fun invoke(cert: CERT): TRUST_ANCHOR
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+
+internal class InvokeOnce<T : Any>(
+    private val source: suspend () -> T,
+) : suspend () -> T {
+
+    private val mutex = Mutex()
+
+    @Volatile
+    private var cache: T? = null
+
+    private suspend fun invokeOnce(): T = source.invoke()
+
+    override suspend fun invoke(): T =
+        cache ?: mutex.withLock {
+            // check again in case another thread read the keystore before us
+            cache ?: invokeOnce().also { cache = it }
+        }
 }

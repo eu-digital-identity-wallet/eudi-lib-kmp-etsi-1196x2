@@ -13,9 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package eu.europa.ec.eudi.etsi1196x2.consultation.dss
+package eu.europa.ec.eudi.etsi1196x2.consultation
 
-import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Job
@@ -29,14 +28,13 @@ import kotlin.time.Duration
 
 internal class AsyncCache<A : Any, B>(
     coroutineScope: CoroutineScope,
-    private val coroutineDispatcher: CoroutineDispatcher,
     private val clock: Clock,
     private val ttl: Duration,
     private val maxCacheSize: Int,
     private val supplier: suspend (A) -> B,
 ) : suspend (A) -> B {
 
-    private val scope = coroutineScope + SupervisorJob(coroutineScope.coroutineContext[Job])
+    private val scope = coroutineScope + SupervisorJob(coroutineScope.coroutineContext[Job.Key])
 
     private data class Entry<B>(val deferred: Deferred<B>, val createdAt: Long)
 
@@ -55,7 +53,7 @@ internal class AsyncCache<A : Any, B>(
                 existing
             } else {
                 // Launch new computation
-                val newDeferred = scope.async(coroutineDispatcher) {
+                val newDeferred = scope.async {
                     supplier(key)
                 }
                 Entry(newDeferred, now).also { cache[key] = it }

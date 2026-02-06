@@ -18,26 +18,18 @@ package eu.europa.ec.eudi.etsi1196x2.consultation
 import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.withContext
 
-internal typealias RecoverF<TRUST_ANCHOR> = (CertificationChainValidation.NotTrusted) -> GetTrustAnchors<TRUST_ANCHOR>?
-
 /**
  * A class for checking the trustworthiness of a certificate chain
  * in the context of a specific [verification][VerificationContext]
  *
  *
- * @param validateCertificateChain the certificate chain validation function
- * @param getTrustAnchorsByContext the supported verification contexts and their corresponding trust anchors sources
- * @param getRecoveryTrustAnchors the supported verification contexts and their corresponding recovery functions for
- *        failed certificate chain validation attempts. The recovery functions are used to generate alternative
- *        validation functions in the context of an error.
  * @param CHAIN type representing a certificate chain
  * @param TRUST_ANCHOR type representing a trust anchor
  */
 @SensitiveApi
 internal class UnsafeIsChainTrustedForContext<in CHAIN : Any, out TRUST_ANCHOR : Any>(
-    private val validateCertificateChain: ValidateCertificateChain<CHAIN, TRUST_ANCHOR>,
-    private val getTrustAnchorsByContext: Map<VerificationContext, GetTrustAnchors<TRUST_ANCHOR>>,
-    private val getRecoveryTrustAnchors: Map<VerificationContext, RecoverF<TRUST_ANCHOR>>,
+    private val primary: IsChainTrustedForContext<CHAIN, TRUST_ANCHOR>,
+    private val recovery: (CertificationChainValidation.NotTrusted) -> IsChainTrustedForContext<CHAIN, TRUST_ANCHOR>?,
 ) : IsChainTrustedForContextF<CHAIN, TRUST_ANCHOR> {
 
     /**
@@ -52,15 +44,13 @@ internal class UnsafeIsChainTrustedForContext<in CHAIN : Any, out TRUST_ANCHOR :
         chain: CHAIN,
         verificationContext: VerificationContext,
     ): CertificationChainValidation<TRUST_ANCHOR>? =
-        withContext(CoroutineName(name = "UnsafeIsChainTrustedForContext - $verificationContext")) {
-            getTrustAnchorsByContext[verificationContext]?.let { getTrustAnchors ->
-                val trustAnchors = getTrustAnchors()
-                when (val validation = validateCertificateChain(chain, trustAnchors.toSet())) {
-                    is CertificationChainValidation.Trusted<TRUST_ANCHOR> -> validation
-                    is CertificationChainValidation.NotTrusted ->
-                        tryToRecover(chain, verificationContext, validation) ?: validation
+        when (val validation = primary(chain, verificationContext)) {
+            null -> null
+            is CertificationChainValidation.Trusted<TRUST_ANCHOR> -> validation
+            is CertificationChainValidation.NotTrusted ->
+                withContext(CoroutineName(name = "Recovering - $verificationContext")) {
+                    tryToRecover(chain, verificationContext, validation)
                 }
-            }
         }
 
     private suspend fun tryToRecover(
@@ -68,30 +58,5 @@ internal class UnsafeIsChainTrustedForContext<in CHAIN : Any, out TRUST_ANCHOR :
         verificationContext: VerificationContext,
         notTrusted: CertificationChainValidation.NotTrusted,
     ): CertificationChainValidation<TRUST_ANCHOR>? =
-        getRecoveryTrustAnchors[verificationContext]
-            ?.let { fallBack -> fallBack(notTrusted) }
-            ?.let { getFallbackTrustAnchors -> validateCertificateChain(chain, getFallbackTrustAnchors().toSet()) }
-
-    companion object {
-        operator fun <CHAIN : Any, TRUST_ANCHOR : Any> invoke(
-            validateCertificateChain: ValidateCertificateChain<CHAIN, TRUST_ANCHOR>,
-            getTrustAnchorsByContext: Map<VerificationContext, GetTrustAnchors<TRUST_ANCHOR>>,
-            recovery: (VerificationContext) -> RecoverF<@UnsafeVariance TRUST_ANCHOR>?,
-        ): UnsafeIsChainTrustedForContext<CHAIN, TRUST_ANCHOR> {
-            val getRecoveryTrustAnchors =
-                buildMap {
-                    for (ctx in getTrustAnchorsByContext.keys) {
-                        val fallback = recovery(ctx)
-                        if (fallback != null) {
-                            put(ctx, fallback)
-                        }
-                    }
-                }
-            return UnsafeIsChainTrustedForContext(
-                validateCertificateChain,
-                getTrustAnchorsByContext,
-                getRecoveryTrustAnchors,
-            )
-        }
-    }
+        recovery(notTrusted)?.let { fallback -> fallback(chain, verificationContext) }
 }

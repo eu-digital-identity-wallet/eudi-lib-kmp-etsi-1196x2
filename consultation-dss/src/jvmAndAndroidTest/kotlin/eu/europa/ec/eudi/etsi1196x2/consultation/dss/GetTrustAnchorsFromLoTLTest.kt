@@ -18,9 +18,7 @@ package eu.europa.ec.eudi.etsi1196x2.consultation.dss
 import eu.europa.esig.dss.spi.client.http.NativeHTTPDataLoader
 import eu.europa.esig.dss.tsl.function.GrantedOrRecognizedAtNationalLevelTrustAnchorPeriodPredicate
 import eu.europa.esig.dss.tsl.source.LOTLSource
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.test.runTest
-import kotlinx.coroutines.withContext
 import java.nio.file.Files
 import java.nio.file.Path
 import java.util.function.Predicate
@@ -29,7 +27,7 @@ import kotlin.test.Ignore
 import kotlin.test.Test
 import kotlin.time.Duration.Companion.seconds
 
-class DSSAdapterOpsTest {
+class GetTrustAnchorsFromLoTLTest {
 
     /**
      * Test is not deterministic
@@ -40,7 +38,7 @@ class DSSAdapterOpsTest {
         val path: Path = Files.createTempDirectory("dss-cache")
         val expiration = 2.seconds
         val observableHttpLoader = ObservableHttpLoader(NativeHTTPDataLoader())
-        val dssAdapter = DSSAdapter.usingFileCacheDataLoader(
+        val dssOptions = DssOptions.usingFileCacheDataLoader(
             cacheDirectory = path,
             fileCacheExpiration = expiration,
             cleanFileSystem = true,
@@ -48,20 +46,15 @@ class DSSAdapterOpsTest {
             httpLoader = observableHttpLoader,
         )
 
-        val getTrustedListsCertificateByLOTLSource = GetTrustedListsCertificateByLOTLSource { lotlSource ->
-            withContext(Dispatchers.IO) {
-                with(DSSAdapterOps) {
-                    dssAdapter.refresh(lotlSource)
-                }
-            }
-        }
+        val getTrustAnchorsFromLoTL = GetTrustAnchorsFromLoTL(dssOptions = dssOptions)
+
         val lotlSource = lotlSource(pidSvcType)
 
         // 1) First call
         // Expectations:
         // - FileCacheDataLoader should use HTTP loader
         // - Files downloaded
-        getTrustedListsCertificateByLOTLSource(lotlSource)
+        getTrustAnchorsFromLoTL(lotlSource)
         val firstCallCount = observableHttpLoader.callCount
         assert(firstCallCount > 0) { "ObservableHttpLoader should be called on first call" }
         val firstCallFiles = path.listDirectoryEntries()
@@ -70,7 +63,7 @@ class DSSAdapterOpsTest {
         // 2) 2nd call (within expiration time from 1st)
         // Expectations:
         // - FileCacheDataLoader should use cached files
-        getTrustedListsCertificateByLOTLSource(lotlSource)
+        getTrustAnchorsFromLoTL(lotlSource)
         val secondCallCount = observableHttpLoader.callCount
         assert(secondCallCount == firstCallCount) {
             "FileCacheDataLoader should retrieve the list from path (no new HTTP calls). " +
@@ -90,7 +83,7 @@ class DSSAdapterOpsTest {
         // Capture last modified times of some files
         val lastModifiedBefore = firstCallFiles.associateWith { Files.getLastModifiedTime(it) }
 
-        getTrustedListsCertificateByLOTLSource(lotlSource)
+        getTrustAnchorsFromLoTL(lotlSource)
         val thirdCallCount = observableHttpLoader.callCount
         assert(thirdCallCount > secondCallCount) {
             "ObservableHttpLoader should be invoked again after expiration. " +

@@ -31,7 +31,7 @@ public fun interface ValidateCertificateChain<in CHAIN : Any, TRUST_ANCHOR : Any
      */
     public suspend operator fun invoke(
         chain: CHAIN,
-        trustAnchors: Set<TRUST_ANCHOR>,
+        trustAnchors: NonEmptyList<TRUST_ANCHOR>,
     ): CertificationChainValidation<TRUST_ANCHOR>
 }
 
