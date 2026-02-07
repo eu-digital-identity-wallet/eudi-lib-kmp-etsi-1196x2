@@ -105,4 +105,36 @@ The consultation module is a **Kotlin Multiplatform (KMP)** module.
 - **jvmAndAndroidMain**: Specific implementations for JVM and Android (e.g., `ValidateCertificateChainJvm`).
 
 
+## Examples
 
+### Combing trust anchors from multiple sources
+
+```kotlin
+// 1. Define your specific trust fetchers
+val nationalIdFetcher = GetTrustAnchors { query -> 
+    // Logic to fetch anchors from a local Secure Element or Government LOTL
+    loadGovernmentRoots() 
+}
+
+val universityFetcher = GetTrustAnchors { query -> 
+    // Logic to fetch anchors from a Sector-Specific University Trust List
+    loadEducationRoots()
+}
+
+// 2 Create the routers
+val nationalRouter = GetTrustAnchorsForSupportedQueries(
+  supportedQueries = setOf(VerificationContext.PID),
+  getTrustAnchors = nationalIdFetcher
+)
+
+val universityRouter = GetTrustAnchorsForSupportedQueries(
+  supportedQueries = setOf(VerificationContext.EAA("UniversityDiploma")),
+    getTrustAnchors = universityFetcher
+)
+
+// 3. Combine the routers
+val trustRouter = nationalRouter + universityRouter
+
+// 4. Usage in the validation engine
+val pidIssuanceTrustAnchors = trustRouter(VerificationContext.PID)
+```
