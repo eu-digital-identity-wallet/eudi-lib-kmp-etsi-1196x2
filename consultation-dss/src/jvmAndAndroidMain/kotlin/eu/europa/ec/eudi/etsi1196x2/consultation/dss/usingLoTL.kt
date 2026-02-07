@@ -15,7 +15,10 @@
  */
 package eu.europa.ec.eudi.etsi1196x2.consultation.dss
 
-import eu.europa.ec.eudi.etsi1196x2.consultation.*
+import eu.europa.ec.eudi.etsi1196x2.consultation.GetTrustAnchors
+import eu.europa.ec.eudi.etsi1196x2.consultation.GetTrustAnchorsForSupportedQueries
+import eu.europa.ec.eudi.etsi1196x2.consultation.IsChainTrustedForContext
+import eu.europa.ec.eudi.etsi1196x2.consultation.cached
 import eu.europa.esig.dss.service.http.commons.FileCacheDataLoader
 import eu.europa.esig.dss.tsl.source.LOTLSource
 import kotlinx.coroutines.CoroutineDispatcher
@@ -80,23 +83,16 @@ public fun <CTX : Any> GetTrustAnchorsForSupportedQueries.Companion.usingLoTL(
     dssOptions: DssOptions = DssOptions.Default,
     queryPerVerificationContext: Map<CTX, LOTLSource>,
 ): GetTrustAnchorsForSupportedQueries<CTX, TrustAnchor> {
-    require(queryPerVerificationContext.isNotEmpty()) {
-        "At least one trusted list source must be provided"
-    }
-
-    val doubleQueries = queryPerVerificationContext.values.groupBy { it }.filterValues { it.size > 1 }.keys
-    require(doubleQueries.isEmpty()) { "Queries must be unique: $doubleQueries" }
-
-    val getTrustAnchorsFromLoTL: GetTrustAnchors<CTX, TrustAnchor> =
+    val getTrustAnchorsFromLoTL =
         GetTrustAnchorsFromLoTL(
             dispatcher = coroutineDispatcher,
             dssOptions = dssOptions,
         ).cached(
             coroutineScope = coroutineScope,
-            expectedQueries = queryPerVerificationContext.size,
-            ttl = ttl,
             clock = clock,
-        ).contraMap { ctx -> checkNotNull(queryPerVerificationContext[ctx]) }
+            ttl = ttl,
+            expectedQueries = queryPerVerificationContext.size,
+        )
 
-    return GetTrustAnchorsForSupportedQueries(queryPerVerificationContext.keys, getTrustAnchorsFromLoTL)
+    return transform(getTrustAnchorsFromLoTL, queryPerVerificationContext)
 }
