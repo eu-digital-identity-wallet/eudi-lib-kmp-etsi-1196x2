@@ -21,37 +21,51 @@ import kotlin.time.Clock
 import kotlin.time.Duration
 
 /**
- * Represents a function that retrieves trust anchors from a source, using a query
+ * A functional source for retrieving trust anchors from a trusted provider based on a specific query.
  *
- * @param QUERY the type of the query parameter
- * @param TRUST_ANCHOR the type of the trust anchors returned by this function
+ * This component defines the core contract for trust anchor discovery. It can be implemented to fetch
+ * anchors from various backends such as local keystores, trusted lists (LOTL/TL), or remote services.
+ *
+ * This source can be:
+ * - **Combined**: Using the [or] operator to chain multiple sources together.
+ * - **Transformed**: Using [contraMap] to adapt the query type to a different dialect.
+ * - **Cached**: Using [cached] to improve performance by storing previously retrieved results.
+ *
+ * @param QUERY the type of the query used to locate trust anchors
+ * @param TRUST_ANCHOR the type of the trust anchors returned
  */
 public fun interface GetTrustAnchors<in QUERY : Any, out TRUST_ANCHOR : Any> {
 
     /**
-     * Retrieves trust anchors from a trusted source, using a query
-     * @param query the query parameter
+     * Retrieves trust anchors for the given [query].
      *
-     * @return a list of trust anchors, or null if no trust anchors could not be retrieved
+     * @param query the search criteria for locating trust anchors
+     * @return a non-empty list of trust anchors if found, or `null` if the provider has no anchors
+     *         matching the query or if the query itself is not supported
      */
     public suspend operator fun invoke(query: QUERY): NonEmptyList<TRUST_ANCHOR>?
 
     public companion object {
         /**
-         * The default scope for [GetTrustAnchors] instances.
-         * [Dispatchers.Default] + [SupervisorJob]
+         * The default scope for background operations, such as cache maintenance.
+         * Uses [Dispatchers.Default] combined with a [SupervisorJob].
          */
         public val DEFAULT_SCOPE: CoroutineScope get() = CoroutineScope(Dispatchers.Default + SupervisorJob())
     }
 }
 
 /**
- * Create a [GetTrustAnchors] that uses the [other]
- * if no trust anchors could be retrieved from the current instance.
+ * Combines this source with [other] to create a fallback chain.
  *
- * @param other the other [GetTrustAnchors] instance to combine with
+ * When the resulting source is invoked:
+ * 1. It first attempts to retrieve anchors from the current instance.
+ * 2. If the current instance returns `null`, it falls back to the [other] source.
+ * 3. The final result is the first non-null list of anchors found in the chain.
+ *
+ * @param other the fallback source to use if this one yields no results
  * @param Q the query type
  * @param TA the trust anchor type
+ * @return a composite source that implements fallback logic
  */
 public infix fun <Q : Any, TA : Any> GetTrustAnchors<Q, TA>.or(
     other: GetTrustAnchors<Q, TA>,
@@ -59,13 +73,17 @@ public infix fun <Q : Any, TA : Any> GetTrustAnchors<Q, TA>.or(
     GetTrustAnchors { source -> this.invoke(source) ?: other(source) }
 
 /**
- * Changes the query dialect
+ * Adapts this source to a different query type [Q2].
  *
- * @param transformation the transformation between queries
- * @return a new instance of [GetTrustAnchors] that uses the new query dialect
+ * This creates a new source that accepts queries of type [Q2], transforms them into
+ * the original type [Q] using the provided [transformation], and then delegates to
+ * the original source.
  *
- * @param Q the current query dialect
- * @param Q2 the new query dialect
+ * @param transformation a function that maps the new query type back to the original dialect
+ * @return a new source adapted for queries of type [Q2]
+ *
+ * @param Q the original query type
+ * @param Q2 the new query type
  * @param TA the trust anchor type
  */
 public fun <Q : Any, TA : Any, Q2 : Any> GetTrustAnchors<Q, TA>.contraMap(
@@ -73,17 +91,24 @@ public fun <Q : Any, TA : Any, Q2 : Any> GetTrustAnchors<Q, TA>.contraMap(
 ): GetTrustAnchors<Q2, TA> = GetTrustAnchors { source -> invoke(transformation(source)) }
 
 /**
- * Returns a new instance that caches invocations per query
+ * Decorates this source with transparent caching of results.
  *
- * @param coroutineScope the overall scope of the resulting [GetTrustAnchors]. By default, adds [SupervisorJob]
- *       Defaults to [DEFAULT_SCOPE]
- * @param clock the clock used to retrieve the current time.
- *        Defaults to [Clock.System]
- * @param expectedQueries the name of distinct queries.
- * @param ttl the time-to-live to keep the outcome of the query in the cache.
- * @receiver The [GetTrustAnchors] instance to cache
+ * The resulting source will store the outcome of each unique query in memory.
+ * Subsequent calls with the same query will return the cached value if it has not
+ * yet expired according to the [ttl].
  *
- * @return the [GetTrustAnchors] instance that caches invocations
+ * The caching logic is powered by [AsyncCache], which ensures that:
+ * - Concurrent requests for the same query result in a single backend invocation.
+ * - Expired entries are automatically refreshed upon next access.
+ * - Resources are managed within the provided [coroutineScope].
+ *
+ * @param coroutineScope the scope in which the cache maintenance tasks will run
+ * @param clock the provider of current time for expiration checks
+ * @param ttl the maximum age of a cached entry before it must be refreshed
+ * @param expectedQueries the estimated number of unique queries to optimize internal storage
+ * @receiver the source whose results should be cached
+ *
+ * @return a cached version of this source
  */
 public fun <Q : Any, TA : Any> GetTrustAnchors<Q, TA>.cached(
     coroutineScope: CoroutineScope = DEFAULT_SCOPE,

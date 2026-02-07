@@ -16,43 +16,73 @@
 package eu.europa.ec.eudi.etsi1196x2.consultation
 
 /**
- * A function that retrieves trust anchors for a given query.
+ * A composite source for retrieving trust anchors, specialized for handling a predefined set of supported queries.
  *
- * @param getTrustAnchors a way to retrieve from a source trust anchors for a given query
- * @param supportedQueries the queries supported by the source
+ * Unlike a simple [GetTrustAnchors] that may attempt to resolve any given query (possibly through a sequential
+ * search of multiple backends), this component maintains an explicit [mapping][sources] between sets of supported queries
+ * and their respective providers. This allows for:
+ * - **Efficient Routing**: Invocations are directly routed to the appropriate provider based on the query.
+ * - **Explicit Capability**: The component knows exactly which queries it can satisfy, returning a clear
+ *   indication when a query is not supported.
+ * - **Strict Invariants**: It ensures that each query is handled by at most one [GetTrustAnchors], preventing
+ *   ambiguous or overlapping definitions.
+ *
+ * When [combining][plus] multiple instances or [transforming][transform] their queries, these invariants are strictly enforced:
+ * - **Exclusivity**: Combining two instances via the `plus` operator is only allowed if their supported
+ *   query sets are disjoint.
+ * - **Uniqueness**: Transforming queries must maintain a one-to-one mapping; if a transformation causes
+ *   previously distinct queries to collide or overlap across providers, the operation will fail.
  *
  * @param QUERY the type of the query
  * @param TRUST_ANCHOR the type of the trust anchors returned by the source
  */
-public class GetTrustAnchorsForSupportedQueries<QUERY : Any, out TRUST_ANCHOR : Any>(
-    private val getTrustAnchors: GetTrustAnchors<QUERY, TRUST_ANCHOR>,
-    private val supportedQueries: Set<QUERY>,
+public class GetTrustAnchorsForSupportedQueries<QUERY : Any, out TRUST_ANCHOR : Any> internal constructor(
+    private val sources: Map<Set<QUERY>, GetTrustAnchors<QUERY, TRUST_ANCHOR>>,
 ) {
 
+    public constructor(
+        supportedQueries: Set<QUERY>,
+        getTrustAnchors: GetTrustAnchors<QUERY, TRUST_ANCHOR>,
+    ) : this(mapOf(supportedQueries to getTrustAnchors))
+
     /**
-     * Queries the source for trust anchors matching the given [query].
+     * Executes a query to retrieve trust anchors.
+     *
+     * The execution flow is as follows:
+     * 1. Check if the [query] is among the supported queries.
+     * 2. If supported, route the query to the specific provider associated with it.
+     * 3. Return the result from the provider, or a misconfiguration error if the provider returns no anchors.
+     *
      * @param query the query to execute
      * @return the outcome of the query
      */
     public suspend operator fun invoke(query: QUERY): Outcome<TRUST_ANCHOR> =
-        when (query) {
-            in supportedQueries -> {
-                when (val trustAnchors = getTrustAnchors(query)) {
-                    null -> Outcome.MisconfiguredSource
-                    else -> Outcome.Found(trustAnchors)
-                }
+        findSource(query)
+            ?.let { getTrustAnchors ->
+                getTrustAnchors(query)
+                    ?.let { Outcome.Found(it) }
+                    ?: Outcome.MisconfiguredSource
             }
+            ?: Outcome.QueryNotSupported
 
-            else -> Outcome.QueryNotSupported
-        }
+    private fun findSource(query: QUERY): GetTrustAnchors<QUERY, TRUST_ANCHOR>? =
+        sources.entries
+            .find { (supportedQueries, _) -> query in supportedQueries }
+            ?.value
 
     /**
-     * Change the representation of the queries.
+     * Transforms the query type of this source while preserving internal routing logic.
      *
-     * @param contraMapF the function to apply to the transformed queries
-     * @param mapF the function to apply to the original queries
-     * @return a new instance of [GetTrustAnchorsForSupportedQueries] with the transformed queries
-     * @throws IllegalArgumentException if [Q2] is a type, that doesn't implement proper equality
+     * This operation performs a bidirectional mapping of queries and contra-maps the underlying
+     * providers. It is subject to the following constraints:
+     * - **Injective Mapping**: Each original query must map to a unique new query within its provider.
+     * - **Global Disjointness**: The resulting sets of supported queries across all providers must
+     *   remain disjoint.
+     *
+     * @param contraMapF function to map a new query back to the original type for the providers
+     * @param mapF function to map an original query to the new type
+     * @return a new instance with transformed query types
+     * @throws IllegalArgumentException if the transformation violates uniqueness or disjointness invariants
      * @param Q2 the new representation of the query
      */
     @Throws(IllegalArgumentException::class)
@@ -60,28 +90,53 @@ public class GetTrustAnchorsForSupportedQueries<QUERY : Any, out TRUST_ANCHOR : 
         contraMapF: (Q2) -> QUERY,
         mapF: (QUERY) -> Q2,
     ): GetTrustAnchorsForSupportedQueries<Q2, TRUST_ANCHOR> {
-        val mappedQueries = supportedQueries.map(mapF).toSet()
-        require(mappedQueries.size == supportedQueries.size) {
-            "Invalid transformation: current queries = ${supportedQueries.size}, mapped queries = ${mappedQueries.size}"
+        val newSourcesList = sources.entries.map { (queries, source) ->
+            val mappedQueries = queries.map(mapF).toSet()
+            require(mappedQueries.size == queries.size) {
+                "Invalid transformation: current queries = ${queries.size}, mapped queries = ${mappedQueries.size}"
+            }
+            mappedQueries to source.contraMap(contraMapF)
         }
-
-        return GetTrustAnchorsForSupportedQueries(
-            getTrustAnchors.contraMap(contraMapF),
-            mappedQueries,
-        )
+        val allMappedQueries = newSourcesList.flatMap { it.first }
+        require(allMappedQueries.size == allMappedQueries.toSet().size) {
+            "Invalid transformation: result has overlapping queries"
+        }
+        return GetTrustAnchorsForSupportedQueries(newSourcesList.toMap())
     }
 
+    /**
+     * Combines this source with an additional query set and [GetTrustAnchors].
+     *
+     * @param other a pair consisting of a set of supported queries and the corresponding [GetTrustAnchors]
+     * @return a combined source
+     * @throws IllegalArgumentException if the new queries overlap with existing ones
+     */
+    @Throws(IllegalArgumentException::class)
+    public infix fun plus(
+        other: Pair<Set<QUERY>, GetTrustAnchors<@UnsafeVariance QUERY, @UnsafeVariance TRUST_ANCHOR>>,
+    ): GetTrustAnchorsForSupportedQueries<QUERY, TRUST_ANCHOR> =
+        this + GetTrustAnchorsForSupportedQueries(other.first, other.second)
+
+    /**
+     * Combines two sources into one.
+     *
+     * This operation merges the routing tables of both sources. It requires that the sets of
+     * supported queries in both sources are completely disjoint to ensure unambiguous routing.
+     *
+     * @param other the other source to combine with
+     * @return a combined source
+     * @throws IllegalArgumentException if there are overlapping queries between the two sources
+     */
     @Throws(IllegalArgumentException::class)
     public infix operator fun plus(
-        other: GetTrustAnchorsForSupportedQueries<@UnsafeVariance QUERY, @UnsafeVariance TRUST_ANCHOR>,
+        other: GetTrustAnchorsForSupportedQueries<QUERY, @UnsafeVariance TRUST_ANCHOR>,
     ): GetTrustAnchorsForSupportedQueries<QUERY, TRUST_ANCHOR> {
         val common = this.supportedQueries.intersect(other.supportedQueries)
         require(common.isEmpty()) { "Sources have overlapping queries: $common" }
-        return GetTrustAnchorsForSupportedQueries(
-            supportedQueries = supportedQueries + other.supportedQueries,
-            getTrustAnchors = this.getTrustAnchors or other.getTrustAnchors,
-        )
+        return GetTrustAnchorsForSupportedQueries(this.sources + other.sources)
     }
+
+    private val supportedQueries: Set<QUERY> by lazy { sources.keys.flatten().toSet() }
 
     /**
      * Represents the result of a trust anchor retrieval operation.
