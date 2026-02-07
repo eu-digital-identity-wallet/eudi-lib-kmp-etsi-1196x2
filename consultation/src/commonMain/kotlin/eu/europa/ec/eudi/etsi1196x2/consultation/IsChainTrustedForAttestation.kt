@@ -219,7 +219,7 @@ public data class AttestationClassifications(
  * @param TRUST_ANCHOR the type of the trust anchor to be used for validation
  */
 public class IsChainTrustedForAttestation<in CHAIN : Any, TRUST_ANCHOR : Any>(
-    private val isChainTrustedForContext: IsChainTrustedForContextF<CHAIN, TRUST_ANCHOR>,
+    private val isChainTrustedForContext: IsChainTrustedForContextF<CHAIN, VerificationContext, TRUST_ANCHOR>,
     private val classifications: AttestationClassifications,
 ) {
 

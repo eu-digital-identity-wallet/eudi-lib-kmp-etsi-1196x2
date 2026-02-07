@@ -72,14 +72,14 @@ import kotlin.time.Duration
  * @param ttl the time-to-live duration for caching the certificate source.
  *
  */
-public fun GetTrustAnchorsForSupportedQueries.Companion.usingLoTL(
+public fun <CTX : Any> GetTrustAnchorsForSupportedQueries.Companion.usingLoTL(
     coroutineScope: CoroutineScope = GetTrustAnchors.DEFAULT_SCOPE,
     coroutineDispatcher: CoroutineDispatcher = Dispatchers.IO,
     clock: Clock = Clock.System,
     ttl: Duration,
     dssOptions: DssOptions = DssOptions.Default,
-    queryPerVerificationContext: Map<VerificationContext, LOTLSource>,
-): GetTrustAnchorsForSupportedQueries<VerificationContext, TrustAnchor> {
+    queryPerVerificationContext: Map<CTX, LOTLSource>,
+): GetTrustAnchorsForSupportedQueries<CTX, TrustAnchor> {
     require(queryPerVerificationContext.isNotEmpty()) {
         "At least one trusted list source must be provided"
     }
@@ -87,7 +87,7 @@ public fun GetTrustAnchorsForSupportedQueries.Companion.usingLoTL(
     val doubleQueries = queryPerVerificationContext.values.groupBy { it }.filterValues { it.size > 1 }.keys
     require(doubleQueries.isEmpty()) { "Queries must be unique: $doubleQueries" }
 
-    val getTrustAnchorsFromLoTL: GetTrustAnchors<VerificationContext, TrustAnchor> =
+    val getTrustAnchorsFromLoTL: GetTrustAnchors<CTX, TrustAnchor> =
         GetTrustAnchorsFromLoTL(
             dispatcher = coroutineDispatcher,
             dssOptions = dssOptions,

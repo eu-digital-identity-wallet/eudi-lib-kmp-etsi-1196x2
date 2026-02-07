@@ -20,17 +20,18 @@ import kotlinx.coroutines.withContext
 
 /**
  * A class for checking the trustworthiness of a certificate chain
- * in the context of a specific [verification][VerificationContext]
+ * in the context of a specific verification context
  *
  *
  * @param CHAIN type representing a certificate chain
+ * @param CTX type representing the verification context
  * @param TRUST_ANCHOR type representing a trust anchor
  */
 @SensitiveApi
-internal class UnsafeIsChainTrustedForContext<in CHAIN : Any, out TRUST_ANCHOR : Any>(
-    private val primary: IsChainTrustedForContext<CHAIN, TRUST_ANCHOR>,
-    private val recovery: (CertificationChainValidation.NotTrusted) -> IsChainTrustedForContext<CHAIN, TRUST_ANCHOR>?,
-) : IsChainTrustedForContextF<CHAIN, TRUST_ANCHOR> {
+internal class UnsafeIsChainTrustedForContext<in CHAIN : Any, CTX : Any, out TRUST_ANCHOR : Any>(
+    private val primary: IsChainTrustedForContext<CHAIN, CTX, TRUST_ANCHOR>,
+    private val recovery: (CertificationChainValidation.NotTrusted) -> IsChainTrustedForContext<CHAIN, CTX, TRUST_ANCHOR>?,
+) : IsChainTrustedForContextF<CHAIN, CTX, TRUST_ANCHOR> {
 
     /**
      * Check certificate chain is trusted in the context of
@@ -42,7 +43,7 @@ internal class UnsafeIsChainTrustedForContext<in CHAIN : Any, out TRUST_ANCHOR :
      */
     override suspend operator fun invoke(
         chain: CHAIN,
-        verificationContext: VerificationContext,
+        verificationContext: CTX,
     ): CertificationChainValidation<TRUST_ANCHOR>? =
         when (val validation = primary(chain, verificationContext)) {
             null -> null
@@ -55,7 +56,7 @@ internal class UnsafeIsChainTrustedForContext<in CHAIN : Any, out TRUST_ANCHOR :
 
     private suspend fun tryToRecover(
         chain: CHAIN,
-        verificationContext: VerificationContext,
+        verificationContext: CTX,
         notTrusted: CertificationChainValidation.NotTrusted,
     ): CertificationChainValidation<TRUST_ANCHOR>? =
         recovery(notTrusted)?.let { fallback -> fallback(chain, verificationContext) }
