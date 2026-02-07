@@ -60,7 +60,7 @@ object EUDIRefDevEnv {
 
     val httpLoader = ObservableHttpLoader(NativeHTTPDataLoader())
 
-    val trustAnchorsPerContext =
+    val trustAnchorsPerContext: GetTrustAnchorsForSupportedQueries<VerificationContext, TrustAnchor> =
         GetTrustAnchorsForSupportedQueries.usingLoTL(
             dssOptions = DssOptions.usingFileCacheDataLoader(
                 fileCacheExpiration = 24.hours,
@@ -75,7 +75,7 @@ object EUDIRefDevEnv {
         )
 
     val isChainTrustedForContext =
-        IsChainTrustedForContext(
+        IsChainTrustedForEUDIW(
             ValidateCertificateChainJvm(customization = { isRevocationEnabled = false }),
             trustAnchorsPerContext,
         )

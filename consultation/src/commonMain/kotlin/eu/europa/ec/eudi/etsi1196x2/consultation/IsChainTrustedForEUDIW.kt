@@ -133,3 +133,18 @@ public sealed interface VerificationContext {
  * A typealias for [IsChainTrustedForContext] having as context the [VerificationContext]
  */
 public typealias IsChainTrustedForEUDIW<CHAIN, TRUST_ANCHOR> = IsChainTrustedForContext<CHAIN, VerificationContext, TRUST_ANCHOR>
+
+/**
+ * Creates an instance of [IsChainTrustedForEUDIW]
+ *
+ * @param validateCertificateChain the certificate chain validation function
+ * @param getTrustAnchorsByContext the supported verification contexts and their corresponding trust anchors sources
+ *
+ * @param CHAIN type representing a certificate chain
+ * @param TRUST_ANCHOR type representing a trust anchor
+ */
+public fun <CHAIN : Any, TRUST_ANCHOR : Any> IsChainTrustedForEUDIW(
+    validateCertificateChain: ValidateCertificateChain<CHAIN, TRUST_ANCHOR>,
+    getTrustAnchorsByContext: GetTrustAnchorsForSupportedQueries<VerificationContext, TRUST_ANCHOR>,
+): IsChainTrustedForEUDIW<CHAIN, TRUST_ANCHOR> =
+    IsChainTrustedForContext(validateCertificateChain, getTrustAnchorsByContext)
