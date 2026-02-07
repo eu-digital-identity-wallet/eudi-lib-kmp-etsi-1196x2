@@ -98,5 +98,5 @@ public fun GetTrustAnchorsForSupportedQueries.Companion.usingLoTL(
             clock = clock,
         ).contraMap { ctx -> checkNotNull(queryPerVerificationContext[ctx]) }
 
-    return GetTrustAnchorsForSupportedQueries(getTrustAnchorsFromLoTL, queryPerVerificationContext.keys)
+    return GetTrustAnchorsForSupportedQueries(queryPerVerificationContext.keys, getTrustAnchorsFromLoTL)
 }

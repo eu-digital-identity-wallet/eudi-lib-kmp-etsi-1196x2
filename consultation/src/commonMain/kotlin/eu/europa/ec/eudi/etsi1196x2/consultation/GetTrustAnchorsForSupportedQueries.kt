@@ -18,16 +18,19 @@ package eu.europa.ec.eudi.etsi1196x2.consultation
 /**
  * A function that retrieves trust anchors for a given query.
  *
- * @param getTrustAnchors a way to retrieve from a source trust anchors for a given query
- * @param supportedQueries the queries supported by the source
+ * @param sources a way to retrieve from a source trust anchors for a given query set
  *
  * @param QUERY the type of the query
  * @param TRUST_ANCHOR the type of the trust anchors returned by the source
  */
-public class GetTrustAnchorsForSupportedQueries<QUERY : Any, out TRUST_ANCHOR : Any>(
-    private val getTrustAnchors: GetTrustAnchors<QUERY, TRUST_ANCHOR>,
-    private val supportedQueries: Set<QUERY>,
+public class GetTrustAnchorsForSupportedQueries<QUERY : Any, out TRUST_ANCHOR : Any> internal constructor(
+    private val sources: Map<Set<QUERY>, GetTrustAnchors<QUERY, TRUST_ANCHOR>>,
 ) {
+
+    public constructor(
+        supportedQueries: Set<QUERY>,
+        getTrustAnchors: GetTrustAnchors<QUERY, TRUST_ANCHOR>,
+    ) : this(mapOf(supportedQueries to getTrustAnchors))
 
     /**
      * Queries the source for trust anchors matching the given [query].
@@ -35,16 +38,18 @@ public class GetTrustAnchorsForSupportedQueries<QUERY : Any, out TRUST_ANCHOR : 
      * @return the outcome of the query
      */
     public suspend operator fun invoke(query: QUERY): Outcome<TRUST_ANCHOR> =
-        when (query) {
-            in supportedQueries -> {
-                when (val trustAnchors = getTrustAnchors(query)) {
-                    null -> Outcome.MisconfiguredSource
-                    else -> Outcome.Found(trustAnchors)
-                }
+        findSource(query)
+            ?.let { getTrustAnchors ->
+                getTrustAnchors(query)
+                    ?.let { Outcome.Found(it) }
+                    ?: Outcome.MisconfiguredSource
             }
+            ?: Outcome.QueryNotSupported
 
-            else -> Outcome.QueryNotSupported
-        }
+    private fun findSource(query: QUERY): GetTrustAnchors<QUERY, TRUST_ANCHOR>? =
+        sources.entries
+            .find { (supportedQueries, _) -> query in supportedQueries }
+            ?.value
 
     /**
      * Change the representation of the queries.
@@ -60,28 +65,36 @@ public class GetTrustAnchorsForSupportedQueries<QUERY : Any, out TRUST_ANCHOR : 
         contraMapF: (Q2) -> QUERY,
         mapF: (QUERY) -> Q2,
     ): GetTrustAnchorsForSupportedQueries<Q2, TRUST_ANCHOR> {
-        val mappedQueries = supportedQueries.map(mapF).toSet()
-        require(mappedQueries.size == supportedQueries.size) {
-            "Invalid transformation: current queries = ${supportedQueries.size}, mapped queries = ${mappedQueries.size}"
+        val newSourcesList = sources.entries.map { (queries, source) ->
+            val mappedQueries = queries.map(mapF).toSet()
+            require(mappedQueries.size == queries.size) {
+                "Invalid transformation: current queries = ${queries.size}, mapped queries = ${mappedQueries.size}"
+            }
+            mappedQueries to source.contraMap(contraMapF)
         }
-
-        return GetTrustAnchorsForSupportedQueries(
-            getTrustAnchors.contraMap(contraMapF),
-            mappedQueries,
-        )
+        val allMappedQueries = newSourcesList.flatMap { it.first }
+        require(allMappedQueries.size == allMappedQueries.toSet().size) {
+            "Invalid transformation: result has overlapping queries"
+        }
+        return GetTrustAnchorsForSupportedQueries(newSourcesList.toMap())
     }
 
     @Throws(IllegalArgumentException::class)
+    public infix fun plus(
+        other: Pair<Set<QUERY>, GetTrustAnchors<@UnsafeVariance QUERY, @UnsafeVariance TRUST_ANCHOR>>,
+    ): GetTrustAnchorsForSupportedQueries<QUERY, TRUST_ANCHOR> =
+        this + GetTrustAnchorsForSupportedQueries(other.first, other.second)
+
+    @Throws(IllegalArgumentException::class)
     public infix operator fun plus(
-        other: GetTrustAnchorsForSupportedQueries<@UnsafeVariance QUERY, @UnsafeVariance TRUST_ANCHOR>,
+        other: GetTrustAnchorsForSupportedQueries<QUERY, @UnsafeVariance TRUST_ANCHOR>,
     ): GetTrustAnchorsForSupportedQueries<QUERY, TRUST_ANCHOR> {
         val common = this.supportedQueries.intersect(other.supportedQueries)
         require(common.isEmpty()) { "Sources have overlapping queries: $common" }
-        return GetTrustAnchorsForSupportedQueries(
-            supportedQueries = supportedQueries + other.supportedQueries,
-            getTrustAnchors = this.getTrustAnchors or other.getTrustAnchors,
-        )
+        return GetTrustAnchorsForSupportedQueries(this.sources + other.sources)
     }
+
+    private val supportedQueries: Set<QUERY> by lazy { sources.keys.flatten().toSet() }
 
     /**
      * Represents the result of a trust anchor retrieval operation.

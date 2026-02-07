@@ -45,8 +45,8 @@ public fun GetTrustAnchorsForSupportedQueries.Companion.usingKeyStore(
 ): GetTrustAnchorsForSupportedQueries<VerificationContext, TrustAnchor> {
     val getTrustAnchors = GetTrustAnchorsFromKeystore.fromBlocking(dispatcher, cache, block)
     return GetTrustAnchorsForSupportedQueries(
-        getTrustAnchors.contraMap(regexPerVerificationContext),
         supportedVerificationContexts,
+        getTrustAnchors.contraMap(regexPerVerificationContext),
     )
 }
 
