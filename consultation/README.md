@@ -36,7 +36,7 @@ val classifications = AttestationClassifications(
 
 ```kotlin
 val validator = IsChainTrustedForAttestation(
-    isChainTrustedForContext = myIsChainTrustedForContext, // Implementation of IsChainTrustedForContext
+    isChainTrustedForContext = myIsChainTrustedForEUDIW, // Implementation of IsChainTrustedForEUDIW
     classifications = classifications
 )
 
@@ -55,7 +55,7 @@ a high-level functional approach.
   - `WalletInstanceAttestation`, `WalletUnitAttestation`: For wallet-specific attestations.
   - `WalletRelyingPartyRegistrationCertificate`: For Verifier/Issuer certificates.
 - `ValidateCertificateChain`: A functional abstraction of an engine that performs cryptographic PKIX validation of an X.509 chain against trust anchors.
-- `IsChainTrustedForContext`: The high-level orchestrator that resolves the correct trust anchors for a given context and triggers the validation engine.
+- `IsChainTrustedForEUDIW`: The high-level orchestrator that resolves the correct trust anchors for a given context and triggers the validation engine.
 
 🔍 **Trust Discovery**
 

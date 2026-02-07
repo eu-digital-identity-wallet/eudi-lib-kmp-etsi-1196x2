@@ -36,7 +36,7 @@ An extension module that leverages the [Digital Signature Service (DSS)](https:/
 
 - `VerificationContext`: Represents specific EUDI use cases (e.g., PID issuance).
 - `GetTrustAnchors`: A functional interface for retrieving anchors based on a query.
-- `IsChainTrustedForContext`: The orchestrator that resolves trust anchors and triggers validation.
+- `IsChainTrustedForEUDIW`: The orchestrator that resolves trust anchors and triggers validation.
 
 ## License
 
