@@ -15,8 +15,6 @@
  */
 package eu.europa.ec.eudi.etsi1196x2.consultation
 
-import eu.europa.ec.eudi.etsi1196x2.consultation.GetTrustAnchorsForSupportedQueries.Companion.transform
-
 /**
  * A composite source for retrieving trust anchors, specialized for handling a predefined set of supported queries.
  *
