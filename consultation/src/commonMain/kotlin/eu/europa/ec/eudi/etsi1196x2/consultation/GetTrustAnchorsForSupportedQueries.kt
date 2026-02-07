@@ -15,6 +15,8 @@
  */
 package eu.europa.ec.eudi.etsi1196x2.consultation
 
+import eu.europa.ec.eudi.etsi1196x2.consultation.GetTrustAnchorsForSupportedQueries.Companion.transform
+
 /**
  * A composite source for retrieving trust anchors, specialized for handling a predefined set of supported queries.
  *
@@ -162,5 +164,19 @@ public class GetTrustAnchorsForSupportedQueries<QUERY : Any, out TRUST_ANCHOR : 
         public data object MisconfiguredSource : Outcome<Nothing>
     }
 
-    public companion object
+    public companion object {
+
+        public fun <Q1 : Any, TA : Any, Q2 : Any> transform(
+            getTrustAnchors: GetTrustAnchors<Q1, TA>,
+            transformation: Map<Q2, Q1>,
+        ): GetTrustAnchorsForSupportedQueries<Q2, TA> {
+            val doubleQueries = transformation.values.groupBy { it }.filterValues { it.size > 1 }.keys
+            require(doubleQueries.isEmpty()) { "Queries must be unique: $doubleQueries" }
+
+            return GetTrustAnchorsForSupportedQueries(
+                supportedQueries = transformation.keys,
+                getTrustAnchors = getTrustAnchors.contraMap { checkNotNull(transformation[it]) },
+            )
+        }
+    }
 }
