@@ -16,9 +16,11 @@
 package eu.europa.ec.eudi.etsi1196x2.consultation
 
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.security.KeyStore
+import java.security.cert.Certificate
 import java.security.cert.TrustAnchor
 import java.security.cert.X509Certificate
 
@@ -27,23 +29,19 @@ import java.security.cert.X509Certificate
  *
  * @param dispatcher the coroutine dispatcher to use for fetching trust anchors from the keystore.
  *        Defaults to [Dispatchers.IO]
- * @param cache whether to cache the trust anchors retrieved from the keystore. If true keystore will be accessed only once.
- *        Defaults to `true`.
- * @param cache whether to cache the trust anchors retrieved from the keystore.
- *        In this case, the keystore will be accessed only once.
- *        Defaults to `true`.
- * @param block a supplier function to provide the [KeyStore] instance to fetch trust anchors.
+ * @param keystore the keystore to use.
+ * @param supportedVerificationContexts the set of supported verification contexts.
+ * @param regexPerVerificationContext a function that maps a verification context to a regular expression
  *
- * @return an instance of [GetTrustAnchors] that reads trust anchors from the given keystore.
+ * @return an instance of [GetTrustAnchorsForSupportedQueries] that reads trust anchors from the given keystore.
  */
 public fun <CTX : Any> GetTrustAnchorsForSupportedQueries.Companion.usingKeyStore(
     dispatcher: CoroutineDispatcher = Dispatchers.IO,
-    cache: Boolean = true,
+    keystore: KeyStore,
     supportedVerificationContexts: Set<CTX>,
     regexPerVerificationContext: (CTX) -> Regex,
-    block: () -> KeyStore,
 ): GetTrustAnchorsForSupportedQueries<CTX, TrustAnchor> {
-    val getTrustAnchors = GetTrustAnchorsFromKeystore.fromBlocking(dispatcher, cache, block)
+    val getTrustAnchors = GetTrustAnchorsFromKeystore(dispatcher, keystore)
     return GetTrustAnchorsForSupportedQueries(
         supportedVerificationContexts,
         getTrustAnchors.contraMap(regexPerVerificationContext),
@@ -51,35 +49,24 @@ public fun <CTX : Any> GetTrustAnchorsForSupportedQueries.Companion.usingKeyStor
 }
 
 public class GetTrustAnchorsFromKeystore(
-    private val getKeystore: suspend () -> KeyStore,
+    private val dispatcher: CoroutineDispatcher = Dispatchers.IO,
+    private val keystore: KeyStore,
 ) : GetTrustAnchors<Regex, TrustAnchor> {
 
     override suspend fun invoke(query: Regex): NonEmptyList<TrustAnchor>? =
-        getKeystore().getTrustAnchors(query).let { NonEmptyList.nelOrNull(it) }
-
-    private fun KeyStore.getTrustAnchors(query: Regex): List<TrustAnchor> {
-        val filter = { alias: String -> query.matches(alias) }
-        return aliases().toList().filter(filter).mapNotNull { alias ->
-            val cert = (getCertificate(alias) as? X509Certificate)
-            cert?.let { TrustAnchor(it, null) }
+        withContext(dispatcher + CoroutineName("GetTrustAnchorsFromKeystore")) {
+            keystore.getTrustAnchors(query).let { NonEmptyList.nelOrNull(it) }
         }
-    }
 
-    public companion object {
-        public fun fromBlocking(
-            dispatcher: CoroutineDispatcher = Dispatchers.IO,
-            cache: Boolean = true,
-            block: () -> KeyStore,
-        ): GetTrustAnchorsFromKeystore {
-            val getK = run {
-                val suspendable = object : suspend () -> KeyStore {
-                    override suspend fun invoke(): KeyStore {
-                        return withContext(dispatcher) { block() }
-                    }
+    private fun KeyStore.getTrustAnchors(query: Regex): List<TrustAnchor> =
+        buildList {
+            for (alias in aliases()) {
+                if (query.matches(alias)) {
+                    getCertificate(alias)?.trustAnchor()?.let { add(it) }
                 }
-                if (cache) InvokeOnce(suspendable) else suspendable
             }
-            return GetTrustAnchorsFromKeystore(getK)
         }
-    }
+
+    private fun Certificate.trustAnchor(): TrustAnchor? =
+        (this as? X509Certificate)?.let { TrustAnchor(it, null) }
 }

@@ -96,7 +96,7 @@ the seamless merging of multiple trust sources.
 Designed from the ground up for asynchronous environments (KMP):
 - `suspend` everywhere: All I/O-bound and CPU-intensive tasks are suspendable.
 - **Structured Concurrency**: Uses `SupervisorJob` and explicit `CoroutineDispatchers` to ensure stability.
-- **Concurrency Guarding**: Features a custom `InvokeOnce` utility and an `AsyncCache` to prevent redundant computations and "cache stampedes".
+- **Concurrency Guarding**: Features an `AsyncCache` to prevent redundant computations and "cache stampedes".
 
 ## Platform Support
 
