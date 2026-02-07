@@ -23,17 +23,24 @@ import eu.europa.esig.dss.tsl.cache.CacheCleaner
 import eu.europa.esig.dss.tsl.job.TLValidationJob
 import eu.europa.esig.dss.tsl.source.LOTLSource
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.security.cert.TrustAnchor
 
+/**
+ * An adapter class for [GetTrustAnchors] that uses a trusted list of trust anchors (LoTL) to retrieve trust anchors.
+ * @param dispatcher The coroutine dispatcher to use for executing the validation job.
+ *        Defaults to [Dispatchers.IO]
+ * @param dssOptions The options for configuring the DSS library.
+ */
 public class GetTrustAnchorsFromLoTL(
     private val dispatcher: CoroutineDispatcher = Dispatchers.IO,
     private val dssOptions: DssOptions = DssOptions.Default,
 ) : GetTrustAnchors<LOTLSource, TrustAnchor> {
 
     override suspend fun invoke(query: LOTLSource): NonEmptyList<TrustAnchor>? =
-        withContext(dispatcher) {
+        withContext(dispatcher + CoroutineName("DSS-LOTL-${query.url}")) {
             val trustAnchors = runValidationJobFor(query)
             NonEmptyList.nelOrNull(trustAnchors)
         }
@@ -59,6 +66,9 @@ public class GetTrustAnchorsFromLoTL(
                     setDSSFileLoader(dssOptions.loader)
                 },
             )
+            if (dssOptions.executorService != null) {
+                setExecutorService(dssOptions.executorService)
+            }
         }
 
     private fun CertificateToken.toTrustAnchor(): TrustAnchor =

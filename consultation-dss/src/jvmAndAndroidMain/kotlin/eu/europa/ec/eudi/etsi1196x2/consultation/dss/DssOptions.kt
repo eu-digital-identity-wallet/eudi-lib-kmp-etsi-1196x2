@@ -15,6 +15,11 @@
  */
 package eu.europa.ec.eudi.etsi1196x2.consultation.dss
 
+import eu.europa.ec.eudi.etsi1196x2.consultation.dss.DssOptions.Companion.DEFAULT_CLEAN_FILE_SYSTEM
+import eu.europa.ec.eudi.etsi1196x2.consultation.dss.DssOptions.Companion.DEFAULT_CLEAN_MEMORY
+import eu.europa.ec.eudi.etsi1196x2.consultation.dss.DssOptions.Companion.DefaultFileCacheExpiration
+import eu.europa.ec.eudi.etsi1196x2.consultation.dss.DssOptions.Companion.DefaultHttpLoader
+import eu.europa.ec.eudi.etsi1196x2.consultation.dss.DssOptions.Companion.DefaultSynchronizationStrategy
 import eu.europa.esig.dss.service.http.commons.FileCacheDataLoader
 import eu.europa.esig.dss.spi.client.http.DSSCacheFileLoader
 import eu.europa.esig.dss.spi.client.http.DataLoader
@@ -22,6 +27,7 @@ import eu.europa.esig.dss.spi.client.http.NativeHTTPDataLoader
 import eu.europa.esig.dss.tsl.sync.ExpirationAndSignatureCheckStrategy
 import eu.europa.esig.dss.tsl.sync.SynchronizationStrategy
 import java.nio.file.Path
+import java.util.concurrent.ExecutorService
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.hours
 
@@ -35,12 +41,15 @@ import kotlin.time.Duration.Companion.hours
  *        Defaults to [DEFAULT_CLEAN_FILE_SYSTEM]
  * @param synchronizationStrategy the synchronization strategy to use for the validation job.
  *        Defaults to [DefaultSynchronizationStrategy]
+ * @param executorService the executor service to use for the validation job.
+ *        If not specified, it is decided by [eu.europa.esig.dss.tsl.job.TLValidationJob]
  */
 public data class DssOptions(
     val loader: DSSCacheFileLoader,
     val cleanMemory: Boolean = DEFAULT_CLEAN_MEMORY,
     val cleanFileSystem: Boolean = DEFAULT_CLEAN_FILE_SYSTEM,
     val synchronizationStrategy: SynchronizationStrategy = DefaultSynchronizationStrategy,
+    val executorService: ExecutorService? = null,
 ) {
     public companion object {
         /**
@@ -94,6 +103,7 @@ public data class DssOptions(
             cleanMemory = DEFAULT_CLEAN_MEMORY,
             cleanFileSystem = DEFAULT_CLEAN_FILE_SYSTEM,
             httpLoader = DefaultHttpLoader,
+            executorService = null,
         )
 
         /**
@@ -115,16 +125,17 @@ public data class DssOptions(
             fileCacheExpiration: Duration = DefaultFileCacheExpiration,
             cacheDirectory: Path? = null,
             cleanMemory: Boolean = DEFAULT_CLEAN_MEMORY,
-            cleanFileSystem: Boolean = DEFAULT_CLEAN_MEMORY,
+            cleanFileSystem: Boolean = DEFAULT_CLEAN_FILE_SYSTEM,
             httpLoader: DataLoader = DefaultHttpLoader,
             synchronizationStrategy: SynchronizationStrategy = DefaultSynchronizationStrategy,
+            executorService: ExecutorService? = null,
         ): DssOptions {
             val loader = FileCacheDataLoader(httpLoader)
                 .apply {
                     setCacheExpirationTime(fileCacheExpiration.inWholeMilliseconds)
                     cacheDirectory?.let { setFileCacheDirectory(it.toFile()) }
                 }
-            return DssOptions(loader, cleanMemory, cleanFileSystem, synchronizationStrategy)
+            return DssOptions(loader, cleanMemory, cleanFileSystem, synchronizationStrategy, executorService)
         }
     }
 }
