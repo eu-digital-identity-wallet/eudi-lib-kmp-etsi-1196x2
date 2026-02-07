@@ -102,6 +102,10 @@ public fun <Q : Any, TA : Any, Q2 : Any> GetTrustAnchors<Q, TA>.contraMap(
  * - Expired entries are automatically refreshed upon next access.
  * - Resources are managed within the provided [coroutineScope].
  *
+ *  **Resource Management**: This class implements [AutoCloseable] and must be closed when no longer needed
+ *  to release cached resources and cancel background operations. Failure to close may result in
+ *  memory leaks and continued background processing.
+ *
  * @param coroutineScope the scope in which the cache maintenance tasks will run
  * @param clock the provider of current time for expiration checks
  * @param ttl the maximum age of a cached entry before it must be refreshed
@@ -115,21 +119,41 @@ public fun <Q : Any, TA : Any> GetTrustAnchors<Q, TA>.cached(
     clock: Clock = Clock.System,
     ttl: Duration,
     expectedQueries: Int,
-): GetTrustAnchors<Q, TA> =
+): GetTrustAnchorsCachedSource<Q, TA> =
     GetTrustAnchorsCachedSource(coroutineScope, clock, ttl, expectedQueries, this)
 
-internal class GetTrustAnchorsCachedSource<in QUERY : Any, out TRUST_ANCHOR : Any>(
-    scope: CoroutineScope,
-    clock: Clock,
+/**
+ * A cached implementation of [GetTrustAnchors] that stores results in memory for performance optimization.
+ *
+ * This implementation wraps a delegate [GetTrustAnchors] source and provides transparent caching:
+ * - Results are stored in memory and expire after the configured [ttl]
+ * - Concurrent requests for the same query result in a single invocation of the underlying source
+ * - Cache size is bounded by the [expectedQueries] parameter
+ *
+ * **Resource Management**: This class implements [AutoCloseable] and must be closed when no longer needed
+ * to release cached resources and cancel background operations. Failure to close may result in
+ * memory leaks and continued background processing.
+ *
+ * @param QUERY the type of the query used to locate trust anchors
+ * @param TRUST_ANCHOR the type of the trust anchors returned
+ * @property delegate the underlying [GetTrustAnchors] source that provides the actual trust anchors
+ */
+public class GetTrustAnchorsCachedSource<in QUERY : Any, out TRUST_ANCHOR : Any>(
+    scope: CoroutineScope = DEFAULT_SCOPE,
+    clock: Clock = Clock.System,
     ttl: Duration,
     expectedQueries: Int,
-    val proxied: GetTrustAnchors<QUERY, TRUST_ANCHOR>,
-) : GetTrustAnchors<QUERY, TRUST_ANCHOR> {
+    private val delegate: GetTrustAnchors<QUERY, TRUST_ANCHOR>,
+) : GetTrustAnchors<QUERY, TRUST_ANCHOR>, AutoCloseable {
 
     private val cached: AsyncCache<QUERY, NonEmptyList<TRUST_ANCHOR>?> =
         AsyncCache(scope, clock, ttl, expectedQueries) { trustSource ->
-            proxied(trustSource)
+            delegate(trustSource)
         }
 
     override suspend fun invoke(query: QUERY): NonEmptyList<TRUST_ANCHOR>? = cached(query)
+
+    override fun close() {
+        cached.close()
+    }
 }

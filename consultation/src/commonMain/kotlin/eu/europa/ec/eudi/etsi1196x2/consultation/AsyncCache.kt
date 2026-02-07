@@ -15,12 +15,8 @@
  */
 package eu.europa.ec.eudi.etsi1196x2.consultation
 
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Deferred
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.async
-import kotlinx.coroutines.plus
+import eu.europa.ec.eudi.etsi1196x2.consultation.AsyncCache.Entry
+import kotlinx.coroutines.*
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlin.time.Clock
@@ -32,9 +28,9 @@ internal class AsyncCache<A : Any, B>(
     private val ttl: Duration,
     private val maxCacheSize: Int,
     private val supplier: suspend (A) -> B,
-) : suspend (A) -> B {
+) : suspend (A) -> B, AutoCloseable {
 
-    private val scope = coroutineScope + SupervisorJob(coroutineScope.coroutineContext[Job.Key])
+    private val cacheScope = CoroutineScope(SupervisorJob() + coroutineScope.coroutineContext.minusKey(Job))
 
     private data class Entry<B>(val deferred: Deferred<B>, val createdAt: Long)
 
@@ -53,7 +49,7 @@ internal class AsyncCache<A : Any, B>(
                 existing
             } else {
                 // Launch new computation
-                val newDeferred = scope.async {
+                val newDeferred = cacheScope.async {
                     supplier(key)
                 }
                 Entry(newDeferred, now).also { cache[key] = it }
@@ -73,5 +69,10 @@ internal class AsyncCache<A : Any, B>(
                 cache.remove(key)
             }
         }
+    }
+
+    override fun close() {
+        cacheScope.cancel()
+        cache.clear()
     }
 }
