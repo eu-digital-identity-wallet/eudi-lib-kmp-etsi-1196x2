@@ -80,8 +80,8 @@ val trustSource = GetTrustAnchorsForSupportedQueries.usingLoTL(
 )
 
 // 4. Instantiate the final validator
-val validator = IsChainTrustedForContext(
-    validateCertificateChain = ValidateCertificateChainJvm.Default,
+val validator = IsChainTrustedForEUDIW(
+    validateCertificateChain = ValidateCertificateChainJvm(),
     getTrustAnchorsByContext = trustSource
 )
 

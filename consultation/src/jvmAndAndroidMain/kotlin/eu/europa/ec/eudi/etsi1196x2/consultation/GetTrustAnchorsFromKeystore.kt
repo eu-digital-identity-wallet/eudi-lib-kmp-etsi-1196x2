@@ -36,13 +36,13 @@ import java.security.cert.X509Certificate
  *
  * @return an instance of [GetTrustAnchors] that reads trust anchors from the given keystore.
  */
-public fun GetTrustAnchorsForSupportedQueries.Companion.usingKeyStore(
+public fun <CTX : Any> GetTrustAnchorsForSupportedQueries.Companion.usingKeyStore(
     dispatcher: CoroutineDispatcher = Dispatchers.IO,
     cache: Boolean = true,
-    supportedVerificationContexts: Set<VerificationContext>,
-    regexPerVerificationContext: (VerificationContext) -> Regex,
+    supportedVerificationContexts: Set<CTX>,
+    regexPerVerificationContext: (CTX) -> Regex,
     block: () -> KeyStore,
-): GetTrustAnchorsForSupportedQueries<VerificationContext, TrustAnchor> {
+): GetTrustAnchorsForSupportedQueries<CTX, TrustAnchor> {
     val getTrustAnchors = GetTrustAnchorsFromKeystore.fromBlocking(dispatcher, cache, block)
     return GetTrustAnchorsForSupportedQueries(
         supportedVerificationContexts,
