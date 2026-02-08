@@ -16,7 +16,9 @@
 package eu.europa.ec.eudi.etsi1196x2.consultation
 
 import eu.europa.ec.eudi.etsi1196x2.consultation.GetTrustAnchors.Companion.DEFAULT_SCOPE
-import kotlinx.coroutines.*
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlin.time.Clock
 import kotlin.time.Duration
 
@@ -53,6 +55,11 @@ public fun interface GetTrustAnchors<in QUERY : Any, out TRUST_ANCHOR : Any> {
         public val DEFAULT_SCOPE: CoroutineScope get() = CoroutineScope(Dispatchers.Default + SupervisorJob())
     }
 }
+
+public fun <Q : Any, TA : Any, Q1 : Any> GetTrustAnchors<Q, TA>.transform(
+    transformation: Map<Q1, Q>,
+): GetTrustAnchorsForSupportedQueries<Q1, TA> =
+    GetTrustAnchorsForSupportedQueries.transform(this, transformation)
 
 /**
  * Combines this source with [other] to create a fallback chain.

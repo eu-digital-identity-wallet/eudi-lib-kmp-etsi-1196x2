@@ -58,35 +58,35 @@ dependencies {
 ### 2. Setup and Use
 
 ```kotlin
-// 1. Setup DSS options with a 24-hour file cache
-val dssOptions = DssOptions.usingFileCacheDataLoader(
-    fileCacheExpiration = 24.hours,
-    cacheDirectory = Paths.get(cachePath)
+// 1. Setup DSS options with a 24-hour file cache, and get an instance of GetTrustAnchorsFromLoTL
+val getTrustAnchorsFromLoTL = GetTrustAnchorsFromLoTL(
+    dssOptions = DssOptions.usingFileCacheDataLoader(
+        fileCacheExpiration = 24.hours,
+        cacheDirectory = createTempDirectory("lotl-cache"),
+    )
 )
 
-// 2. Define LOTL Source (DSS class)
-val lotlSource = LOTLSource().apply {
+// 2. Define one or more LOTL Source (DSS class)
+val pidLotl = LOTLSource().apply {
     url = "https://example.com/LOTL.xml"
     // ... further configuration (predicates, etc.)
 }
+val pubEAALotl = LOTLSource().apply { }
 
-// 3. Define the trust source per context
-val trustSource = GetTrustAnchorsForSupportedQueries.usingLoTL(
-    ttl = 10.minutes, // In-memory cache TTL
-    queryPerVerificationContext = mapOf(
-        VerificationContext.PID to lotlSource
-    ),
-    dssOptions = dssOptions
-)
+// 4. Defines mappings to verification contexts
+val trustSource = getTrustAnchorsFromLoTL.transform(buildMap{
+    put(VerificationContext.PID, pidLotl)
+    put(VerificationContext.PubEAA, pubEAALotl)
+})
 
-// 4. Instantiate the final validator
-val validator = IsChainTrustedForEUDIW(
+// 5. Instantiate the final validator
+val isTrusted = IsChainTrustedForEUDIW(
     validateCertificateChain = ValidateCertificateChainJvm(),
     getTrustAnchorsByContext = trustSource
 )
 
-// 5. Use it
-val result = validator(chain, VerificationContext.PID)
+// 6. Use it
+val result = isTrusted(chain, VerificationContext.PID)
 ```
 
 ### Examples
