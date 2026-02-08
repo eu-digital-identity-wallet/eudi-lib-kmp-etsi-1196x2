@@ -64,7 +64,7 @@ val getTrustAnchorsFromLoTL = GetTrustAnchorsFromLoTL(
         fileCacheExpiration = 24.hours,
         cacheDirectory = createTempDirectory("lotl-cache"),
     )
-)
+).cached(ttl = 10.minutes, expectedQueries = 2) // that's optional
 
 // 2. Define one or more LOTL Source (DSS class)
 val pidLotl = LOTLSource().apply {
@@ -80,13 +80,15 @@ val trustSource = getTrustAnchorsFromLoTL.transform(buildMap{
 })
 
 // 5. Instantiate the final validator
-val isTrusted = IsChainTrustedForEUDIW(
+val isTrustedResource = IsChainTrustedForEUDIW(
     validateCertificateChain = ValidateCertificateChainJvm(),
     getTrustAnchorsByContext = trustSource
 )
 
-// 6. Use it
-val result = isTrusted(chain, VerificationContext.PID)
+// 6. Use it (Not the use, for resource safety reasons)
+val result = isTrustedResource.use { isTrusted ->
+    isTrusted(chain, VerificationContext.PID)
+}
 ```
 
 ### Examples
