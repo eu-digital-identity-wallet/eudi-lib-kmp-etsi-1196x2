@@ -33,12 +33,15 @@ package eu.europa.ec.eudi.etsi1196x2.consultation
  * - **Uniqueness**: Transforming queries must maintain a one-to-one mapping; if a transformation causes
  *   previously distinct queries to collide or overlap across providers, the operation will fail.
  *
+ * Note: This class owns the lifecycle of its underlying sources.
+ * When this instance is closed, all internal sources that implement [AutoCloseable] will also be closed.
+ *
  * @param QUERY the type of the query
  * @param TRUST_ANCHOR the type of the trust anchors returned by the source
  */
 public class GetTrustAnchorsForSupportedQueries<QUERY : Any, out TRUST_ANCHOR : Any> internal constructor(
     private val sources: Map<Set<QUERY>, GetTrustAnchors<QUERY, TRUST_ANCHOR>>,
-) {
+) : AutoCloseable {
 
     public constructor(
         supportedQueries: Set<QUERY>,
@@ -138,6 +141,12 @@ public class GetTrustAnchorsForSupportedQueries<QUERY : Any, out TRUST_ANCHOR : 
 
     private val supportedQueries: Set<QUERY> by lazy { sources.keys.flatten().toSet() }
 
+    override fun close() {
+        for (source in sources.values) {
+            (source as? AutoCloseable)?.close()
+        }
+    }
+
     /**
      * Represents the result of a trust anchor retrieval operation.
      *
@@ -162,5 +171,19 @@ public class GetTrustAnchorsForSupportedQueries<QUERY : Any, out TRUST_ANCHOR : 
         public data object MisconfiguredSource : Outcome<Nothing>
     }
 
-    public companion object
+    public companion object {
+
+        public fun <Q1 : Any, TA : Any, Q2 : Any> transform(
+            getTrustAnchors: GetTrustAnchors<Q1, TA>,
+            transformation: Map<Q2, Q1>,
+        ): GetTrustAnchorsForSupportedQueries<Q2, TA> {
+            val doubleQueries = transformation.values.groupBy { it }.filterValues { it.size > 1 }.keys
+            require(doubleQueries.isEmpty()) { "Queries must be unique: $doubleQueries" }
+
+            return GetTrustAnchorsForSupportedQueries(
+                supportedQueries = transformation.keys,
+                getTrustAnchors = getTrustAnchors.contraMap { checkNotNull(transformation[it]) },
+            )
+        }
+    }
 }

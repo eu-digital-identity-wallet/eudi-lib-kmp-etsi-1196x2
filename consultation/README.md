@@ -35,12 +35,15 @@ val classifications = AttestationClassifications(
 ### 3. Use the High-Level API
 
 ```kotlin
-val validator = IsChainTrustedForAttestation(
-    isChainTrustedForContext = myIsChainTrustedForEUDIW, // Implementation of IsChainTrustedForEUDIW
-    classifications = classifications
-)
+val isChainTrustedResource : IsChainTrustedForEUDIW // Implementation of IsChainTrustedForEUDIW
 
-val result = validator.issuance(chain, MDoc("eu.europa.ec.eudi.pid.1"))
+val result = isChainTrustedResource.use { isChainTrusted ->
+  val validator = IsChainTrustedForAttestation(
+    isChainTrustedForContext = isChainTrusted, // Implementation of IsChainTrustedForEUDIW
+    classifications = classifications
+  )
+  validator.issuance(chain, MDoc("eu.europa.ec.eudi.pid.1"))
+}
 ```
 
 ## Core abstractions
@@ -96,7 +99,7 @@ the seamless merging of multiple trust sources.
 Designed from the ground up for asynchronous environments (KMP):
 - `suspend` everywhere: All I/O-bound and CPU-intensive tasks are suspendable.
 - **Structured Concurrency**: Uses `SupervisorJob` and explicit `CoroutineDispatchers` to ensure stability.
-- **Concurrency Guarding**: Features a custom `InvokeOnce` utility and an `AsyncCache` to prevent redundant computations and "cache stampedes".
+- **Concurrency Guarding**: Features an `AsyncCache` to prevent redundant computations and "cache stampedes".
 
 ## Platform Support
 

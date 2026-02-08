@@ -20,7 +20,8 @@ import eu.europa.ec.eudi.etsi1196x2.consultation.dss.EUDIRefDevEnv.httpLoader
 import eu.europa.esig.dss.spi.client.http.NativeHTTPDataLoader
 import eu.europa.esig.dss.tsl.function.GrantedOrRecognizedAtNationalLevelTrustAnchorPeriodPredicate
 import eu.europa.esig.dss.tsl.source.LOTLSource
-import kotlinx.coroutines.*
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.test.runTest
 import java.io.ByteArrayInputStream
 import java.nio.file.Files.createTempDirectory
@@ -60,48 +61,52 @@ object EUDIRefDevEnv {
 
     val httpLoader = ObservableHttpLoader(NativeHTTPDataLoader())
 
-    val trustAnchorsPerContext: GetTrustAnchorsForSupportedQueries<VerificationContext, TrustAnchor> =
-        GetTrustAnchorsForSupportedQueries.usingLoTL(
-            dssOptions = DssOptions.usingFileCacheDataLoader(
-                fileCacheExpiration = 24.hours,
-                cacheDirectory = createTempDirectory("lotl-cache"),
-                httpLoader = httpLoader,
-            ),
-            queryPerVerificationContext = buildMap {
-                put(VerificationContext.PID, lotlSource(PID_SVC_TYPE))
-                put(VerificationContext.PubEAA, lotlSource(PUB_EAA_SVC_TYPE))
-            },
-            ttl = 10.seconds,
-        )
-
-    val isChainTrustedForContext =
+    fun isChainTrustedForContext(): IsChainTrustedForEUDIW<List<X509Certificate>, TrustAnchor> =
         IsChainTrustedForEUDIW(
-            ValidateCertificateChainJvm(customization = { isRevocationEnabled = false }),
-            trustAnchorsPerContext,
+            validateCertificateChain = ValidateCertificateChainJvm(
+                customization = { isRevocationEnabled = false },
+            ),
+            getTrustAnchorsByContext = GetTrustAnchorsForSupportedQueries.usingLoTL(
+                dssOptions = DssOptions.usingFileCacheDataLoader(
+                    fileCacheExpiration = 24.hours,
+                    cacheDirectory = createTempDirectory("lotl-cache"),
+                    httpLoader = httpLoader,
+                ),
+                queryPerVerificationContext = buildMap {
+                    put(VerificationContext.PID, lotlSource(PID_SVC_TYPE))
+                    put(VerificationContext.PubEAA, lotlSource(PUB_EAA_SVC_TYPE))
+                },
+                ttl = 10.seconds,
+            ),
         )
 }
 
 class IsChainTrustedUsingLoTLTest {
 
-    val isX5CTrusted =
-        EUDIRefDevEnv.isChainTrustedForContext.contraMap(::certsFromX5C)
+    fun isX5CTrustedResource(): IsChainTrustedForEUDIW<List<String>, TrustAnchor> =
+        EUDIRefDevEnv.isChainTrustedForContext().contraMap(::certsFromX5C)
+
+    private fun testX5C(block: suspend (IsChainTrustedForEUDIW<List<String>, TrustAnchor>) -> Unit) = runTest {
+        isX5CTrustedResource().use { isX5CTrusted -> block(isX5CTrusted) }
+    }
 
     @Test
-    fun verifyThatPidX5CIsTrustedForPIDContext() = runTest {
+    fun verifyThatPidX5CIsTrustedForPIDContext() = testX5C { isX5CTrusted ->
+
         val validation = isX5CTrusted(pidX5c, VerificationContext.PID)
         assertIs<CertificationChainValidation.Trusted<TrustAnchor>>(validation)
     }
 
     @Test
     @Ignore("This is not passing because current LoTL contains the same certs for PID and PubEAA service types")
-    fun verifyThatPidX5CIsNotTrustedForPubEAAContext() = runTest {
+    fun verifyThatPidX5CIsNotTrustedForPubEAAContext() = testX5C { isX5CTrusted ->
         assertIs<CertificationChainValidation.NotTrusted>(
             isX5CTrusted(pidX5c, VerificationContext.PubEAA),
         )
     }
 
     @Test
-    fun verifyThatPidX5CFailsForAnUnsupportedContext() = runTest {
+    fun verifyThatPidX5CFailsForAnUnsupportedContext() = testX5C { isX5CTrusted ->
         assertNull(
             isX5CTrusted(pidX5c, VerificationContext.WalletUnitAttestation),
         )
@@ -110,18 +115,20 @@ class IsChainTrustedUsingLoTLTest {
 
 class IsChainTrustedUsingLoTLParallelTest {
 
-    val isX5CTrusted =
-        EUDIRefDevEnv.isChainTrustedForContext.contraMap(::certsFromX5C)
+    fun isX5CTrustedResource(): IsChainTrustedForEUDIW<List<String>, TrustAnchor> =
+        EUDIRefDevEnv.isChainTrustedForContext().contraMap(::certsFromX5C)
 
     @Test
     fun checkInParallel() = runTest {
-        resetHttpLoaderAnd {
-            buildList {
-                repeat(200) {
-                    add(async { isX5CTrusted(pidX5c, VerificationContext.PID) })
-                    add(async { isX5CTrusted(pidX5c, VerificationContext.PubEAA) })
-                }
-            }.awaitAll()
+        isX5CTrustedResource().use { isX5CTrusted ->
+            resetHttpLoaderAnd {
+                buildList {
+                    repeat(200) {
+                        add(async { isX5CTrusted(pidX5c, VerificationContext.PID) })
+                        add(async { isX5CTrusted(pidX5c, VerificationContext.PubEAA) })
+                    }
+                }.awaitAll()
+            }
         }
     }
 
