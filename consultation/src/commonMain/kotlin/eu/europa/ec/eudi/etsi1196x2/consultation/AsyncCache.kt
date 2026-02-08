@@ -15,6 +15,7 @@
  */
 package eu.europa.ec.eudi.etsi1196x2.consultation
 
+import eu.europa.ec.eudi.etsi1196x2.consultation.AsyncCache.Entry
 import kotlinx.coroutines.*
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -41,6 +42,9 @@ internal class AsyncCache<A : Any, B>(
         }
 
     override suspend fun invoke(key: A): B {
+        if (!cacheScope.isActive) {
+            throw IllegalStateException("AsyncCache has been closed")
+        }
         val now = clock.now().toEpochMilliseconds()
         val entry = mutex.withLock {
             val existing = cache[key]
@@ -71,7 +75,9 @@ internal class AsyncCache<A : Any, B>(
     }
 
     override fun close() {
-        cacheScope.cancel()
-        cache.clear()
+        if (cacheScope.isActive) {
+            cacheScope.cancel()
+            cache.clear()
+        }
     }
 }
