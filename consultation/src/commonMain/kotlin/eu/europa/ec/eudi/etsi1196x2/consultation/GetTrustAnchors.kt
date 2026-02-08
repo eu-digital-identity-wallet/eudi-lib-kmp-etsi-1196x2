@@ -164,6 +164,7 @@ public class GetTrustAnchorsCachedSource<in QUERY : Any, out TRUST_ANCHOR : Any>
 
     override fun close() {
         cached.close()
+        delegate.closeIfNeeded()
     }
 }
 
