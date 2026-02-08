@@ -23,6 +23,7 @@ import kotlin.test.assertNull
 class GetTrustAnchorsTest {
 
     @Test
+    @SensitiveApi
     fun `or combinator returns first source result if present`() = runTest {
         val source1 = GetTrustAnchors<String, String> { _ -> NonEmptyList(listOf("anchor1")) }
         val source2 = GetTrustAnchors<String, String> { _ -> NonEmptyList(listOf("anchor2")) }
@@ -33,6 +34,7 @@ class GetTrustAnchorsTest {
     }
 
     @Test
+    @SensitiveApi
     fun `or combinator returns second source result if first is null`() = runTest {
         val source1 = GetTrustAnchors<String, String> { _ -> null }
         val source2 = GetTrustAnchors<String, String> { _ -> NonEmptyList(listOf("anchor2")) }
@@ -43,6 +45,7 @@ class GetTrustAnchorsTest {
     }
 
     @Test
+    @SensitiveApi
     fun `or combinator returns null if both sources are null`() = runTest {
         val source1 = GetTrustAnchors<String, String> { _ -> null }
         val source2 = GetTrustAnchors<String, String> { _ -> null }

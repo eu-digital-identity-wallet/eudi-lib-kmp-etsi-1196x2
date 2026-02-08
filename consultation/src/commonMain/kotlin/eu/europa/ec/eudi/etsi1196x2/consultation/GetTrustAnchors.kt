@@ -74,10 +74,11 @@ public fun <Q : Any, TA : Any, Q1 : Any> GetTrustAnchors<Q, TA>.transform(
  * @param TA the trust anchor type
  * @return a composite source that implements fallback logic
  */
+@SensitiveApi
 public infix fun <Q : Any, TA : Any> GetTrustAnchors<Q, TA>.or(
     other: GetTrustAnchors<Q, TA>,
 ): GetTrustAnchors<Q, TA> =
-    GetTrustAnchors { source -> this.invoke(source) ?: other(source) }
+    GetTrustAnchorsWithAlternative(this, other)
 
 /**
  * Adapts this source to a different query type [Q2].
@@ -95,7 +96,8 @@ public infix fun <Q : Any, TA : Any> GetTrustAnchors<Q, TA>.or(
  */
 public fun <Q : Any, TA : Any, Q2 : Any> GetTrustAnchors<Q, TA>.contraMap(
     transformation: (Q2) -> Q,
-): GetTrustAnchors<Q2, TA> = GetTrustAnchors { source -> invoke(transformation(source)) }
+): GetTrustAnchorsTransformingQuery<Q2, Q, TA> =
+    GetTrustAnchorsTransformingQuery(this, transformation)
 
 /**
  * Decorates this source with transparent caching of results.
@@ -163,4 +165,36 @@ public class GetTrustAnchorsCachedSource<in QUERY : Any, out TRUST_ANCHOR : Any>
     override fun close() {
         cached.close()
     }
+}
+
+@SensitiveApi
+public class GetTrustAnchorsWithAlternative<in QUERY : Any, out TRUST_ANCHOR : Any>(
+    private val delegate: GetTrustAnchors<QUERY, TRUST_ANCHOR>,
+    private val alternative: GetTrustAnchors<QUERY, TRUST_ANCHOR>,
+) : GetTrustAnchors<QUERY, TRUST_ANCHOR>, AutoCloseable {
+
+    override suspend fun invoke(query: QUERY): NonEmptyList<TRUST_ANCHOR>? =
+        delegate.invoke(query) ?: alternative.invoke(query)
+
+    override fun close() {
+        delegate.closeIfNeeded()
+        alternative.closeIfNeeded()
+    }
+}
+
+public class GetTrustAnchorsTransformingQuery<in QUERY2 : Any, in QUERY : Any, out TRUST_ANCHOR : Any>(
+    private val delegate: GetTrustAnchors<QUERY, TRUST_ANCHOR>,
+    private val transformation: (QUERY2) -> QUERY,
+) : GetTrustAnchors<QUERY2, TRUST_ANCHOR>, AutoCloseable {
+
+    override suspend fun invoke(query: QUERY2): NonEmptyList<TRUST_ANCHOR>? =
+        delegate.invoke(transformation(query))
+
+    override fun close() {
+        delegate.closeIfNeeded()
+    }
+}
+
+private fun Any?.closeIfNeeded() {
+    (this as? AutoCloseable)?.close()
 }
