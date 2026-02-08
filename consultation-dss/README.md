@@ -32,7 +32,7 @@ dependencies {
 > * `dss-utils-apache-commons`: Implementation of dss-utils with Apache Commons libraries
 > * `dss-utils-google-guava`: Implementation of dss-utils with Google Guava
 > 
-> Users of this library, must also include the DSS implementation of their choice.
+> Users of this library must also include the DSS implementation of their choice.
 > 
 > ```kotlin
 > dependencies {
