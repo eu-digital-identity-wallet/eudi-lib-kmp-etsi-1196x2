@@ -45,6 +45,9 @@ public fun interface IsChainTrustedForContextF<in CHAIN : Any, in CTX : Any, out
 /**
  * A default implementation of [IsChainTrustedForContextF]
  *
+ *  Note: This class owns the lifecycle of its underlying sources.
+ *  When this instance is closed, all internal sources that implement [AutoCloseable] will also be closed.
+ *
  * @param validateCertificateChain the certificate chain validation function
  * @param getTrustAnchorsByContext the supported verification contexts and their corresponding trust anchors sources
  *
@@ -55,7 +58,7 @@ public fun interface IsChainTrustedForContextF<in CHAIN : Any, in CTX : Any, out
 public class IsChainTrustedForContext<in CHAIN : Any, CTX : Any, out TRUST_ANCHOR : Any>(
     private val validateCertificateChain: ValidateCertificateChain<CHAIN, TRUST_ANCHOR>,
     private val getTrustAnchorsByContext: GetTrustAnchorsForSupportedQueries<CTX, TRUST_ANCHOR>,
-) : IsChainTrustedForContextF<CHAIN, CTX, TRUST_ANCHOR> {
+) : IsChainTrustedForContextF<CHAIN, CTX, TRUST_ANCHOR>, AutoCloseable {
 
     /**
      * Check certificate chain is trusted in the context of
@@ -118,6 +121,10 @@ public class IsChainTrustedForContext<in CHAIN : Any, CTX : Any, out TRUST_ANCHO
                 IsChainTrustedForContext(validateCertificateChain, it)
             }
         }
+
+    override fun close() {
+        getTrustAnchorsByContext.close()
+    }
 
     public companion object
 }
