@@ -78,7 +78,8 @@ public class IsChainTrustedForContext<in CHAIN : Any, CTX : Any, out TRUST_ANCHO
         withContext(CoroutineName(name = "IsChainTrustedForContext - $verificationContext")) {
             when (val outcome = getTrustAnchorsByContext(verificationContext)) {
                 is GetTrustAnchorsForSupportedQueries.Outcome.Found<TRUST_ANCHOR> -> validateCertificateChain(chain, outcome.trustAnchors)
-                else -> null
+                GetTrustAnchorsForSupportedQueries.Outcome.NotFound -> null
+                GetTrustAnchorsForSupportedQueries.Outcome.QueryNotSupported -> null
             }
         }
 

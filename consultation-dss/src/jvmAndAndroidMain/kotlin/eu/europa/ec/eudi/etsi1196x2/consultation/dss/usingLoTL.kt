@@ -18,6 +18,7 @@ package eu.europa.ec.eudi.etsi1196x2.consultation.dss
 import eu.europa.ec.eudi.etsi1196x2.consultation.GetTrustAnchorsForSupportedQueries
 import eu.europa.ec.eudi.etsi1196x2.consultation.IsChainTrustedForContext
 import eu.europa.ec.eudi.etsi1196x2.consultation.cached
+import eu.europa.ec.eudi.etsi1196x2.consultation.transform
 import eu.europa.esig.dss.service.http.commons.FileCacheDataLoader
 import eu.europa.esig.dss.tsl.source.LOTLSource
 import kotlinx.coroutines.CoroutineDispatcher
@@ -48,7 +49,7 @@ import kotlin.time.Duration
  *         fileCacheExpiration = 24.hours,
  *         cacheDirectory = createTempDirectory("lotl-cache"),
  *     ),
- *     sourcePerVerification = buildMap {
+ *     queryPerVerificationContext = buildMap {
  *         put(VerificationContext.PubEAA, lotlSource(PUB_EAA_SVC_TYPE))
  *     },
  *     ttl = 10.seconds,
@@ -74,15 +75,7 @@ public fun <CTX : Any> GetTrustAnchorsForSupportedQueries.Companion.usingLoTL(
     ttl: Duration,
     dssOptions: DssOptions = DssOptions.Default,
     queryPerVerificationContext: Map<CTX, LOTLSource>,
-): GetTrustAnchorsForSupportedQueries<CTX, TrustAnchor> {
-    val getTrustAnchorsFromLoTL =
-        GetTrustAnchorsFromLoTL(dssOptions)
-            .cached(
-                cacheDispatcher = cacheDispatcher,
-                clock = clock,
-                ttl = ttl,
-                expectedQueries = queryPerVerificationContext.size,
-            )
-
-    return transform(getTrustAnchorsFromLoTL, queryPerVerificationContext)
-}
+): GetTrustAnchorsForSupportedQueries<CTX, TrustAnchor> =
+    GetTrustAnchorsFromLoTL(dssOptions)
+        .cached(cacheDispatcher, clock, ttl, expectedQueries = queryPerVerificationContext.size)
+        .transform(queryPerVerificationContext)

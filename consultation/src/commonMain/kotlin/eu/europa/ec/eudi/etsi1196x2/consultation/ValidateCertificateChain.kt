@@ -38,22 +38,6 @@ public fun interface ValidateCertificateChain<in CHAIN : Any, TRUST_ANCHOR : Any
 }
 
 /**
- * Changes the representation of the certificate chain
- *
- * @param transform the transformation function
- * @return a new [ValidateCertificateChain] instance
- *
- * @param C1 type representing the input certificate chain
- * @param C2 type representing the output certificate chain
- * @param TA type representing a trust anchor
- */
-public fun <C1 : Any, TA : Any, C2 : Any> ValidateCertificateChain<C1, TA>.contraMap(
-    transform: (C2) -> C1,
-): ValidateCertificateChain<C2, TA> = ValidateCertificateChain { chain, trustAnchors ->
-    this(transform(chain), trustAnchors)
-}
-
-/**
  * Represents the outcome of the validation
  *
  * - [Trusted] if the chain is trusted, with the trust anchor
@@ -76,4 +60,26 @@ public sealed interface CertificationChainValidation<out TRUST_ANCHOR : Any> {
      * @param cause the cause of the failure
      */
     public data class NotTrusted(val cause: Throwable) : CertificationChainValidation<Nothing>
+}
+
+/**
+ * Changes the representation of the certificate chain
+ *
+ * @param transform the transformation function
+ * @return a new [ValidateCertificateChain] instance
+ *
+ * @param C1 type representing the input certificate chain
+ * @param C2 type representing the output certificate chain
+ * @param TA type representing a trust anchor
+ */
+public fun <C1 : Any, TA : Any, C2 : Any> ValidateCertificateChain<C1, TA>.contraMap(
+    transform: (C2) -> C1,
+): ValidateCertificateChain<C2, TA> = ValidateCertificateChainContraMap(this, transform)
+
+private class ValidateCertificateChainContraMap<C1 : Any, TA : Any, C2 : Any>(
+    private val delegate: ValidateCertificateChain<C1, TA>,
+    private val transform: (C2) -> C1,
+) : ValidateCertificateChain<C2, TA> {
+    override suspend fun invoke(chain: C2, trustAnchors: NonEmptyList<TA>): CertificationChainValidation<TA> =
+        delegate(transform(chain), trustAnchors)
 }
