@@ -15,11 +15,7 @@
  */
 package eu.europa.ec.eudi.etsi1196x2.consultation
 
-import kotlin.test.Test
-import kotlin.test.assertContentEquals
-import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
-import kotlin.test.assertNull
+import kotlin.test.*
 
 class AttestationClassificationsTest {
 

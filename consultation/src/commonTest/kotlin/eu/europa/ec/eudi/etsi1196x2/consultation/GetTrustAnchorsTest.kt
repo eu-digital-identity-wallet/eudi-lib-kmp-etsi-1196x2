@@ -16,7 +16,10 @@
 package eu.europa.ec.eudi.etsi1196x2.consultation
 
 import kotlinx.coroutines.test.runTest
-import kotlin.test.*
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertNull
+import kotlin.test.assertTrue
 import kotlin.time.Duration
 
 class GetTrustAnchorsTest {

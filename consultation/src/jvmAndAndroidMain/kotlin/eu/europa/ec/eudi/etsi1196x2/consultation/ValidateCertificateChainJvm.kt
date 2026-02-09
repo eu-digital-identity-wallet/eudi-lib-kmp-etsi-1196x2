@@ -15,6 +15,8 @@
  */
 package eu.europa.ec.eudi.etsi1196x2.consultation
 
+import eu.europa.ec.eudi.etsi1196x2.consultation.ValidateCertificateChainJvm.Companion.DEFAULT_CUSTOMIZATION
+import eu.europa.ec.eudi.etsi1196x2.consultation.ValidateCertificateChainJvm.Companion.DEFAULT_DISPATCHER
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.Dispatchers

@@ -15,7 +15,8 @@
  */
 package eu.europa.ec.eudi.etsi1196x2.consultation
 
-import kotlin.test.*
+import kotlin.test.Test
+import kotlin.test.assertTrue
 
 class IsChainTrustedForContextTest {
 
