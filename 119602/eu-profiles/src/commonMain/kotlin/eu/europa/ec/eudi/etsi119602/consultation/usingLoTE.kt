@@ -26,26 +26,23 @@ public class GetTrustAnchorsFromLoTE(
 ) : GetTrustAnchors<URI, PKIObject> {
 
     override suspend fun invoke(query: URI): NonEmptyList<PKIObject>? {
-        val certs = lote.entities?.flatMap { trustedEntity ->
+        val certs = lote.entities.orEmpty().flatMap { trustedEntity ->
             trustedEntity.services
                 .filter { it.information.typeIdentifier == query }
                 .flatMap { it.information.digitalIdentity.x509Certificates.orEmpty() }
         }
-        return if (certs == null) {
-            null
-        } else {
-            NonEmptyList.nelOrNull(certs)
-        }
+        return NonEmptyList.nelOrNull(certs)
     }
 }
 
+
 public fun GetTrustAnchorsForSupportedQueries.Companion.usingLoTE(
-    lotesPerProfile: Map<EUListOfTrustedEntitiesProfile, ListOfTrustedEntities>,
+    lotePerProfile: Map<EUListOfTrustedEntitiesProfile, ListOfTrustedEntities>,
 ): GetTrustAnchorsForSupportedQueries<VerificationContext, PKIObject> {
     var result =
         GetTrustAnchorsForSupportedQueries<VerificationContext, PKIObject>()
 
-    lotesPerProfile.forEach { (profile, lote) ->
+    lotePerProfile.forEach { (profile, lote) ->
 
         with(profile) {
             lote.ensureCompliesToProfile()
@@ -60,38 +57,33 @@ public fun GetTrustAnchorsForSupportedQueries.Companion.usingLoTE(
 
 private fun EUListOfTrustedEntitiesProfile.ctx(): Map<VerificationContext, URI> =
     buildMap {
-        val issuanceSvcType = issuanceSvcType()
-        val revocationSvcType = revocationSvcType()
+        fun VerificationContext.putIssuance() = this@ctx.issuanceSvcType()?.let { put(this, it) }
+        fun VerificationContext.putRevocation() = this@ctx.revocationSvcType()?.let { put(this, it) }
         when (this@ctx) {
             EUPIDProvidersList -> {
-                issuanceSvcType
-                    ?.let { put(VerificationContext.PID, it) }
-                revocationSvcType
-                    ?.let { put(VerificationContext.PIDStatus, it) }
+                VerificationContext.PID.putIssuance()
+                VerificationContext.PIDStatus.putRevocation()
             }
 
             EUWalletProvidersList -> {
-                issuanceSvcType
-                    ?.let {
-                        put(VerificationContext.WalletInstanceAttestation, it)
-                        //        put(VerificationContext.WalletUnitAttestation, it)
-                    }
-                revocationSvcType?.let { put(VerificationContext.WalletUnitAttestationStatus, it) }
+                VerificationContext.WalletInstanceAttestation.putIssuance()
+                VerificationContext.WalletUnitAttestation.putIssuance()
+                VerificationContext.WalletUnitAttestationStatus.putRevocation()
             }
 
             EUWRPACProvidersList -> {
-                issuanceSvcType
-                    ?.let { put(VerificationContext.WalletRelyingPartyAccessCertificate, it) }
+                VerificationContext.WalletRelyingPartyAccessCertificate.putIssuance()
             }
 
             EUWRPRCProvidersList -> {
-                issuanceSvcType?.let { put(VerificationContext.WalletRelyingPartyRegistrationCertificate, it) }
+                VerificationContext.WalletRelyingPartyRegistrationCertificate.putIssuance()
             }
 
             EUMDLProvidersList -> {
-                issuanceSvcType?.let { put(VerificationContext.EAA("mdl"), it) }
-                revocationSvcType?.let { put(VerificationContext.EAAStatus("mdl"), it) }
+                VerificationContext.EAA("mdl").putIssuance()
+                VerificationContext.EAAStatus("mdl").putRevocation()
             }
+
             else -> {}
         }
     }

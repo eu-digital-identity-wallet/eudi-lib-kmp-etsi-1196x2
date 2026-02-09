@@ -41,7 +41,7 @@ class ListOfTrustedEntitiesTest {
             VerificationContext.PID,
             VerificationContext.PIDStatus,
             VerificationContext.WalletInstanceAttestation,
-            // VerificationContext.WalletUnitAttestation,
+            VerificationContext.WalletUnitAttestation,
             VerificationContext.WalletUnitAttestationStatus,
             VerificationContext.WalletRelyingPartyAccessCertificate,
             VerificationContext.EAA("mdl"),
@@ -52,7 +52,7 @@ class ListOfTrustedEntitiesTest {
             val outcome = trust(ctx)
             when (outcome) {
                 is GetTrustAnchorsForSupportedQueries.Outcome.Found<*> -> println("$ctx : ${outcome.trustAnchors.list.size} ")
-                GetTrustAnchorsForSupportedQueries.Outcome.MisconfiguredSource -> println("$ctx : None ")
+                GetTrustAnchorsForSupportedQueries.Outcome.NotFound -> println("$ctx : Not found ")
                 GetTrustAnchorsForSupportedQueries.Outcome.QueryNotSupported -> fail("Query not supported: $ctx")
             }
         }
