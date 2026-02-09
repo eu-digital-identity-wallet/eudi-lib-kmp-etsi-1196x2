@@ -92,7 +92,7 @@ kotlin {
         }
         val jvmAndAndroidMain by getting {
             dependencies {
-                implementation(project.dependencies.platform(libs.dss.bom))
+                api(project.dependencies.platform(libs.dss.bom))
                 implementation(libs.dss.validation)
                 implementation(libs.dss.service)
                 api(libs.dss.tsl.validation)
