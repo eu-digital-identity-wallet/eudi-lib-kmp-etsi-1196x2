@@ -71,7 +71,6 @@ public class IsChainTrustedForContext<in CHAIN : Any, CTX : Any, out TRUST_ANCHO
      * @return outcome of the check. A null value indicates that the given [verificationContext] has not been configured,
      * or its underlying source didn't return trust anchors
      */
-    @Throws(IllegalStateException::class)
     public override suspend operator fun invoke(
         chain: CHAIN,
         verificationContext: CTX,
