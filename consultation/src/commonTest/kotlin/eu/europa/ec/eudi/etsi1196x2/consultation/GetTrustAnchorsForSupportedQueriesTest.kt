@@ -153,6 +153,6 @@ class GetTrustAnchorsForSupportedQueriesTest {
         val supportedQueries = GetTrustAnchorsForSupportedQueries(setOf("q1"), source)
 
         val result = supportedQueries("q1")
-        assertEquals(GetTrustAnchorsForSupportedQueries.Outcome.MisconfiguredSource, result)
+        assertEquals(GetTrustAnchorsForSupportedQueries.Outcome.NotFound, result)
     }
 }

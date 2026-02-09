@@ -64,7 +64,7 @@ public class GetTrustAnchorsForSupportedQueries<QUERY : Any, out TRUST_ANCHOR : 
             ?.let { getTrustAnchors ->
                 getTrustAnchors(query)
                     ?.let { Outcome.Found(it) }
-                    ?: Outcome.MisconfiguredSource
+                    ?: Outcome.NotFound
             }
             ?: Outcome.QueryNotSupported
 
@@ -160,15 +160,14 @@ public class GetTrustAnchorsForSupportedQueries<QUERY : Any, out TRUST_ANCHOR : 
         public data class Found<out TRUST_ANCHOR>(val trustAnchors: NonEmptyList<TRUST_ANCHOR>) : Outcome<TRUST_ANCHOR>
 
         /**
+         * A query that is supported but didn't return any trust anchors.
+         */
+        public data object NotFound : Outcome<Nothing>
+
+        /**
          * The source did not support the query
          */
         public data object QueryNotSupported : Outcome<Nothing>
-
-        /**
-         * A query that is supported didn't return any trust anchors.
-         * This indicates a misconfiguration of the source.
-         */
-        public data object MisconfiguredSource : Outcome<Nothing>
     }
 
     public companion object {
