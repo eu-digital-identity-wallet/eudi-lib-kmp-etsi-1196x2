@@ -23,14 +23,14 @@ import kotlin.time.Clock
 import kotlin.time.Duration
 
 internal class AsyncCache<A : Any, B>(
-    coroutineScope: CoroutineScope,
+    cacheDispatcher: CoroutineDispatcher,
     private val clock: Clock,
     private val ttl: Duration,
     private val maxCacheSize: Int,
     private val supplier: suspend (A) -> B,
 ) : suspend (A) -> B, AutoCloseable {
 
-    private val cacheScope = CoroutineScope(SupervisorJob() + coroutineScope.coroutineContext.minusKey(Job))
+    private val cacheScope = CoroutineScope(SupervisorJob() + cacheDispatcher)
 
     private data class Entry<B>(val deferred: Deferred<B>, val createdAt: Long)
 
