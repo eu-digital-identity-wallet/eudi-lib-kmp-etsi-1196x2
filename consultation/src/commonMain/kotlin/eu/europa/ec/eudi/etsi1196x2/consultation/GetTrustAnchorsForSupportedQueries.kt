@@ -27,11 +27,7 @@ package eu.europa.ec.eudi.etsi1196x2.consultation
  * - **Strict Invariants**: It ensures that each query is handled by at most one [GetTrustAnchors], preventing
  *   ambiguous or overlapping definitions.
  *
- * When [combining][plus] multiple instances or [transforming][transform] their queries, these invariants are strictly enforced:
- * - **Exclusivity**: Combining two instances via the `plus` operator is only allowed if their supported
- *   query sets are disjoint.
- * - **Uniqueness**: Transforming queries must maintain a one-to-one mapping; if a transformation causes
- *   previously distinct queries to collide or overlap across providers, the operation will fail.
+ * [combining][plus] multiple instances is only allowed if their supported query sets are disjoint (**Exclusivity**).
  *
  * Note: This class owns the lifecycle of its underlying sources.
  * When this instance is closed, all internal sources that implement [AutoCloseable] will also be closed.
@@ -72,40 +68,6 @@ public class GetTrustAnchorsForSupportedQueries<QUERY : Any, out TRUST_ANCHOR : 
         sources.entries
             .find { (supportedQueries, _) -> query in supportedQueries }
             ?.value
-
-    /**
-     * Transforms the query type of this source while preserving internal routing logic.
-     *
-     * This operation performs a bidirectional mapping of queries and contra-maps the underlying
-     * providers. It is subject to the following constraints:
-     * - **Injective Mapping**: Each original query must map to a unique new query within its provider.
-     * - **Global Disjointness**: The resulting sets of supported queries across all providers must
-     *   remain disjoint.
-     *
-     * @param contraMapF function to map a new query back to the original type for the providers
-     * @param mapF function to map an original query to the new type
-     * @return a new instance with transformed query types
-     * @throws IllegalArgumentException if the transformation violates uniqueness or disjointness invariants
-     * @param Q2 the new representation of the query
-     */
-    @Throws(IllegalArgumentException::class)
-    public fun <Q2 : Any> transform(
-        contraMapF: (Q2) -> QUERY,
-        mapF: (QUERY) -> Q2,
-    ): GetTrustAnchorsForSupportedQueries<Q2, TRUST_ANCHOR> {
-        val newSourcesList = sources.entries.map { (queries, source) ->
-            val mappedQueries = queries.map(mapF).toSet()
-            require(mappedQueries.size == queries.size) {
-                "Invalid transformation: current queries = ${queries.size}, mapped queries = ${mappedQueries.size}"
-            }
-            mappedQueries to source.contraMap(contraMapF)
-        }
-        val allMappedQueries = newSourcesList.flatMap { it.first }
-        require(allMappedQueries.size == allMappedQueries.toSet().size) {
-            "Invalid transformation: result has overlapping queries"
-        }
-        return GetTrustAnchorsForSupportedQueries(newSourcesList.toMap())
-    }
 
     /**
      * Combines this source with an additional query set and [GetTrustAnchors].
@@ -175,14 +137,10 @@ public class GetTrustAnchorsForSupportedQueries<QUERY : Any, out TRUST_ANCHOR : 
         public fun <Q1 : Any, TA : Any, Q2 : Any> transform(
             getTrustAnchors: GetTrustAnchors<Q1, TA>,
             transformation: Map<Q2, Q1>,
-        ): GetTrustAnchorsForSupportedQueries<Q2, TA> {
-            val doubleQueries = transformation.values.groupBy { it }.filterValues { it.size > 1 }.keys
-            require(doubleQueries.isEmpty()) { "Queries must be unique: $doubleQueries" }
-
-            return GetTrustAnchorsForSupportedQueries(
+        ): GetTrustAnchorsForSupportedQueries<Q2, TA> =
+            GetTrustAnchorsForSupportedQueries(
                 supportedQueries = transformation.keys,
                 getTrustAnchors = getTrustAnchors.contraMap { checkNotNull(transformation[it]) },
             )
-        }
     }
 }

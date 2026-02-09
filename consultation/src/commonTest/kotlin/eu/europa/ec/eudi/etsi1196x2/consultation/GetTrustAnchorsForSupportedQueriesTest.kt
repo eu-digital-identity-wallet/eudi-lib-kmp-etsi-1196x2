@@ -42,20 +42,6 @@ class GetTrustAnchorsForSupportedQueriesTest {
         assertTrue(source2.closed, "Source 2 should be closed")
     }
 
-    @Test
-    fun testTransformClose() {
-        val source = MockAutoCloseableGetTrustAnchors()
-        val supportedQueries = GetTrustAnchorsForSupportedQueries(setOf("q1"), source)
-        val transformed = supportedQueries.transform(
-            contraMapF = { s: String -> s },
-            mapF = { s: String -> s },
-        )
-
-        transformed.close()
-
-        assertTrue(source.closed, "Underlying source should be closed")
-    }
-
     private fun mockSource(value: String): GetTrustAnchors<String, String> = GetTrustAnchors { _ ->
         NonEmptyList(listOf(value))
     }
@@ -96,53 +82,6 @@ class GetTrustAnchorsForSupportedQueriesTest {
 
         assertFailsWith<IllegalArgumentException> {
             s1 plus s2
-        }
-    }
-
-    @Test
-    fun testTransform() = runTest {
-        val s1 =
-            GetTrustAnchorsForSupportedQueries(setOf(1)) { i: Int -> NonEmptyList(listOf("val-$i")) }
-
-        // Transform Int queries to String queries
-        val transformed = s1.transform(
-            contraMapF = { s: String -> s.toInt() },
-            mapF = { i: Int -> i.toString() },
-        )
-
-        val r1 = transformed("1")
-        assertIs<GetTrustAnchorsForSupportedQueries.Outcome.Found<String>>(r1)
-        assertEquals("val-1", r1.trustAnchors.list.first())
-    }
-
-    @Test
-    fun testTransformInvariant() {
-        val source: GetTrustAnchors<Int, String> = GetTrustAnchors { _ -> NonEmptyList(listOf("v1")) }
-        val s1 = GetTrustAnchorsForSupportedQueries(setOf(1, 2), source)
-
-        // Invalid transformation: both 1 and 2 map to "const"
-        assertFailsWith<IllegalArgumentException> {
-            s1.transform(
-                contraMapF = { _: String -> 1 },
-                mapF = { _: Int -> "const" },
-            )
-        }
-    }
-
-    @Test
-    fun testTransformInvariantAcrossSources() {
-        val source1: GetTrustAnchors<Int, String> = GetTrustAnchors { _ -> NonEmptyList(listOf("v1")) }
-        val source2: GetTrustAnchors<Int, String> = GetTrustAnchors { _ -> NonEmptyList(listOf("v2")) }
-        val s1 = GetTrustAnchorsForSupportedQueries(setOf(1), source1)
-        val s2 = GetTrustAnchorsForSupportedQueries(setOf(2), source2)
-        val combined = s1 plus s2
-
-        // Invalid transformation: both 1 and 2 map to "const", but they are in different sources
-        assertFailsWith<IllegalArgumentException> {
-            combined.transform(
-                contraMapF = { _: String -> 1 },
-                mapF = { _: Int -> "const" },
-            )
         }
     }
 
