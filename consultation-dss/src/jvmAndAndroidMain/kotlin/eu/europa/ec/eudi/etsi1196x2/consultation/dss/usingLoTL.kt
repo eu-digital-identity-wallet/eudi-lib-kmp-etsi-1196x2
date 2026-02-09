@@ -15,14 +15,12 @@
  */
 package eu.europa.ec.eudi.etsi1196x2.consultation.dss
 
-import eu.europa.ec.eudi.etsi1196x2.consultation.GetTrustAnchors
 import eu.europa.ec.eudi.etsi1196x2.consultation.GetTrustAnchorsForSupportedQueries
 import eu.europa.ec.eudi.etsi1196x2.consultation.IsChainTrustedForContext
 import eu.europa.ec.eudi.etsi1196x2.consultation.cached
 import eu.europa.esig.dss.service.http.commons.FileCacheDataLoader
 import eu.europa.esig.dss.tsl.source.LOTLSource
 import kotlinx.coroutines.CoroutineDispatcher
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import java.security.cert.TrustAnchor
 import kotlin.time.Clock
@@ -53,8 +51,6 @@ import kotlin.time.Duration
  *     sourcePerVerification = buildMap {
  *         put(VerificationContext.PubEAA, lotlSource(PUB_EAA_SVC_TYPE))
  *     },
- *     coroutineScope = CoroutineScope(Dispatchers.Default + SupervisorJob()),
- *     coroutineDispatcher = Dispatchers.IO,
  *     ttl = 10.seconds,
  *  )
  *
@@ -68,31 +64,25 @@ import kotlin.time.Duration
  *        Defaults to [DSSAdapter.Default]
  * @param clock the clock used to retrieve the current time
  *        Defaults to [Clock.System]
- * @param coroutineScope the overall scope that controls [fileCacheLoader]
- *        Defaults to [GetTrustedListsCertificateByLOTLSource.DEFAULT_SCOPE]
- * @param coroutineDispatcher the coroutine dispatcher for executing the blocking logic of [fileCacheLoader]
- *        Defaults to [GetTrustedListsCertificateByLOTLSource.DEFAULT_DISPATCHER]
+ * @param cacheDispatcher the dispatcher for caching. Defaults to [Dispatchers.Default]
  * @param ttl the time-to-live duration for caching the certificate source.
  *
  */
 public fun <CTX : Any> GetTrustAnchorsForSupportedQueries.Companion.usingLoTL(
-    coroutineScope: CoroutineScope = GetTrustAnchors.DEFAULT_SCOPE,
-    coroutineDispatcher: CoroutineDispatcher = Dispatchers.IO,
+    cacheDispatcher: CoroutineDispatcher = Dispatchers.Default,
     clock: Clock = Clock.System,
     ttl: Duration,
     dssOptions: DssOptions = DssOptions.Default,
     queryPerVerificationContext: Map<CTX, LOTLSource>,
 ): GetTrustAnchorsForSupportedQueries<CTX, TrustAnchor> {
     val getTrustAnchorsFromLoTL =
-        GetTrustAnchorsFromLoTL(
-            dispatcher = coroutineDispatcher,
-            dssOptions = dssOptions,
-        ).cached(
-            coroutineScope = coroutineScope,
-            clock = clock,
-            ttl = ttl,
-            expectedQueries = queryPerVerificationContext.size,
-        )
+        GetTrustAnchorsFromLoTL(dssOptions)
+            .cached(
+                cacheDispatcher = cacheDispatcher,
+                clock = clock,
+                ttl = ttl,
+                expectedQueries = queryPerVerificationContext.size,
+            )
 
     return transform(getTrustAnchorsFromLoTL, queryPerVerificationContext)
 }

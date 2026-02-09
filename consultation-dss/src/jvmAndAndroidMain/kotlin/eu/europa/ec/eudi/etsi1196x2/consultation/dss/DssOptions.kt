@@ -26,6 +26,8 @@ import eu.europa.esig.dss.spi.client.http.DataLoader
 import eu.europa.esig.dss.spi.client.http.NativeHTTPDataLoader
 import eu.europa.esig.dss.tsl.sync.ExpirationAndSignatureCheckStrategy
 import eu.europa.esig.dss.tsl.sync.SynchronizationStrategy
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
 import java.nio.file.Path
 import java.util.concurrent.ExecutorService
 import kotlin.time.Duration
@@ -43,6 +45,8 @@ import kotlin.time.Duration.Companion.hours
  *        Defaults to [DefaultSynchronizationStrategy]
  * @param executorService the executor service to use for the validation job.
  *        If not specified, it is decided by [eu.europa.esig.dss.tsl.job.TLValidationJob]
+ * @param validateJobDispatcher the dispatcher to use when querying the validation job.
+ *        Defaults to [Dispatchers.IO]
  */
 public data class DssOptions(
     val loader: DSSCacheFileLoader,
@@ -50,6 +54,7 @@ public data class DssOptions(
     val cleanFileSystem: Boolean = DEFAULT_CLEAN_FILE_SYSTEM,
     val synchronizationStrategy: SynchronizationStrategy = DefaultSynchronizationStrategy,
     val executorService: ExecutorService? = null,
+    val validateJobDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) {
     public companion object {
         /**
@@ -104,6 +109,7 @@ public data class DssOptions(
             cleanFileSystem = DEFAULT_CLEAN_FILE_SYSTEM,
             httpLoader = DefaultHttpLoader,
             executorService = null,
+            validateJobDispatcher = Dispatchers.IO,
         )
 
         /**
@@ -129,13 +135,21 @@ public data class DssOptions(
             httpLoader: DataLoader = DefaultHttpLoader,
             synchronizationStrategy: SynchronizationStrategy = DefaultSynchronizationStrategy,
             executorService: ExecutorService? = null,
+            validateJobDispatcher: CoroutineDispatcher = Dispatchers.IO,
         ): DssOptions {
             val loader = FileCacheDataLoader(httpLoader)
                 .apply {
                     setCacheExpirationTime(fileCacheExpiration.inWholeMilliseconds)
                     cacheDirectory?.let { setFileCacheDirectory(it.toFile()) }
                 }
-            return DssOptions(loader, cleanMemory, cleanFileSystem, synchronizationStrategy, executorService)
+            return DssOptions(
+                loader,
+                cleanMemory,
+                cleanFileSystem,
+                synchronizationStrategy,
+                executorService,
+                validateJobDispatcher,
+            )
         }
     }
 }

@@ -15,10 +15,9 @@
  */
 package eu.europa.ec.eudi.etsi1196x2.consultation
 
-import eu.europa.ec.eudi.etsi1196x2.consultation.GetTrustAnchors.Companion.DEFAULT_SCOPE
-import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.coroutineScope
 import kotlin.time.Clock
 import kotlin.time.Duration
 
@@ -46,14 +45,6 @@ public fun interface GetTrustAnchors<in QUERY : Any, out TRUST_ANCHOR : Any> {
      *         matching the query or if the query itself is not supported
      */
     public suspend operator fun invoke(query: QUERY): NonEmptyList<TRUST_ANCHOR>?
-
-    public companion object {
-        /**
-         * The default scope for background operations, such as cache maintenance.
-         * Uses [Dispatchers.Default] combined with a [SupervisorJob].
-         */
-        public val DEFAULT_SCOPE: CoroutineScope get() = CoroutineScope(Dispatchers.Default + SupervisorJob())
-    }
 }
 
 public fun <Q : Any, TA : Any, Q1 : Any> GetTrustAnchors<Q, TA>.transform(
@@ -115,7 +106,8 @@ public fun <Q : Any, TA : Any, Q2 : Any> GetTrustAnchors<Q, TA>.contraMap(
  *  to release cached resources and cancel background operations. Failure to close may result in
  *  memory leaks and continued background processing.
  *
- * @param coroutineScope the scope in which the cache maintenance tasks will run
+ * @param cacheDispatcher the dispatcher for the cache background operations. This is not the scope to which the population of the cache occurs
+ *        Defaults to [Dispatchers.Default]
  * @param clock the provider of current time for expiration checks
  * @param ttl the maximum age of a cached entry before it must be refreshed
  * @param expectedQueries the estimated number of unique queries to optimize internal storage
@@ -124,12 +116,12 @@ public fun <Q : Any, TA : Any, Q2 : Any> GetTrustAnchors<Q, TA>.contraMap(
  * @return a cached version of this source
  */
 public fun <Q : Any, TA : Any> GetTrustAnchors<Q, TA>.cached(
-    coroutineScope: CoroutineScope = DEFAULT_SCOPE,
+    cacheDispatcher: CoroutineDispatcher = Dispatchers.Default,
     clock: Clock = Clock.System,
     ttl: Duration,
     expectedQueries: Int,
 ): GetTrustAnchorsCachedSource<Q, TA> =
-    GetTrustAnchorsCachedSource(coroutineScope, clock, ttl, expectedQueries, this)
+    GetTrustAnchorsCachedSource(cacheDispatcher, clock, ttl, expectedQueries, this)
 
 /**
  * A cached implementation of [GetTrustAnchors] that stores results in memory for performance optimization.
@@ -148,7 +140,7 @@ public fun <Q : Any, TA : Any> GetTrustAnchors<Q, TA>.cached(
  * @property delegate the underlying [GetTrustAnchors] source that provides the actual trust anchors
  */
 public class GetTrustAnchorsCachedSource<in QUERY : Any, out TRUST_ANCHOR : Any>(
-    scope: CoroutineScope = DEFAULT_SCOPE,
+    cacheDispatcher: CoroutineDispatcher = Dispatchers.Default,
     clock: Clock = Clock.System,
     ttl: Duration,
     expectedQueries: Int,
@@ -156,7 +148,7 @@ public class GetTrustAnchorsCachedSource<in QUERY : Any, out TRUST_ANCHOR : Any>
 ) : GetTrustAnchors<QUERY, TRUST_ANCHOR>, AutoCloseable {
 
     private val cached: AsyncCache<QUERY, NonEmptyList<TRUST_ANCHOR>?> =
-        AsyncCache(scope, clock, ttl, expectedQueries) { trustSource ->
+        AsyncCache(cacheDispatcher, clock, ttl, expectedQueries) { trustSource ->
             delegate(trustSource)
         }
 
