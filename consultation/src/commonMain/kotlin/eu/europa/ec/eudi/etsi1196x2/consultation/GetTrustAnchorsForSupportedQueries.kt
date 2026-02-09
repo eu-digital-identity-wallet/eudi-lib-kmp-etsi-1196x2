@@ -104,9 +104,7 @@ public class GetTrustAnchorsForSupportedQueries<QUERY : Any, out TRUST_ANCHOR : 
     private val supportedQueries: Set<QUERY> by lazy { sources.keys.flatten().toSet() }
 
     override fun close() {
-        for (source in sources.values) {
-            (source as? AutoCloseable)?.close()
-        }
+        sources.values.forEach { (it as? AutoCloseable)?.close() }
     }
 
     /**
