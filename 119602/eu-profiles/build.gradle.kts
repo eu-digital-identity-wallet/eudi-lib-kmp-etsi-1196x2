@@ -80,10 +80,7 @@ kotlin {
         commonMain {
             dependencies {
                 // Common dependencies
-                api(libs.kotlinx.serialization.core)
-                api(libs.kotlinx.serialization.json)
-                api(libs.kotlinx.coroutines.core)
-                api(libs.kotlinx.datetime)
+                api(projects.etsi119602DataModel)
             }
         }
 
@@ -91,6 +88,22 @@ kotlin {
             dependencies {
                 implementation(kotlin("test"))
                 implementation(libs.kotlinx.coroutines.test)
+                implementation(libs.ktor.client.core)
+                implementation(libs.ktor.client.serialization)
+                implementation(libs.ktor.client.content.negotiation)
+                implementation(libs.ktor.serialization.json)
+            }
+        }
+
+        val jvmAndAndroidTest by getting {
+            dependencies {
+                implementation(libs.ktor.client.java)
+            }
+        }
+
+        androidUnitTest {
+            dependencies {
+                implementation(libs.ktor.client.okhttp)
             }
         }
     }
@@ -104,6 +117,12 @@ android {
 
     defaultConfig {
         minSdk = properties["android.minSdk"].toString().toInt()
+    }
+
+    sourceSets {
+        getByName("test") {
+            resources.srcDirs("src/jvmAndAndroidTest/resources")
+        }
     }
 
     compileOptions {
@@ -127,7 +146,7 @@ spotless {
                 ),
             )
         trimTrailingWhitespace()
-        licenseHeaderFile("../FileHeader.txt")
+        licenseHeaderFile("../../FileHeader.txt")
         endWithNewline()
     }
     kotlinGradle {
@@ -175,7 +194,7 @@ mavenPublishing {
 
     coordinates(
         groupId = group.toString(),
-        artifactId = "etsi-119602-data-model",
+        artifactId = "etsi-119602-eu-profiles",
         version = version.toString(),
     )
 
