@@ -36,6 +36,8 @@ public class GetTrustAnchorsForSupportedQueries<QUERY : Any, out TRUST_ANCHOR : 
     private val sources: Map<Set<QUERY>, GetTrustAnchors<QUERY, TRUST_ANCHOR>>,
 ) {
 
+    public constructor() : this(emptyMap())
+
     public constructor(
         supportedQueries: Set<QUERY>,
         getTrustAnchors: GetTrustAnchors<QUERY, TRUST_ANCHOR>,

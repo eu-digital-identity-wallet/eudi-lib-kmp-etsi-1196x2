@@ -81,6 +81,7 @@ kotlin {
             dependencies {
                 // Common dependencies
                 api(projects.etsi119602.dataModel)
+                api(projects.etsi1196x2Consultation)
             }
         }
 

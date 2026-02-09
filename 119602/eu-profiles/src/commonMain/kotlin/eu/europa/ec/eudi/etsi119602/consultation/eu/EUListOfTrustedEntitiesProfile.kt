@@ -13,10 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package eu.europa.ec.eudi.etsi119602.eu
+package eu.europa.ec.eudi.etsi119602.consultation.eu
 
 import eu.europa.ec.eudi.etsi119602.*
-import eu.europa.ec.eudi.etsi119602.eu.TrustedEntityAssertions.Companion.ensureTrustedEntities
+import eu.europa.ec.eudi.etsi119602.consultation.eu.TrustedEntityAssertions.Companion.ensureTrustedEntities
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.monthsUntil
 
