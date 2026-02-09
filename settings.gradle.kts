@@ -42,4 +42,6 @@ include(":etsi-119602:eu-profiles")
 project(":etsi-1196x2-consultation").projectDir = file("consultation")
 project(":etsi-1196x2-consultation-dss").projectDir = file("consultation-dss")
 project(":etsi-119602").projectDir = file("119602")
+project(":etsi-119602:data-model").projectDir = file("119602/data-model")
+project(":etsi-119602:eu-profiles").projectDir = file("119602/eu-profiles")
 

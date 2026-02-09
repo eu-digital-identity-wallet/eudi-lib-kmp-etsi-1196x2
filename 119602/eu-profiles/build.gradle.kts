@@ -80,7 +80,7 @@ kotlin {
         commonMain {
             dependencies {
                 // Common dependencies
-                api(projects.etsi119602DataModel)
+                api(projects.etsi119602.dataModel)
             }
         }
 
