@@ -20,7 +20,9 @@ package eu.europa.ec.eudi.etsi1196x2.consultation
  * @see MDoc
  * @see SDJwtVc
  */
-public interface AttestationIdentifier
+public interface AttestationIdentifier {
+    public companion object
+}
 
 /**
  * ISO/IEC 18013-5 encoded attestation

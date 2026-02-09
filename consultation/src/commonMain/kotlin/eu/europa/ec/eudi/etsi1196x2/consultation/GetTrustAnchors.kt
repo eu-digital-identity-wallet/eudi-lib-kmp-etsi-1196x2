@@ -77,7 +77,7 @@ public fun <Q : Any, TA : Any, Q1 : Any> GetTrustAnchors<Q, TA>.transform(
 @SensitiveApi
 public infix fun <Q : Any, TA : Any> GetTrustAnchors<Q, TA>.or(
     other: GetTrustAnchors<Q, TA>,
-): GetTrustAnchors<Q, TA> =
+): GetTrustAnchorsWithAlternative<Q, TA> =
     GetTrustAnchorsWithAlternative(this, other)
 
 /**
