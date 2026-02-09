@@ -86,7 +86,7 @@ class GetTrustAnchorsForSupportedQueriesTest {
     }
 
     @Test
-    fun testMisconfiguredSource() = runTest {
+    fun testNotFound() = runTest {
         // A source that claims to support a query but returns null
         val source = GetTrustAnchors<String, String> { _ -> null }
         val supportedQueries = GetTrustAnchorsForSupportedQueries(setOf("q1"), source)
