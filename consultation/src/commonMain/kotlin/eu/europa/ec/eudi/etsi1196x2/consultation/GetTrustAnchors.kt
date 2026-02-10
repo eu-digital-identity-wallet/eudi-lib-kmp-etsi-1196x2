@@ -156,7 +156,6 @@ public class GetTrustAnchorsCachedSource<in QUERY : Any, out TRUST_ANCHOR : Any>
 
     override fun close() {
         cached.close()
-        delegate.closeIfNeeded()
     }
 }
 
@@ -164,30 +163,17 @@ public class GetTrustAnchorsCachedSource<in QUERY : Any, out TRUST_ANCHOR : Any>
 public class GetTrustAnchorsWithAlternative<in QUERY : Any, out TRUST_ANCHOR : Any>(
     private val delegate: GetTrustAnchors<QUERY, TRUST_ANCHOR>,
     private val alternative: GetTrustAnchors<QUERY, TRUST_ANCHOR>,
-) : GetTrustAnchors<QUERY, TRUST_ANCHOR>, AutoCloseable {
+) : GetTrustAnchors<QUERY, TRUST_ANCHOR> {
 
     override suspend fun invoke(query: QUERY): NonEmptyList<TRUST_ANCHOR>? =
         delegate.invoke(query) ?: alternative.invoke(query)
-
-    override fun close() {
-        delegate.closeIfNeeded()
-        alternative.closeIfNeeded()
-    }
 }
 
 public class GetTrustAnchorsTransformingQuery<in QUERY2 : Any, in QUERY : Any, out TRUST_ANCHOR : Any>(
     private val delegate: GetTrustAnchors<QUERY, TRUST_ANCHOR>,
     private val transformation: (QUERY2) -> QUERY,
-) : GetTrustAnchors<QUERY2, TRUST_ANCHOR>, AutoCloseable {
+) : GetTrustAnchors<QUERY2, TRUST_ANCHOR> {
 
     override suspend fun invoke(query: QUERY2): NonEmptyList<TRUST_ANCHOR>? =
         delegate.invoke(transformation(query))
-
-    override fun close() {
-        delegate.closeIfNeeded()
-    }
-}
-
-private fun Any?.closeIfNeeded() {
-    (this as? AutoCloseable)?.close()
 }

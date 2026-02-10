@@ -35,15 +35,13 @@ val classifications = AttestationClassifications(
 ### 3. Use the High-Level API
 
 ```kotlin
-val isChainTrustedResource : IsChainTrustedForEUDIW // Implementation of IsChainTrustedForEUDIW
+val isChainTrusted : IsChainTrustedForEUDIW // Implementation of IsChainTrustedForEUDIW
 
-val result = isChainTrustedResource.use { isChainTrusted ->
-  val validator = IsChainTrustedForAttestation(
+val validator = IsChainTrustedForAttestation(
     isChainTrustedForContext = isChainTrusted, // Implementation of IsChainTrustedForEUDIW
     classifications = classifications
-  )
-  validator.issuance(chain, MDoc("eu.europa.ec.eudi.pid.1"))
-}
+)
+val result = validator.issuance(chain, MDoc("eu.europa.ec.eudi.pid.1"))
 ```
 
 ## Core abstractions
@@ -141,3 +139,44 @@ val trustRouter = nationalRouter + universityRouter
 // 4. Usage in the validation engine
 val pidIssuanceTrustAnchors = trustRouter(VerificationContext.PID)
 ```
+
+
+### Using cached() for in-memory caching (AutoCloseable)
+
+You can add transparent in-memory caching to any `GetTrustAnchors` source using the `cached()` decorator.
+
+Important: The source returned by `cached()` is `AutoCloseable`. You must manage its lifecycle and call `close()` when it is no longer needed to release resources and stop background operations.
+
+```kotlin
+
+// 1. Define a base trust anchors source
+// and decorate it with caching
+val getTrustAnchors: GetTrustAnchors<VerificationContext, TrustAnchor> = GetTrustAnchors { ctx ->
+    // Fetch anchors for the given context
+    fetchAnchorsFor(ctx)
+}.cached(
+  ttl = 10.minutes,
+  expectedQueries = 10
+)
+
+// 3. Use the cached source 
+cachedSource.use { caching ->
+    val getTrustAnchorsByContext = 
+        GetTrustAnchorsForSupportedQueries(
+            supportedQueries = setOf(VerificationContext.PID), 
+            getTrustAnchors = caching
+        )  
+     
+    val isChainTrusted = 
+        IsChainTrustedForEUDIW(
+            ValidateCertificateChainJvm(),
+            getTrustAnchorsByContext
+        )
+   val result = isChainTrusted(chain, VerificationContext.PID)
+}
+```
+
+Notes:
+- `cached()` prevents duplicate concurrent computations for the same query and refreshes entries after `ttl`.
+- Failing to `close()` the cached source may keep background coroutines alive longer than needed and retain memory.
+- Register the `AutoClosable` with a DI framework to ensure it is closed when no longer needed.
