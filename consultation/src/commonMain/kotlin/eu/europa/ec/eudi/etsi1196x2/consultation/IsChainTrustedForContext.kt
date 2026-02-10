@@ -47,9 +47,6 @@ public fun interface IsChainTrustedForContextF<in CHAIN : Any, in CTX : Any, out
 /**
  * A default implementation of [IsChainTrustedForContextF]
  *
- *  Note: This class owns the lifecycle of its underlying sources.
- *  When this instance is closed, all internal sources that implement [AutoCloseable] will also be closed.
- *
  * @param validateCertificateChain the certificate chain validation function
  * @param getTrustAnchorsByContext the supported verification contexts and their corresponding trust anchors sources
  *

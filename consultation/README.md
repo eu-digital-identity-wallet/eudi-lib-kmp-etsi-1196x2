@@ -35,15 +35,13 @@ val classifications = AttestationClassifications(
 ### 3. Use the High-Level API
 
 ```kotlin
-val isChainTrustedResource : IsChainTrustedForEUDIW // Implementation of IsChainTrustedForEUDIW
+val isChainTrusted : IsChainTrustedForEUDIW // Implementation of IsChainTrustedForEUDIW
 
-val result = isChainTrustedResource.use { isChainTrusted ->
-  val validator = IsChainTrustedForAttestation(
+val validator = IsChainTrustedForAttestation(
     isChainTrustedForContext = isChainTrusted, // Implementation of IsChainTrustedForEUDIW
     classifications = classifications
-  )
-  validator.issuance(chain, MDoc("eu.europa.ec.eudi.pid.1"))
-}
+)
+val result = validator.issuance(chain, MDoc("eu.europa.ec.eudi.pid.1"))
 ```
 
 ## Core abstractions
