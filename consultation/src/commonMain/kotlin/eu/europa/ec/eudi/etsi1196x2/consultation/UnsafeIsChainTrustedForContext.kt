@@ -59,7 +59,7 @@ internal class UnsafeIsChainTrustedForContext<in CHAIN : Any, CTX : Any, out TRU
         verificationContext: CTX,
         notTrusted: CertificationChainValidation.NotTrusted,
     ): CertificationChainValidation<TRUST_ANCHOR>? =
-        recovery(notTrusted)?.use { fallback -> fallback(chain, verificationContext) }
+        recovery(notTrusted)?.let { fallback -> fallback(chain, verificationContext) }
 
     override fun close() {
         primary.close()
