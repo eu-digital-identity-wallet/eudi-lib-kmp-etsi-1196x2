@@ -35,7 +35,6 @@ public class GetTrustAnchorsFromLoTE(
     }
 }
 
-
 public fun GetTrustAnchorsForSupportedQueries.Companion.usingLoTE(
     lotePerProfile: Map<EUListOfTrustedEntitiesProfile, ListOfTrustedEntities>,
 ): GetTrustAnchorsForSupportedQueries<VerificationContext, PKIObject> {
