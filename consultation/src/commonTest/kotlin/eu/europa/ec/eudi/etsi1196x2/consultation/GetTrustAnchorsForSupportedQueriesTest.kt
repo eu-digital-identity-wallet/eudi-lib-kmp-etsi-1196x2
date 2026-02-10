@@ -20,28 +20,6 @@ import kotlin.test.*
 
 class GetTrustAnchorsForSupportedQueriesTest {
 
-    private class MockAutoCloseableGetTrustAnchors(
-        val result: NonEmptyList<String>? = null,
-    ) : GetTrustAnchors<String, String>, AutoCloseable {
-        var closed = false
-        override suspend fun invoke(query: String): NonEmptyList<String>? = result
-        override fun close() {
-            closed = true
-        }
-    }
-
-    @Test
-    fun testClose() {
-        val source1 = MockAutoCloseableGetTrustAnchors()
-        val source2 = MockAutoCloseableGetTrustAnchors()
-        val supportedQueries = GetTrustAnchorsForSupportedQueries(setOf("q1"), source1) plus (setOf("q2") to source2)
-
-        supportedQueries.close()
-
-        assertTrue(source1.closed, "Source 1 should be closed")
-        assertTrue(source2.closed, "Source 2 should be closed")
-    }
-
     private fun mockSource(value: String): GetTrustAnchors<String, String> = GetTrustAnchors { _ ->
         NonEmptyList(listOf(value))
     }

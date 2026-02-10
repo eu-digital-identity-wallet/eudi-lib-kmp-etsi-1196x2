@@ -29,15 +29,12 @@ package eu.europa.ec.eudi.etsi1196x2.consultation
  *
  * [combining][plus] multiple instances is only allowed if their supported query sets are disjoint (**Exclusivity**).
  *
- * Note: This class owns the lifecycle of its underlying sources.
- * When this instance is closed, all internal sources that implement [AutoCloseable] will also be closed.
- *
  * @param QUERY the type of the query
  * @param TRUST_ANCHOR the type of the trust anchors returned by the source
  */
 public class GetTrustAnchorsForSupportedQueries<QUERY : Any, out TRUST_ANCHOR : Any> internal constructor(
     private val sources: Map<Set<QUERY>, GetTrustAnchors<QUERY, TRUST_ANCHOR>>,
-) : AutoCloseable {
+) {
 
     public constructor(
         supportedQueries: Set<QUERY>,
@@ -102,10 +99,6 @@ public class GetTrustAnchorsForSupportedQueries<QUERY : Any, out TRUST_ANCHOR : 
     }
 
     private val supportedQueries: Set<QUERY> by lazy { sources.keys.flatten().toSet() }
-
-    override fun close() {
-        sources.values.forEach { (it as? AutoCloseable)?.close() }
-    }
 
     /**
      * Represents the result of a trust anchor retrieval operation.

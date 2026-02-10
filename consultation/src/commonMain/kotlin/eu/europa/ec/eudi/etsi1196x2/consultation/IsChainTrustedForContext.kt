@@ -60,7 +60,7 @@ public fun interface IsChainTrustedForContextF<in CHAIN : Any, in CTX : Any, out
 public class IsChainTrustedForContext<in CHAIN : Any, CTX : Any, out TRUST_ANCHOR : Any>(
     private val validateCertificateChain: ValidateCertificateChain<CHAIN, TRUST_ANCHOR>,
     private val getTrustAnchorsByContext: GetTrustAnchorsForSupportedQueries<CTX, TRUST_ANCHOR>,
-) : IsChainTrustedForContextF<CHAIN, CTX, TRUST_ANCHOR>, AutoCloseable by getTrustAnchorsByContext {
+) : IsChainTrustedForContextF<CHAIN, CTX, TRUST_ANCHOR> {
 
     /**
      * Check certificate chain is trusted in the context of

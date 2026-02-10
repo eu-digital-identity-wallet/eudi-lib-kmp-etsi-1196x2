@@ -19,53 +19,8 @@ import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
-import kotlin.test.assertTrue
-import kotlin.time.Duration
 
 class GetTrustAnchorsTest {
-
-    private class MockAutoCloseableGetTrustAnchors(
-        val result: NonEmptyList<String>? = null,
-    ) : GetTrustAnchors<String, String>, AutoCloseable {
-        var closed = false
-        override suspend fun invoke(query: String): NonEmptyList<String>? = result
-        override fun close() {
-            closed = true
-        }
-    }
-
-    @Test
-    @SensitiveApi
-    fun `or combinator closes both sources`() {
-        val source1 = MockAutoCloseableGetTrustAnchors()
-        val source2 = MockAutoCloseableGetTrustAnchors()
-        val combined = source1 or source2
-
-        (combined as AutoCloseable).close()
-
-        assertTrue(source1.closed, "Source 1 should be closed")
-        assertTrue(source2.closed, "Source 2 should be closed")
-    }
-
-    @Test
-    fun `contraMap closes underlying source`() {
-        val source = MockAutoCloseableGetTrustAnchors()
-        val adapted = source.contraMap<String, String, Int> { it.toString() }
-
-        (adapted as AutoCloseable).close()
-
-        assertTrue(source.closed, "Underlying source should be closed")
-    }
-
-    @Test
-    fun `cached closes underlying source`() = runTest {
-        val source = MockAutoCloseableGetTrustAnchors()
-        val cached = source.cached(ttl = Duration.INFINITE, expectedQueries = 1)
-
-        cached.close()
-
-        assertTrue(source.closed, "Underlying source should be closed")
-    }
 
     @Test
     @SensitiveApi

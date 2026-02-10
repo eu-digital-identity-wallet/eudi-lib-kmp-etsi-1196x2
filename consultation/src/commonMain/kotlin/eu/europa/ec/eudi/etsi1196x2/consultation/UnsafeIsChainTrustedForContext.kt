@@ -31,7 +31,7 @@ import kotlinx.coroutines.withContext
 internal class UnsafeIsChainTrustedForContext<in CHAIN : Any, CTX : Any, out TRUST_ANCHOR : Any>(
     private val primary: IsChainTrustedForContext<CHAIN, CTX, TRUST_ANCHOR>,
     private val recovery: (CertificationChainValidation.NotTrusted) -> IsChainTrustedForContext<CHAIN, CTX, TRUST_ANCHOR>?,
-) : IsChainTrustedForContextF<CHAIN, CTX, TRUST_ANCHOR>, AutoCloseable {
+) : IsChainTrustedForContextF<CHAIN, CTX, TRUST_ANCHOR> {
 
     /**
      * Check certificate chain is trusted in the context of
@@ -59,9 +59,5 @@ internal class UnsafeIsChainTrustedForContext<in CHAIN : Any, CTX : Any, out TRU
         verificationContext: CTX,
         notTrusted: CertificationChainValidation.NotTrusted,
     ): CertificationChainValidation<TRUST_ANCHOR>? =
-        recovery(notTrusted)?.use { fallback -> fallback(chain, verificationContext) }
-
-    override fun close() {
-        primary.close()
-    }
+        recovery(notTrusted)?.let { fallback -> fallback(chain, verificationContext) }
 }
