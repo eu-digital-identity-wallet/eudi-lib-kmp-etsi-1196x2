@@ -25,6 +25,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.flow.toList
 import kotlin.time.Clock
+import kotlin.time.Duration
 import kotlin.time.Instant
 
 public fun interface DocumentFetcher<out DOCUMENT : Any> {
@@ -47,8 +48,10 @@ public data class LoTEDownloadResult(
 ) {
     public companion object {
 
-        public suspend fun collect(eventsFlow: Flow<LoTEDownloadEvent>): LoTEDownloadResult {
-            val clock = Clock.System
+        public suspend fun collect(
+            eventsFlow: Flow<LoTEDownloadEvent>,
+            clock: Clock = Clock.System,
+        ): LoTEDownloadResult {
             val startedAt = clock.now()
             var downloaded: LoTEDownloadEvent.LoTEDownloaded? = null
             val otherLists = mutableListOf<LoTEDownloadEvent.OtherLoTEDownloaded>()
@@ -90,6 +93,7 @@ public sealed interface LoTEDownloadEvent {
     public data class MaxDepthReached(val uri: String, val maxDepth: Int) : Problem
     public data class MaxLotesReached(val uri: String, val maxLotes: Int) : Problem
     public data class CircularReferenceDetected(val uri: String) : Problem
+    public data class TimedOut(val duration: Duration) : Problem
     public data class Error(val uri: String, val error: Throwable) : Problem
 }
 
