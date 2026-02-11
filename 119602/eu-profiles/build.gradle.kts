@@ -15,6 +15,7 @@ plugins {
     alias(libs.plugins.dokka)
     alias(libs.plugins.maven.publish)
     alias(libs.plugins.dependency.check)
+    alias(libs.plugins.atomicfu)
 }
 
 repositories {
@@ -82,6 +83,7 @@ kotlin {
                 // Common dependencies
                 api(projects.etsi119602.dataModel)
                 api(projects.etsi1196x2Consultation)
+                implementation(libs.atomicfu)
             }
         }
 

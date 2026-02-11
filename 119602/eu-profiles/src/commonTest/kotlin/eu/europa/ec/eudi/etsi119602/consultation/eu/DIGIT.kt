@@ -15,12 +15,13 @@
  */
 package eu.europa.ec.eudi.etsi119602.consultation.eu
 
-import io.ktor.client.HttpClient
-import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
-import io.ktor.client.plugins.cookies.HttpCookies
-import io.ktor.client.request.get
-import io.ktor.client.statement.bodyAsText
-import io.ktor.serialization.kotlinx.json.json
+import eu.europa.ec.eudi.etsi119602.consultation.eu.LoTEFetcher.fetchLoTE
+import io.ktor.client.*
+import io.ktor.client.plugins.contentnegotiation.*
+import io.ktor.client.plugins.cookies.*
+import io.ktor.client.request.*
+import io.ktor.client.statement.*
+import io.ktor.serialization.kotlinx.json.*
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.asFlow
 import kotlinx.coroutines.flow.map
@@ -28,10 +29,11 @@ import kotlinx.serialization.json.Json
 
 object DIGIT {
 
-    private const val EU_PID_PROVIDERS_URL = "https://acceptance.trust.tech.ec.europa.eu/lists/eudiw/pid-providers.json"
+    internal const val EU_PID_PROVIDERS_URL = "https://acceptance.trust.tech.ec.europa.eu/lists/eudiw/pid-providers.json"
     private const val EU_WALLET_PROVIDERS_URL =
         "https://acceptance.trust.tech.ec.europa.eu/lists/eudiw/wallet-providers.json"
-    private const val EU_WRPAC_PROVIDERS_URL = "https://acceptance.trust.tech.ec.europa.eu/lists/eudiw/wrpac-providers.json"
+    private const val EU_WRPAC_PROVIDERS_URL =
+        "https://acceptance.trust.tech.ec.europa.eu/lists/eudiw/wrpac-providers.json"
     private const val EU_MDL_PROVIDERS_URL = "https://acceptance.trust.tech.ec.europa.eu/lists/eudiw/mdl-providers.json"
 
     val LISTS: Map<EUListOfTrustedEntitiesProfile, String> by lazy {
@@ -47,7 +49,10 @@ object DIGIT {
         debug: DebugOption = DebugOption.Debug,
         filter: (EUListOfTrustedEntitiesProfile) -> Boolean = { true },
     ): Flow<Pair<EUListOfTrustedEntitiesProfile, String>> =
-        LISTS.filter { filter(it.key) }.toList().asFlow().map { (profile, uri) -> profile to LoTEFetcher.fetchLoTE(uri, debug) }
+        createHttpClient().use { httpClient ->
+            LISTS.filter { filter(it.key) }.toList().asFlow()
+                .map { (profile, uri) -> profile to httpClient.fetchLoTE(uri, debug) }
+        }
 }
 
 enum class DebugOption {
@@ -55,18 +60,15 @@ enum class DebugOption {
     Debug,
 }
 
-private object LoTEFetcher {
+internal object LoTEFetcher {
 
-    suspend fun fetchLoTE(uri: String, debug: DebugOption): String =
-        createHttpClient().use { httpClient ->
-            httpClient
-                .get(uri)
-                .bodyAsText()
-                .also { if (debug == DebugOption.Debug) println(it) }
-        }
+    suspend fun HttpClient.fetchLoTE(uri: String, debug: DebugOption): String =
+        get(uri)
+            .bodyAsText()
+            .also { if (debug == DebugOption.Debug) println(it) }
 }
 
-private fun createHttpClient(): HttpClient =
+internal fun createHttpClient(): HttpClient =
     HttpClient {
         install(ContentNegotiation) {
             json(JsonSupportDebug)
