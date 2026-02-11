@@ -98,7 +98,7 @@ public class GetTrustAnchorsForSupportedQueries<QUERY : Any, out TRUST_ANCHOR : 
         return GetTrustAnchorsForSupportedQueries(this.sources + other.sources)
     }
 
-    private val supportedQueries: Set<QUERY> by lazy { sources.keys.flatten().toSet() }
+    public val supportedQueries: Set<QUERY> by lazy { sources.keys.flatten().toSet() }
 
     /**
      * Represents the result of a trust anchor retrieval operation.
