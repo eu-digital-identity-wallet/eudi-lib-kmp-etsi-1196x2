@@ -29,25 +29,29 @@ import io.ktor.client.statement.*
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
+import kotlin.test.assertContentEquals
 import kotlin.test.fail
 
 class LoTEDownloaderTest {
 
     @Test
-    fun testTrust() = runTest {
+    fun testDigitTrust() = runTest {
         val trustAnchorsFromLoTE =
             createHttpClient().use { httpClient -> loteTrust(httpClient, DIGIT.LISTS) }
-
-        listOf(
-            VerificationContext.PID,
-            VerificationContext.PIDStatus,
-            VerificationContext.WalletInstanceAttestation,
-            VerificationContext.WalletUnitAttestation,
-            VerificationContext.WalletUnitAttestationStatus,
-            VerificationContext.WalletRelyingPartyAccessCertificate,
-            VerificationContext.EAA("mdl"),
-            VerificationContext.EAAStatus("mdl"),
-        ).forEach { ctx ->
+        val expectedContexts =
+            listOf(
+                VerificationContext.PID,
+                VerificationContext.PIDStatus,
+                VerificationContext.WalletInstanceAttestation,
+                VerificationContext.WalletUnitAttestation,
+                VerificationContext.WalletUnitAttestationStatus,
+                VerificationContext.WalletRelyingPartyAccessCertificate,
+                VerificationContext.EAA("mdl"),
+                VerificationContext.EAAStatus("mdl"),
+            )
+        val actualContexts = trustAnchorsFromLoTE.supportedQueries
+        assertContentEquals(expectedContexts, actualContexts)
+        actualContexts.forEach { ctx ->
             when (val outcome = trustAnchorsFromLoTE.invoke(ctx)) {
                 is GetTrustAnchorsForSupportedQueries.Outcome.Found<*> -> println("$ctx : ${outcome.trustAnchors.list.size} ")
                 GetTrustAnchorsForSupportedQueries.Outcome.NotFound -> println("$ctx : Not found ")
