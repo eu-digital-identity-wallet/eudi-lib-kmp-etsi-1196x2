@@ -23,120 +23,52 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.ProducerScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.channelFlow
-import kotlinx.coroutines.flow.toSet
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.jsonObject
-import kotlin.io.encoding.Base64
+import kotlinx.coroutines.flow.toList
+import kotlin.time.Clock
+import kotlin.time.Instant
 
-/**
- * Interface for fetching JWTs from URIs.
- * This allows for dependency injection of different HTTP client implementations.
- */
-public fun interface JwtFetcher {
-    /**
-     * Fetches a JWT from the given URI.
-     *
-     * @param uri The URI to fetch the JWT from
-     * @return The JWT as a string
-     * @throws Exception if the fetch fails
-     */
-    public suspend operator fun invoke(uri: String): String
-}
-
-/**
- * Utility class for parsing JWTs to extract ListOfTrustedEntities.
- */
-public object JwtParser {
-    private val base64UrlSafeNoPadding: Base64 = Base64.UrlSafe.withPadding(Base64.PaddingOption.ABSENT)
-
-    /**
-     * Extracts the payload from a JWT string.
-     *
-     * @param jwt The JWT in compact form (header.payload.signature)
-     * @return The decoded payload as a JsonObject
-     */
-    public fun getPayload(jwt: String): JsonObject {
-        require(jwt.isNotBlank()) { "JWT must not be empty" }
-        val parts = jwt.split(".")
-        require(parts.size == 3) { "Input must be a JWS in compact form" }
-
-        return Json.parseToJsonElement(
-            base64UrlSafeNoPadding.decode(parts[1]).decodeToString(),
-        ).jsonObject
-    }
-
-    /**
-     * Converts a JWT string to a ListOfTrustedEntities object.
-     *
-     * @param jwt The JWT containing the LoTE in its payload
-     * @return The parsed ListOfTrustedEntities
-     */
-    public fun loteOfJwt(jwt: String): ListOfTrustedEntities {
-        val payload = getPayload(jwt)
-        val claims = Json.decodeFromJsonElement(ListOfTrustedEntitiesClaims.serializer(), payload)
-        return claims.listOfTrustedEntities
-    }
+public fun interface DocumentFetcher<out DOCUMENT : Any> {
+    public suspend operator fun invoke(uri: String): DOCUMENT
 }
 
 /**
  * Result of downloading a LoTE and its references.
  *
- * @param list The main LoTE that was requested
+ * @param downloaded The main LoTE that was requested
  * @param otherLists All LoTEs that were referenced by this LoTE, each with their own nested references
  * @param problems A list of problems that occurred during the download process
  */
 public data class LoTEDownloadResult(
-    val list: ListOfTrustedEntities,
-    val otherLists: List<LoTEDownloadResult>,
-    val problems: List<LoTEDownloadEvent.Problem> = emptyList(),
+    val downloaded: LoTEDownloadEvent.LoTEDownloaded?,
+    val otherLists: List<LoTEDownloadEvent.OtherLoTEDownloaded>,
+    val problems: List<LoTEDownloadEvent.Problem>,
+    val startedAt: Instant,
+    val endedAt: Instant,
 ) {
     public companion object {
 
         public suspend fun collect(eventsFlow: Flow<LoTEDownloadEvent>): LoTEDownloadResult {
-            val events = eventsFlow.toSet()
-            return buildLoTEDownloadResult(events)
-        }
-
-        /**
-         * Builds a LoTEDownloadResult from a set of events.
-         * This implementation reconstructs the hierarchy based on the depth information in the events.
-         */
-        private fun buildLoTEDownloadResult(events: Set<LoTEDownloadEvent>): LoTEDownloadResult {
-            val mainLoteEvent = events.filterIsInstance<LoTEDownloadEvent.LoTEDownloaded>().firstOrNull()
-                ?: throw LoTEDownloadException("No main LoTE event found")
-
-            // Group referenced LoTEs by depth to reconstruct the hierarchy
-            val referencedEvents = events.filterIsInstance<LoTEDownloadEvent.OtherLoTEDownloaded>()
-
-            // Convert events to problems
+            val clock = Clock.System
+            val startedAt = clock.now()
+            var downloaded: LoTEDownloadEvent.LoTEDownloaded? = null
+            val otherLists = mutableListOf<LoTEDownloadEvent.OtherLoTEDownloaded>()
             val problems = mutableListOf<LoTEDownloadEvent.Problem>()
-            problems.addAll(
-                events.filterIsInstance<LoTEDownloadEvent.MaxDepthReached>().map {
-                    LoTEDownloadEvent.MaxDepthReached(it.uri, it.maxDepth)
-                },
-            )
-            problems.addAll(
-                events.filterIsInstance<LoTEDownloadEvent.MaxLotesReached>().map {
-                    LoTEDownloadEvent.MaxLotesReached(it.uri, it.maxLotes)
-                },
-            )
-            problems.addAll(
-                events.filterIsInstance<LoTEDownloadEvent.CircularReferenceDetected>().map {
-                    LoTEDownloadEvent.CircularReferenceDetected(it.uri)
-                },
-            )
-            problems.addAll(
-                events.filterIsInstance<LoTEDownloadEvent.Error>().map {
-                    LoTEDownloadEvent.Error(it.uri, it.error)
-                },
-            )
+            eventsFlow.toList().forEach { event ->
+                when (event) {
+                    is LoTEDownloadEvent.LoTEDownloaded -> {
+                        check(downloaded == null) { "Multiple LoTEs downloaded" }
+                        downloaded = event
+                    }
 
-            // For a simple reconstruction, we'll create a flat list of all referenced LoTEs
-            // A more sophisticated implementation could reconstruct the full tree structure
-            val allReferencedLotes = referencedEvents.map { LoTEDownloadResult(it.lote, emptyList()) }
-
-            return LoTEDownloadResult(mainLoteEvent.lote, allReferencedLotes, problems)
+                    is LoTEDownloadEvent.OtherLoTEDownloaded -> otherLists.add(event)
+                    is LoTEDownloadEvent.Problem -> problems.add(event)
+                }
+            }
+            if (!otherLists.isEmpty()) {
+                checkNotNull(downloaded) { "Other LoTEs downloaded before main LoTE" }
+            }
+            val endedAt = clock.now()
+            return LoTEDownloadResult(downloaded, otherLists.toList(), problems.toList(), startedAt, endedAt)
         }
     }
 }
@@ -169,7 +101,7 @@ public sealed interface LoTEDownloadEvent {
  */
 public class LoTEDownloader(
     internal val parallelism: Int = 2,
-    internal val jwtFetcher: JwtFetcher,
+    internal val jwtFetcher: DocumentFetcher<ListOfTrustedEntitiesClaims>,
 ) {
 
     private class LoTEDownloadState(
@@ -229,8 +161,8 @@ public class LoTEDownloader(
 
         try {
             // Fetch and parse the JWT
-            val jwt = jwtFetcher.invoke(uri)
-            val lote = JwtParser.loteOfJwt(jwt)
+            val claims = jwtFetcher.invoke(uri)
+            val lote = claims.listOfTrustedEntities
 
             // Increment the count after successfully fetching and parsing
             state.totalLotesCount.incrementAndGet()
@@ -290,8 +222,3 @@ public class LoTEDownloader(
         }
     }
 }
-
-/**
- * Exception thrown when there's an issue during LoTE download.
- */
-public class LoTEDownloadException(message: String, cause: Throwable? = null) : Exception(message, cause)

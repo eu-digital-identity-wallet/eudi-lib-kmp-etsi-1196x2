@@ -15,6 +15,7 @@
  */
 package eu.europa.ec.eudi.etsi119602.consultation.eu
 
+import eu.europa.ec.eudi.etsi119602.ListOfTrustedEntitiesClaims
 import eu.europa.ec.eudi.etsi119602.PKIObject
 import eu.europa.ec.eudi.etsi119602.consultation.LoTEDownloadEvent
 import eu.europa.ec.eudi.etsi119602.consultation.LoTEDownloadResult
@@ -66,13 +67,18 @@ class LoTEDownloaderTest {
                         httpClient.downloadFlow(uri, maxDepth = 2, maxTotalLotes = 30)
                     }
 
-                    val downloadResult = LoTEDownloadResult.collect(eventsFlow)
-                    val lote = downloadResult.list
-                    try {
-                        with(profile) { lote.ensureCompliesToProfile() }
-                        put(profile, lote)
-                    } catch (e: IllegalStateException) {
-                        println("Not complies: $e")
+                    val summary = LoTEDownloadResult.collect(eventsFlow)
+                    val duration = summary.endedAt - summary.startedAt
+
+                    val lote = summary.downloaded?.lote
+                    println("Download finished in $duration. ${lote?.let { "Success" } ?: "Failed"}")
+                    if (lote != null) {
+                        try {
+                            with(profile) { lote.ensureCompliesToProfile() }
+                            put(profile, lote)
+                        } catch (e: IllegalStateException) {
+                            println("Not complies: $e")
+                        }
                     }
                 }
             }
@@ -88,7 +94,11 @@ class LoTEDownloaderTest {
             maxDepth: Int = 2,
             maxTotalLotes: Int = 30,
         ): Flow<LoTEDownloadEvent> {
-            val downloader = LoTEDownloader(parallelism) { get(it).bodyAsText() }
+            val downloader = LoTEDownloader(parallelism) {
+                val jwt = get(it).bodyAsText()
+                val (_, payload) = JwtUtil.headerAndPayload(jwt)
+                JsonSupportDebug.decodeFromJsonElement(ListOfTrustedEntitiesClaims.serializer(), payload)
+            }
             return downloader.downloadFlow(uri, maxDepth, maxTotalLotes)
         }
 
