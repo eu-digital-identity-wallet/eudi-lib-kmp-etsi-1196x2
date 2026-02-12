@@ -15,6 +15,8 @@
  */
 package eu.europa.ec.eudi.etsi119602.consultation.eu
 
+import eu.europa.ec.eudi.etsi119602.consultation.SupportedLoTEs
+import eu.europa.ec.eudi.etsi1196x2.consultation.VerificationContext
 import io.ktor.client.*
 import io.ktor.client.plugins.contentnegotiation.*
 import io.ktor.client.plugins.cookies.*
@@ -24,21 +26,29 @@ import kotlinx.serialization.json.Json
 
 object DIGIT {
 
-    private fun loteUrl(
-        lote: String,
-    ) = Url("https://acceptance.trust.tech.ec.europa.eu/lists/eudiw/$lote")
+    private fun loteUrl(lote: String): Url =
+        Url("https://acceptance.trust.tech.ec.europa.eu/lists/eudiw/$lote")
 
     private val EU_PID_PROVIDERS_URL = loteUrl("pid-providers.json")
     private val EU_WALLET_PROVIDERS_URL = loteUrl("wallet-providers.json")
     private val EU_WRPAC_PROVIDERS_URL = loteUrl("wrpac-providers.json")
     private val EU_MDL_PROVIDERS_URL = loteUrl("mdl-providers.json")
 
-    val LOTE_LOCATIONS = LoTELocations(
+    val LOTE_LOCATIONS: SupportedLoTEs<Url> = SupportedLoTEs(
         pidProviders = EU_PID_PROVIDERS_URL,
         walletProviders = EU_WALLET_PROVIDERS_URL,
         wrpacProviders = EU_WRPAC_PROVIDERS_URL,
         eaaProviders = mapOf(
             "mdl" to EU_MDL_PROVIDERS_URL,
+        ),
+    )
+
+    val SVC_TYPE_PER_CTX = SupportedLoTEs.EU.copy(
+        eaaProviders = mapOf(
+            "mdl" to mapOf(
+                VerificationContext.EAA("mdl") to EUMDLProvidersListSpec.SVC_TYPE_ISSUANCE,
+                VerificationContext.EAAStatus("mdl") to EUMDLProvidersListSpec.SVC_TYPE_REVOCATION,
+            ),
         ),
     )
 }

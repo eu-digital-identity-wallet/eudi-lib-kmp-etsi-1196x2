@@ -17,29 +17,32 @@ package eu.europa.ec.eudi.etsi119602.consultation
 
 import eu.europa.ec.eudi.etsi119602.ListOfTrustedEntities
 import eu.europa.ec.eudi.etsi119602.PKIObject
+import eu.europa.ec.eudi.etsi119602.TrustedEntityService
 import eu.europa.ec.eudi.etsi119602.URI
 import eu.europa.ec.eudi.etsi1196x2.consultation.*
 
+public data class LoadedLoTE(
+    val list: ListOfTrustedEntities,
+    val otherLists: List<ListOfTrustedEntities>,
+)
+
 public class GetTrustAnchorsFromLoTE(
-    private val lote: ListOfTrustedEntities,
+    private val loadedLote: LoadedLoTE,
 ) : GetTrustAnchors<URI, PKIObject> {
 
     override suspend fun invoke(query: URI): NonEmptyList<PKIObject>? {
-        val certs = lote.entities.orEmpty().flatMap { trustedEntity ->
-            trustedEntity.services
-                .filter { it.information.typeIdentifier == query }
-                .flatMap { it.information.digitalIdentity.x509Certificates.orEmpty() }
-        }
+        val certs =
+            loadedLote.servicesOfType(query).flatMap { trustedService ->
+                trustedService.information.digitalIdentity.x509Certificates.orEmpty()
+            }
         return NonEmptyList.nelOrNull(certs)
     }
-}
 
-public fun GetTrustAnchorsForSupportedQueries.Companion.usingLoTE(
-    lotePerProfile: Map<Map<VerificationContext, URI>, ListOfTrustedEntities>,
-): GetTrustAnchorsForSupportedQueries<VerificationContext, PKIObject> {
-    var result = GetTrustAnchorsForSupportedQueries<VerificationContext, PKIObject>()
-    lotePerProfile.forEach { (svcTypesPerVerificationContext, lote) ->
-        result += GetTrustAnchorsFromLoTE(lote).transform(svcTypesPerVerificationContext)
+    private fun LoadedLoTE.servicesOfType(svcType: URI): List<TrustedEntityService> {
+        return (listOf(list) + otherLists).flatMap { it.servicesOf(svcType) }
     }
-    return result
+
+    private fun ListOfTrustedEntities.servicesOf(svcType: URI): List<TrustedEntityService> =
+        entities.orEmpty()
+            .flatMap { it.services.filter { svc -> svc.information.typeIdentifier == svcType } }
 }

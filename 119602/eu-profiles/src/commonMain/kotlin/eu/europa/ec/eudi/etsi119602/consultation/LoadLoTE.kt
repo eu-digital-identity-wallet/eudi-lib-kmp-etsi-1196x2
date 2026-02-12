@@ -41,31 +41,31 @@ public fun interface LoadDocument<out DOCUMENT : Any> {
  * @param problems A list of problems that occurred during the download process
  */
 public data class LoTEDownloadResult(
-    val downloaded: LoTEDownloadEvent.LoTEDownloaded?,
-    val otherLists: List<LoTEDownloadEvent.OtherLoTEDownloaded>,
-    val problems: List<LoTEDownloadEvent.Problem>,
+    val downloaded: LoTELoadEvent.LoTELoaded?,
+    val otherLists: List<LoTELoadEvent.OtherLoTELoaded>,
+    val problems: List<LoTELoadEvent.Problem>,
     val startedAt: Instant,
     val endedAt: Instant,
 ) {
     public companion object {
 
         public suspend fun collect(
-            eventsFlow: Flow<LoTEDownloadEvent>,
+            eventsFlow: Flow<LoTELoadEvent>,
             clock: Clock = Clock.System,
         ): LoTEDownloadResult {
             val startedAt = clock.now()
-            var downloaded: LoTEDownloadEvent.LoTEDownloaded? = null
-            val otherLists = mutableListOf<LoTEDownloadEvent.OtherLoTEDownloaded>()
-            val problems = mutableListOf<LoTEDownloadEvent.Problem>()
+            var downloaded: LoTELoadEvent.LoTELoaded? = null
+            val otherLists = mutableListOf<LoTELoadEvent.OtherLoTELoaded>()
+            val problems = mutableListOf<LoTELoadEvent.Problem>()
             eventsFlow.toList().forEach { event ->
                 when (event) {
-                    is LoTEDownloadEvent.LoTEDownloaded -> {
+                    is LoTELoadEvent.LoTELoaded -> {
                         check(downloaded == null) { "Multiple LoTEs downloaded" }
                         downloaded = event
                     }
 
-                    is LoTEDownloadEvent.OtherLoTEDownloaded -> otherLists.add(event)
-                    is LoTEDownloadEvent.Problem -> problems.add(event)
+                    is LoTELoadEvent.OtherLoTELoaded -> otherLists.add(event)
+                    is LoTELoadEvent.Problem -> problems.add(event)
                 }
             }
             if (!otherLists.isEmpty()) {
@@ -80,13 +80,13 @@ public data class LoTEDownloadResult(
 /**
  * Event emitted during the download process.
  */
-public sealed interface LoTEDownloadEvent {
-    public data class LoTEDownloaded(val lote: ListOfTrustedEntities, val sourceUri: String) : LoTEDownloadEvent
+public sealed interface LoTELoadEvent {
+    public data class LoTELoaded(val lote: ListOfTrustedEntities, val sourceUri: String) : LoTELoadEvent
 
-    public data class OtherLoTEDownloaded(val lote: ListOfTrustedEntities, val sourceUri: String, val depth: Int) :
-        LoTEDownloadEvent
+    public data class OtherLoTELoaded(val lote: ListOfTrustedEntities, val sourceUri: String, val depth: Int) :
+        LoTELoadEvent
 
-    public sealed interface Problem : LoTEDownloadEvent
+    public sealed interface Problem : LoTELoadEvent
     public data class MaxDepthReached(val uri: String, val maxDepth: Int) : Problem
     public data class MaxDownloadsReached(val uri: String, val maxLotes: Int) : Problem
     public data class CircularReferenceDetected(val uri: String) : Problem
@@ -94,7 +94,7 @@ public sealed interface LoTEDownloadEvent {
     public data class Error(val uri: String, val error: Throwable) : Problem
 }
 
-public data class DownloadConstrains(
+public data class Constraints(
     val maxDepth: Int,
     val maxDownloads: Int,
 ) {
@@ -104,15 +104,9 @@ public data class DownloadConstrains(
     }
 }
 
-/**
- * Downloads a LoTE and all referenced LoTEs recursively.
- *
- * @param loadDocument The component responsible for fetching JWTs from URIs
- * @param parallelism Number of concurrent downloads for processing references in parallel
- */
-public class LoTEDownloader(
+public class LoadLoTE(
     internal val parallelism: Int = 2,
-    private val constraints: DownloadConstrains = DownloadConstrains(1, 20),
+    private val constraints: Constraints = Constraints(1, 20),
     internal val loadDocument: LoadDocument<ListOfTrustedEntitiesClaims>,
 ) {
 
@@ -128,13 +122,13 @@ public class LoTEDownloader(
         fun childStep(uri: String) = Step(uri, depth + 1)
     }
 
-    public fun downloadFlow(uri: String): Flow<LoTEDownloadEvent> = channelFlow {
+    public operator fun invoke(uri: String): Flow<LoTELoadEvent> = channelFlow {
         val initial = State(mutableSetOf(), 0)
         val firstStep = Step(uri, 0)
         processLoTE(initial, firstStep)
     }
 
-    private suspend fun ProducerScope<LoTEDownloadEvent>.processLoTE(state: State, step: Step) =
+    private suspend fun ProducerScope<LoTELoadEvent>.processLoTE(state: State, step: Step) =
         withContext(Dispatchers.IO) {
             // Check for cancellation
             currentCoroutineContext().ensureActive()
@@ -155,7 +149,7 @@ public class LoTEDownloader(
                 val lote = claims.listOfTrustedEntities
 
                 state.downloadsCounter.incrementAndGet()
-                send(downloadInStep(lote, step))
+                send(loadedInStep(lote, step))
 
                 // Process references recursively with parallel processing and event emission
                 val otherLoTEPointers = lote.schemeInformation.pointersToOtherLists
@@ -171,7 +165,7 @@ public class LoTEDownloader(
             }
         }
 
-    private suspend fun ProducerScope<LoTEDownloadEvent>.processPointersToOtherLists(
+    private suspend fun ProducerScope<LoTELoadEvent>.processPointersToOtherLists(
         state: State,
         parentStep: Step,
         otherLoTEPointers: List<OtherLoTEPointer>,
@@ -199,30 +193,30 @@ public class LoTEDownloader(
     private fun violationInStep(
         state: State,
         currentStep: Step,
-    ): LoTEDownloadEvent.Problem? {
+    ): LoTELoadEvent.Problem? {
         val (maxDepth, maxDownloads) = constraints
         val (sourceUri, depth) = currentStep
         return when {
-            depth > maxDepth -> LoTEDownloadEvent.MaxDepthReached(sourceUri, maxDepth)
-            state.downloadsCounter.value >= maxDownloads -> LoTEDownloadEvent.MaxDownloadsReached(
+            depth > maxDepth -> LoTELoadEvent.MaxDepthReached(sourceUri, maxDepth)
+            state.downloadsCounter.value >= maxDownloads -> LoTELoadEvent.MaxDownloadsReached(
                 sourceUri,
                 maxDownloads,
             )
 
-            sourceUri in state.visitedUris -> LoTEDownloadEvent.CircularReferenceDetected(sourceUri)
+            sourceUri in state.visitedUris -> LoTELoadEvent.CircularReferenceDetected(sourceUri)
             else -> null
         }
     }
 
-    private fun downloadInStep(lote: ListOfTrustedEntities, step: Step): LoTEDownloadEvent {
+    private fun loadedInStep(lote: ListOfTrustedEntities, step: Step): LoTELoadEvent {
         val (sourceUri, depth) = step
         return if (depth == 0) {
-            LoTEDownloadEvent.LoTEDownloaded(lote, sourceUri)
+            LoTELoadEvent.LoTELoaded(lote, sourceUri)
         } else {
-            LoTEDownloadEvent.OtherLoTEDownloaded(lote, sourceUri, depth)
+            LoTELoadEvent.OtherLoTELoaded(lote, sourceUri, depth)
         }
     }
 
-    private fun errorInStep(error: Throwable, step: Step): LoTEDownloadEvent.Error =
-        LoTEDownloadEvent.Error(step.uri, error)
+    private fun errorInStep(error: Throwable, step: Step): LoTELoadEvent.Error =
+        LoTELoadEvent.Error(step.uri, error)
 }

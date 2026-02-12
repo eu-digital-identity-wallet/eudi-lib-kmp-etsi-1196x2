@@ -15,18 +15,10 @@
  */
 package eu.europa.ec.eudi.etsi119602.consultation.eu
 
-import eu.europa.ec.eudi.etsi119602.ListOfTrustedEntitiesClaims
-import eu.europa.ec.eudi.etsi119602.PKIObject
-import eu.europa.ec.eudi.etsi119602.consultation.*
+import eu.europa.ec.eudi.etsi119602.consultation.Constraints
 import eu.europa.ec.eudi.etsi1196x2.consultation.GetTrustAnchorsForSupportedQueries
 import eu.europa.ec.eudi.etsi1196x2.consultation.VerificationContext
-import io.ktor.client.*
-import io.ktor.client.request.*
-import io.ktor.client.statement.*
-import io.ktor.http.*
-import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.test.runTest
-import kotlin.let
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.fail
@@ -36,8 +28,15 @@ class LoTEDownloaderTest {
     @Test
     fun testDigitTrust() = runTest {
         val trustAnchorsFromLoTE =
-            createHttpClient().use { httpClient -> loteTrust(httpClient, DIGIT.LOTE_LOCATIONS) }
-        val expectedContexts =
+            createHttpClient().use { httpClient ->
+                LoTETrustFactory.fromHttp(
+                    httpClient = httpClient,
+                    constrains = Constraints(maxDepth = 1, maxDownloads = 40),
+                    loteLocationsSupported = DIGIT.LOTE_LOCATIONS,
+                    svcTypePerCtx = DIGIT.SVC_TYPE_PER_CTX,
+                )
+            }
+        val expectedContexts: List<VerificationContext> =
             listOf(
                 VerificationContext.PID,
                 VerificationContext.PIDStatus,
@@ -48,6 +47,7 @@ class LoTEDownloaderTest {
                 VerificationContext.EAA("mdl"),
                 VerificationContext.EAAStatus("mdl"),
             )
+
         val actualContexts = trustAnchorsFromLoTE.supportedQueries
         assertContentEquals(expectedContexts, actualContexts)
         actualContexts.forEach { ctx ->
@@ -57,45 +57,5 @@ class LoTEDownloaderTest {
                 GetTrustAnchorsForSupportedQueries.Outcome.QueryNotSupported -> fail("Context not supported: $ctx")
             }
         }
-    }
-
-    suspend fun loteTrust(
-        httpClient: HttpClient,
-        loteLocations: LoTELocations,
-    ): GetTrustAnchorsForSupportedQueries<VerificationContext, PKIObject> {
-        val httpLoader = LoTEHttpLoader(
-            httpClient,
-            parallelism = 2,
-            constrains = DownloadConstrains(maxDepth = 1, maxDownloads = 30),
-        )
-        val loteUrlPerCtxs = loteLocations.ctxs()
-        val lotePerProfile =
-            buildMap {
-                loteUrlPerCtxs.mapValues { (ctxs, loteUrl) ->
-                    val eventsFlow = httpLoader.downloadFlow(loteUrl)
-                    val summary = LoTEDownloadResult.collect(eventsFlow)
-                    summary.downloaded?.lote?.let { lote ->
-                        val key = ctxs.associateWith(::svcTypeOf)
-                        put(key, lote)
-                    }
-                }
-            }
-
-        return GetTrustAnchorsForSupportedQueries.usingLoTE(lotePerProfile)
-    }
-
-    private class LoTEHttpLoader(
-        httpClient: HttpClient,
-        parallelism: Int,
-        constrains: DownloadConstrains,
-    ) {
-
-        private val downloader = LoTEDownloader(parallelism, constrains) {
-            val jwt = httpClient.get(it).bodyAsText()
-            val (_, payload) = JwtUtil.headerAndPayload(jwt)
-            JsonSupportDebug.decodeFromJsonElement(ListOfTrustedEntitiesClaims.serializer(), payload)
-        }
-
-        fun downloadFlow(uri: Url): Flow<LoTEDownloadEvent> = downloader.downloadFlow(uri.toString())
     }
 }
