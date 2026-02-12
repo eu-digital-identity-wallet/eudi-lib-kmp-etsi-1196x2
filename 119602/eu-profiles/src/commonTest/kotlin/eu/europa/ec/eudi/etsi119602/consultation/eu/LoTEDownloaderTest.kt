@@ -17,15 +17,16 @@ package eu.europa.ec.eudi.etsi119602.consultation.eu
 
 import eu.europa.ec.eudi.etsi119602.ListOfTrustedEntitiesClaims
 import eu.europa.ec.eudi.etsi119602.PKIObject
-import eu.europa.ec.eudi.etsi119602.URI
 import eu.europa.ec.eudi.etsi119602.consultation.*
 import eu.europa.ec.eudi.etsi1196x2.consultation.GetTrustAnchorsForSupportedQueries
 import eu.europa.ec.eudi.etsi1196x2.consultation.VerificationContext
 import io.ktor.client.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
+import io.ktor.http.*
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.test.runTest
+import kotlin.let
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.fail
@@ -35,7 +36,7 @@ class LoTEDownloaderTest {
     @Test
     fun testDigitTrust() = runTest {
         val trustAnchorsFromLoTE =
-            createHttpClient().use { httpClient -> loteTrust(httpClient, DIGIT.LISTS) }
+            createHttpClient().use { httpClient -> loteTrust(httpClient, DIGIT.LOTE_LOCATIONS) }
         val expectedContexts =
             listOf(
                 VerificationContext.PID,
@@ -60,20 +61,23 @@ class LoTEDownloaderTest {
 
     suspend fun loteTrust(
         httpClient: HttpClient,
-        lists: Map<EUListOfTrustedEntitiesProfile, String>,
+        loteLocations: LoTELocations,
     ): GetTrustAnchorsForSupportedQueries<VerificationContext, PKIObject> {
         val httpLoader = LoTEHttpLoader(
             httpClient,
             parallelism = 2,
             constrains = DownloadConstrains(maxDepth = 1, maxDownloads = 30),
         )
-
+        val loteUrlPerCtxs = loteLocations.ctxs()
         val lotePerProfile =
             buildMap {
-                lists.mapValues { (profile, uri) ->
-                    val eventsFlow = httpLoader.downloadFlow(uri)
+                loteUrlPerCtxs.mapValues { (ctxs, loteUrl) ->
+                    val eventsFlow = httpLoader.downloadFlow(loteUrl)
                     val summary = LoTEDownloadResult.collect(eventsFlow)
-                    summary.downloaded?.lote?.let { put(profile.ctx(), it) }
+                    summary.downloaded?.lote?.let { lote ->
+                        val key = ctxs.associateWith(::svcTypeOf)
+                        put(key, lote)
+                    }
                 }
             }
 
@@ -92,41 +96,6 @@ class LoTEDownloaderTest {
             JsonSupportDebug.decodeFromJsonElement(ListOfTrustedEntitiesClaims.serializer(), payload)
         }
 
-        fun downloadFlow(uri: String): Flow<LoTEDownloadEvent> = downloader.downloadFlow(uri)
+        fun downloadFlow(uri: Url): Flow<LoTEDownloadEvent> = downloader.downloadFlow(uri.toString())
     }
 }
-
-private fun EUListOfTrustedEntitiesProfile.ctx(): Map<VerificationContext, URI> =
-    buildMap {
-        val (issuance, revocation) =
-            trustedEntities.serviceTypeIdentifiers as ServiceTypeIdentifiers.IssuanceAndRevocation
-        fun VerificationContext.putIssuance() = put(this, issuance)
-        fun VerificationContext.putRevocation() = put(this, revocation)
-        when (this@ctx) {
-            EUPIDProvidersList -> {
-                VerificationContext.PID.putIssuance()
-                VerificationContext.PIDStatus.putRevocation()
-            }
-
-            EUWalletProvidersList -> {
-                VerificationContext.WalletInstanceAttestation.putIssuance()
-                VerificationContext.WalletUnitAttestation.putIssuance()
-                VerificationContext.WalletUnitAttestationStatus.putRevocation()
-            }
-
-            EUWRPACProvidersList -> {
-                VerificationContext.WalletRelyingPartyAccessCertificate.putIssuance()
-            }
-
-            EUWRPRCProvidersList -> {
-                VerificationContext.WalletRelyingPartyRegistrationCertificate.putIssuance()
-            }
-
-            EUMDLProvidersList -> {
-                VerificationContext.EAA("mdl").putIssuance()
-                VerificationContext.EAAStatus("mdl").putRevocation()
-            }
-
-            else -> {}
-        }
-    }

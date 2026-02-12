@@ -15,57 +15,32 @@
  */
 package eu.europa.ec.eudi.etsi119602.consultation.eu
 
-import eu.europa.ec.eudi.etsi119602.consultation.eu.LoTEFetcher.fetchLoTE
 import io.ktor.client.*
 import io.ktor.client.plugins.contentnegotiation.*
 import io.ktor.client.plugins.cookies.*
-import io.ktor.client.request.*
-import io.ktor.client.statement.*
+import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.asFlow
-import kotlinx.coroutines.flow.map
 import kotlinx.serialization.json.Json
 
 object DIGIT {
 
-    internal const val EU_PID_PROVIDERS_URL = "https://acceptance.trust.tech.ec.europa.eu/lists/eudiw/pid-providers.json"
-    private const val EU_WALLET_PROVIDERS_URL =
-        "https://acceptance.trust.tech.ec.europa.eu/lists/eudiw/wallet-providers.json"
-    private const val EU_WRPAC_PROVIDERS_URL =
-        "https://acceptance.trust.tech.ec.europa.eu/lists/eudiw/wrpac-providers.json"
-    private const val EU_MDL_PROVIDERS_URL = "https://acceptance.trust.tech.ec.europa.eu/lists/eudiw/mdl-providers.json"
+    private fun loteUrl(
+        lote: String,
+    ) = Url("https://acceptance.trust.tech.ec.europa.eu/lists/eudiw/$lote")
 
-    val LISTS: Map<EUListOfTrustedEntitiesProfile, String> by lazy {
-        mapOf(
-            EUPIDProvidersList to EU_PID_PROVIDERS_URL,
-            EUWalletProvidersList to EU_WALLET_PROVIDERS_URL,
-            EUWRPACProvidersList to EU_WRPAC_PROVIDERS_URL,
-            EUMDLProvidersList to EU_MDL_PROVIDERS_URL,
-        )
-    }
+    private val EU_PID_PROVIDERS_URL = loteUrl("pid-providers.json")
+    private val EU_WALLET_PROVIDERS_URL = loteUrl("wallet-providers.json")
+    private val EU_WRPAC_PROVIDERS_URL = loteUrl("wrpac-providers.json")
+    private val EU_MDL_PROVIDERS_URL = loteUrl("mdl-providers.json")
 
-    suspend fun fetchLists(
-        debug: DebugOption = DebugOption.Debug,
-        filter: (EUListOfTrustedEntitiesProfile) -> Boolean = { true },
-    ): Flow<Pair<EUListOfTrustedEntitiesProfile, String>> =
-        createHttpClient().use { httpClient ->
-            LISTS.filter { filter(it.key) }.toList().asFlow()
-                .map { (profile, uri) -> profile to httpClient.fetchLoTE(uri, debug) }
-        }
-}
-
-enum class DebugOption {
-    NoDebug,
-    Debug,
-}
-
-internal object LoTEFetcher {
-
-    suspend fun HttpClient.fetchLoTE(uri: String, debug: DebugOption): String =
-        get(uri)
-            .bodyAsText()
-            .also { if (debug == DebugOption.Debug) println(it) }
+    val LOTE_LOCATIONS = LoTELocations(
+        pidProviders = EU_PID_PROVIDERS_URL,
+        walletProviders = EU_WALLET_PROVIDERS_URL,
+        wrpacProviders = EU_WRPAC_PROVIDERS_URL,
+        eaaProviders = mapOf(
+            "mdl" to EU_MDL_PROVIDERS_URL,
+        ),
+    )
 }
 
 internal fun createHttpClient(): HttpClient =
