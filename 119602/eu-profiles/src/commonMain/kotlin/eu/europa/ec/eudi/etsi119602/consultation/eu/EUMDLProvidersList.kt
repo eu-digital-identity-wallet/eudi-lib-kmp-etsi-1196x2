@@ -24,7 +24,8 @@ import eu.europa.ec.eudi.etsi119602.URIValue
  */
 public object EUMDLProvidersListSpec {
     public const val LOTE_TYPE: String = "http://trust.ec.europa.eu/lists/mDL/mDLProvidersListType"
-    public const val STATUS_DETERMINATION_APPROACH: String = "http://trust.ec.europa.eu/lists/mDL/mDLProvidersListStatusDetn"
+    public const val STATUS_DETERMINATION_APPROACH: String =
+        "http://trust.ec.europa.eu/lists/mDL/mDLProvidersListStatusDetn"
     public const val SCHEME_COMMUNITY_RULES: String = "http://trust.ec.europa.eu/lists/mDL/schemerules"
     public const val SVC_TYPE_ISSUANCE: String = "http://trust.ec.europa.eu/lists/mDL/SvcType/Issuance"
     public const val SVC_TYPE_REVOCATION: String = "http://trust.ec.europa.eu/lists/mDL/SvcType/Revocation"
@@ -44,10 +45,9 @@ public val EUMDLProvidersList: EUListOfTrustedEntitiesProfile =
             historicalInformationPeriod = ValueRequirement.Absent,
         ),
         trustedEntities = EUTrustedEntitiesProfile(
-            serviceTypeIdentifiers = setOf(
-                EUMDLProvidersListSpec.SVC_TYPE_ISSUANCE,
-                EUMDLProvidersListSpec.SVC_TYPE_REVOCATION,
-                EUMDLProvidersListSpec.SVC_TYPE_ISSUANCE_2,
+            serviceTypeIdentifiers = ServiceTypeIdentifiers.IssuanceAndRevocation(
+                issuance = EUMDLProvidersListSpec.SVC_TYPE_ISSUANCE,
+                revocation = EUMDLProvidersListSpec.SVC_TYPE_REVOCATION,
             ),
             mustContainX509Certificates = true,
             serviceStatuses = emptySet(),

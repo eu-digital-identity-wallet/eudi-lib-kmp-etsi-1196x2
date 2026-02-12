@@ -17,10 +17,8 @@ package eu.europa.ec.eudi.etsi119602.consultation.eu
 
 import eu.europa.ec.eudi.etsi119602.ListOfTrustedEntitiesClaims
 import eu.europa.ec.eudi.etsi119602.PKIObject
-import eu.europa.ec.eudi.etsi119602.consultation.LoTEDownloadEvent
-import eu.europa.ec.eudi.etsi119602.consultation.LoTEDownloadResult
-import eu.europa.ec.eudi.etsi119602.consultation.LoTEDownloader
-import eu.europa.ec.eudi.etsi119602.consultation.usingLoTE
+import eu.europa.ec.eudi.etsi119602.URI
+import eu.europa.ec.eudi.etsi119602.consultation.*
 import eu.europa.ec.eudi.etsi1196x2.consultation.GetTrustAnchorsForSupportedQueries
 import eu.europa.ec.eudi.etsi1196x2.consultation.VerificationContext
 import io.ktor.client.*
@@ -64,48 +62,71 @@ class LoTEDownloaderTest {
         httpClient: HttpClient,
         lists: Map<EUListOfTrustedEntitiesProfile, String>,
     ): GetTrustAnchorsForSupportedQueries<VerificationContext, PKIObject> {
+        val httpLoader = LoTEHttpLoader(
+            httpClient,
+            parallelism = 2,
+            constrains = DownloadConstrains(maxDepth = 1, maxDownloads = 30),
+        )
+
         val lotePerProfile =
             buildMap {
                 lists.mapValues { (profile, uri) ->
-                    val eventsFlow = with(LoTEHttpOps) {
-                        httpClient.downloadFlow(uri, maxDepth = 2, maxTotalLotes = 30)
-                    }
-
+                    val eventsFlow = httpLoader.downloadFlow(uri)
                     val summary = LoTEDownloadResult.collect(eventsFlow)
-                    val duration = summary.endedAt - summary.startedAt
-
-                    val lote = summary.downloaded?.lote
-                    println("Download finished in $duration. ${lote?.let { "Success" } ?: "Failed"}")
-                    if (lote != null) {
-                        try {
-                            with(profile) { lote.ensureCompliesToProfile() }
-                            put(profile, lote)
-                        } catch (e: IllegalStateException) {
-                            println("Not complies: $e")
-                        }
-                    }
+                    summary.downloaded?.lote?.let { put(profile.ctx(), it) }
                 }
             }
 
         return GetTrustAnchorsForSupportedQueries.usingLoTE(lotePerProfile)
     }
 
-    private interface LoTEHttpOps {
+    private class LoTEHttpLoader(
+        httpClient: HttpClient,
+        parallelism: Int,
+        constrains: DownloadConstrains,
+    ) {
 
-        fun HttpClient.downloadFlow(
-            uri: String,
-            parallelism: Int = 2,
-            maxDepth: Int = 2,
-            maxTotalLotes: Int = 30,
-        ): Flow<LoTEDownloadEvent> {
-            val downloader = LoTEDownloader(parallelism) {
-                val jwt = get(it).bodyAsText()
-                val (_, payload) = JwtUtil.headerAndPayload(jwt)
-                JsonSupportDebug.decodeFromJsonElement(ListOfTrustedEntitiesClaims.serializer(), payload)
-            }
-            return downloader.downloadFlow(uri, maxDepth, maxTotalLotes)
+        private val downloader = LoTEDownloader(parallelism, constrains) {
+            val jwt = httpClient.get(it).bodyAsText()
+            val (_, payload) = JwtUtil.headerAndPayload(jwt)
+            JsonSupportDebug.decodeFromJsonElement(ListOfTrustedEntitiesClaims.serializer(), payload)
         }
 
-        companion object : LoTEHttpOps
+        fun downloadFlow(uri: String): Flow<LoTEDownloadEvent> = downloader.downloadFlow(uri)
     }
 }
+
+private fun EUListOfTrustedEntitiesProfile.ctx(): Map<VerificationContext, URI> =
+    buildMap {
+        val (issuance, revocation) =
+            trustedEntities.serviceTypeIdentifiers as ServiceTypeIdentifiers.IssuanceAndRevocation
+        fun VerificationContext.putIssuance() = put(this, issuance)
+        fun VerificationContext.putRevocation() = put(this, revocation)
+        when (this@ctx) {
+            EUPIDProvidersList -> {
+                VerificationContext.PID.putIssuance()
+                VerificationContext.PIDStatus.putRevocation()
+            }
+
+            EUWalletProvidersList -> {
+                VerificationContext.WalletInstanceAttestation.putIssuance()
+                VerificationContext.WalletUnitAttestation.putIssuance()
+                VerificationContext.WalletUnitAttestationStatus.putRevocation()
+            }
+
+            EUWRPACProvidersList -> {
+                VerificationContext.WalletRelyingPartyAccessCertificate.putIssuance()
+            }
+
+            EUWRPRCProvidersList -> {
+                VerificationContext.WalletRelyingPartyRegistrationCertificate.putIssuance()
+            }
+
+            EUMDLProvidersList -> {
+                VerificationContext.EAA("mdl").putIssuance()
+                VerificationContext.EAAStatus("mdl").putRevocation()
+            }
+
+            else -> {}
+        }
+    }

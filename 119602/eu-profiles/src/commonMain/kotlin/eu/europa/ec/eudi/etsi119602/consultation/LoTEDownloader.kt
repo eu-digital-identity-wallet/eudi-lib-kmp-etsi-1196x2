@@ -17,6 +17,7 @@ package eu.europa.ec.eudi.etsi119602.consultation
 
 import eu.europa.ec.eudi.etsi119602.ListOfTrustedEntities
 import eu.europa.ec.eudi.etsi119602.ListOfTrustedEntitiesClaims
+import eu.europa.ec.eudi.etsi119602.OtherLoTEPointer
 import kotlinx.atomicfu.AtomicInt
 import kotlinx.atomicfu.atomic
 import kotlinx.coroutines.*
@@ -28,7 +29,7 @@ import kotlin.time.Clock
 import kotlin.time.Duration
 import kotlin.time.Instant
 
-public fun interface DocumentFetcher<out DOCUMENT : Any> {
+public fun interface LoadDocument<out DOCUMENT : Any> {
     public suspend operator fun invoke(uri: String): DOCUMENT
 }
 
@@ -80,149 +81,148 @@ public data class LoTEDownloadResult(
  * Event emitted during the download process.
  */
 public sealed interface LoTEDownloadEvent {
-    public data class LoTEDownloaded(val lote: ListOfTrustedEntities) : LoTEDownloadEvent {
-        override fun toString(): String {
-            return "LoTEDownloaded(lote=${lote.schemeInformation.type})"
-        }
-    }
+    public data class LoTEDownloaded(val lote: ListOfTrustedEntities, val sourceUri: String) : LoTEDownloadEvent
 
-    public data class OtherLoTEDownloaded(val lote: ListOfTrustedEntities, val depth: Int, val sourceUri: String) :
+    public data class OtherLoTEDownloaded(val lote: ListOfTrustedEntities, val sourceUri: String, val depth: Int) :
         LoTEDownloadEvent
 
     public sealed interface Problem : LoTEDownloadEvent
     public data class MaxDepthReached(val uri: String, val maxDepth: Int) : Problem
-    public data class MaxLotesReached(val uri: String, val maxLotes: Int) : Problem
+    public data class MaxDownloadsReached(val uri: String, val maxLotes: Int) : Problem
     public data class CircularReferenceDetected(val uri: String) : Problem
     public data class TimedOut(val duration: Duration) : Problem
     public data class Error(val uri: String, val error: Throwable) : Problem
 }
 
+public data class DownloadConstrains(
+    val maxDepth: Int,
+    val maxDownloads: Int,
+) {
+    init {
+        require(maxDepth > 0) { "Max depth must be greater than 0" }
+        require(maxDownloads > 0) { "Max downloads must be greater than 0" }
+    }
+}
+
 /**
  * Downloads a LoTE and all referenced LoTEs recursively.
  *
- * @param jwtFetcher The component responsible for fetching JWTs from URIs
+ * @param loadDocument The component responsible for fetching JWTs from URIs
  * @param parallelism Number of concurrent downloads for processing references in parallel
  */
 public class LoTEDownloader(
     internal val parallelism: Int = 2,
-    internal val jwtFetcher: DocumentFetcher<ListOfTrustedEntitiesClaims>,
+    private val constraints: DownloadConstrains = DownloadConstrains(1, 20),
+    internal val loadDocument: LoadDocument<ListOfTrustedEntitiesClaims>,
 ) {
 
-    private class LoTEDownloadState(
-        val visitedUris: MutableSet<String>,
-        initialCount: Int = 0,
-    ) {
-        val totalLotesCount: AtomicInt = atomic(initialCount)
+    init {
+        require(parallelism > 0) { "Parallelism must be greater than 0" }
     }
 
-    /**
-     * Downloads a LoTE from the given URI and emits events for each downloaded LoTE.
-     *
-     * @param uri The URI of the initial LoTE to download
-     * @param maxDepth Maximum depth to recurse to prevent extremely deep reference chains
-     * @param maxTotalLotes Maximum total number of LoTEs to download to prevent excessive resource usage
-     * @return A Flow of LoTEDownloadEvent objects
-     */
-    public fun downloadFlow(uri: String, maxDepth: Int, maxTotalLotes: Int): Flow<LoTEDownloadEvent> = channelFlow {
-        val visitedUris = mutableSetOf<String>()
-        val state = LoTEDownloadState(visitedUris)
-
-        // Download the main LoTE
-        downloadSingleLoteWithEvents(uri, state, 0, maxDepth, maxTotalLotes, this)
-
-        // Note: The main LoTE event is emitted inside downloadSingleLoteWithEvents
+    private class State(val visitedUris: MutableSet<String>, initialCount: Int = 0) {
+        val downloadsCounter: AtomicInt = atomic(initialCount)
     }
 
-    private suspend fun downloadSingleLoteWithEvents(
-        uri: String,
-        state: LoTEDownloadState,
-        currentDepth: Int,
-        maxDepth: Int,
-        maxTotalLotes: Int,
-        emitter: ProducerScope<LoTEDownloadEvent>,
-    ) = withContext(Dispatchers.IO) {
-        // Check for cancellation
-        currentCoroutineContext().ensureActive()
+    private data class Step(val uri: String, val depth: Int) {
+        fun childStep(uri: String) = Step(uri, depth + 1)
+    }
 
-        // Prevent circular references and limit depth
-        if (currentDepth > maxDepth) {
-            emitter.send(LoTEDownloadEvent.MaxDepthReached(uri, maxDepth))
-            return@withContext
-        }
+    public fun downloadFlow(uri: String): Flow<LoTEDownloadEvent> = channelFlow {
+        val initial = State(mutableSetOf(), 0)
+        val firstStep = Step(uri, 0)
+        processLoTE(initial, firstStep)
+    }
 
-        if (state.totalLotesCount.value >= maxTotalLotes) {
-            emitter.send(LoTEDownloadEvent.MaxLotesReached(uri, maxTotalLotes))
-            return@withContext
-        }
+    private suspend fun ProducerScope<LoTEDownloadEvent>.processLoTE(state: State, step: Step) =
+        withContext(Dispatchers.IO) {
+            // Check for cancellation
+            currentCoroutineContext().ensureActive()
 
-        if (uri in state.visitedUris) {
-            emitter.send(LoTEDownloadEvent.CircularReferenceDetected(uri))
-            return@withContext
-        }
-
-        // Mark URI as visited before processing to detect circular references
-        state.visitedUris.add(uri)
-
-        try {
-            // Fetch and parse the JWT
-            val claims = jwtFetcher.invoke(uri)
-            val lote = claims.listOfTrustedEntities
-
-            // Increment the count after successfully fetching and parsing
-            state.totalLotesCount.incrementAndGet()
-
-            // Emit the main LoTE event
-            if (currentDepth == 0) {
-                emitter.send(LoTEDownloadEvent.LoTEDownloaded(lote))
-            } else {
-                emitter.send(LoTEDownloadEvent.OtherLoTEDownloaded(lote, currentDepth, uri))
+            // Check constraints
+            val violation = violationInStep(state, step)
+            if (violation != null) {
+                send(violation)
+                return@withContext
             }
 
-            // Process references recursively with parallel processing and event emission
-            processReferencesWithEvents(lote, state, currentDepth + 1, maxDepth, maxTotalLotes, emitter)
-        } catch (e: Exception) {
-            // Emit error event
-            emitter.send(LoTEDownloadEvent.Error(uri, e))
-        } finally {
-            // Remove from visited when returning from this level of recursion
-            state.visitedUris.remove(uri)
-        }
-    }
+            // Mark URI as visited before processing to detect circular references
+            state.visitedUris.add(step.uri)
 
-    private suspend fun processReferencesWithEvents(
-        lote: ListOfTrustedEntities,
-        state: LoTEDownloadState,
-        currentDepth: Int,
-        maxDepth: Int,
-        maxTotalLotes: Int,
-        emitter: ProducerScope<LoTEDownloadEvent>,
-    ): Unit = withContext(Dispatchers.IO) {
-        val references = lote.schemeInformation.pointersToOtherLists
+            try {
+                // Fetch and parse the JWT
+                val claims = loadDocument(step.uri)
+                val lote = claims.listOfTrustedEntities
 
-        if (references.isNullOrEmpty()) {
-            return@withContext
-        }
+                state.downloadsCounter.incrementAndGet()
+                send(downloadInStep(lote, step))
 
-        // Process references in parallel using supervisorScope to handle failures independently
-        supervisorScope {
-            // Split references into chunks based on parallelism
-            references.chunked(parallelism).forEach { chunk ->
-                val deferredTasks = chunk.map { reference ->
-                    async {
-                        val referenceUri = reference.location
-                        downloadSingleLoteWithEvents(
-                            referenceUri,
-                            state,
-                            currentDepth,
-                            maxDepth,
-                            maxTotalLotes,
-                            emitter,
-                        )
-                    }
+                // Process references recursively with parallel processing and event emission
+                val otherLoTEPointers = lote.schemeInformation.pointersToOtherLists
+                if (!otherLoTEPointers.isNullOrEmpty()) {
+                    processPointersToOtherLists(state, step, otherLoTEPointers)
                 }
+            } catch (e: Exception) {
+                // Emit error event
+                send(errorInStep(e, step))
+            } finally {
+                // Remove from visited when returning from this level of recursion
+                state.visitedUris.remove(step.uri)
+            }
+        }
 
-                deferredTasks.awaitAll()
+    private suspend fun ProducerScope<LoTEDownloadEvent>.processPointersToOtherLists(
+        state: State,
+        parentStep: Step,
+        otherLoTEPointers: List<OtherLoTEPointer>,
+    ) {
+        withContext(Dispatchers.IO) {
+            supervisorScope {
+                otherLoTEPointers.chunked(parallelism).forEach { chunk ->
+                    val deferredTasks = chunk.map { reference ->
+                        async {
+                            val step = parentStep.childStep(reference.location)
+                            processLoTE(state, step)
+                        }
+                    }
+
+                    deferredTasks.awaitAll()
+                }
             }
         }
     }
+
+    //
+    // Event factories
+    //
+
+    private fun violationInStep(
+        state: State,
+        currentStep: Step,
+    ): LoTEDownloadEvent.Problem? {
+        val (maxDepth, maxDownloads) = constraints
+        val (sourceUri, depth) = currentStep
+        return when {
+            depth > maxDepth -> LoTEDownloadEvent.MaxDepthReached(sourceUri, maxDepth)
+            state.downloadsCounter.value >= maxDownloads -> LoTEDownloadEvent.MaxDownloadsReached(
+                sourceUri,
+                maxDownloads,
+            )
+
+            sourceUri in state.visitedUris -> LoTEDownloadEvent.CircularReferenceDetected(sourceUri)
+            else -> null
+        }
+    }
+
+    private fun downloadInStep(lote: ListOfTrustedEntities, step: Step): LoTEDownloadEvent {
+        val (sourceUri, depth) = step
+        return if (depth == 0) {
+            LoTEDownloadEvent.LoTEDownloaded(lote, sourceUri)
+        } else {
+            LoTEDownloadEvent.OtherLoTEDownloaded(lote, sourceUri, depth)
+        }
+    }
+
+    private fun errorInStep(error: Throwable, step: Step): LoTEDownloadEvent.Error =
+        LoTEDownloadEvent.Error(step.uri, error)
 }

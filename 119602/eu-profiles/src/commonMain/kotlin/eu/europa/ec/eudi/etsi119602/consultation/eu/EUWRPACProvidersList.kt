@@ -36,9 +36,9 @@ public val EUWRPACProvidersList: EUListOfTrustedEntitiesProfile =
         ),
         trustedEntities =
         EUTrustedEntitiesProfile(
-            serviceTypeIdentifiers = setOf(
-                ETSI19602.EU_WRPAC_PROVIDERS_SVC_TYPE_ISSUANCE,
-                ETSI19602.EU_WRPAC_PROVIDERS_SVC_TYPE_REVOCATION,
+            serviceTypeIdentifiers = ServiceTypeIdentifiers.IssuanceAndRevocation(
+                issuance = ETSI19602.EU_WRPAC_PROVIDERS_SVC_TYPE_ISSUANCE,
+                revocation = ETSI19602.EU_WRPAC_PROVIDERS_SVC_TYPE_REVOCATION,
             ),
             mustContainX509Certificates = true,
             serviceStatuses = emptySet(),

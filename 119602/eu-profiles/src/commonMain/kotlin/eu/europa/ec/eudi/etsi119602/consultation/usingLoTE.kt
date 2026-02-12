@@ -18,7 +18,6 @@ package eu.europa.ec.eudi.etsi119602.consultation
 import eu.europa.ec.eudi.etsi119602.ListOfTrustedEntities
 import eu.europa.ec.eudi.etsi119602.PKIObject
 import eu.europa.ec.eudi.etsi119602.URI
-import eu.europa.ec.eudi.etsi119602.consultation.eu.*
 import eu.europa.ec.eudi.etsi1196x2.consultation.*
 
 public class GetTrustAnchorsFromLoTE(
@@ -36,59 +35,11 @@ public class GetTrustAnchorsFromLoTE(
 }
 
 public fun GetTrustAnchorsForSupportedQueries.Companion.usingLoTE(
-    lotePerProfile: Map<EUListOfTrustedEntitiesProfile, ListOfTrustedEntities>,
+    lotePerProfile: Map<Map<VerificationContext, URI>, ListOfTrustedEntities>,
 ): GetTrustAnchorsForSupportedQueries<VerificationContext, PKIObject> {
-    var result =
-        GetTrustAnchorsForSupportedQueries<VerificationContext, PKIObject>()
-
-    lotePerProfile.forEach { (profile, lote) ->
-
-        with(profile) {
-            lote.ensureCompliesToProfile()
-        }
-        val ctx = profile.ctx()
-        if (ctx.isNotEmpty()) {
-            result += GetTrustAnchorsFromLoTE(lote).transform(ctx)
-        }
+    var result = GetTrustAnchorsForSupportedQueries<VerificationContext, PKIObject>()
+    lotePerProfile.forEach { (svcTypesPerVerificationContext, lote) ->
+        result += GetTrustAnchorsFromLoTE(lote).transform(svcTypesPerVerificationContext)
     }
     return result
 }
-
-private fun EUListOfTrustedEntitiesProfile.ctx(): Map<VerificationContext, URI> =
-    buildMap {
-        fun VerificationContext.putIssuance() = this@ctx.issuanceSvcType()?.let { put(this, it) }
-        fun VerificationContext.putRevocation() = this@ctx.revocationSvcType()?.let { put(this, it) }
-        when (this@ctx) {
-            EUPIDProvidersList -> {
-                VerificationContext.PID.putIssuance()
-                VerificationContext.PIDStatus.putRevocation()
-            }
-
-            EUWalletProvidersList -> {
-                VerificationContext.WalletInstanceAttestation.putIssuance()
-                VerificationContext.WalletUnitAttestation.putIssuance()
-                VerificationContext.WalletUnitAttestationStatus.putRevocation()
-            }
-
-            EUWRPACProvidersList -> {
-                VerificationContext.WalletRelyingPartyAccessCertificate.putIssuance()
-            }
-
-            EUWRPRCProvidersList -> {
-                VerificationContext.WalletRelyingPartyRegistrationCertificate.putIssuance()
-            }
-
-            EUMDLProvidersList -> {
-                VerificationContext.EAA("mdl").putIssuance()
-                VerificationContext.EAAStatus("mdl").putRevocation()
-            }
-
-            else -> {}
-        }
-    }
-
-private fun EUListOfTrustedEntitiesProfile.issuanceSvcType(): URI? =
-    trustedEntities.serviceTypeIdentifiers.firstOrNull { it.endsWith("Issuance") }
-
-private fun EUListOfTrustedEntitiesProfile.revocationSvcType(): URI? =
-    trustedEntities.serviceTypeIdentifiers.firstOrNull { it.endsWith("Revocation") }

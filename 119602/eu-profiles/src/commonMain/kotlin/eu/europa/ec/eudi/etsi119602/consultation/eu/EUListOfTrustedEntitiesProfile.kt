@@ -100,6 +100,20 @@ public data class EUListAndSchemeInformationProfile(
     val historicalInformationPeriod: ValueRequirement<HistoricalInformationPeriod>,
 )
 
+public sealed interface ServiceTypeIdentifiers {
+    public data class IssuanceAndRevocation(val issuance: URI, val revocation: URI) : ServiceTypeIdentifiers
+    public data class OneOrMore(val value: Set<URI>) : ServiceTypeIdentifiers {
+        init {
+            require(value.isNotEmpty()) { "Service type identifiers cannot be empty" }
+        }
+    }
+
+    public fun values(): Set<URI> = when (this) {
+        is IssuanceAndRevocation -> setOf(issuance, revocation)
+        is OneOrMore -> value
+    }
+}
+
 /**
  * Expectations about trusted entities of an EU-specific LoTE
  */
@@ -107,7 +121,7 @@ public data class EUTrustedEntitiesProfile(
     /**
      * Exclusive set of service type identifiers that trusted entities of the LoTE may support
      */
-    val serviceTypeIdentifiers: Set<URI>,
+    val serviceTypeIdentifiers: ServiceTypeIdentifiers,
     /**
      * Indicates whether the LoTE must contain services that are identified in
      * terms of X509 certificates
@@ -117,11 +131,7 @@ public data class EUTrustedEntitiesProfile(
      * Exclusive set of service statuses that trusted entities of the LoTE may support.
      */
     val serviceStatuses: Set<URI>,
-) {
-    init {
-        require(serviceTypeIdentifiers.isNotEmpty()) { "Service type identifiers cannot be empty" }
-    }
-}
+)
 
 /**
  * Assertions about the scheme of an EU-specific LoTE
@@ -251,17 +261,17 @@ internal interface TrustedEntityAssertions {
      * @throws IllegalStateException if the service type identifier is not any of the expected service types
      */
     @Throws(IllegalStateException::class)
-    fun ServiceInformation.ensureServiceTypeIsAnyOf(expectedServiceTypes: Set<URI>) =
+    fun ServiceInformation.ensureServiceTypeIsAnyOf(expectedServiceTypes: ServiceTypeIdentifiers) =
         ensureServiceTypeIsAnyOf(typeIdentifier, expectedServiceTypes)
 
     @Throws(IllegalStateException::class)
-    fun ServiceHistoryInstance.ensureServiceTypeIsAnyOf(expectedServiceTypes: Set<URI>) =
+    fun ServiceHistoryInstance.ensureServiceTypeIsAnyOf(expectedServiceTypes: ServiceTypeIdentifiers) =
         ensureServiceTypeIsAnyOf(typeIdentifier, expectedServiceTypes)
 
     @Throws(IllegalStateException::class)
-    private fun ensureServiceTypeIsAnyOf(typeIdentifier: URI?, expectedServiceTypes: Set<URI>) {
+    private fun ensureServiceTypeIsAnyOf(typeIdentifier: URI?, expectedServiceTypes: ServiceTypeIdentifiers) {
         Assertions.checkNotNull(typeIdentifier, ETSI19602.SERVICE_TYPE_IDENTIFIER)
-        check(typeIdentifier in expectedServiceTypes) {
+        check(typeIdentifier in expectedServiceTypes.values()) {
             "Invalid ${ETSI19602.SERVICE_TYPE_IDENTIFIER}. Expected one of $expectedServiceTypes, got $typeIdentifier"
         }
     }
