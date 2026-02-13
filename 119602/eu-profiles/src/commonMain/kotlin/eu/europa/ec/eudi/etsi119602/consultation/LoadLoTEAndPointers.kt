@@ -18,6 +18,7 @@ package eu.europa.ec.eudi.etsi119602.consultation
 import eu.europa.ec.eudi.etsi119602.ListOfTrustedEntities
 import eu.europa.ec.eudi.etsi119602.ListOfTrustedEntitiesClaims
 import eu.europa.ec.eudi.etsi119602.OtherLoTEPointer
+import eu.europa.ec.eudi.etsi119602.URI
 import kotlinx.atomicfu.AtomicInt
 import kotlinx.atomicfu.atomic
 import kotlinx.coroutines.*
@@ -29,37 +30,37 @@ import kotlin.time.Clock
 import kotlin.time.Duration
 import kotlin.time.Instant
 
-public fun interface LoadDocument<out DOCUMENT : Any> {
-    public suspend operator fun invoke(uri: String): DOCUMENT
+public fun interface LoadLoTE<out LOTE : Any> {
+    public suspend operator fun invoke(uri: URI): LOTE
 }
 
-public class LoadLoTE(
+public class LoadLoTEAndPointers(
     private val constraints: Constraints,
-    private val loadDocument: LoadDocument<ListOfTrustedEntitiesClaims>,
+    private val loadLoTE: LoadLoTE<ListOfTrustedEntitiesClaims>,
 ) {
 
+    /**
+     * Events emitted by the loader
+     */
     public sealed interface Event {
-        public data class LoTELoaded(val lote: ListOfTrustedEntities, val sourceUri: String) : Event
-        public data class OtherLoTELoaded(val lote: ListOfTrustedEntities, val sourceUri: String, val depth: Int) :
-            Event
-
+        public data class LoTELoaded(val lote: ListOfTrustedEntities, val sourceUri: URI, val depth: Int) : Event
         public sealed interface Problem : Event
-        public data class MaxDepthReached(val uri: String, val maxDepth: Int) : Problem
-        public data class MaxListsReached(val uri: String, val maxLists: Int) : Problem
-        public data class CircularReferenceDetected(val uri: String) : Problem
+        public data class MaxDepthReached(val uri: URI, val maxDepth: Int) : Problem
+        public data class MaxListsReached(val uri: URI, val maxLists: Int) : Problem
+        public data class CircularReferenceDetected(val uri: URI) : Problem
         public data class TimedOut(val duration: Duration) : Problem
-        public data class Error(val uri: String, val error: Throwable) : Problem
+        public data class Error(val uri: URI, val error: Throwable) : Problem
     }
 
-    private class State(val visitedUris: MutableSet<String>, initialCount: Int = 0) {
+    private class State(val visitedUris: MutableSet<URI>, initialCount: Int = 0) {
         val downloadsCounter: AtomicInt = atomic(initialCount)
     }
 
-    private data class Step(val uri: String, val depth: Int) {
+    private data class Step(val uri: URI, val depth: Int) {
         fun childStep(uri: String) = Step(uri, depth + 1)
     }
 
-    public operator fun invoke(uri: String): Flow<Event> = channelFlow {
+    public operator fun invoke(uri: URI): Flow<Event> = channelFlow {
         val initial = State(mutableSetOf(), 0)
         val firstStep = Step(uri, 0)
         processLoTE(initial, firstStep)
@@ -82,7 +83,7 @@ public class LoadLoTE(
 
             try {
                 // Fetch and parse the JWT
-                val claims = loadDocument(step.uri)
+                val claims = loadLoTE(step.uri)
                 val lote = claims.listOfTrustedEntities
 
                 state.downloadsCounter.incrementAndGet()
@@ -145,13 +146,9 @@ public class LoadLoTE(
         }
     }
 
-    private fun loadedInStep(lote: ListOfTrustedEntities, step: Step): Event {
+    private fun loadedInStep(lote: ListOfTrustedEntities, step: Step): Event.LoTELoaded {
         val (sourceUri, depth) = step
-        return if (depth == 0) {
-            Event.LoTELoaded(lote, sourceUri)
-        } else {
-            Event.OtherLoTELoaded(lote, sourceUri, depth)
-        }
+        return Event.LoTELoaded(lote, sourceUri, depth)
     }
 
     private fun errorInStep(error: Throwable, step: Step): Event.Error =
@@ -171,31 +168,33 @@ public class LoadLoTE(
 }
 
 public data class LoTELoadResult(
-    val downloaded: LoadLoTE.Event.LoTELoaded?,
-    val otherLists: List<LoadLoTE.Event.OtherLoTELoaded>,
-    val problems: List<LoadLoTE.Event.Problem>,
+    val downloaded: LoadLoTEAndPointers.Event.LoTELoaded?,
+    val otherLists: List<LoadLoTEAndPointers.Event.LoTELoaded>,
+    val problems: List<LoadLoTEAndPointers.Event.Problem>,
     val startedAt: Instant,
     val endedAt: Instant,
 ) {
     public companion object {
 
         public suspend fun collect(
-            eventsFlow: Flow<LoadLoTE.Event>,
+            eventsFlow: Flow<LoadLoTEAndPointers.Event>,
             clock: Clock = Clock.System,
         ): LoTELoadResult {
             val startedAt = clock.now()
-            var downloaded: LoadLoTE.Event.LoTELoaded? = null
-            val otherLists = mutableListOf<LoadLoTE.Event.OtherLoTELoaded>()
-            val problems = mutableListOf<LoadLoTE.Event.Problem>()
+            var downloaded: LoadLoTEAndPointers.Event.LoTELoaded? = null
+            val otherLists = mutableListOf<LoadLoTEAndPointers.Event.LoTELoaded>()
+            val problems = mutableListOf<LoadLoTEAndPointers.Event.Problem>()
             eventsFlow.toList().forEach { event ->
                 when (event) {
-                    is LoadLoTE.Event.LoTELoaded -> {
-                        check(downloaded == null) { "Multiple LoTEs downloaded" }
-                        downloaded = event
-                    }
+                    is LoadLoTEAndPointers.Event.LoTELoaded ->
+                        if (event.depth == 0) {
+                            check(downloaded == null) { "Multiple LoTEs downloaded with depth 0" }
+                            downloaded = event
+                        } else {
+                            otherLists.add(event)
+                        }
 
-                    is LoadLoTE.Event.OtherLoTELoaded -> otherLists.add(event)
-                    is LoadLoTE.Event.Problem -> problems.add(event)
+                    is LoadLoTEAndPointers.Event.Problem -> problems.add(event)
                 }
             }
             if (!otherLists.isEmpty()) {

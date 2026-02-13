@@ -25,7 +25,7 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.*
 
 public class ProvisionTrustAnchorsFromLoTEs<CTX : Any>(
-    private val loadLoTE: LoadLoTE,
+    private val loadLoTEAndPointers: LoadLoTEAndPointers,
     private val svcTypePerCtx: SupportedLists<Map<CTX, URI>>,
 ) {
 
@@ -50,7 +50,7 @@ public class ProvisionTrustAnchorsFromLoTEs<CTX : Any>(
     }
 
     private suspend fun loadLoTE(cfg: LoTECfg<CTX>): LoadedLoTE? {
-        val downloadFlow = loadLoTE(cfg.downloadUrl)
+        val downloadFlow = loadLoTEAndPointers(cfg.downloadUrl)
         val result = LoTELoadResult.collect(downloadFlow)
         return result.loaded()
     }
@@ -74,7 +74,7 @@ public class ProvisionTrustAnchorsFromLoTEs<CTX : Any>(
     )
 
     public companion object {
-        public fun eu(loadLoTE: LoadLoTE): ProvisionTrustAnchorsFromLoTEs<VerificationContext> =
-            ProvisionTrustAnchorsFromLoTEs(loadLoTE, SupportedLists.EU)
+        public fun eu(loadLoTEAndPointers: LoadLoTEAndPointers): ProvisionTrustAnchorsFromLoTEs<VerificationContext> =
+            ProvisionTrustAnchorsFromLoTEs(loadLoTEAndPointers, SupportedLists.EU)
     }
 }

@@ -15,7 +15,7 @@
  */
 package eu.europa.ec.eudi.etsi119602.consultation.eu
 
-import eu.europa.ec.eudi.etsi119602.consultation.LoadLoTE
+import eu.europa.ec.eudi.etsi119602.consultation.LoadLoTEAndPointers
 import eu.europa.ec.eudi.etsi119602.consultation.ProvisionTrustAnchorsFromLoTEs
 import eu.europa.ec.eudi.etsi1196x2.consultation.GetTrustAnchorsForSupportedQueries
 import eu.europa.ec.eudi.etsi1196x2.consultation.VerificationContext
@@ -33,7 +33,7 @@ class LoTEDownloaderTest {
                 val fromHttp =
                     ProvisionTrustAnchorsFromLoTEs.fromHttp(
                         httpClient = httpClient,
-                        constrains = LoadLoTE.Constraints(
+                        constrains = LoadLoTEAndPointers.Constraints(
                             otherLoTEParallelism = 2,
                             maxDepth = 1,
                             maxLists = 40,

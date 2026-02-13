@@ -17,7 +17,7 @@ package eu.europa.ec.eudi.etsi119602.consultation.eu
 
 import eu.europa.ec.eudi.etsi119602.ListOfTrustedEntitiesClaims
 import eu.europa.ec.eudi.etsi119602.URI
-import eu.europa.ec.eudi.etsi119602.consultation.LoadLoTE
+import eu.europa.ec.eudi.etsi119602.consultation.LoadLoTEAndPointers
 import eu.europa.ec.eudi.etsi119602.consultation.ProvisionTrustAnchorsFromLoTEs
 import eu.europa.ec.eudi.etsi1196x2.consultation.SupportedLists
 import io.ktor.client.*
@@ -31,9 +31,9 @@ import kotlinx.serialization.json.Json
 fun <CTX : Any> ProvisionTrustAnchorsFromLoTEs.Companion.fromHttp(
     httpClient: HttpClient,
     svcTypePerCtx: SupportedLists<Map<CTX, URI>>,
-    constrains: LoadLoTE.Constraints,
+    constrains: LoadLoTEAndPointers.Constraints,
 ): ProvisionTrustAnchorsFromLoTEs<CTX> {
-    val loadLoTE = LoadLoTE(constrains) {
+    val loadLoTEAndPointers = LoadLoTEAndPointers(constrains) {
         val jwt = httpClient.get(it).bodyAsText()
         val (_, payload) = JwtUtil.headerAndPayload(jwt)
         JsonSupportDebug.decodeFromJsonElement(
@@ -41,7 +41,7 @@ fun <CTX : Any> ProvisionTrustAnchorsFromLoTEs.Companion.fromHttp(
             payload,
         )
     }
-    return ProvisionTrustAnchorsFromLoTEs(loadLoTE, svcTypePerCtx)
+    return ProvisionTrustAnchorsFromLoTEs(loadLoTEAndPointers, svcTypePerCtx)
 }
 
 internal fun createHttpClient(): HttpClient =
