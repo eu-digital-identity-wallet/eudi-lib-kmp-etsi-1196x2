@@ -15,7 +15,8 @@
  */
 package eu.europa.ec.eudi.etsi119602.consultation.eu
 
-import eu.europa.ec.eudi.etsi119602.consultation.Constraints
+import eu.europa.ec.eudi.etsi119602.consultation.LoadLoTE
+import eu.europa.ec.eudi.etsi119602.consultation.ProvisionTrustAnchorsFromLoTEs
 import eu.europa.ec.eudi.etsi1196x2.consultation.GetTrustAnchorsForSupportedQueries
 import eu.europa.ec.eudi.etsi1196x2.consultation.VerificationContext
 import kotlinx.coroutines.test.runTest
@@ -29,9 +30,14 @@ class LoTEDownloaderTest {
     fun testDigitTrust() = runTest {
         val trustAnchorsFromLoTE =
             createHttpClient().use { httpClient ->
-                LoTETrustFactory.fromHttp(
+                ProvisionTrustAnchorsFromLoTEs.fromHttp(
                     httpClient = httpClient,
-                    constrains = Constraints(maxDepth = 1, maxDownloads = 40),
+                    parallelism = 10,
+                    constrains = LoadLoTE.Constraints(
+                        otherLoTEParallelism = 2,
+                        maxDepth = 1,
+                        maxLists = 40,
+                    ),
                     loteLocationsSupported = DIGIT.LOTE_LOCATIONS,
                     svcTypePerCtx = DIGIT.SVC_TYPE_PER_CTX,
                 )

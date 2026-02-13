@@ -19,11 +19,13 @@ import eu.europa.ec.eudi.etsi119602.ETSI19602
 import eu.europa.ec.eudi.etsi119602.URI
 import eu.europa.ec.eudi.etsi1196x2.consultation.VerificationContext
 
-public data class SupportedLoTEs<out INFO : Any>(
+public data class SupportedLists<out INFO : Any>(
     val pidProviders: INFO? = null,
     val walletProviders: INFO? = null,
     val wrpacProviders: INFO? = null,
     val wrprcProviders: INFO? = null,
+    val pubEaaProviders: INFO? = null,
+    val qeaProviders: INFO? = null,
     val eaaProviders: Map<String, INFO> = emptyMap(),
 ) : Iterable<INFO> {
 
@@ -33,40 +35,26 @@ public data class SupportedLoTEs<out INFO : Any>(
             add(walletProviders)
             add(wrpacProviders)
             add(wrprcProviders)
+            add(pubEaaProviders)
+            add(qeaProviders)
             addAll(eaaProviders.values)
         }.filterNotNull().iterator()
 
     public companion object {
 
-        public val EU: SupportedLoTEs<Map<VerificationContext, URI>> = SupportedLoTEs(
-            pidProviders = mapOf(
-                VerificationContext.PID to ETSI19602.EU_PID_PROVIDERS_SVC_TYPE_ISSUANCE,
-                VerificationContext.PIDStatus to ETSI19602.EU_PID_PROVIDERS_SVC_TYPE_REVOCATION,
-            ),
-            walletProviders = mapOf(
-                VerificationContext.WalletInstanceAttestation to ETSI19602.EU_WALLET_PROVIDERS_SVC_TYPE_ISSUANCE,
-                VerificationContext.WalletUnitAttestation to ETSI19602.EU_WALLET_PROVIDERS_SVC_TYPE_ISSUANCE,
-                VerificationContext.WalletUnitAttestationStatus to ETSI19602.EU_WALLET_PROVIDERS_SVC_TYPE_REVOCATION,
-            ),
-            wrpacProviders = mapOf(
-                VerificationContext.WalletRelyingPartyAccessCertificate to ETSI19602.EU_WRPAC_PROVIDERS_SVC_TYPE_ISSUANCE,
-            ),
-            wrprcProviders = mapOf(
-                VerificationContext.WalletRelyingPartyRegistrationCertificate to ETSI19602.EU_WRPRC_PROVIDERS_SVC_TYPE_ISSUANCE,
-            ),
-        )
-
         public fun <L1 : Any, L2 : Any, L3 : Any> combine(
-            s1: SupportedLoTEs<L1>,
-            s2: SupportedLoTEs<L2>,
+            s1: SupportedLists<L1>,
+            s2: SupportedLists<L2>,
             combine: (L1, L2) -> L3,
-        ): SupportedLoTEs<L3> {
+        ): SupportedLists<L3> {
             val combineNullables = combine.forNullables()
-            return SupportedLoTEs(
+            return SupportedLists(
                 pidProviders = combineNullables(s1.pidProviders, s2.pidProviders),
                 walletProviders = combineNullables(s1.walletProviders, s2.walletProviders),
                 wrpacProviders = combineNullables(s1.wrpacProviders, s2.wrpacProviders),
                 wrprcProviders = combineNullables(s1.wrprcProviders, s2.wrprcProviders),
+                pubEaaProviders = combineNullables(s1.pubEaaProviders, s2.pubEaaProviders),
+                qeaProviders = combineNullables(s1.qeaProviders, s2.qeaProviders),
                 eaaProviders = s1.eaaProviders.mapNotNull { (useCase, l1) ->
                     val l2 = s2.eaaProviders[useCase]
                     combineNullables(l1, l2)?.let { useCase to it }
@@ -78,3 +66,29 @@ public data class SupportedLoTEs<out INFO : Any>(
             { a, b -> a?.let { na -> b?.let { nb -> this(na, nb) } } }
     }
 }
+
+/**
+ * Known combinations of [VerificationContext] and Service Type Identifiers (for LoTEs)
+ * Source are the list profiles specified in [ETSI19602],
+ * except the PUB EAA Providers List
+ */
+public val SupportedLists.Companion.EU: SupportedLists<Map<VerificationContext, URI>>
+    get() = SupportedLists(
+        pidProviders = mapOf(
+            VerificationContext.PID to ETSI19602.EU_PID_PROVIDERS_SVC_TYPE_ISSUANCE,
+            VerificationContext.PIDStatus to ETSI19602.EU_PID_PROVIDERS_SVC_TYPE_REVOCATION,
+        ),
+        walletProviders = mapOf(
+            VerificationContext.WalletInstanceAttestation to ETSI19602.EU_WALLET_PROVIDERS_SVC_TYPE_ISSUANCE,
+            VerificationContext.WalletUnitAttestation to ETSI19602.EU_WALLET_PROVIDERS_SVC_TYPE_ISSUANCE,
+            VerificationContext.WalletUnitAttestationStatus to ETSI19602.EU_WALLET_PROVIDERS_SVC_TYPE_REVOCATION,
+        ),
+        wrpacProviders = mapOf(
+            VerificationContext.WalletRelyingPartyAccessCertificate to ETSI19602.EU_WRPAC_PROVIDERS_SVC_TYPE_ISSUANCE,
+        ),
+        wrprcProviders = mapOf(
+            VerificationContext.WalletRelyingPartyRegistrationCertificate to ETSI19602.EU_WRPRC_PROVIDERS_SVC_TYPE_ISSUANCE,
+        ),
+        pubEaaProviders = null,
+        qeaProviders = null,
+    )

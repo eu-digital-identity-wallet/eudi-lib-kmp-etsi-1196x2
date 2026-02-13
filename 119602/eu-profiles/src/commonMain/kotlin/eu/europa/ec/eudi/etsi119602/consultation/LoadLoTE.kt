@@ -33,85 +33,22 @@ public fun interface LoadDocument<out DOCUMENT : Any> {
     public suspend operator fun invoke(uri: String): DOCUMENT
 }
 
-/**
- * Result of downloading a LoTE and its references.
- *
- * @param downloaded The main LoTE that was requested
- * @param otherLists All LoTEs that were referenced by this LoTE, each with their own nested references
- * @param problems A list of problems that occurred during the download process
- */
-public data class LoTEDownloadResult(
-    val downloaded: LoTELoadEvent.LoTELoaded?,
-    val otherLists: List<LoTELoadEvent.OtherLoTELoaded>,
-    val problems: List<LoTELoadEvent.Problem>,
-    val startedAt: Instant,
-    val endedAt: Instant,
-) {
-    public companion object {
-
-        public suspend fun collect(
-            eventsFlow: Flow<LoTELoadEvent>,
-            clock: Clock = Clock.System,
-        ): LoTEDownloadResult {
-            val startedAt = clock.now()
-            var downloaded: LoTELoadEvent.LoTELoaded? = null
-            val otherLists = mutableListOf<LoTELoadEvent.OtherLoTELoaded>()
-            val problems = mutableListOf<LoTELoadEvent.Problem>()
-            eventsFlow.toList().forEach { event ->
-                when (event) {
-                    is LoTELoadEvent.LoTELoaded -> {
-                        check(downloaded == null) { "Multiple LoTEs downloaded" }
-                        downloaded = event
-                    }
-
-                    is LoTELoadEvent.OtherLoTELoaded -> otherLists.add(event)
-                    is LoTELoadEvent.Problem -> problems.add(event)
-                }
-            }
-            if (!otherLists.isEmpty()) {
-                checkNotNull(downloaded) { "Other LoTEs downloaded before main LoTE" }
-            }
-            val endedAt = clock.now()
-            return LoTEDownloadResult(downloaded, otherLists.toList(), problems.toList(), startedAt, endedAt)
-        }
-    }
-}
-
-/**
- * Event emitted during the download process.
- */
-public sealed interface LoTELoadEvent {
-    public data class LoTELoaded(val lote: ListOfTrustedEntities, val sourceUri: String) : LoTELoadEvent
-
-    public data class OtherLoTELoaded(val lote: ListOfTrustedEntities, val sourceUri: String, val depth: Int) :
-        LoTELoadEvent
-
-    public sealed interface Problem : LoTELoadEvent
-    public data class MaxDepthReached(val uri: String, val maxDepth: Int) : Problem
-    public data class MaxDownloadsReached(val uri: String, val maxLotes: Int) : Problem
-    public data class CircularReferenceDetected(val uri: String) : Problem
-    public data class TimedOut(val duration: Duration) : Problem
-    public data class Error(val uri: String, val error: Throwable) : Problem
-}
-
-public data class Constraints(
-    val maxDepth: Int,
-    val maxDownloads: Int,
-) {
-    init {
-        require(maxDepth > 0) { "Max depth must be greater than 0" }
-        require(maxDownloads > 0) { "Max downloads must be greater than 0" }
-    }
-}
-
 public class LoadLoTE(
-    internal val parallelism: Int = 2,
-    private val constraints: Constraints = Constraints(1, 20),
-    internal val loadDocument: LoadDocument<ListOfTrustedEntitiesClaims>,
+    private val constraints: Constraints,
+    private val loadDocument: LoadDocument<ListOfTrustedEntitiesClaims>,
 ) {
 
-    init {
-        require(parallelism > 0) { "Parallelism must be greater than 0" }
+    public sealed interface Event {
+        public data class LoTELoaded(val lote: ListOfTrustedEntities, val sourceUri: String) : Event
+        public data class OtherLoTELoaded(val lote: ListOfTrustedEntities, val sourceUri: String, val depth: Int) :
+            Event
+
+        public sealed interface Problem : Event
+        public data class MaxDepthReached(val uri: String, val maxDepth: Int) : Problem
+        public data class MaxListsReached(val uri: String, val maxLists: Int) : Problem
+        public data class CircularReferenceDetected(val uri: String) : Problem
+        public data class TimedOut(val duration: Duration) : Problem
+        public data class Error(val uri: String, val error: Throwable) : Problem
     }
 
     private class State(val visitedUris: MutableSet<String>, initialCount: Int = 0) {
@@ -122,13 +59,13 @@ public class LoadLoTE(
         fun childStep(uri: String) = Step(uri, depth + 1)
     }
 
-    public operator fun invoke(uri: String): Flow<LoTELoadEvent> = channelFlow {
+    public operator fun invoke(uri: String): Flow<Event> = channelFlow {
         val initial = State(mutableSetOf(), 0)
         val firstStep = Step(uri, 0)
         processLoTE(initial, firstStep)
     }
 
-    private suspend fun ProducerScope<LoTELoadEvent>.processLoTE(state: State, step: Step) =
+    private suspend fun ProducerScope<Event>.processLoTE(state: State, step: Step) =
         withContext(Dispatchers.IO) {
             // Check for cancellation
             currentCoroutineContext().ensureActive()
@@ -165,14 +102,14 @@ public class LoadLoTE(
             }
         }
 
-    private suspend fun ProducerScope<LoTELoadEvent>.processPointersToOtherLists(
+    private suspend fun ProducerScope<Event>.processPointersToOtherLists(
         state: State,
         parentStep: Step,
         otherLoTEPointers: List<OtherLoTEPointer>,
     ) {
         withContext(Dispatchers.IO) {
             supervisorScope {
-                otherLoTEPointers.chunked(parallelism).forEach { chunk ->
+                otherLoTEPointers.chunked(constraints.otherLoTEParallelism).forEach { chunk ->
                     val deferredTasks = chunk.map { reference ->
                         async {
                             val step = parentStep.childStep(reference.location)
@@ -193,30 +130,79 @@ public class LoadLoTE(
     private fun violationInStep(
         state: State,
         currentStep: Step,
-    ): LoTELoadEvent.Problem? {
-        val (maxDepth, maxDownloads) = constraints
+    ): Event.Problem? {
+        val (_, maxDepth, maxDownloads) = constraints
         val (sourceUri, depth) = currentStep
         return when {
-            depth > maxDepth -> LoTELoadEvent.MaxDepthReached(sourceUri, maxDepth)
-            state.downloadsCounter.value >= maxDownloads -> LoTELoadEvent.MaxDownloadsReached(
+            depth > maxDepth -> Event.MaxDepthReached(sourceUri, maxDepth)
+            state.downloadsCounter.value >= maxDownloads -> Event.MaxListsReached(
                 sourceUri,
                 maxDownloads,
             )
 
-            sourceUri in state.visitedUris -> LoTELoadEvent.CircularReferenceDetected(sourceUri)
+            sourceUri in state.visitedUris -> Event.CircularReferenceDetected(sourceUri)
             else -> null
         }
     }
 
-    private fun loadedInStep(lote: ListOfTrustedEntities, step: Step): LoTELoadEvent {
+    private fun loadedInStep(lote: ListOfTrustedEntities, step: Step): Event {
         val (sourceUri, depth) = step
         return if (depth == 0) {
-            LoTELoadEvent.LoTELoaded(lote, sourceUri)
+            Event.LoTELoaded(lote, sourceUri)
         } else {
-            LoTELoadEvent.OtherLoTELoaded(lote, sourceUri, depth)
+            Event.OtherLoTELoaded(lote, sourceUri, depth)
         }
     }
 
-    private fun errorInStep(error: Throwable, step: Step): LoTELoadEvent.Error =
-        LoTELoadEvent.Error(step.uri, error)
+    private fun errorInStep(error: Throwable, step: Step): Event.Error =
+        Event.Error(step.uri, error)
+
+    public data class Constraints(
+        val otherLoTEParallelism: Int,
+        val maxDepth: Int,
+        val maxLists: Int,
+    ) {
+        init {
+            require(otherLoTEParallelism > 0) { "Parallelism must be greater than 0" }
+            require(maxDepth > 0) { "Max depth must be greater than 0" }
+            require(maxLists > 0) { "Max downloads must be greater than 0" }
+        }
+    }
+}
+
+public data class LoTELoadResult(
+    val downloaded: LoadLoTE.Event.LoTELoaded?,
+    val otherLists: List<LoadLoTE.Event.OtherLoTELoaded>,
+    val problems: List<LoadLoTE.Event.Problem>,
+    val startedAt: Instant,
+    val endedAt: Instant,
+) {
+    public companion object {
+
+        public suspend fun collect(
+            eventsFlow: Flow<LoadLoTE.Event>,
+            clock: Clock = Clock.System,
+        ): LoTELoadResult {
+            val startedAt = clock.now()
+            var downloaded: LoadLoTE.Event.LoTELoaded? = null
+            val otherLists = mutableListOf<LoadLoTE.Event.OtherLoTELoaded>()
+            val problems = mutableListOf<LoadLoTE.Event.Problem>()
+            eventsFlow.toList().forEach { event ->
+                when (event) {
+                    is LoadLoTE.Event.LoTELoaded -> {
+                        check(downloaded == null) { "Multiple LoTEs downloaded" }
+                        downloaded = event
+                    }
+
+                    is LoadLoTE.Event.OtherLoTELoaded -> otherLists.add(event)
+                    is LoadLoTE.Event.Problem -> problems.add(event)
+                }
+            }
+            if (!otherLists.isEmpty()) {
+                checkNotNull(downloaded) { "Other LoTEs downloaded before main LoTE" }
+            }
+            val endedAt = clock.now()
+            return LoTELoadResult(downloaded, otherLists.toList(), problems.toList(), startedAt, endedAt)
+        }
+    }
 }

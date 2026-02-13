@@ -15,26 +15,21 @@
  */
 package eu.europa.ec.eudi.etsi119602.consultation.eu
 
-import eu.europa.ec.eudi.etsi119602.consultation.SupportedLoTEs
+import eu.europa.ec.eudi.etsi119602.consultation.EU
+import eu.europa.ec.eudi.etsi119602.consultation.SupportedLists
 import eu.europa.ec.eudi.etsi1196x2.consultation.VerificationContext
-import io.ktor.client.*
-import io.ktor.client.plugins.contentnegotiation.*
-import io.ktor.client.plugins.cookies.*
-import io.ktor.http.*
-import io.ktor.serialization.kotlinx.json.*
-import kotlinx.serialization.json.Json
 
 object DIGIT {
 
-    private fun loteUrl(lote: String): Url =
-        Url("https://acceptance.trust.tech.ec.europa.eu/lists/eudiw/$lote")
+    private fun loteUrl(lote: String): String =
+        "https://acceptance.trust.tech.ec.europa.eu/lists/eudiw/$lote"
 
     private val EU_PID_PROVIDERS_URL = loteUrl("pid-providers.json")
     private val EU_WALLET_PROVIDERS_URL = loteUrl("wallet-providers.json")
     private val EU_WRPAC_PROVIDERS_URL = loteUrl("wrpac-providers.json")
     private val EU_MDL_PROVIDERS_URL = loteUrl("mdl-providers.json")
 
-    val LOTE_LOCATIONS: SupportedLoTEs<Url> = SupportedLoTEs(
+    val LOTE_LOCATIONS = SupportedLists(
         pidProviders = EU_PID_PROVIDERS_URL,
         walletProviders = EU_WALLET_PROVIDERS_URL,
         wrpacProviders = EU_WRPAC_PROVIDERS_URL,
@@ -43,7 +38,7 @@ object DIGIT {
         ),
     )
 
-    val SVC_TYPE_PER_CTX = SupportedLoTEs.EU.copy(
+    val SVC_TYPE_PER_CTX = SupportedLists.EU.copy(
         eaaProviders = mapOf(
             "mdl" to mapOf(
                 VerificationContext.EAA("mdl") to EUMDLProvidersListSpec.SVC_TYPE_ISSUANCE,
@@ -52,21 +47,3 @@ object DIGIT {
         ),
     )
 }
-
-internal fun createHttpClient(): HttpClient =
-    HttpClient {
-        install(ContentNegotiation) {
-            json(JsonSupportDebug)
-        }
-        install(HttpCookies)
-    }
-
-private const val TWO_SPACES = "  "
-val JsonSupportDebug: Json =
-    Json {
-        ignoreUnknownKeys = true
-        prettyPrint = true
-        prettyPrintIndent = TWO_SPACES
-        encodeDefaults = false
-        explicitNulls = false
-    }
