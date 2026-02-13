@@ -21,8 +21,8 @@ import eu.europa.ec.eudi.etsi119602.URI
 import eu.europa.ec.eudi.etsi119602.consultation.EU
 import eu.europa.ec.eudi.etsi119602.consultation.LoadLoTE
 import eu.europa.ec.eudi.etsi119602.consultation.ProvisionTrustAnchorsFromLoTEs
-import eu.europa.ec.eudi.etsi119602.consultation.SupportedLists
 import eu.europa.ec.eudi.etsi1196x2.consultation.GetTrustAnchorsForSupportedQueries
+import eu.europa.ec.eudi.etsi1196x2.consultation.SupportedLists
 import eu.europa.ec.eudi.etsi1196x2.consultation.VerificationContext
 import io.ktor.client.*
 import io.ktor.client.plugins.contentnegotiation.*

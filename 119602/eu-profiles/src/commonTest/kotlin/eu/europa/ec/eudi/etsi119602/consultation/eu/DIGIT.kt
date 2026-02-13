@@ -16,7 +16,7 @@
 package eu.europa.ec.eudi.etsi119602.consultation.eu
 
 import eu.europa.ec.eudi.etsi119602.consultation.EU
-import eu.europa.ec.eudi.etsi119602.consultation.SupportedLists
+import eu.europa.ec.eudi.etsi1196x2.consultation.SupportedLists
 import eu.europa.ec.eudi.etsi1196x2.consultation.VerificationContext
 
 object DIGIT {

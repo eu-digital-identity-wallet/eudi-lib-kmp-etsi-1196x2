@@ -21,6 +21,13 @@ import eu.europa.ec.eudi.etsi119602.TrustedEntityService
 import eu.europa.ec.eudi.etsi119602.URI
 import eu.europa.ec.eudi.etsi1196x2.consultation.*
 
+/**
+ * A loaded list of trusted entities, including
+ * other (pointer) lists
+ *
+ * @param list the main list of trusted entities
+ * @param otherLists other lists of trusted entities pointed by [list]
+ */
 public data class LoadedLoTE(
     val list: ListOfTrustedEntities,
     val otherLists: List<ListOfTrustedEntities>,
