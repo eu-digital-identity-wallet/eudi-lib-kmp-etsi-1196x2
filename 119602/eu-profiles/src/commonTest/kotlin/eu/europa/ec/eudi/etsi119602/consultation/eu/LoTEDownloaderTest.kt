@@ -39,6 +39,7 @@ class LoTEDownloaderTest {
                             maxLists = 40,
                         ),
                         svcTypePerCtx = DIGIT.SVC_TYPE_PER_CTX,
+                        verifyJwtSignature = NotValidating,
                     )
                 fromHttp(loteLocationsSupported = DIGIT.LOTE_LOCATIONS, parallelism = 10)
             }

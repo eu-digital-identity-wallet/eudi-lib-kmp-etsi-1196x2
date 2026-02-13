@@ -19,6 +19,7 @@ import eu.europa.ec.eudi.etsi119602.ListOfTrustedEntitiesClaims
 import eu.europa.ec.eudi.etsi119602.URI
 import eu.europa.ec.eudi.etsi119602.consultation.LoadLoTEAndPointers
 import eu.europa.ec.eudi.etsi119602.consultation.ProvisionTrustAnchorsFromLoTEs
+import eu.europa.ec.eudi.etsi119602.consultation.VerifyJwtSignature
 import eu.europa.ec.eudi.etsi1196x2.consultation.SupportedLists
 import io.ktor.client.*
 import io.ktor.client.plugins.contentnegotiation.*
@@ -30,16 +31,12 @@ import kotlinx.serialization.json.Json
 
 fun <CTX : Any> ProvisionTrustAnchorsFromLoTEs.Companion.fromHttp(
     httpClient: HttpClient,
+    verifyJwtSignature: VerifyJwtSignature<*, ListOfTrustedEntitiesClaims>,
     svcTypePerCtx: SupportedLists<Map<CTX, URI>>,
     constrains: LoadLoTEAndPointers.Constraints,
 ): ProvisionTrustAnchorsFromLoTEs<CTX> {
-    val loadLoTEAndPointers = LoadLoTEAndPointers(constrains) {
-        val jwt = httpClient.get(it).bodyAsText()
-        val (_, payload) = JwtUtil.headerAndPayload(jwt)
-        JsonSupportDebug.decodeFromJsonElement(
-            ListOfTrustedEntitiesClaims.serializer(),
-            payload,
-        )
+    val loadLoTEAndPointers = LoadLoTEAndPointers(constrains, verifyJwtSignature) {
+        httpClient.get(it).bodyAsText()
     }
     return ProvisionTrustAnchorsFromLoTEs(loadLoTEAndPointers, svcTypePerCtx)
 }

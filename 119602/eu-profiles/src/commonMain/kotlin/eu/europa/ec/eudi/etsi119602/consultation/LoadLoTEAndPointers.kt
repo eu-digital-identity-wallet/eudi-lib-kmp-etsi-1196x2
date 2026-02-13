@@ -17,7 +17,6 @@ package eu.europa.ec.eudi.etsi119602.consultation
 
 import eu.europa.ec.eudi.etsi119602.ListOfTrustedEntities
 import eu.europa.ec.eudi.etsi119602.ListOfTrustedEntitiesClaims
-import eu.europa.ec.eudi.etsi119602.OtherLoTEPointer
 import eu.europa.ec.eudi.etsi119602.URI
 import kotlinx.atomicfu.AtomicInt
 import kotlinx.atomicfu.atomic
@@ -36,7 +35,8 @@ public fun interface LoadLoTE<out LOTE : Any> {
 
 public class LoadLoTEAndPointers(
     private val constraints: Constraints,
-    private val loadLoTE: LoadLoTE<ListOfTrustedEntitiesClaims>,
+    private val verifyJwtSignature: VerifyJwtSignature<*, ListOfTrustedEntitiesClaims>,
+    private val loadLoTE: LoadLoTE<String>,
 ) {
 
     /**
@@ -45,6 +45,7 @@ public class LoadLoTEAndPointers(
     public sealed interface Event {
         public data class LoTELoaded(val lote: ListOfTrustedEntities, val sourceUri: URI, val depth: Int) : Event
         public sealed interface Problem : Event
+        public data class InvalidJWTSignature(val uri: URI) : Problem
         public data class MaxDepthReached(val uri: URI, val maxDepth: Int) : Problem
         public data class MaxListsReached(val uri: URI, val maxLists: Int) : Problem
         public data class CircularReferenceDetected(val uri: URI) : Problem
@@ -66,63 +67,84 @@ public class LoadLoTEAndPointers(
         processLoTE(initial, firstStep)
     }
 
-    private suspend fun ProducerScope<Event>.processLoTE(state: State, step: Step) =
-        withContext(Dispatchers.IO) {
-            // Check for cancellation
-            currentCoroutineContext().ensureActive()
+    private suspend fun ProducerScope<Event>.processLoTE(
+        state: State,
+        step: Step,
+    ) = withContext(Dispatchers.IO) {
+        // Check for cancellation
+        currentCoroutineContext().ensureActive()
 
-            // Check constraints
-            val violation = violationInStep(state, step)
-            if (violation != null) {
-                send(violation)
-                return@withContext
-            }
-
-            // Mark URI as visited before processing to detect circular references
-            state.visitedUris.add(step.uri)
-
-            try {
-                // Fetch and parse the JWT
-                val claims = loadLoTE(step.uri)
-                val lote = claims.listOfTrustedEntities
-
-                state.downloadsCounter.incrementAndGet()
-                send(loadedInStep(lote, step))
-
-                // Process references recursively with parallel processing and event emission
-                val otherLoTEPointers = lote.schemeInformation.pointersToOtherLists
-                if (!otherLoTEPointers.isNullOrEmpty()) {
-                    processPointersToOtherLists(state, step, otherLoTEPointers)
-                }
-            } catch (e: Exception) {
-                // Emit error event
-                send(errorInStep(e, step))
-            } finally {
-                // Remove from visited when returning from this level of recursion
-                state.visitedUris.remove(step.uri)
-            }
+        // Check constraints
+        val violation = violationInStep(state, step)
+        if (violation != null) {
+            send(violation)
+            return@withContext
         }
 
-    private suspend fun ProducerScope<Event>.processPointersToOtherLists(
-        state: State,
-        parentStep: Step,
-        otherLoTEPointers: List<OtherLoTEPointer>,
-    ) {
-        withContext(Dispatchers.IO) {
-            supervisorScope {
-                otherLoTEPointers.chunked(constraints.otherLoTEParallelism).forEach { chunk ->
-                    val deferredTasks = chunk.map { reference ->
-                        async {
-                            val step = parentStep.childStep(reference.location)
-                            processLoTE(state, step)
-                        }
-                    }
+        // Mark URI as visited before processing to detect circular references
+        state.visitedUris.add(step.uri)
 
-                    deferredTasks.awaitAll()
+        try {
+            // Fetch JWT
+            val jwt = loadLoTE(step.uri)
+
+            // Verify signature
+            val event = verifySignatureInStep(verifyJwtSignature, jwt, step)
+
+            state.downloadsCounter.incrementAndGet()
+            send(event)
+
+            // Process references recursively with parallel processing and event emission
+            if (event is Event.LoTELoaded) {
+                handleOtherPointers(state, event, step)
+            }
+        } catch (e: Exception) {
+            // Emit error event
+            send(errorInStep(e, step))
+        } finally {
+            // Remove from visited when returning from this level of recursion
+            state.visitedUris.remove(step.uri)
+        }
+    }
+
+    private suspend fun ProducerScope<Event>.handleOtherPointers(
+        state: State,
+        event: Event.LoTELoaded,
+        parentStep: Step,
+    ): Unit = withContext(Dispatchers.IO) {
+        val otherLoTEPointers = event.lote.schemeInformation.pointersToOtherLists
+        if (otherLoTEPointers.isNullOrEmpty()) {
+            return@withContext
+        }
+        supervisorScope {
+            otherLoTEPointers.chunked(constraints.otherLoTEParallelism).forEach { chunk ->
+                val deferredTasks = chunk.map { reference ->
+                    async {
+                        val step = parentStep.childStep(reference.location)
+                        processLoTE(state, step)
+                    }
                 }
+
+                deferredTasks.awaitAll()
             }
         }
     }
+
+    private suspend fun verifySignatureInStep(
+        verifyJwtSignature: VerifyJwtSignature<*, ListOfTrustedEntitiesClaims>,
+        jwt: String,
+        step: Step,
+    ): Event =
+        when (val result = verifyJwtSignature(jwt)) {
+            is VerifyJwtSignature.Outcome.Verified<*, ListOfTrustedEntitiesClaims> -> {
+                val payload = result.payload
+                loadedInStep(payload.listOfTrustedEntities, step)
+            }
+
+            VerifyJwtSignature.Outcome.NotVerified -> {
+                invalidJwtSignatureInStep(step)
+            }
+        }
 
     //
     // Event factories
@@ -150,6 +172,9 @@ public class LoadLoTEAndPointers(
         val (sourceUri, depth) = step
         return Event.LoTELoaded(lote, sourceUri, depth)
     }
+
+    private fun invalidJwtSignatureInStep(step: Step) =
+        Event.InvalidJWTSignature(step.uri)
 
     private fun errorInStep(error: Throwable, step: Step): Event.Error =
         Event.Error(step.uri, error)
