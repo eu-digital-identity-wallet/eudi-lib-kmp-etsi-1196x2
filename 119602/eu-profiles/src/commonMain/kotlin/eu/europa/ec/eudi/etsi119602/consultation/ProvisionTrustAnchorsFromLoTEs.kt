@@ -24,15 +24,15 @@ import eu.europa.ec.eudi.etsi1196x2.consultation.transform
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.*
 
-public class ProvisionTrustAnchorsFromLoTEs(
+public class ProvisionTrustAnchorsFromLoTEs<CTX : Any>(
     private val loadLoTE: LoadLoTE,
-    private val svcTypePerCtx: SupportedLists<Map<VerificationContext, URI>> = SupportedLists.EU,
+    private val svcTypePerCtx: SupportedLists<Map<CTX, URI>>,
 ) {
 
     public suspend operator fun invoke(
         loteLocationsSupported: SupportedLists<String>,
         parallelism: Int = 1,
-    ): GetTrustAnchorsForSupportedQueries<VerificationContext, PKIObject> =
+    ): GetTrustAnchorsForSupportedQueries<CTX, PKIObject> =
         coroutineScope {
             loteLocationsSupported.cfgs().asFlow()
                 .map { cfg -> loadLoTEAndCreateTrustAnchorsProvider(cfg) }
@@ -42,14 +42,14 @@ public class ProvisionTrustAnchorsFromLoTEs(
         }
 
     private suspend fun loadLoTEAndCreateTrustAnchorsProvider(
-        cfg: LoTECfg,
-    ): GetTrustAnchorsForSupportedQueries<VerificationContext, PKIObject>? {
+        cfg: LoTECfg<CTX>,
+    ): GetTrustAnchorsForSupportedQueries<CTX, PKIObject>? {
         val loaded = loadLoTE(cfg) ?: return null
         val getTrustAnchors = GetTrustAnchorsFromLoTE(loaded)
         return getTrustAnchors.transform(cfg.svcTypePerCtx)
     }
 
-    private suspend fun loadLoTE(cfg: LoTECfg): LoadedLoTE? {
+    private suspend fun loadLoTE(cfg: LoTECfg<CTX>): LoadedLoTE? {
         val downloadFlow = loadLoTE(cfg.downloadUrl)
         val result = LoTELoadResult.collect(downloadFlow)
         return result.loaded()
@@ -63,15 +63,18 @@ public class ProvisionTrustAnchorsFromLoTEs(
         )
     }
 
-    private fun SupportedLists<String>.cfgs(): SupportedLists<LoTECfg> =
+    private fun SupportedLists<String>.cfgs(): SupportedLists<LoTECfg<CTX>> =
         SupportedLists.combine(this, svcTypePerCtx) { url, ctx ->
             LoTECfg(url, ctx)
         }
 
-    private data class LoTECfg(
+    private data class LoTECfg<CTX : Any>(
         val downloadUrl: String,
-        val svcTypePerCtx: Map<VerificationContext, URI>,
+        val svcTypePerCtx: Map<CTX, URI>,
     )
 
-    public companion object
+    public companion object {
+        public fun eu(loadLoTE: LoadLoTE): ProvisionTrustAnchorsFromLoTEs<VerificationContext> =
+            ProvisionTrustAnchorsFromLoTEs(loadLoTE, SupportedLists.EU)
+    }
 }

@@ -16,14 +16,10 @@
 package eu.europa.ec.eudi.etsi119602.consultation.eu
 
 import eu.europa.ec.eudi.etsi119602.ListOfTrustedEntitiesClaims
-import eu.europa.ec.eudi.etsi119602.PKIObject
 import eu.europa.ec.eudi.etsi119602.URI
-import eu.europa.ec.eudi.etsi119602.consultation.EU
 import eu.europa.ec.eudi.etsi119602.consultation.LoadLoTE
 import eu.europa.ec.eudi.etsi119602.consultation.ProvisionTrustAnchorsFromLoTEs
-import eu.europa.ec.eudi.etsi1196x2.consultation.GetTrustAnchorsForSupportedQueries
 import eu.europa.ec.eudi.etsi1196x2.consultation.SupportedLists
-import eu.europa.ec.eudi.etsi1196x2.consultation.VerificationContext
 import io.ktor.client.*
 import io.ktor.client.plugins.contentnegotiation.*
 import io.ktor.client.plugins.cookies.*
@@ -32,13 +28,11 @@ import io.ktor.client.statement.*
 import io.ktor.serialization.kotlinx.json.*
 import kotlinx.serialization.json.Json
 
-suspend fun ProvisionTrustAnchorsFromLoTEs.Companion.fromHttp(
+fun <CTX : Any> ProvisionTrustAnchorsFromLoTEs.Companion.fromHttp(
     httpClient: HttpClient,
-    loteLocationsSupported: SupportedLists<String>,
-    svcTypePerCtx: SupportedLists<Map<VerificationContext, URI>> = SupportedLists.EU,
-    parallelism: Int = 2,
+    svcTypePerCtx: SupportedLists<Map<CTX, URI>>,
     constrains: LoadLoTE.Constraints,
-): GetTrustAnchorsForSupportedQueries<VerificationContext, PKIObject> {
+): ProvisionTrustAnchorsFromLoTEs<CTX> {
     val loadLoTE = LoadLoTE(constrains) {
         val jwt = httpClient.get(it).bodyAsText()
         val (_, payload) = JwtUtil.headerAndPayload(jwt)
@@ -47,8 +41,7 @@ suspend fun ProvisionTrustAnchorsFromLoTEs.Companion.fromHttp(
             payload,
         )
     }
-    val provisionTrustAnchorsFromLoTEs = ProvisionTrustAnchorsFromLoTEs(loadLoTE, svcTypePerCtx)
-    return provisionTrustAnchorsFromLoTEs(loteLocationsSupported, parallelism)
+    return ProvisionTrustAnchorsFromLoTEs(loadLoTE, svcTypePerCtx)
 }
 
 internal fun createHttpClient(): HttpClient =

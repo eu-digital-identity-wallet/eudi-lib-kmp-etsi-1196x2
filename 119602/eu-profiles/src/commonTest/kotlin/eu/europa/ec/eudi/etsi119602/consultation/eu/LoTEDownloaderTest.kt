@@ -30,17 +30,17 @@ class LoTEDownloaderTest {
     fun testDigitTrust() = runTest {
         val trustAnchorsFromLoTE =
             createHttpClient().use { httpClient ->
-                ProvisionTrustAnchorsFromLoTEs.fromHttp(
-                    httpClient = httpClient,
-                    parallelism = 10,
-                    constrains = LoadLoTE.Constraints(
-                        otherLoTEParallelism = 2,
-                        maxDepth = 1,
-                        maxLists = 40,
-                    ),
-                    loteLocationsSupported = DIGIT.LOTE_LOCATIONS,
-                    svcTypePerCtx = DIGIT.SVC_TYPE_PER_CTX,
-                )
+                val fromHttp =
+                    ProvisionTrustAnchorsFromLoTEs.fromHttp(
+                        httpClient = httpClient,
+                        constrains = LoadLoTE.Constraints(
+                            otherLoTEParallelism = 2,
+                            maxDepth = 1,
+                            maxLists = 40,
+                        ),
+                        svcTypePerCtx = DIGIT.SVC_TYPE_PER_CTX,
+                    )
+                fromHttp(loteLocationsSupported = DIGIT.LOTE_LOCATIONS, parallelism = 10)
             }
         val expectedContexts: List<VerificationContext> =
             listOf(
