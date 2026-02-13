@@ -81,7 +81,7 @@ kotlin {
         commonMain {
             dependencies {
                 // Common dependencies
-                api(projects.etsi119602.dataModel)
+                api(projects.etsi119602DataModel)
                 api(projects.etsi1196x2Consultation)
                 implementation(libs.atomicfu)
             }
@@ -149,7 +149,7 @@ spotless {
                 ),
             )
         trimTrailingWhitespace()
-        licenseHeaderFile("../../FileHeader.txt")
+        licenseHeaderFile("../FileHeader.txt")
         endWithNewline()
     }
     kotlinGradle {

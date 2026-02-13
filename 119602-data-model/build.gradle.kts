@@ -127,7 +127,7 @@ spotless {
                 ),
             )
         trimTrailingWhitespace()
-        licenseHeaderFile("../../FileHeader.txt")
+        licenseHeaderFile("../FileHeader.txt")
         endWithNewline()
     }
     kotlinGradle {
