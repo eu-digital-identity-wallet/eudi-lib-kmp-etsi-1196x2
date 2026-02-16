@@ -84,6 +84,7 @@ kotlin {
                 api(projects.etsi119602DataModel)
                 api(projects.etsi1196x2Consultation)
                 implementation(libs.atomicfu)
+                implementation(libs.kotlinx.io.core)
             }
         }
 
