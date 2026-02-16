@@ -148,3 +148,51 @@ public fun <CHAIN : Any, TRUST_ANCHOR : Any> IsChainTrustedForEUDIW(
     getTrustAnchorsByContext: GetTrustAnchorsForSupportedQueries<VerificationContext, TRUST_ANCHOR>,
 ): IsChainTrustedForEUDIW<CHAIN, TRUST_ANCHOR> =
     IsChainTrustedForContext(validateCertificateChain, getTrustAnchorsByContext)
+
+public data class SupportedLists<out INFO : Any>(
+    val pidProviders: INFO? = null,
+    val walletProviders: INFO? = null,
+    val wrpacProviders: INFO? = null,
+    val wrprcProviders: INFO? = null,
+    val pubEaaProviders: INFO? = null,
+    val qeaProviders: INFO? = null,
+    val eaaProviders: Map<String, INFO> = emptyMap(),
+) : Iterable<INFO> {
+
+    override fun iterator(): Iterator<INFO> =
+        buildList {
+            add(pidProviders)
+            add(walletProviders)
+            add(wrpacProviders)
+            add(wrprcProviders)
+            add(pubEaaProviders)
+            add(qeaProviders)
+            addAll(eaaProviders.values)
+        }.filterNotNull().iterator()
+
+    public companion object {
+
+        public fun <L1 : Any, L2 : Any, L3 : Any> combine(
+            s1: SupportedLists<L1>,
+            s2: SupportedLists<L2>,
+            combine: (L1, L2) -> L3,
+        ): SupportedLists<L3> {
+            val combineNullables = combine.forNullables()
+            return SupportedLists(
+                pidProviders = combineNullables(s1.pidProviders, s2.pidProviders),
+                walletProviders = combineNullables(s1.walletProviders, s2.walletProviders),
+                wrpacProviders = combineNullables(s1.wrpacProviders, s2.wrpacProviders),
+                wrprcProviders = combineNullables(s1.wrprcProviders, s2.wrprcProviders),
+                pubEaaProviders = combineNullables(s1.pubEaaProviders, s2.pubEaaProviders),
+                qeaProviders = combineNullables(s1.qeaProviders, s2.qeaProviders),
+                eaaProviders = s1.eaaProviders.mapNotNull { (useCase, l1) ->
+                    val l2 = s2.eaaProviders[useCase]
+                    combineNullables(l1, l2)?.let { useCase to it }
+                }.toMap(),
+            )
+        }
+
+        private fun <A : Any, B : Any, C : Any> ((A, B) -> C).forNullables(): (A?, B?) -> C? =
+            { a, b -> a?.let { na -> b?.let { nb -> this(na, nb) } } }
+    }
+}
