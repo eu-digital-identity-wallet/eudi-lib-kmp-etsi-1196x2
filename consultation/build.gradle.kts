@@ -210,3 +210,8 @@ dependencyCheck {
         composerEnabled = false
     }
 }
+
+// Run Dependency-Check once in the repo (via consultation-dss, which depends on this module).
+tasks.named("dependencyCheckAnalyze").configure { enabled = false }
+tasks.named("dependencyCheckUpdate").configure { enabled = false }
+tasks.named("dependencyCheckPurge").configure { enabled = false }
