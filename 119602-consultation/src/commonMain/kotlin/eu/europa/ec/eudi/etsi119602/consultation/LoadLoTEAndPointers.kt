@@ -46,7 +46,7 @@ public class LoadLoTEAndPointers(
     public sealed interface Event {
         public data class LoTELoaded(val lote: ListOfTrustedEntities, val sourceUri: URI, val depth: Int) : Event
         public sealed interface Problem : Event
-        public data class InvalidJWTSignature(val uri: URI) : Problem
+        public data class InvalidJWTSignature(val uri: URI, val cause: Throwable?) : Problem
         public data class FailedToParseJwt(val uri: URI, val cause: Throwable?) : Problem
         public data class MaxDepthReached(val uri: URI, val maxDepth: Int) : Problem
         public data class MaxListsReached(val uri: URI, val maxLists: Int) : Problem
@@ -63,9 +63,11 @@ public class LoadLoTEAndPointers(
         fun childStep(uri: String) = Step(uri, depth + 1)
     }
 
+    private val parseJwt: ParseJwt<JsonObject, ListOfTrustedEntitiesClaims> = ParseJwt()
+
     public operator fun invoke(uri: URI): Flow<Event> = channelFlow {
         val initial = State(mutableSetOf(), 0)
-        val firstStep = Step(uri, 0)
+        val firstStep = Step(uri, depth = 0)
         processLoTE(initial, firstStep)
     }
 
@@ -83,36 +85,28 @@ public class LoadLoTEAndPointers(
             return@withContext
         }
 
-        // Mark URI as visited before processing to detect circular references
         state.visitedUris.add(step.uri)
-
         try {
-            // Fetch JWT
-            val jwt = loadLoTE(step.uri)
-
-            // Verify signature
-            val event = verifySignatureAndParseInStep(verifyJwtSignature, jwt, step)
+            val unverifiedJwt = loadLoTE(step.uri)
+            val event = verifySignatureAndParseJwt(step, unverifiedJwt)
 
             state.downloadsCounter.incrementAndGet()
             send(event)
 
-            // Process references recursively with parallel processing and event emission
             if (event is Event.LoTELoaded) {
-                handleOtherPointers(state, event, step)
+                handleOtherPointers(state, step, event)
             }
         } catch (e: Exception) {
-            // Emit error event
-            send(errorInStep(e, step))
+            send(errorInStep(step, e))
         } finally {
-            // Remove from visited when returning from this level of recursion
             state.visitedUris.remove(step.uri)
         }
     }
 
     private suspend fun ProducerScope<Event>.handleOtherPointers(
         state: State,
-        event: Event.LoTELoaded,
         parentStep: Step,
+        event: Event.LoTELoaded,
     ): Unit = withContext(Dispatchers.IO) {
         val otherLoTEPointers = event.lote.schemeInformation.pointersToOtherLists
         if (otherLoTEPointers.isNullOrEmpty()) {
@@ -132,24 +126,19 @@ public class LoadLoTEAndPointers(
         }
     }
 
-    private suspend fun verifySignatureAndParseInStep(
-        verifyJwtSignature: VerifyJwtSignature,
-        jwt: String,
-        step: Step,
-    ): Event =
-        when (val result = verifyJwtSignature(jwt)) {
-            is VerifyJwtSignature.Outcome.Verified -> parseJwtInStep(result, step)
-            is VerifyJwtSignature.Outcome.NotVerified -> invalidJwtSignatureInStep(step)
+    private suspend fun verifySignatureAndParseJwt(step: Step, unverifiedJwt: String): Event =
+        when (val verification = verifyJwtSignature(unverifiedJwt)) {
+            is VerifyJwtSignature.Outcome.Verified -> parseJwtInStep(step, verification)
+            is VerifyJwtSignature.Outcome.NotVerified -> invalidJwtSignatureInStep(step, verification.cause)
         }
 
-    private val parseJwt: ParseJwt<JsonObject, ListOfTrustedEntitiesClaims> = ParseJwt()
-    private fun parseJwtInStep(verified: VerifyJwtSignature.Outcome.Verified, step: Step): Event =
+    private fun parseJwtInStep(step: Step, verified: VerifyJwtSignature.Outcome.Verified): Event =
         when (val result = parseJwt(verified.jwt)) {
-            is ParseJwt.Outcome.ParseFailed -> parseFailedInStep(step, result.cause)
             is ParseJwt.Outcome.Parsed<*, ListOfTrustedEntitiesClaims> -> {
                 val payload = result.payload
-                loadedInStep(payload.listOfTrustedEntities, step)
+                loadedInStep(step, payload.listOfTrustedEntities)
             }
+            is ParseJwt.Outcome.ParseFailed -> parseFailedInStep(step, result.cause)
         }
 
     //
@@ -174,18 +163,18 @@ public class LoadLoTEAndPointers(
         }
     }
 
-    private fun loadedInStep(lote: ListOfTrustedEntities, step: Step): Event.LoTELoaded {
+    private fun loadedInStep(step: Step, lote: ListOfTrustedEntities): Event.LoTELoaded {
         val (sourceUri, depth) = step
         return Event.LoTELoaded(lote, sourceUri, depth)
     }
 
-    private fun invalidJwtSignatureInStep(step: Step) =
-        Event.InvalidJWTSignature(step.uri)
+    private fun invalidJwtSignatureInStep(step: Step, cause: Throwable?) =
+        Event.InvalidJWTSignature(step.uri, cause)
 
     private fun parseFailedInStep(step: Step, cause: Throwable?) =
         Event.FailedToParseJwt(step.uri, cause)
 
-    private fun errorInStep(error: Throwable, step: Step): Event.Error =
+    private fun errorInStep(step: Step, error: Throwable): Event.Error =
         Event.Error(step.uri, error)
 
     public data class Constraints(
@@ -202,7 +191,7 @@ public class LoadLoTEAndPointers(
 }
 
 public data class LoTELoadResult(
-    val downloaded: LoadLoTEAndPointers.Event.LoTELoaded?,
+    val list: LoadLoTEAndPointers.Event.LoTELoaded?,
     val otherLists: List<LoadLoTEAndPointers.Event.LoTELoaded>,
     val problems: List<LoadLoTEAndPointers.Event.Problem>,
     val startedAt: Instant,
@@ -215,15 +204,15 @@ public data class LoTELoadResult(
             clock: Clock = Clock.System,
         ): LoTELoadResult {
             val startedAt = clock.now()
-            var downloaded: LoadLoTEAndPointers.Event.LoTELoaded? = null
+            var list: LoadLoTEAndPointers.Event.LoTELoaded? = null
             val otherLists = mutableListOf<LoadLoTEAndPointers.Event.LoTELoaded>()
             val problems = mutableListOf<LoadLoTEAndPointers.Event.Problem>()
             eventsFlow.toList().forEach { event ->
                 when (event) {
                     is LoadLoTEAndPointers.Event.LoTELoaded ->
                         if (event.depth == 0) {
-                            check(downloaded == null) { "Multiple LoTEs downloaded with depth 0" }
-                            downloaded = event
+                            check(list == null) { "Multiple LoTEs downloaded with depth 0" }
+                            list = event
                         } else {
                             otherLists.add(event)
                         }
@@ -232,10 +221,10 @@ public data class LoTELoadResult(
                 }
             }
             if (!otherLists.isEmpty()) {
-                checkNotNull(downloaded) { "Other LoTEs downloaded before main LoTE" }
+                checkNotNull(list) { "Other LoTEs downloaded before main LoTE" }
             }
             val endedAt = clock.now()
-            return LoTELoadResult(downloaded, otherLists.toList(), problems.toList(), startedAt, endedAt)
+            return LoTELoadResult(list, otherLists.toList(), problems.toList(), startedAt, endedAt)
         }
     }
 }

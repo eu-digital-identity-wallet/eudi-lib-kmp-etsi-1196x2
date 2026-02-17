@@ -13,21 +13,50 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package eu.europa.ec.eudi.etsi119602.consultation.eu
+package eu.europa.ec.eudi.etsi119602.consultation
 
-import eu.europa.ec.eudi.etsi119602.consultation.LoadLoTEAndPointers
-import eu.europa.ec.eudi.etsi119602.consultation.ProvisionTrustAnchorsFromLoTEs
+import eu.europa.ec.eudi.etsi119602.consultation.eu.EUMDLProvidersListSpec
 import eu.europa.ec.eudi.etsi1196x2.consultation.GetTrustAnchorsForSupportedQueries
+import eu.europa.ec.eudi.etsi1196x2.consultation.SupportedLists
 import eu.europa.ec.eudi.etsi1196x2.consultation.VerificationContext
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.fail
 
-class LoTEDownloaderTest {
+object DIGIT {
+
+    private fun loteUrl(lote: String): String =
+        "https://acceptance.trust.tech.ec.europa.eu/lists/eudiw/$lote"
+
+    private val EU_PID_PROVIDERS_URL = loteUrl("pid-providers.json")
+    private val EU_WALLET_PROVIDERS_URL = loteUrl("wallet-providers.json")
+    private val EU_WRPAC_PROVIDERS_URL = loteUrl("wrpac-providers.json")
+    private val EU_MDL_PROVIDERS_URL = loteUrl("mdl-providers.json")
+
+    val LOTE_LOCATIONS = SupportedLists(
+        pidProviders = EU_PID_PROVIDERS_URL,
+        walletProviders = EU_WALLET_PROVIDERS_URL,
+        wrpacProviders = EU_WRPAC_PROVIDERS_URL,
+        eaaProviders = mapOf(
+            "mdl" to EU_MDL_PROVIDERS_URL,
+        ),
+    )
+
+    val SVC_TYPE_PER_CTX = SupportedLists.EU.copy(
+        eaaProviders = mapOf(
+            "mdl" to mapOf(
+                VerificationContext.EAA("mdl") to EUMDLProvidersListSpec.SVC_TYPE_ISSUANCE,
+                VerificationContext.EAAStatus("mdl") to EUMDLProvidersListSpec.SVC_TYPE_REVOCATION,
+            ),
+        ),
+    )
+}
+
+class DIGITTest {
 
     @Test
-    fun testDigitTrust() = runTest {
+    fun testDownload() = runTest {
         val trustAnchorsFromLoTE =
             createHttpClient().use { httpClient ->
                 val fromHttp =
@@ -40,6 +69,7 @@ class LoTEDownloaderTest {
                         ),
                         svcTypePerCtx = DIGIT.SVC_TYPE_PER_CTX,
                         verifyJwtSignature = NotValidating,
+                        continueOnProblem = ContinueOnProblem.Never,
                     )
                 fromHttp(loteLocationsSupported = DIGIT.LOTE_LOCATIONS, parallelism = 10)
             }
