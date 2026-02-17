@@ -25,6 +25,7 @@ import kotlinx.coroutines.channels.ProducerScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.flow.toList
+import kotlinx.serialization.json.JsonObject
 import kotlin.time.Clock
 import kotlin.time.Duration
 import kotlin.time.Instant
@@ -35,7 +36,7 @@ public fun interface LoadLoTE<out LOTE : Any> {
 
 public class LoadLoTEAndPointers(
     private val constraints: Constraints,
-    private val verifyJwtSignature: VerifyJwtSignature<*, ListOfTrustedEntitiesClaims>,
+    private val verifyJwtSignature: VerifyJwtSignature,
     private val loadLoTE: LoadLoTE<String>,
 ) {
 
@@ -46,6 +47,7 @@ public class LoadLoTEAndPointers(
         public data class LoTELoaded(val lote: ListOfTrustedEntities, val sourceUri: URI, val depth: Int) : Event
         public sealed interface Problem : Event
         public data class InvalidJWTSignature(val uri: URI) : Problem
+        public data class FailedToParseJwt(val uri: URI, val cause: Throwable?) : Problem
         public data class MaxDepthReached(val uri: URI, val maxDepth: Int) : Problem
         public data class MaxListsReached(val uri: URI, val maxLists: Int) : Problem
         public data class CircularReferenceDetected(val uri: URI) : Problem
@@ -89,7 +91,7 @@ public class LoadLoTEAndPointers(
             val jwt = loadLoTE(step.uri)
 
             // Verify signature
-            val event = verifySignatureInStep(verifyJwtSignature, jwt, step)
+            val event = verifySignatureAndParseInStep(verifyJwtSignature, jwt, step)
 
             state.downloadsCounter.incrementAndGet()
             send(event)
@@ -130,19 +132,23 @@ public class LoadLoTEAndPointers(
         }
     }
 
-    private suspend fun verifySignatureInStep(
-        verifyJwtSignature: VerifyJwtSignature<*, ListOfTrustedEntitiesClaims>,
+    private suspend fun verifySignatureAndParseInStep(
+        verifyJwtSignature: VerifyJwtSignature,
         jwt: String,
         step: Step,
     ): Event =
         when (val result = verifyJwtSignature(jwt)) {
-            is VerifyJwtSignature.Outcome.Verified<*, ListOfTrustedEntitiesClaims> -> {
+            is VerifyJwtSignature.Outcome.Verified -> parseJwtInStep(result, step)
+            is VerifyJwtSignature.Outcome.NotVerified -> invalidJwtSignatureInStep(step)
+        }
+
+    private val parseJwt: ParseJwt<JsonObject, ListOfTrustedEntitiesClaims> = ParseJwt()
+    private fun parseJwtInStep(verified: VerifyJwtSignature.Outcome.Verified, step: Step): Event =
+        when (val result = parseJwt(verified.jwt)) {
+            is ParseJwt.Outcome.ParseFailed -> parseFailedInStep(step, result.cause)
+            is ParseJwt.Outcome.Parsed<*, ListOfTrustedEntitiesClaims> -> {
                 val payload = result.payload
                 loadedInStep(payload.listOfTrustedEntities, step)
-            }
-
-            VerifyJwtSignature.Outcome.NotVerified -> {
-                invalidJwtSignatureInStep(step)
             }
         }
 
@@ -175,6 +181,9 @@ public class LoadLoTEAndPointers(
 
     private fun invalidJwtSignatureInStep(step: Step) =
         Event.InvalidJWTSignature(step.uri)
+
+    private fun parseFailedInStep(step: Step, cause: Throwable?) =
+        Event.FailedToParseJwt(step.uri, cause)
 
     private fun errorInStep(error: Throwable, step: Step): Event.Error =
         Event.Error(step.uri, error)

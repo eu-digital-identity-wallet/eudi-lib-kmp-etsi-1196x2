@@ -15,51 +15,8 @@
  */
 package eu.europa.ec.eudi.etsi119602.consultation.eu
 
-import eu.europa.ec.eudi.etsi119602.ListOfTrustedEntitiesClaims
 import eu.europa.ec.eudi.etsi119602.consultation.VerifyJwtSignature
-import kotlinx.serialization.KSerializer
-import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.serializer
-import kotlin.io.encoding.Base64
 
-val NotValidating = VerifyJwtSignature.nonValidating(
-    JsonObject.serializer(),
-    ListOfTrustedEntitiesClaims.serializer(),
-)
-
-fun <H : Any, P : Any> VerifyJwtSignature.Companion.nonValidating(
-    headerSerializer: KSerializer<H>,
-    payloadSerializer: KSerializer<P>,
-): VerifyJwtSignature<H, P> = VerifyJwtSignature { jwt ->
-    println("WARNING: Skipping JWT signature verification")
-    val (h, p) = headerAndPayload(headerSerializer, payloadSerializer, jwt)
-    VerifyJwtSignature.Outcome.Verified(h, p)
+val NotValidating = VerifyJwtSignature {
+    VerifyJwtSignature.Outcome.Verified(it)
 }
-
-inline fun <reified H : Any, reified P : Any> VerifyJwtSignature.Companion.headerAndPayload(
-    compact: String,
-): Pair<H, P> = headerAndPayload(serializer(), serializer(), compact)
-
-fun <H : Any, P : Any> VerifyJwtSignature.Companion.headerAndPayload(
-    headerSerializer: KSerializer<H>,
-    payloadSerializer: KSerializer<P>,
-    compact: String,
-): Pair<H, P> {
-    require(compact.isNotBlank()) { "Input must not be empty" }
-    return compact.split(".").let { parts ->
-        require(parts.size == 3) { "Input must be a JWS in compact form" }
-        val header =
-            JsonSupportDebug.decodeFromString(
-                headerSerializer,
-                base64UrlSafeNoPadding.decode(parts[0]).decodeToString(),
-            )
-        val payload =
-            JsonSupportDebug.decodeFromString(
-                payloadSerializer,
-                base64UrlSafeNoPadding.decode(parts[1]).decodeToString(),
-            )
-        header to payload
-    }
-}
-
-private val base64UrlSafeNoPadding: Base64 = Base64.UrlSafe.withPadding(Base64.PaddingOption.ABSENT)

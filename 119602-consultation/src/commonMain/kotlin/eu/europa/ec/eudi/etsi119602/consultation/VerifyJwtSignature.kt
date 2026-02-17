@@ -15,12 +15,13 @@
  */
 package eu.europa.ec.eudi.etsi119602.consultation
 
-public fun interface VerifyJwtSignature<Header : Any, Payload : Any> {
-    public suspend operator fun invoke(jwt: String): Outcome<Header, Payload>
+public fun interface VerifyJwtSignature {
+    public suspend operator fun invoke(jwt: String): Outcome
 
-    public sealed interface Outcome<H : Any, P : Any> {
-        public data class Verified<H : Any, P : Any>(val header: H, val payload: P) : Outcome<H, P>
-        public data object NotVerified : Outcome<Nothing, Nothing>
+    public sealed interface Outcome {
+        public data class Verified(val jwt: String) : Outcome
+        public data class NotVerified(val cause: Throwable?) : Outcome
     }
+
     public companion object
 }

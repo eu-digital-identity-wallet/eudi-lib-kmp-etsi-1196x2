@@ -15,7 +15,6 @@
  */
 package eu.europa.ec.eudi.etsi119602.consultation.eu
 
-import eu.europa.ec.eudi.etsi119602.ListOfTrustedEntitiesClaims
 import eu.europa.ec.eudi.etsi119602.URI
 import eu.europa.ec.eudi.etsi119602.consultation.LoadLoTEAndPointers
 import eu.europa.ec.eudi.etsi119602.consultation.ProvisionTrustAnchorsFromLoTEs
@@ -31,7 +30,7 @@ import kotlinx.serialization.json.Json
 
 fun <CTX : Any> ProvisionTrustAnchorsFromLoTEs.Companion.fromHttp(
     httpClient: HttpClient,
-    verifyJwtSignature: VerifyJwtSignature<*, ListOfTrustedEntitiesClaims>,
+    verifyJwtSignature: VerifyJwtSignature,
     svcTypePerCtx: SupportedLists<Map<CTX, URI>>,
     constrains: LoadLoTEAndPointers.Constraints,
 ): ProvisionTrustAnchorsFromLoTEs<CTX> {
