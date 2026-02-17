@@ -13,18 +13,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package eu.europa.ec.eudi.etsi119602.consultation.eu
+package eu.europa.ec.eudi.etsi119602.consultation
 
 import eu.europa.ec.eudi.etsi119602.URI
-import eu.europa.ec.eudi.etsi119602.consultation.LoadLoTEAndPointers
-import eu.europa.ec.eudi.etsi119602.consultation.ProvisionTrustAnchorsFromLoTEs
-import eu.europa.ec.eudi.etsi119602.consultation.VerifyJwtSignature
 import eu.europa.ec.eudi.etsi1196x2.consultation.SupportedLists
 import io.ktor.client.*
 import io.ktor.client.plugins.contentnegotiation.*
 import io.ktor.client.plugins.cookies.*
-import io.ktor.client.request.*
-import io.ktor.client.statement.*
+import io.ktor.client.request.get
+import io.ktor.client.statement.bodyAsText
+import io.ktor.http.HttpStatusCode
 import io.ktor.serialization.kotlinx.json.*
 import kotlinx.serialization.json.Json
 
@@ -33,11 +31,28 @@ fun <CTX : Any> ProvisionTrustAnchorsFromLoTEs.Companion.fromHttp(
     verifyJwtSignature: VerifyJwtSignature,
     svcTypePerCtx: SupportedLists<Map<CTX, URI>>,
     constrains: LoadLoTEAndPointers.Constraints,
+    continueOnProblem: ContinueOnProblem,
 ): ProvisionTrustAnchorsFromLoTEs<CTX> {
-    val loadLoTEAndPointers = LoadLoTEAndPointers(constrains, verifyJwtSignature) {
-        httpClient.get(it).bodyAsText()
+    val loadLoTEAndPointers = LoadLoTEAndPointers(
+        constrains,
+        verifyJwtSignature,
+        LoadLoTEFromHttp(httpClient),
+    )
+    return ProvisionTrustAnchorsFromLoTEs(loadLoTEAndPointers, svcTypePerCtx, continueOnProblem)
+}
+
+class LoadLoTEFromHttp(
+    private val httpClient: HttpClient,
+) : LoadLoTE<String> {
+
+    @Throws(IllegalStateException::class)
+    override suspend fun invoke(uri: URI): String {
+        val httpResponse = httpClient.get(uri)
+        return when (httpResponse.status) {
+            HttpStatusCode.OK -> httpResponse.bodyAsText()
+            else -> throw IllegalStateException("Unexpected response status: ${httpResponse.status}")
+        }
     }
-    return ProvisionTrustAnchorsFromLoTEs(loadLoTEAndPointers, svcTypePerCtx)
 }
 
 internal fun createHttpClient(): HttpClient =
