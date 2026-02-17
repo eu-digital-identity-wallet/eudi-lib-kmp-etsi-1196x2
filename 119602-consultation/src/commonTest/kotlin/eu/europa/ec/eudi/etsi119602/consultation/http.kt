@@ -20,9 +20,9 @@ import eu.europa.ec.eudi.etsi1196x2.consultation.SupportedLists
 import io.ktor.client.*
 import io.ktor.client.plugins.contentnegotiation.*
 import io.ktor.client.plugins.cookies.*
-import io.ktor.client.request.get
-import io.ktor.client.statement.bodyAsText
-import io.ktor.http.HttpStatusCode
+import io.ktor.client.request.*
+import io.ktor.client.statement.*
+import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
 import kotlinx.serialization.json.Json
 
@@ -45,11 +45,15 @@ class LoadLoTEFromHttp(
     private val httpClient: HttpClient,
 ) : LoadLoTE<String> {
 
-    @Throws(IllegalStateException::class)
-    override suspend fun invoke(uri: URI): String {
+    override suspend fun invoke(uri: URI): LoadLoTE.Outcome<String> {
         val httpResponse = httpClient.get(uri)
         return when (httpResponse.status) {
-            HttpStatusCode.OK -> httpResponse.bodyAsText()
+            HttpStatusCode.OK -> {
+                val content = httpResponse.bodyAsText()
+                LoadLoTE.Outcome.Loaded(content)
+            }
+
+            HttpStatusCode.NotFound -> LoadLoTE.Outcome.NotFound(null)
             else -> throw IllegalStateException("Unexpected response status: ${httpResponse.status}")
         }
     }

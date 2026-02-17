@@ -44,11 +44,15 @@ public class LoadLoTEFromFile(
 
     private val actualIoDispatcher = ioDispatcher.limitedParallelism(1)
 
-    @Throws(FileNotFoundException::class, IOException::class)
-    override suspend operator fun invoke(uri: URI): String {
-        val path = mapUriToPath(uri)
-        return readJwt(path)
-    }
+    @Throws(IOException::class)
+    override suspend operator fun invoke(uri: URI): LoadLoTE.Outcome<String> =
+        try {
+            val path = mapUriToPath(uri)
+            val content = readJwt(path)
+            LoadLoTE.Outcome.Loaded(content)
+        } catch (e: FileNotFoundException) {
+            LoadLoTE.Outcome.NotFound(e)
+        }
 
     @Throws(FileNotFoundException::class, IOException::class)
     internal suspend fun readJwt(path: Path): String = withContext(actualIoDispatcher) {
