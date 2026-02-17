@@ -21,12 +21,13 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.runTest
 import kotlinx.io.buffered
+import kotlinx.io.files.FileNotFoundException
 import kotlinx.io.files.Path
 import kotlinx.io.files.SystemFileSystem
 import kotlinx.io.writeString
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
+import kotlin.test.assertIs
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class LoadLoTEFromFileTest {
@@ -37,23 +38,25 @@ class LoadLoTEFromFileTest {
         val uri = "https://example.org/lote.jwt"
         val jwtContent = "test-jwt-content"
         val tempFile = Path("test_lote.jwt")
-
+        val fileSystem = SystemFileSystem
         try {
             // Setup: write a dummy file
-            SystemFileSystem.sink(tempFile).buffered().use {
+            fileSystem.sink(tempFile).buffered().use {
                 it.writeString(jwtContent)
             }
 
             val loader = LoadLoTEFromFile(
                 mapUriToPath = { tempFile },
                 ioDispatcher = testDispatcher,
+                fileSystem = fileSystem,
             )
 
             val result = loader(uri)
-            assertEquals(jwtContent, result)
+            assertIs<LoadLoTE.Outcome.Loaded<String>>(result)
+            assertEquals(jwtContent, result.content)
         } finally {
-            if (SystemFileSystem.exists(tempFile)) {
-                SystemFileSystem.delete(tempFile)
+            if (fileSystem.exists(tempFile)) {
+                fileSystem.delete(tempFile)
             }
         }
     }
@@ -67,11 +70,11 @@ class LoadLoTEFromFileTest {
         val loader = LoadLoTEFromFile(
             mapUriToPath = { missingPath },
             ioDispatcher = testDispatcher,
+            fileSystem = SystemFileSystem,
         )
 
-        assertFailsWith<Exception> {
-            loader(uri)
-        }
+        val notFound = assertIs<LoadLoTE.Outcome.NotFound>(loader(uri))
+        assertIs<FileNotFoundException>(notFound.cause)
     }
 
     @Test
@@ -79,9 +82,9 @@ class LoadLoTEFromFileTest {
         val testDispatcher = StandardTestDispatcher(testScheduler)
         val uri = "https://example.org/lote.jwt"
         val tempFile = Path("cancel_test.jwt")
-
+        val fileSystem = SystemFileSystem
         try {
-            SystemFileSystem.sink(tempFile).buffered().use {
+            fileSystem.sink(tempFile).buffered().use {
                 it.writeString("some content")
             }
 
@@ -97,8 +100,8 @@ class LoadLoTEFromFileTest {
             job.cancelAndJoin()
             // If the test reaches here without hanging or failing, it respects cancellation
         } finally {
-            if (SystemFileSystem.exists(tempFile)) {
-                SystemFileSystem.delete(tempFile)
+            if (fileSystem.exists(tempFile)) {
+                fileSystem.delete(tempFile)
             }
         }
     }
