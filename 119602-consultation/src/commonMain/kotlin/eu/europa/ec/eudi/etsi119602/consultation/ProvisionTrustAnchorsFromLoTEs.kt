@@ -27,6 +27,7 @@ import kotlinx.coroutines.flow.*
 public class ProvisionTrustAnchorsFromLoTEs<CTX : Any>(
     private val loadLoTEAndPointers: LoadLoTEAndPointers,
     private val svcTypePerCtx: SupportedLists<Map<CTX, URI>>,
+    private val continueOnProblem: ContinueOnProblem = ContinueOnProblem.Never,
 ) {
 
     public suspend operator fun invoke(
@@ -56,11 +57,20 @@ public class ProvisionTrustAnchorsFromLoTEs<CTX : Any>(
     }
 
     private fun LoTELoadResult.loaded(): LoadedLoTE? {
-        if (downloaded == null) return null
-        return LoadedLoTE(
-            list = downloaded.lote,
-            otherLists = otherLists.map { it.lote },
-        )
+        fun throwException(): Nothing =
+            throw IllegalStateException("Failed: ${problems.joinToString<LoadLoTEAndPointers.Event.Problem>()}")
+        return if (list != null) {
+            if (problems.isEmpty() || continueOnProblem(true, problems)) {
+                LoadedLoTE(
+                    list = list.lote,
+                    otherLists = otherLists.map { it.lote },
+                )
+            } else {
+                null
+            }
+        } else {
+            if (continueOnProblem(false, problems)) null else throwException()
+        }
     }
 
     private fun SupportedLists<String>.cfgs(): SupportedLists<LoTECfg<CTX>> =
@@ -76,5 +86,15 @@ public class ProvisionTrustAnchorsFromLoTEs<CTX : Any>(
     public companion object {
         public fun eu(loadLoTEAndPointers: LoadLoTEAndPointers): ProvisionTrustAnchorsFromLoTEs<VerificationContext> =
             ProvisionTrustAnchorsFromLoTEs(loadLoTEAndPointers, SupportedLists.EU)
+    }
+}
+
+public fun interface ContinueOnProblem {
+    public operator fun invoke(lotePresent: Boolean, problems: List<LoadLoTEAndPointers.Event.Problem>): Boolean
+
+    public companion object {
+        public val Always: ContinueOnProblem = ContinueOnProblem { _, _ -> true }
+        public val Never: ContinueOnProblem = ContinueOnProblem { _, _ -> false }
+        public val AlwaysIfDownloaded: ContinueOnProblem = ContinueOnProblem { downloaded, _ -> downloaded }
     }
 }
