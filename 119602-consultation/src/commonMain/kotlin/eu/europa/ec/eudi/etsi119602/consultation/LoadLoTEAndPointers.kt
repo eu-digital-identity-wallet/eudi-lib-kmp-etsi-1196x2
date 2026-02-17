@@ -31,7 +31,12 @@ import kotlin.time.Duration
 import kotlin.time.Instant
 
 public fun interface LoadLoTE<out LOTE : Any> {
-    public suspend operator fun invoke(uri: URI): LOTE
+    public suspend operator fun invoke(uri: URI): Outcome<LOTE>
+
+    public sealed interface Outcome<out LOTE : Any> {
+        public data class Loaded<out LOTE : Any>(val content: LOTE) : Outcome<LOTE>
+        public data class NotFound(val cause: Throwable?) : Outcome<Nothing>
+    }
 }
 
 public class LoadLoTEAndPointers(
@@ -46,6 +51,7 @@ public class LoadLoTEAndPointers(
     public sealed interface Event {
         public data class LoTELoaded(val lote: ListOfTrustedEntities, val sourceUri: URI, val depth: Int) : Event
         public sealed interface Problem : Event
+        public data class ResourceNotFound(val uri: URI, val cause: Throwable?) : Problem
         public data class InvalidJWTSignature(val uri: URI, val cause: Throwable?) : Problem
         public data class FailedToParseJwt(val uri: URI, val cause: Throwable?) : Problem
         public data class MaxDepthReached(val uri: URI, val maxDepth: Int) : Problem
@@ -79,18 +85,24 @@ public class LoadLoTEAndPointers(
         currentCoroutineContext().ensureActive()
 
         // Check constraints
-        val violation = violationInStep(state, step)
-        if (violation != null) {
-            send(violation)
+        violationInStep(state, step)?.let {
+            send(it)
             return@withContext
         }
 
         state.visitedUris.add(step.uri)
         try {
-            val unverifiedJwt = loadLoTE(step.uri)
-            val event = verifySignatureAndParseJwt(step, unverifiedJwt)
+            val event = when (val jwt = loadLoTE(step.uri)) {
+                is LoadLoTE.Outcome.Loaded<String> -> {
+                    state.downloadsCounter.incrementAndGet()
+                    verifySignatureAndParseJwt(step, jwt)
+                }
 
-            state.downloadsCounter.incrementAndGet()
+                is LoadLoTE.Outcome.NotFound -> {
+                    resourceNotFoundInStep(step, jwt.cause)
+                }
+            }
+
             send(event)
 
             if (event is Event.LoTELoaded) {
@@ -126,8 +138,8 @@ public class LoadLoTEAndPointers(
         }
     }
 
-    private suspend fun verifySignatureAndParseJwt(step: Step, unverifiedJwt: String): Event =
-        when (val verification = verifyJwtSignature(unverifiedJwt)) {
+    private suspend fun verifySignatureAndParseJwt(step: Step, unverifiedJwt: LoadLoTE.Outcome.Loaded<String>): Event =
+        when (val verification = verifyJwtSignature(unverifiedJwt.content)) {
             is VerifyJwtSignature.Outcome.Verified -> parseJwtInStep(step, verification)
             is VerifyJwtSignature.Outcome.NotVerified -> invalidJwtSignatureInStep(step, verification.cause)
         }
@@ -138,6 +150,7 @@ public class LoadLoTEAndPointers(
                 val payload = result.payload
                 loadedInStep(step, payload.listOfTrustedEntities)
             }
+
             is ParseJwt.Outcome.ParseFailed -> parseFailedInStep(step, result.cause)
         }
 
@@ -162,6 +175,8 @@ public class LoadLoTEAndPointers(
             else -> null
         }
     }
+
+    private fun resourceNotFoundInStep(step: Step, cause: Throwable?): Event.ResourceNotFound = Event.ResourceNotFound(step.uri, cause)
 
     private fun loadedInStep(step: Step, lote: ListOfTrustedEntities): Event.LoTELoaded {
         val (sourceUri, depth) = step
@@ -201,6 +216,7 @@ public data class LoTELoadResult(
 
         public suspend fun collect(
             eventsFlow: Flow<LoadLoTEAndPointers.Event>,
+            continueOnProblem: ContinueOnProblem = ContinueOnProblem.Never,
             clock: Clock = Clock.System,
         ): LoTELoadResult {
             val startedAt = clock.now()
@@ -217,7 +233,10 @@ public data class LoTELoadResult(
                             otherLists.add(event)
                         }
 
-                    is LoadLoTEAndPointers.Event.Problem -> problems.add(event)
+                    is LoadLoTEAndPointers.Event.Problem -> {
+                        problems.add(event)
+                        if (!continueOnProblem(list != null, problems)) return@forEach
+                    }
                 }
             }
             if (!otherLists.isEmpty()) {
@@ -226,5 +245,15 @@ public data class LoTELoadResult(
             val endedAt = clock.now()
             return LoTELoadResult(list, otherLists.toList(), problems.toList(), startedAt, endedAt)
         }
+    }
+}
+
+public fun interface ContinueOnProblem {
+    public operator fun invoke(lotePresent: Boolean, problems: List<LoadLoTEAndPointers.Event.Problem>): Boolean
+
+    public companion object {
+        public val Always: ContinueOnProblem = ContinueOnProblem { _, _ -> true }
+        public val Never: ContinueOnProblem = ContinueOnProblem { _, _ -> false }
+        public val AlwaysIfDownloaded: ContinueOnProblem = ContinueOnProblem { downloaded, _ -> downloaded }
     }
 }
