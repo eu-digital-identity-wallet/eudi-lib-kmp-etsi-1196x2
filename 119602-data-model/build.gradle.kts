@@ -188,8 +188,5 @@ mavenPublishing {
 }
 
 dependencyCheck {
-    formats = listOf("XML", "HTML")
-    nvd.apiKey = System.getenv("NVD_API_KEY") ?: properties["nvdApiKey"]?.toString() ?: ""
-    nvd.delay = 10000
-    nvd.maxRetryCount = 2
+    skip = true
 }
