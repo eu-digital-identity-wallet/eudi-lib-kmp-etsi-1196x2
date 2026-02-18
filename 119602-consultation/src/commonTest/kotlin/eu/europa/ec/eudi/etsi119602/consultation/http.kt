@@ -16,7 +16,6 @@
 package eu.europa.ec.eudi.etsi119602.consultation
 
 import eu.europa.ec.eudi.etsi119602.URI
-import eu.europa.ec.eudi.etsi1196x2.consultation.SupportedLists
 import io.ktor.client.*
 import io.ktor.client.plugins.contentnegotiation.*
 import io.ktor.client.plugins.cookies.*
@@ -25,21 +24,6 @@ import io.ktor.client.statement.*
 import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
 import kotlinx.serialization.json.Json
-
-fun <CTX : Any> ProvisionTrustAnchorsFromLoTEs.Companion.fromHttp(
-    httpClient: HttpClient,
-    verifyJwtSignature: VerifyJwtSignature,
-    svcTypePerCtx: SupportedLists<Map<CTX, URI>>,
-    constrains: LoadLoTEAndPointers.Constraints,
-    continueOnProblem: ContinueOnProblem,
-): ProvisionTrustAnchorsFromLoTEs<CTX> {
-    val loadLoTEAndPointers = LoadLoTEAndPointers(
-        constrains,
-        verifyJwtSignature,
-        LoadLoTEFromHttp(httpClient),
-    )
-    return ProvisionTrustAnchorsFromLoTEs(loadLoTEAndPointers, svcTypePerCtx, continueOnProblem)
-}
 
 class LoadLoTEFromHttp(
     private val httpClient: HttpClient,

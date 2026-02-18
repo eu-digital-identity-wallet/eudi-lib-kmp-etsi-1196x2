@@ -23,19 +23,18 @@ import eu.europa.ec.eudi.etsi1196x2.consultation.VerificationContext
 import eu.europa.ec.eudi.etsi1196x2.consultation.transform
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.*
-import kotlin.time.Clock
 
-public class ProvisionTrustAnchorsFromLoTEs<CTX : Any>(
+public class ProvisionTrustAnchorsFromLoTEs<CTX : Any, TRUST_ANCHOR : Any>(
     private val loadLoTEAndPointers: LoadLoTEAndPointers,
     private val svcTypePerCtx: SupportedLists<Map<CTX, URI>>,
     private val continueOnProblem: ContinueOnProblem = ContinueOnProblem.Never,
-    private val clock: Clock = Clock.System,
+    private val createTrustAnchor: (PKIObject) -> TRUST_ANCHOR,
 ) {
 
     public suspend operator fun invoke(
         loteLocationsSupported: SupportedLists<String>,
         parallelism: Int = 1,
-    ): GetTrustAnchorsForSupportedQueries<CTX, PKIObject> =
+    ): GetTrustAnchorsForSupportedQueries<CTX, TRUST_ANCHOR> =
         coroutineScope {
             loteLocationsSupported.cfgs().asFlow()
                 .map { cfg -> loadLoTEAndCreateTrustAnchorsProvider(cfg) }
@@ -46,20 +45,20 @@ public class ProvisionTrustAnchorsFromLoTEs<CTX : Any>(
 
     private suspend fun loadLoTEAndCreateTrustAnchorsProvider(
         cfg: LoTECfg<CTX>,
-    ): GetTrustAnchorsForSupportedQueries<CTX, PKIObject>? {
+    ): GetTrustAnchorsForSupportedQueries<CTX, TRUST_ANCHOR>? {
         val loaded = loadLoTE(cfg) ?: return null
-        val getTrustAnchors = GetTrustAnchorsFromLoTE(loaded)
+        val getTrustAnchors = GetTrustAnchorsFromLoTE(loaded, createTrustAnchor)
         return getTrustAnchors.transform(cfg.svcTypePerCtx)
     }
 
     private suspend fun loadLoTE(cfg: LoTECfg<CTX>): LoadedLoTE? {
         val downloadFlow = loadLoTEAndPointers(cfg.downloadUrl)
-        val result = LoTELoadResult.collect(downloadFlow, continueOnProblem, clock)
+        val result = LoTELoadResult.collect(downloadFlow, continueOnProblem)
         return result.loaded()
     }
 
     private fun LoTELoadResult.loaded(): LoadedLoTE? =
-        list?.let { LoadedLoTE(list = it.lote, otherLists = otherLists.map { it.lote }) }
+        list?.let { mainList -> LoadedLoTE(list = mainList.lote, otherLists = otherLists.map { it.lote }) }
 
     private fun SupportedLists<String>.cfgs(): SupportedLists<LoTECfg<CTX>> =
         SupportedLists.combine(this, svcTypePerCtx) { url, ctx ->
@@ -72,7 +71,17 @@ public class ProvisionTrustAnchorsFromLoTEs<CTX : Any>(
     )
 
     public companion object {
-        public fun eu(loadLoTEAndPointers: LoadLoTEAndPointers): ProvisionTrustAnchorsFromLoTEs<VerificationContext> =
-            ProvisionTrustAnchorsFromLoTEs(loadLoTEAndPointers, SupportedLists.EU)
+        public fun <TRUST_ANCHOR : Any> eudiw(
+            loadLoTEAndPointers: LoadLoTEAndPointers,
+            svcTypePerCtx: SupportedLists<Map<VerificationContext, URI>> = SupportedLists.EU,
+            continueOnProblem: ContinueOnProblem = ContinueOnProblem.Never,
+            createTrustAnchor: (PKIObject) -> TRUST_ANCHOR,
+        ): ProvisionTrustAnchorsFromLoTEs<VerificationContext, TRUST_ANCHOR> =
+            ProvisionTrustAnchorsFromLoTEs(
+                loadLoTEAndPointers,
+                svcTypePerCtx,
+                continueOnProblem,
+                createTrustAnchor,
+            )
     }
 }

@@ -15,10 +15,12 @@
  */
 package eu.europa.ec.eudi.etsi119602.consultation
 
+import eu.europa.ec.eudi.etsi119602.PKIObject
 import eu.europa.ec.eudi.etsi119602.consultation.eu.EUMDLProvidersListSpec
 import eu.europa.ec.eudi.etsi1196x2.consultation.GetTrustAnchorsForSupportedQueries
 import eu.europa.ec.eudi.etsi1196x2.consultation.SupportedLists
 import eu.europa.ec.eudi.etsi1196x2.consultation.VerificationContext
+import io.ktor.client.*
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
@@ -29,17 +31,12 @@ object DIGIT {
     private fun loteUrl(lote: String): String =
         "https://acceptance.trust.tech.ec.europa.eu/lists/eudiw/$lote"
 
-    private val EU_PID_PROVIDERS_URL = loteUrl("pid-providers.json")
-    private val EU_WALLET_PROVIDERS_URL = loteUrl("wallet-providers.json")
-    private val EU_WRPAC_PROVIDERS_URL = loteUrl("wrpac-providers.json")
-    private val EU_MDL_PROVIDERS_URL = loteUrl("mdl-providers.json")
-
     val LOTE_LOCATIONS = SupportedLists(
-        pidProviders = EU_PID_PROVIDERS_URL,
-        walletProviders = EU_WALLET_PROVIDERS_URL,
-        wrpacProviders = EU_WRPAC_PROVIDERS_URL,
+        pidProviders = loteUrl("pid-providers.json"),
+        walletProviders = loteUrl("wallet-providers.json"),
+        wrpacProviders = loteUrl("wrpac-providers.json"),
         eaaProviders = mapOf(
-            "mdl" to EU_MDL_PROVIDERS_URL,
+            "mdl" to loteUrl("mdl-providers.json"),
         ),
     )
 
@@ -58,21 +55,8 @@ class DIGITTest {
     @Test
     fun testDownload() = runTest {
         val trustAnchorsFromLoTE =
-            createHttpClient().use { httpClient ->
-                val fromHttp =
-                    ProvisionTrustAnchorsFromLoTEs.fromHttp(
-                        httpClient = httpClient,
-                        constrains = LoadLoTEAndPointers.Constraints(
-                            otherLoTEParallelism = 2,
-                            maxDepth = 1,
-                            maxLists = 40,
-                        ),
-                        svcTypePerCtx = DIGIT.SVC_TYPE_PER_CTX,
-                        verifyJwtSignature = NotValidating,
-                        continueOnProblem = ContinueOnProblem.Never,
-                    )
-                fromHttp(loteLocationsSupported = DIGIT.LOTE_LOCATIONS, parallelism = 10)
-            }
+            createHttpClient().use { httpClient -> httpClient.get(DIGIT.LOTE_LOCATIONS) }
+
         val expectedContexts: List<VerificationContext> =
             listOf(
                 VerificationContext.PID,
@@ -94,5 +78,26 @@ class DIGITTest {
                 GetTrustAnchorsForSupportedQueries.Outcome.QueryNotSupported -> fail("Context not supported: $ctx")
             }
         }
+    }
+
+    private suspend fun HttpClient.get(
+        loteLocationsSupported: SupportedLists<String>,
+    ): GetTrustAnchorsForSupportedQueries<VerificationContext, PKIObject> {
+        val fromHttp =
+            ProvisionTrustAnchorsFromLoTEs.eudiw(
+                LoadLoTEAndPointers(
+                    constraints = LoadLoTEAndPointers.Constraints(
+                        otherLoTEParallelism = 2,
+                        maxDepth = 1,
+                        maxLists = 40,
+                    ),
+                    verifyJwtSignature = NotValidating,
+                    loadLoTE = LoadLoTEFromHttp(this),
+                ),
+                svcTypePerCtx = DIGIT.SVC_TYPE_PER_CTX,
+                createTrustAnchor = { it },
+            )
+
+        return fromHttp(loteLocationsSupported, parallelism = 10)
     }
 }

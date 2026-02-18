@@ -26,9 +26,6 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.flow.toList
 import kotlinx.serialization.json.JsonObject
-import kotlin.time.Clock
-import kotlin.time.Duration
-import kotlin.time.Instant
 
 public fun interface LoadLoTE<out LOTE : Any> {
     public suspend operator fun invoke(uri: URI): Outcome<LOTE>
@@ -57,7 +54,6 @@ public class LoadLoTEAndPointers(
         public data class MaxDepthReached(val uri: URI, val maxDepth: Int) : Problem
         public data class MaxListsReached(val uri: URI, val maxLists: Int) : Problem
         public data class CircularReferenceDetected(val uri: URI) : Problem
-        public data class TimedOut(val duration: Duration) : Problem
         public data class Error(val uri: URI, val error: Throwable) : Problem
     }
 
@@ -176,7 +172,8 @@ public class LoadLoTEAndPointers(
         }
     }
 
-    private fun resourceNotFoundInStep(step: Step, cause: Throwable?): Event.ResourceNotFound = Event.ResourceNotFound(step.uri, cause)
+    private fun resourceNotFoundInStep(step: Step, cause: Throwable?): Event.ResourceNotFound =
+        Event.ResourceNotFound(step.uri, cause)
 
     private fun loadedInStep(step: Step, lote: ListOfTrustedEntities): Event.LoTELoaded {
         val (sourceUri, depth) = step
@@ -209,17 +206,13 @@ public data class LoTELoadResult(
     val list: LoadLoTEAndPointers.Event.LoTELoaded?,
     val otherLists: List<LoadLoTEAndPointers.Event.LoTELoaded>,
     val problems: List<LoadLoTEAndPointers.Event.Problem>,
-    val startedAt: Instant,
-    val endedAt: Instant,
 ) {
     public companion object {
 
         public suspend fun collect(
             eventsFlow: Flow<LoadLoTEAndPointers.Event>,
             continueOnProblem: ContinueOnProblem = ContinueOnProblem.Never,
-            clock: Clock = Clock.System,
         ): LoTELoadResult {
-            val startedAt = clock.now()
             var list: LoadLoTEAndPointers.Event.LoTELoaded? = null
             val otherLists = mutableListOf<LoadLoTEAndPointers.Event.LoTELoaded>()
             val problems = mutableListOf<LoadLoTEAndPointers.Event.Problem>()
@@ -242,8 +235,7 @@ public data class LoTELoadResult(
             if (!otherLists.isEmpty()) {
                 checkNotNull(list) { "Other LoTEs downloaded before main LoTE" }
             }
-            val endedAt = clock.now()
-            return LoTELoadResult(list, otherLists.toList(), problems.toList(), startedAt, endedAt)
+            return LoTELoadResult(list, otherLists.toList(), problems.toList())
         }
     }
 }
