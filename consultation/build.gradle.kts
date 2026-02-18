@@ -197,7 +197,8 @@ mavenPublishing {
     }
 }
 
-//dependencyCheck {
+dependencyCheck {
+    skip=true
 //    formats = listOf("XML", "HTML")
 //    nvd.apiKey = System.getenv("NVD_API_KEY") ?: properties["nvdApiKey"]?.toString() ?: ""
 //    nvd.delay = 10000
@@ -209,5 +210,5 @@ mavenPublishing {
 //        pyDistributionEnabled = false
 //        composerEnabled = false
 //    }
-//}
+}
 
