@@ -198,7 +198,7 @@ mavenPublishing {
 
     coordinates(
         groupId = group.toString(),
-        artifactId = "etsi-119602-eu-profiles",
+        artifactId = "etsi-119602-consultation",
         version = version.toString(),
     )
 
