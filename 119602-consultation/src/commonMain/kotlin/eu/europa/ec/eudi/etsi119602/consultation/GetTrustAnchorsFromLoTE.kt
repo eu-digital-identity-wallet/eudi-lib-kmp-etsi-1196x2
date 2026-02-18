@@ -33,14 +33,16 @@ public data class LoadedLoTE(
     val otherLists: List<ListOfTrustedEntities>,
 )
 
-public class GetTrustAnchorsFromLoTE(
+public class GetTrustAnchorsFromLoTE<out TRUST_ANCHOR : Any>(
     private val loadedLote: LoadedLoTE,
-) : GetTrustAnchors<URI, PKIObject> {
+    private val createTrustAnchor: (PKIObject) -> TRUST_ANCHOR,
+) : GetTrustAnchors<URI, TRUST_ANCHOR> {
 
-    override suspend fun invoke(query: URI): NonEmptyList<PKIObject>? {
+    override suspend fun invoke(query: URI): NonEmptyList<TRUST_ANCHOR>? {
         val certs =
             loadedLote.servicesOfType(query).flatMap { trustedService ->
                 trustedService.information.digitalIdentity.x509Certificates.orEmpty()
+                    .map(createTrustAnchor)
             }
         return NonEmptyList.nelOrNull(certs)
     }
