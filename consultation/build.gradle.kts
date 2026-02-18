@@ -197,21 +197,17 @@ mavenPublishing {
     }
 }
 
-dependencyCheck {
-    formats = listOf("XML", "HTML")
-    nvd.apiKey = System.getenv("NVD_API_KEY") ?: properties["nvdApiKey"]?.toString() ?: ""
-    nvd.delay = 10000
-    nvd.maxRetryCount = 2
+//dependencyCheck {
+//    formats = listOf("XML", "HTML")
+//    nvd.apiKey = System.getenv("NVD_API_KEY") ?: properties["nvdApiKey"]?.toString() ?: ""
+//    nvd.delay = 10000
+//    nvd.maxRetryCount = 2
+//
+//    analyzers.apply {
+//        assemblyEnabled = false
+//        rubygemsEnabled = false
+//        pyDistributionEnabled = false
+//        composerEnabled = false
+//    }
+//}
 
-    analyzers.apply {
-        assemblyEnabled = false
-        rubygemsEnabled = false
-        pyDistributionEnabled = false
-        composerEnabled = false
-    }
-}
-
-// Run Dependency-Check once in the repo (via consultation-dss, which depends on this module).
-tasks.named("dependencyCheckAnalyze").configure { enabled = false }
-tasks.named("dependencyCheckUpdate").configure { enabled = false }
-tasks.named("dependencyCheckPurge").configure { enabled = false }
