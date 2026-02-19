@@ -77,6 +77,9 @@ public class ValidateCertificateChainUsingDirectTrust<in CHAIN : Any, TRUST_ANCH
     }
 }
 
+public fun interface ValidateCertificateChainUsingPKIX<in CHAIN : Any, TRUST_ANCHOR : Any> :
+    ValidateCertificateChain<CHAIN, TRUST_ANCHOR>
+
 /**
  * Changes the representation of the certificate chain
  *

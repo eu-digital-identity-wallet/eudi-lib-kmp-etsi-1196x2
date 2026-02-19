@@ -61,7 +61,7 @@ object EUDIRefDevEnv {
     val httpLoader = ObservableHttpLoader(NativeHTTPDataLoader())
 
     fun isChainTrustedForContext(): IsChainTrustedForEUDIW<List<X509Certificate>, TrustAnchor> = IsChainTrustedForEUDIW(
-        validateCertificateChain = ValidateCertificateChainJvm(
+        validateCertificateChain = ValidateCertificateChainUsingPKIXJvm(
             customization = { isRevocationEnabled = false },
         ),
         getTrustAnchorsByContext = GetTrustAnchorsForSupportedQueries.usingLoTL(
