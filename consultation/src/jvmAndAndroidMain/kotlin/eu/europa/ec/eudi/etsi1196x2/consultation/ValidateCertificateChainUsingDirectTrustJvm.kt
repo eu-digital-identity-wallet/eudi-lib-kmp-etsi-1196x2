@@ -27,6 +27,13 @@ private fun X509Certificate.identity(): X509CertificateIdentify =
 
 public val ValidateCertificateChainUsingDirectTrustJvm: ValidateCertificateChainUsingDirectTrust<List<X509Certificate>, TrustAnchor, X509CertificateIdentify> =
     ValidateCertificateChainUsingDirectTrust(
-        headCertificateId = { it.first().identity() },
-        trustToCertificateId = { it.trustedCert.identity() },
+        headCertificateId = { chain ->
+            val head = checkNotNull(chain.first()) { "Chain cannot by empty" }
+            head.identity()
+        },
+        trustToCertificateId = { trustAnchor ->
+            val trustedCert = trustAnchor.trustedCert
+            checkNotNull(trustedCert) { "Trust anchor missing certificate\n$trustAnchor" }
+            trustedCert.identity()
+        },
     )
