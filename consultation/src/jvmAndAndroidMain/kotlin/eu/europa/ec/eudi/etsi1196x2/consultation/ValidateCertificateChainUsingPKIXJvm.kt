@@ -15,8 +15,8 @@
  */
 package eu.europa.ec.eudi.etsi1196x2.consultation
 
-import eu.europa.ec.eudi.etsi1196x2.consultation.ValidateCertificateChainJvm.Companion.DEFAULT_CUSTOMIZATION
-import eu.europa.ec.eudi.etsi1196x2.consultation.ValidateCertificateChainJvm.Companion.DEFAULT_DISPATCHER
+import eu.europa.ec.eudi.etsi1196x2.consultation.ValidateCertificateChainUsingPKIXJvm.Companion.DEFAULT_CUSTOMIZATION
+import eu.europa.ec.eudi.etsi1196x2.consultation.ValidateCertificateChainUsingPKIXJvm.Companion.DEFAULT_DISPATCHER
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.Dispatchers
@@ -25,24 +25,27 @@ import java.security.InvalidAlgorithmParameterException
 import java.security.Provider
 import java.security.cert.*
 
+@Deprecated("Use ValidateCertificateChainUsingPKIXJvm instead", ReplaceWith("ValidateCertificateChainUsingPKIXJvm"))
+public typealias ValidateCertificateChainJvm = ValidateCertificateChainUsingPKIXJvm
+
 /**
- * A JVM-specific implementation of [ValidateCertificateChain]
+ * A JVM-specific implementation of [ValidateCertificateChainUsingPKIX]
  *
  * @param dispatcher the coroutine dispatcher to use for validating certificate chains.
- *        Defaults to [ValidateCertificateChainJvm.DEFAULT_DISPATCHER]
+ *        Defaults to [ValidateCertificateChainUsingPKIXJvm.DEFAULT_DISPATCHER]
  * @param certificateFactory the certificate factory to use for validating certificate chains.
  *        Defaults to [JvmSecurity.DefaultX509Factory]
  * @param certPathValidator the certification path validator to use for validating certificate chains.
  *        Defaults to [JvmSecurity.DefaultPKIXValidator]
  * @param customization customization for PKIX parameters.
- *        Defaults to [ValidateCertificateChainJvm.DEFAULT_CUSTOMIZATION]
+ *        Defaults to [ValidateCertificateChainUsingPKIXJvm.DEFAULT_CUSTOMIZATION]
  */
-public class ValidateCertificateChainJvm(
+public class ValidateCertificateChainUsingPKIXJvm(
     dispatcher: CoroutineDispatcher = DEFAULT_DISPATCHER,
     private val certificateFactory: CertificateFactory,
     private val certPathValidator: CertPathValidator,
     private val customization: PKIXParameters.() -> Unit,
-) : ValidateCertificateChain<List<X509Certificate>, TrustAnchor> {
+) : ValidateCertificateChainUsingPKIX<List<X509Certificate>, TrustAnchor> {
 
     /**
      * Alternative constructor that uses the default [Provider]s
@@ -129,12 +132,12 @@ public class ValidateCertificateChainJvm(
         public val DEFAULT_DISPATCHER: CoroutineDispatcher = Dispatchers.IO
 
         /**
-         * Default implementation of [ValidateCertificateChainJvm] for JVM and Android platforms.
+         * Default implementation of [ValidateCertificateChainUsingPKIXJvm] for JVM and Android platforms.
          * Use as [DEFAULT_DISPATCHER] and [DEFAULT_CUSTOMIZATION] and
          * [JvmSecurity.DefaultX509Factory] and
          * [JvmSecurity.DefaultPKIXValidator]
          */
-        public val Default: ValidateCertificateChainJvm get() = ValidateCertificateChainJvm(
+        public val Default: ValidateCertificateChainUsingPKIXJvm get() = ValidateCertificateChainUsingPKIXJvm(
             customization = DEFAULT_CUSTOMIZATION,
             dispatcher = DEFAULT_DISPATCHER,
         )
