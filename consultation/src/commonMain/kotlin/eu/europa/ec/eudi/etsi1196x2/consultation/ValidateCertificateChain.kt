@@ -62,6 +62,21 @@ public sealed interface CertificationChainValidation<out TRUST_ANCHOR : Any> {
     public data class NotTrusted(val cause: Throwable) : CertificationChainValidation<Nothing>
 }
 
+public class ValidateCertificateChainUsingDirectTrust<in CHAIN : Any, TRUST_ANCHOR : Any, in CERT_ID : Any>(
+    private val headCertificateId: (CHAIN) -> CERT_ID,
+    private val trustToCertificateId: (TRUST_ANCHOR) -> CERT_ID,
+) : ValidateCertificateChain<CHAIN, TRUST_ANCHOR> {
+    override suspend fun invoke(chain: CHAIN, trustAnchors: NonEmptyList<TRUST_ANCHOR>): CertificationChainValidation<TRUST_ANCHOR> {
+        val head = headCertificateId(chain)
+        val trustAnchor = trustAnchors.list.firstOrNull { trustToCertificateId(it) == head }
+        return if (trustAnchor != null) {
+            CertificationChainValidation.Trusted(trustAnchor)
+        } else {
+            CertificationChainValidation.NotTrusted(IllegalStateException("Not trusted"))
+        }
+    }
+}
+
 /**
  * Changes the representation of the certificate chain
  *
