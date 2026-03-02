@@ -1056,10 +1056,13 @@ WRPRC JWT validation requires two phases:
 
 - **ETSI TS 119 412-6 V1.1.1**: "Certificate profile requirements for PID, Wallet, EAA, QEAA, and PSBEAA providers"
 - **ETSI TS 119 602 V1.1.1**: "Lists of trusted entities; Data model"
-- **ETSI TS 119 612 V2.2.1**: "Trusted Lists"
+- **ETSI TS 119 612 V2.4.1**: "Trusted Lists" (August 2025)¹
 - **ETSI EN 319 412-2 V2.4.1**: "Certificate profile for certificates issued to natural persons"
 - **ETSI EN 319 412-3 V1.3.1**: "Certificate profile for certificates issued to legal persons"
 - **ETSI EN 319 412-5 V2.5.1**: "QCStatements"
+
+**Footnotes:**
+¹ **ETSI TS 119 612 Version Note:** V2.4.1 (August 2025) is the latest version. V2.3.1 (November 2024) updated the eIDAS reference to acknowledge Regulation (EU) 2024/1183 and Directive (EU) 2022/2555, but contains no substantive changes affecting the certificate validation analysis. V2.4.1 is a maintenance release with no technical changes. The EUDI Wallet provider lists are defined in ETSI TS 119 602, not TS 119 612. See `TS119612-Version-Comparison.md` for detailed analysis.
 
 ### IETF RFCs
 
