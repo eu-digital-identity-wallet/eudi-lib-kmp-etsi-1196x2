@@ -18,6 +18,7 @@ package eu.europa.ec.eudi.etsi1196x2.consultation.dss
 import eu.europa.ec.eudi.etsi1196x2.consultation.AsyncCache
 import eu.europa.esig.dss.model.DSSDocument
 import eu.europa.esig.dss.model.FileDocument
+import eu.europa.esig.dss.spi.DSSUtils
 import eu.europa.esig.dss.spi.client.http.DSSCacheFileLoader
 import eu.europa.esig.dss.spi.client.http.DataLoader
 import eu.europa.esig.dss.spi.exception.DSSDataLoaderMultipleException
@@ -27,6 +28,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import java.nio.charset.StandardCharsets
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
@@ -37,6 +39,39 @@ import java.util.concurrent.atomic.AtomicInteger
 import kotlin.time.Clock
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
+
+/**
+ * Strategy for calculating cache filenames from URLs.
+ */
+public fun interface CacheFilenameStrategy {
+    /**
+     * Calculates the cache filename for the given URL.
+     * @param url the URL to generate a cache filename for
+     * @return the cache filename (without directory path)
+     */
+    public fun calculateFilename(url: String): String
+
+    public companion object {
+        /**
+         * DSS normalization-based strategy.
+         * Uses [DSSUtils.getNormalizedString] to create human-readable filenames.
+         */
+        public val DSS: CacheFilenameStrategy = CacheFilenameStrategy { url ->
+            DSSUtils.getNormalizedString(url)
+                ?: throw IllegalArgumentException("URL cannot be null")
+        }
+
+        /**
+         * SHA-256 digest-based strategy.
+         * Creates fixed-length filenames using SHA-256 hash of the URL.
+         */
+        public val Sha256: CacheFilenameStrategy = CacheFilenameStrategy { url ->
+            val digest = MessageDigest.getInstance("SHA-256")
+                .digest(url.toByteArray(StandardCharsets.UTF_8))
+            digest.joinToString("") { "%02x".format(it) }
+        }
+    }
+}
 
 /**
  * A thread-safe [DataLoader] with dual-layer caching for concurrent LOTL/TL fetching.
@@ -59,6 +94,7 @@ import kotlin.time.Duration.Companion.seconds
  * @param cacheDispatcher coroutine dispatcher for cache operations
  * @param httpCacheTtl TTL for in-memory HTTP response cache
  * @param maxCacheSize maximum number of entries in the in-memory cache
+ * @param filenameStrategy strategy for calculating cache filenames; defaults to [CacheFilenameStrategy.DSS]
  *
  * @see eu.europa.esig.dss.service.http.commons.FileCacheDataLoader
  */
@@ -69,6 +105,7 @@ public class ConcurrentCacheDataLoader(
     cacheDispatcher: CoroutineDispatcher = Dispatchers.IO,
     httpCacheTtl: Duration = 5.seconds,
     maxCacheSize: Int = 100,
+    private val filenameStrategy: CacheFilenameStrategy = CacheFilenameStrategy.DSS,
 ) : DataLoader, DSSCacheFileLoader, AutoCloseable {
 
     init {
@@ -125,7 +162,7 @@ public class ConcurrentCacheDataLoader(
             current
         }
         try {
-            holder!!.mutex.withLock {
+            checkNotNull(holder).mutex.withLock {
                 val cacheFile = cacheFileFor(url)
                 if (!refresh) {
                     readIfFresh(cacheFile)?.let { return@withLock it }
@@ -149,16 +186,16 @@ public class ConcurrentCacheDataLoader(
     override fun getDocument(url: String, refresh: Boolean): DSSDocument {
         val cacheFile = cacheFileFor(url)
         val bytes = get(url, refresh)
-        if (bytes.isNotEmpty()) {
-            return FileDocument(cacheFile.toFile())
+        if (bytes.isEmpty()) {
+            throw DSSExternalResourceException("Cannot retrieve data from url [$url]. Empty content is obtained!")
         }
-        throw DSSExternalResourceException("Cannot retrieve data from url [$url]. Empty content is obtained!")
+        return FileDocument(cacheFile.toFile())
     }
 
-    override fun getDocumentFromCache(url: String): DSSDocument? {
-        val cacheFile = cacheFileFor(url)
-        return if (Files.exists(cacheFile)) FileDocument(cacheFile.toFile()) else null
-    }
+    override fun getDocumentFromCache(url: String): DSSDocument? =
+        cacheFileFor(url)
+            .takeIf { Files.exists(it) }
+            ?.let { FileDocument(it.toFile()) }
 
     override fun remove(url: String): Boolean {
         val cacheFile = cacheFileFor(url)
@@ -174,10 +211,8 @@ public class ConcurrentCacheDataLoader(
     }
 
     private fun cacheFileFor(url: String): Path {
-        val digest = MessageDigest.getInstance("SHA-256")
-            .digest(url.toByteArray())
-            .joinToString("") { "%02x".format(it) }
-        return fileCacheDirectory.resolve("cache-$digest")
+        val filename = filenameStrategy.calculateFilename(url)
+        return fileCacheDirectory.resolve("cache-$filename")
     }
 
     private fun readIfFresh(file: Path): ByteArray? {
