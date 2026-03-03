@@ -85,6 +85,12 @@ kotlin {
             }
         }
 
+        val jvmAndAndroidMain by getting {
+            dependencies {
+                implementation(libs.bouncy.castle)
+            }
+        }
+
         commonTest {
             dependencies {
                 implementation(kotlin("test"))

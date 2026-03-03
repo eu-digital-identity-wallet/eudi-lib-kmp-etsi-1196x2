@@ -163,11 +163,6 @@ internal object CertOps {
     private fun signer(sigAlg: String, privateKey: PrivateKey): ContentSigner =
         Ctx.jcaContentSignerBuilder(sigAlg).build(privateKey)
 
-    fun X509CertificateHolder.toCertificate(): X509Certificate {
-        val cFact = Ctx.certFactory()
-        return cFact.generateCertificate(encoded.inputStream()) as X509Certificate
-    }
-
     private fun JcaX509v1CertificateBuilder.build(sigAlg: String, privateKey: PrivateKey): X509CertificateHolder {
         val signer = signer(sigAlg, privateKey)
         return build(signer)
@@ -231,3 +226,17 @@ private class SecCtx(val provider: Provider? = null) {
             }
         }
 }
+
+/**
+ * Public extension function for converting [X509CertificateHolder] to [X509Certificate].
+ */
+public fun X509CertificateHolder.toX509Certificate(): X509Certificate {
+    val cFact = CertificateFactory.getInstance("X.509")
+    return cFact.generateCertificate(encoded.inputStream()) as X509Certificate
+}
+
+/**
+ * Alias for [toX509Certificate] for backward compatibility.
+ */
+@Deprecated("Use toX509Certificate instead", ReplaceWith("toX509Certificate()"))
+public fun X509CertificateHolder.toCertificate(): X509Certificate = toX509Certificate()
