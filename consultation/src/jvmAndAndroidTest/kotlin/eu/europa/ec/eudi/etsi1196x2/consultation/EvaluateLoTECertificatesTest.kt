@@ -15,6 +15,7 @@
  */
 package eu.europa.ec.eudi.etsi1196x2.consultation
 
+import eu.europa.ec.eudi.etsi1196x2.consultation.CertOps.toX509Certificate
 import eu.europa.ec.eudi.etsi1196x2.consultation.certs.*
 import kotlinx.coroutines.test.runTest
 import org.bouncycastle.asn1.x500.X500Name
