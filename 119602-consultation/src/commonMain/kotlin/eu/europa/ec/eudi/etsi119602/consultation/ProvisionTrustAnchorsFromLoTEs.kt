@@ -23,7 +23,7 @@ import eu.europa.ec.eudi.etsi1196x2.consultation.certs.EvaluateCertificateConstr
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.*
 
-public data class LotEMata<CTX, CERT : Any>(
+public data class LotEMata<CTX, in CERT : Any>(
     val svcTypePerCtx: Map<CTX, URI>,
     val directTrust: Boolean,
     val certificateConstraints: EvaluateCertificateConstraint<CERT>?,
