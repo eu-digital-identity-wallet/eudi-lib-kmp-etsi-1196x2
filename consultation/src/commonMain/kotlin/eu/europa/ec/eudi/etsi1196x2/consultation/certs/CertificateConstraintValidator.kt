@@ -13,55 +13,42 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package eu.europa.ec.eudi.etsi1196x2.consultation
+package eu.europa.ec.eudi.etsi1196x2.consultation.certs
 
 /**
  * A composite validator that validates multiple constraints against a certificate.
  *
- * This class aggregates multiple [CertificateConstraint] instances and validates
+ * This class aggregates multiple [EvaluateCertificateConstraint] instances and validates
  * them all against a given certificate, collecting any validation failures.
  *
  * @param CERT the type representing the certificate
  *
- * @see CertificateConstraint
+ * @see EvaluateCertificateConstraint
  */
-public class CertificateConstraintValidator<CERT : Any>(
-    internal val constraints: List<CertificateConstraint<CERT>>,
-) {
-    /**
-     * Validates all constraints against the given certificate.
-     *
-     * @param certificate the certificate to validate
-     * @return a list of validation failures (empty if all constraints are satisfied)
-     */
-    public suspend fun validate(certificate: CERT): List<ConstraintValidationResult.Invalid> {
-        return constraints.mapNotNull { constraint ->
-            when (val result = constraint(certificate)) {
-                is ConstraintValidationResult.Invalid -> result
-                is ConstraintValidationResult.Valid -> null
-            }
-        }
-    }
+public class CertificateConstraintValidator<in CERT : Any>(
+    internal val constraints: List<EvaluateCertificateConstraint<CERT>>,
+) : EvaluateCertificateConstraint<CERT> {
 
-    /**
-     * Checks if the certificate passes all constraints.
-     *
-     * @param certificate the certificate to validate
-     * @return true if all constraints are satisfied, false otherwise
-     */
-    public suspend fun isValid(certificate: CERT): Boolean = validate(certificate).isEmpty()
+    override suspend fun invoke(certificate: CERT): CertificateConstraintEvaluation {
+        val violations =
+            constraints.mapNotNull { evaluate ->
+                val evaluation = evaluate(certificate)
+                if (!evaluation.isMet()) evaluation.violations else null
+            }.flatten()
+        return CertificateConstraintEvaluation(violations)
+    }
 
     public companion object {
         /**
          * Creates a [CertificateConstraintValidator] from a vararg array of constraints.
          */
-        public fun <CERT : Any> of(vararg constraints: CertificateConstraint<CERT>): CertificateConstraintValidator<CERT> =
+        public fun <CERT : Any> of(vararg constraints: EvaluateCertificateConstraint<CERT>): CertificateConstraintValidator<CERT> =
             CertificateConstraintValidator(constraints.toList())
 
         /**
          * Creates a [CertificateConstraintValidator] from a list of constraints.
          */
-        public fun <CERT : Any> fromList(constraints: List<CertificateConstraint<CERT>>): CertificateConstraintValidator<CERT> =
+        public fun <CERT : Any> fromList(constraints: List<EvaluateCertificateConstraint<CERT>>): CertificateConstraintValidator<CERT> =
             CertificateConstraintValidator(constraints)
 
         /**
@@ -85,7 +72,7 @@ public operator fun <CERT : Any> CertificateConstraintValidator<CERT>.plus(
  * Adds a single constraint to an existing validator.
  */
 public operator fun <CERT : Any> CertificateConstraintValidator<CERT>.plus(
-    constraint: CertificateConstraint<CERT>,
+    constraint: EvaluateCertificateConstraint<CERT>,
 ): CertificateConstraintValidator<CERT> = CertificateConstraintValidator(
     this.constraints + constraint,
 )
@@ -93,5 +80,5 @@ public operator fun <CERT : Any> CertificateConstraintValidator<CERT>.plus(
 /**
  * Creates a [CertificateConstraintValidator] from a collection of constraints.
  */
-public fun <CERT : Any> Collection<CertificateConstraint<CERT>>.toValidator(): CertificateConstraintValidator<CERT> =
+public fun <CERT : Any> Collection<EvaluateCertificateConstraint<CERT>>.toValidator(): CertificateConstraintValidator<CERT> =
     CertificateConstraintValidator(this.toList())

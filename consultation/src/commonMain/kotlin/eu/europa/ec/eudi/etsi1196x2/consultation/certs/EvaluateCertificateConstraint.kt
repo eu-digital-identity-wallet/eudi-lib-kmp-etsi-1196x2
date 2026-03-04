@@ -13,38 +13,52 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package eu.europa.ec.eudi.etsi1196x2.consultation
+package eu.europa.ec.eudi.etsi1196x2.consultation.certs
 
+import kotlin.contracts.ExperimentalContracts
+import kotlin.contracts.contract
 import kotlin.time.Instant
+
+/**
+ * The constraint is not satisfied.
+ *
+ * @param reason a human-readable description of why the constraint failed
+ * @param cause the underlying cause of the failure, if any
+ */
+public data class CertificateConstraintViolation(val reason: String, val cause: Throwable? = null)
 
 /**
  * Result of validating a certificate constraint.
  */
-public sealed interface ConstraintValidationResult {
+public sealed interface CertificateConstraintEvaluation {
     /**
      * The constraint is satisfied.
      */
-    public data object Valid : ConstraintValidationResult
+    public data object Met : CertificateConstraintEvaluation
 
     /**
      * The constraint is not satisfied.
-     *
-     * @param reason a human-readable description of why the constraint failed
-     * @param cause the underlying cause of the failure, if any
      */
-    public data class Invalid(val reason: String, val cause: Throwable? = null) : ConstraintValidationResult
+    public data class Violated(public val violations: List<CertificateConstraintViolation>) : CertificateConstraintEvaluation {
+        init {
+            require(violations.isNotEmpty()) { "At least one violation is required" }
+        }
+    }
+
+    public companion object {
+        public operator fun invoke(violations: List<CertificateConstraintViolation>): CertificateConstraintEvaluation =
+            if (violations.isEmpty()) Met else Violated(violations)
+    }
 }
 
-/**
- * Information about the basicConstraints extension of a certificate.
- *
- * @param isCa whether the certificate is a CA certificate (cA=TRUE) or end-entity (cA=FALSE)
- * @param pathLenConstraint the maximum number of non-self-issued intermediate certificates that may follow this certificate in a valid certification path
- */
-public data class BasicConstraintsInfo(
-    val isCa: Boolean,
-    val pathLenConstraint: Int?,
-)
+@OptIn(ExperimentalContracts::class)
+public fun CertificateConstraintEvaluation.isMet(): Boolean {
+    contract {
+        returns(true) implies (this@isMet is CertificateConstraintEvaluation.Met)
+        returns(false) implies (this@isMet is CertificateConstraintEvaluation.Violated)
+    }
+    return this is CertificateConstraintEvaluation.Met
+}
 
 /**
  * Information about a QCStatement in a certificate (ETSI EN 319 412-5).
@@ -55,31 +69,6 @@ public data class BasicConstraintsInfo(
 public data class QCStatementInfo(
     val qcType: String, // OID
     val qcCompliance: Boolean,
-)
-
-/**
- * Represents the key usage bits in a certificate (RFC 5280).
- *
- * @param digitalSignature bit 0 - digitalSignature
- * @param nonRepudiation bit 1 - nonRepudiation (contentCommitment)
- * @param keyEncipherment bit 2 - keyEncipherment
- * @param dataEncipherment bit 3 - dataEncipherment
- * @param keyAgreement bit 4 - keyAgreement
- * @param keyCertSign bit 5 - keyCertSign
- * @param crlSign bit 6 - cRLSign
- * @param encipherOnly bit 7 - encipherOnly
- * @param decipherOnly bit 8 - decipherOnly
- */
-public data class KeyUsageBits(
-    val digitalSignature: Boolean = false,
-    val nonRepudiation: Boolean = false,
-    val keyEncipherment: Boolean = false,
-    val dataEncipherment: Boolean = false,
-    val keyAgreement: Boolean = false,
-    val keyCertSign: Boolean = false,
-    val crlSign: Boolean = false,
-    val encipherOnly: Boolean = false,
-    val decipherOnly: Boolean = false,
 )
 
 /**
@@ -103,12 +92,14 @@ public data class ValidityPeriod(
  *
  * @see CertificateConstraintValidator
  */
-public fun interface CertificateConstraint<CERT : Any> {
+public fun interface EvaluateCertificateConstraint<in CERT : Any> {
     /**
      * Validates the constraint against the given certificate.
      *
      * @param certificate the certificate to validate
      * @return the result of the validation
      */
-    public suspend operator fun invoke(certificate: CERT): ConstraintValidationResult
+    public suspend operator fun invoke(certificate: CERT): CertificateConstraintEvaluation
+
+    public suspend fun isValid(certificate: CERT): Boolean = invoke(certificate) is CertificateConstraintEvaluation.Met
 }

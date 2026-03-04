@@ -15,6 +15,17 @@
  */
 package eu.europa.ec.eudi.etsi1196x2.consultation
 
+import eu.europa.ec.eudi.etsi1196x2.consultation.certs.BasicConstraintsInfo
+import eu.europa.ec.eudi.etsi1196x2.consultation.certs.CertificateConstraintValidator
+import eu.europa.ec.eudi.etsi1196x2.consultation.certs.CertificatePolicyConstraint
+import eu.europa.ec.eudi.etsi1196x2.consultation.certs.EvaluateBasicConstraintsConstraint
+import eu.europa.ec.eudi.etsi1196x2.consultation.certs.KeyUsageBits
+import eu.europa.ec.eudi.etsi1196x2.consultation.certs.KeyUsageConstraint
+import eu.europa.ec.eudi.etsi1196x2.consultation.certs.QCStatementConstraint
+import eu.europa.ec.eudi.etsi1196x2.consultation.certs.QCStatementInfo
+import eu.europa.ec.eudi.etsi1196x2.consultation.certs.ValidityPeriod
+import eu.europa.ec.eudi.etsi1196x2.consultation.certs.ValidityPeriodConstraint
+
 /**
  * Factory functions for creating LoTE-specific certificate constraints.
  *
@@ -25,7 +36,7 @@ package eu.europa.ec.eudi.etsi1196x2.consultation
  * - WRPAC Providers (Annex F): CA certificates issuing WRPAC to Relying Parties
  * - WRPRC Providers (Annex G): CA certificates signing WRPRC JWT attestations
  *
- * @see CertificateConstraintValidator
+ * @see eu.europa.ec.eudi.etsi1196x2.consultation.certs.CertificateConstraintValidator
  */
 public object LoTECertificateConstraints {
 
@@ -54,7 +65,7 @@ public object LoTECertificateConstraints {
         getValidityPeriod: suspend (CERT) -> ValidityPeriod,
         getCertificatePolicies: suspend (CERT) -> List<String>,
     ): CertificateConstraintValidator<CERT> = CertificateConstraintValidator.of(
-        BasicConstraintsConstraint.requireEndEntity(getBasicConstraints),
+        EvaluateBasicConstraintsConstraint.requireEndEntity(getBasicConstraints),
         QCStatementConstraint.forPidProvider(getQcStatements),
         KeyUsageConstraint.requireDigitalSignature(getKeyUsage),
         ValidityPeriodConstraint.validateAtCurrentTime(getValidityPeriod),
@@ -86,7 +97,7 @@ public object LoTECertificateConstraints {
         getValidityPeriod: suspend (CERT) -> ValidityPeriod,
         getCertificatePolicies: suspend (CERT) -> List<String>,
     ): CertificateConstraintValidator<CERT> = CertificateConstraintValidator.of(
-        BasicConstraintsConstraint.requireEndEntity(getBasicConstraints),
+        EvaluateBasicConstraintsConstraint.requireEndEntity(getBasicConstraints),
         QCStatementConstraint.forWalletProvider(getQcStatements),
         KeyUsageConstraint.requireDigitalSignature(getKeyUsage),
         ValidityPeriodConstraint.validateAtCurrentTime(getValidityPeriod),
@@ -121,7 +132,7 @@ public object LoTECertificateConstraints {
         getCertificatePolicies: suspend (CERT) -> List<String>,
         maxPathLen: Int? = null,
     ): CertificateConstraintValidator<CERT> = CertificateConstraintValidator.of(
-        BasicConstraintsConstraint.requireCa(maxPathLen, getBasicConstraints),
+        EvaluateBasicConstraintsConstraint.requireCa(maxPathLen, getBasicConstraints),
         KeyUsageConstraint.requireKeyCertSign(getKeyUsage),
         ValidityPeriodConstraint.validateAtCurrentTime(getValidityPeriod),
         CertificatePolicyConstraint.requirePolicy("0.4.0.1949.2.1", getCertificatePolicies),
@@ -156,7 +167,7 @@ public object LoTECertificateConstraints {
         getCertificatePolicies: suspend (CERT) -> List<String>,
         maxPathLen: Int? = null,
     ): CertificateConstraintValidator<CERT> = CertificateConstraintValidator.of(
-        BasicConstraintsConstraint.requireCa(maxPathLen, getBasicConstraints),
+        EvaluateBasicConstraintsConstraint.requireCa(maxPathLen, getBasicConstraints),
         KeyUsageConstraint.requireKeyCertSign(getKeyUsage),
         ValidityPeriodConstraint.validateAtCurrentTime(getValidityPeriod),
         CertificatePolicyConstraint.requirePolicy("0.4.0.1949.2.1", getCertificatePolicies),

@@ -15,6 +15,11 @@
  */
 package eu.europa.ec.eudi.etsi1196x2.consultation
 
+import eu.europa.ec.eudi.etsi1196x2.consultation.certs.BasicConstraintsInfo
+import eu.europa.ec.eudi.etsi1196x2.consultation.certs.CertificateConstraintValidator
+import eu.europa.ec.eudi.etsi1196x2.consultation.certs.KeyUsageBits
+import eu.europa.ec.eudi.etsi1196x2.consultation.certs.QCStatementInfo
+import eu.europa.ec.eudi.etsi1196x2.consultation.certs.ValidityPeriod
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.bouncycastle.asn1.ASN1InputStream
@@ -36,7 +41,7 @@ public object X509CertificateConstraintExtractors {
      * Extracts basic constraints information from an X509Certificate.
      *
      * @param cert the certificate to extract information from
-     * @return [BasicConstraintsInfo] with isCa and pathLenConstraint
+     * @return [eu.europa.ec.eudi.etsi1196x2.consultation.certs.BasicConstraintsInfo] with isCa and pathLenConstraint
      */
     public val getBasicConstraints: suspend (X509Certificate) -> BasicConstraintsInfo = { cert ->
         withContext(Dispatchers.IO) {
@@ -55,7 +60,7 @@ public object X509CertificateConstraintExtractors {
      * This function parses the DER-encoded extension value to extract QC type OIDs.
      *
      * @param cert the certificate to extract information from
-     * @return list of [QCStatementInfo] or empty list if no QCStatements present
+     * @return list of [eu.europa.ec.eudi.etsi1196x2.consultation.certs.QCStatementInfo] or empty list if no QCStatements present
      */
     public val getQcStatements: suspend (X509Certificate) -> List<QCStatementInfo> = { cert ->
         withContext(Dispatchers.IO) {
@@ -69,7 +74,7 @@ public object X509CertificateConstraintExtractors {
      * Extracts key usage information from an X509Certificate.
      *
      * @param cert the certificate to extract information from
-     * @return [KeyUsageBits] or null if keyUsage extension is not present
+     * @return [eu.europa.ec.eudi.etsi1196x2.consultation.certs.KeyUsageBits] or null if keyUsage extension is not present
      */
     public val getKeyUsage: suspend (X509Certificate) -> KeyUsageBits? = { cert ->
         withContext(Dispatchers.IO) {
@@ -93,7 +98,7 @@ public object X509CertificateConstraintExtractors {
      * Extracts validity period information from an X509Certificate.
      *
      * @param cert the certificate to extract information from
-     * @return [ValidityPeriod] with notBefore and notAfter timestamps
+     * @return [eu.europa.ec.eudi.etsi1196x2.consultation.certs.ValidityPeriod] with notBefore and notAfter timestamps
      */
     public val getValidityPeriod: suspend (X509Certificate) -> ValidityPeriod = { cert ->
         withContext(Dispatchers.IO) {
@@ -236,7 +241,7 @@ public object LoTEX509CertificateValidators {
      *
      * @see [LoTE-Certificate-Validation.md Section 1.2](https://github.com/eu-digital-identity-wallet/eudi-lib-kmp-etsi-1196x2-consultation/blob/main/docs/LoTE-Certificate-Validation.md#12-lote-servicedigitalidentity-requirements-etsi-ts-119-602-annex-d)
      */
-    public fun pidProviderValidator(): CertificateConstraintValidator<X509Certificate> =
+    public fun pidProviderCertificateConstraintsEvaluator(): CertificateConstraintValidator<X509Certificate> =
         LoTECertificateConstraints.pidProviderConstraints(
             getBasicConstraints = X509CertificateConstraintExtractors.getBasicConstraints,
             getQcStatements = X509CertificateConstraintExtractors.getQcStatements,
@@ -258,7 +263,7 @@ public object LoTEX509CertificateValidators {
      *
      * @see [LoTE-Certificate-Validation.md Section 2.2](https://github.com/eu-digital-identity-wallet/eudi-lib-kmp-etsi-1196x2-consultation/blob/main/docs/LoTE-Certificate-Validation.md#22-lote-servicedigitalidentity-requirements-etsi-ts-119-602-annex-e)
      */
-    public fun walletProviderValidator(): CertificateConstraintValidator<X509Certificate> =
+    public fun walletProviderCertificateConstraintsEvaluator(): CertificateConstraintValidator<X509Certificate> =
         LoTECertificateConstraints.walletProviderConstraints(
             getBasicConstraints = X509CertificateConstraintExtractors.getBasicConstraints,
             getQcStatements = X509CertificateConstraintExtractors.getQcStatements,
@@ -279,7 +284,7 @@ public object LoTEX509CertificateValidators {
      *
      * @see [LoTE-Certificate-Validation.md Section 3.2](https://github.com/eu-digital-identity-wallet/eudi-lib-kmp-etsi-1196x2-consultation/blob/main/docs/LoTE-Certificate-Validation.md#32-lote-servicedigitalidentity-requirements-etsi-ts-119-602-annex-f)
      */
-    public fun wrpacProviderValidator(): CertificateConstraintValidator<X509Certificate> =
+    public fun wrpacProviderCertificateConstraintsEvaluator(): CertificateConstraintValidator<X509Certificate> =
         LoTECertificateConstraints.wrpacProviderConstraints(
             getBasicConstraints = X509CertificateConstraintExtractors.getBasicConstraints,
             getKeyUsage = X509CertificateConstraintExtractors.getKeyUsage,
@@ -299,7 +304,7 @@ public object LoTEX509CertificateValidators {
      *
      * @see [LoTE-Certificate-Validation.md Section 4.2](https://github.com/eu-digital-identity-wallet/eudi-lib-kmp-etsi-1196x2-consultation/blob/main/docs/LoTE-Certificate-Validation.md#42-lote-servicedigitalidentity-requirements-etsi-ts-119-602-annex-g)
      */
-    public fun wrprcProviderValidator(): CertificateConstraintValidator<X509Certificate> =
+    public fun wrprcProviderCertificateConstraintsEvaluator(): CertificateConstraintValidator<X509Certificate> =
         LoTECertificateConstraints.wrprcProviderConstraints(
             getBasicConstraints = X509CertificateConstraintExtractors.getBasicConstraints,
             getKeyUsage = X509CertificateConstraintExtractors.getKeyUsage,

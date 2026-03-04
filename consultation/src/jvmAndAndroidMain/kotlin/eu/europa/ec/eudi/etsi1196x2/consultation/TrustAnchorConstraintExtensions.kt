@@ -15,7 +15,8 @@
  */
 package eu.europa.ec.eudi.etsi1196x2.consultation
 
-import kotlinx.coroutines.runBlocking
+import eu.europa.ec.eudi.etsi1196x2.consultation.certs.CertificateConstraintEvaluation
+import eu.europa.ec.eudi.etsi1196x2.consultation.certs.EvaluateCertificateConstraint
 import java.security.cert.TrustAnchor
 import java.security.cert.X509Certificate
 
@@ -40,10 +41,8 @@ import java.security.cert.X509Certificate
  *
  * @return list of validation failures (empty if valid)
  */
-public fun TrustAnchor.validateAsPidProvider(): List<ConstraintValidationResult.Invalid> = runBlocking {
-    val validator = LoTEX509CertificateValidators.pidProviderValidator()
-    validator.validate(trustedCert)
-}
+public suspend fun TrustAnchor.validateAsPidProvider(): CertificateConstraintEvaluation =
+    validateWith(LoTEX509CertificateValidators.pidProviderCertificateConstraintsEvaluator())
 
 /**
  * Validates a [TrustAnchor] as a Wallet Provider certificate.
@@ -57,10 +56,8 @@ public fun TrustAnchor.validateAsPidProvider(): List<ConstraintValidationResult.
  *
  * @return list of validation failures (empty if valid)
  */
-public fun TrustAnchor.validateAsWalletProvider(): List<ConstraintValidationResult.Invalid> = runBlocking {
-    val validator = LoTEX509CertificateValidators.walletProviderValidator()
-    validator.validate(trustedCert)
-}
+public suspend fun TrustAnchor.validateAsWalletProvider(): CertificateConstraintEvaluation =
+    validateWith(LoTEX509CertificateValidators.walletProviderCertificateConstraintsEvaluator())
 
 /**
  * Validates a [TrustAnchor] as a WRPAC Provider certificate.
@@ -73,10 +70,8 @@ public fun TrustAnchor.validateAsWalletProvider(): List<ConstraintValidationResu
  *
  * @return list of validation failures (empty if valid)
  */
-public fun TrustAnchor.validateAsWrpacProvider(): List<ConstraintValidationResult.Invalid> = runBlocking {
-    val validator = LoTEX509CertificateValidators.wrpacProviderValidator()
-    validator.validate(trustedCert)
-}
+public suspend fun TrustAnchor.validateAsWrpacProvider(): CertificateConstraintEvaluation =
+    validateWith(LoTEX509CertificateValidators.wrpacProviderCertificateConstraintsEvaluator())
 
 /**
  * Validates a [TrustAnchor] as a WRPRC Provider certificate.
@@ -89,56 +84,9 @@ public fun TrustAnchor.validateAsWrpacProvider(): List<ConstraintValidationResul
  *
  * @return list of validation failures (empty if valid)
  */
-public fun TrustAnchor.validateAsWrprcProvider(): List<ConstraintValidationResult.Invalid> = runBlocking {
-    val validator = LoTEX509CertificateValidators.wrprcProviderValidator()
-    validator.validate(trustedCert)
-}
+public suspend fun TrustAnchor.validateAsWrprcProvider(): CertificateConstraintEvaluation =
+    validateWith(LoTEX509CertificateValidators.wrprcProviderCertificateConstraintsEvaluator())
 
-/**
- * Validates a [TrustAnchor] against a custom validator.
- *
- * @param validator the validator to use
- * @return list of validation failures (empty if valid)
- */
-public fun TrustAnchor.validateWith(
-    validator: CertificateConstraintValidator<X509Certificate>,
-): List<ConstraintValidationResult.Invalid> = runBlocking {
-    validator.validate(trustedCert)
-}
-
-/**
- * Checks if a [TrustAnchor] is valid as a PID Provider certificate.
- *
- * @return true if valid, false otherwise
- */
-public fun TrustAnchor.isValidAsPidProvider(): Boolean = validateAsPidProvider().isEmpty()
-
-/**
- * Checks if a [TrustAnchor] is valid as a Wallet Provider certificate.
- *
- * @return true if valid, false otherwise
- */
-public fun TrustAnchor.isValidAsWalletProvider(): Boolean = validateAsWalletProvider().isEmpty()
-
-/**
- * Checks if a [TrustAnchor] is valid as a WRPAC Provider certificate.
- *
- * @return true if valid, false otherwise
- */
-public fun TrustAnchor.isValidAsWrpacProvider(): Boolean = validateAsWrpacProvider().isEmpty()
-
-/**
- * Checks if a [TrustAnchor] is valid as a WRPRC Provider certificate.
- *
- * @return true if valid, false otherwise
- */
-public fun TrustAnchor.isValidAsWrprcProvider(): Boolean = validateAsWrprcProvider().isEmpty()
-
-/**
- * Gets the trusted certificate from a [TrustAnchor].
- *
- * This is a convenience property for accessing the underlying X509Certificate.
- */
-public val TrustAnchor.trustedCert: X509Certificate
-    get() = trustedCert as? X509Certificate
-        ?: throw IllegalArgumentException("TrustAnchor must contain an X509Certificate")
+private suspend fun TrustAnchor.validateWith(
+    evaluateCertificateConstraint: EvaluateCertificateConstraint<X509Certificate>,
+): CertificateConstraintEvaluation = evaluateCertificateConstraint(trustedCert)

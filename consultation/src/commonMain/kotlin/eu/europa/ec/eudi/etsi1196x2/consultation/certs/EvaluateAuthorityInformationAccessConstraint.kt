@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package eu.europa.ec.eudi.etsi1196x2.consultation
+package eu.europa.ec.eudi.etsi1196x2.consultation.certs
 
 /**
  * Information about the Authority Information Access (AIA) extension of a certificate (RFC 5280).
@@ -26,7 +26,7 @@ package eu.europa.ec.eudi.etsi1196x2.consultation
  *
  * @see [RFC 5280 Section 4.2.2.1 - Authority Information Access](https://datatracker.ietf.org/doc/html/rfc5280#section-4.2.2.1)
  */
-public data class AiaInfo(
+public data class AuthorityInformationAccess(
     val caIssuersUri: String?,
     val ocspUri: String?,
 )
@@ -44,33 +44,40 @@ public data class AiaInfo(
  * @see [ETSI TS 119 412-6 PID-4.4.3-01](https://www.etsi.org/deliver/etsi_ts/119400_119499/11941206/)
  * @see [RFC 5280 Section 4.2.2.1](https://datatracker.ietf.org/doc/html/rfc5280#section-4.2.2.1)
  */
-public class AuthorityInformationAccessConstraint<CERT : Any>(
+public class EvaluateAuthorityInformationAccessConstraint<in CERT : Any>(
     private val requiredForCaIssued: Boolean,
-    private val getAiaExtension: suspend (CERT) -> AiaInfo?,
-) : CertificateConstraint<CERT> {
+    private val getAiaExtension: suspend (CERT) -> AuthorityInformationAccess?,
+) : EvaluateCertificateConstraint<CERT> {
 
-    override suspend fun invoke(certificate: CERT): ConstraintValidationResult {
+    override suspend fun invoke(certificate: CERT): CertificateConstraintEvaluation {
         val aiaInfo = getAiaExtension(certificate)
 
-        return when {
-            !requiredForCaIssued -> {
-                // AIA not required (e.g., self-signed certificate)
-                ConstraintValidationResult.Valid
-            }
-            aiaInfo == null -> {
-                ConstraintValidationResult.Invalid(
-                    "CA-issued certificate missing Authority Information Access (AIA) extension",
-                )
-            }
-            aiaInfo.caIssuersUri == null -> {
-                ConstraintValidationResult.Invalid(
-                    "AIA extension missing id-ad-caIssuers access method (CA certificate URI)",
-                )
-            }
-            else -> {
-                ConstraintValidationResult.Valid
+        val violations = buildList {
+            when {
+                !requiredForCaIssued -> {
+                    // AIA not required (e.g., self-signed certificate)
+                }
+
+                aiaInfo == null -> {
+                    add(
+                        CertificateConstraintViolation(
+                            "CA-issued certificate missing Authority Information Access (AIA) extension",
+                        ),
+                    )
+                }
+
+                aiaInfo.caIssuersUri == null -> {
+                    add(
+                        CertificateConstraintViolation(
+                            "AIA extension missing id-ad-caIssuers access method (CA certificate URI)",
+                        ),
+                    )
+                }
+
+                else -> {}
             }
         }
+        return CertificateConstraintEvaluation(violations)
     }
 
     public companion object {
@@ -80,8 +87,8 @@ public class AuthorityInformationAccessConstraint<CERT : Any>(
          * @param getAiaExtension function to extract AIA information from a certificate
          */
         public fun <CERT : Any> requireForCaIssued(
-            getAiaExtension: suspend (CERT) -> AiaInfo?,
-        ): AuthorityInformationAccessConstraint<CERT> = AuthorityInformationAccessConstraint(
+            getAiaExtension: suspend (CERT) -> AuthorityInformationAccess?,
+        ): EvaluateAuthorityInformationAccessConstraint<CERT> = EvaluateAuthorityInformationAccessConstraint(
             requiredForCaIssued = true,
             getAiaExtension = getAiaExtension,
         )
@@ -92,8 +99,8 @@ public class AuthorityInformationAccessConstraint<CERT : Any>(
          * @param getAiaExtension function to extract AIA information from a certificate
          */
         public fun <CERT : Any> optional(
-            getAiaExtension: suspend (CERT) -> AiaInfo?,
-        ): AuthorityInformationAccessConstraint<CERT> = AuthorityInformationAccessConstraint(
+            getAiaExtension: suspend (CERT) -> AuthorityInformationAccess?,
+        ): EvaluateAuthorityInformationAccessConstraint<CERT> = EvaluateAuthorityInformationAccessConstraint(
             requiredForCaIssued = false,
             getAiaExtension = getAiaExtension,
         )

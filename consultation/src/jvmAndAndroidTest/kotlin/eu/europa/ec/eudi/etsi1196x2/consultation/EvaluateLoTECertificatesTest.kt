@@ -15,6 +15,7 @@
  */
 package eu.europa.ec.eudi.etsi1196x2.consultation
 
+import eu.europa.ec.eudi.etsi1196x2.consultation.certs.*
 import kotlinx.coroutines.test.runTest
 import org.bouncycastle.asn1.x500.X500Name
 import java.security.cert.TrustAnchor
@@ -24,7 +25,7 @@ import kotlin.test.assertTrue
 /**
  * Tests for LoTE certificate constraint validators.
  */
-class LoTECertificateConstraintValidatorTest {
+class EvaluateLoTECertificatesTest {
 
     private val cnPidProvider = X500Name("CN=PID Provider Test")
     private val cnWalletProvider = X500Name("CN=Wallet Provider Test")
@@ -34,18 +35,19 @@ class LoTECertificateConstraintValidatorTest {
     @Test
     fun `PID Provider validator should validate end-entity certificate`() = runTest {
         // Generate a trust anchor (end-entity certificate for PID Provider)
-        val (keyPair, certHolder) = CertOps.genTrustAnchor("SHA256withECDSA", cnPidProvider)
+        val (_, certHolder) = CertOps.genTrustAnchor("SHA256withECDSA", cnPidProvider)
         val certificate = certHolder.toX509Certificate()
         val trustAnchor = TrustAnchor(certificate, null)
 
         // Validate as PID Provider
-        val failures = trustAnchor.validateAsPidProvider()
+        val constraintEvaluation = trustAnchor.validateAsPidProvider()
+        assertTrue(!constraintEvaluation.isMet())
 
         // Should pass basic constraints (end-entity) and key usage (digitalSignature)
         // Will fail QCStatement and Certificate Policy (not implemented yet)
         assertTrue(
-            failures.any { it.reason.contains("QCStatement") } ||
-                failures.any { it.reason.contains("certificate policies") },
+            constraintEvaluation.violations.any { it.reason.contains("QCStatement") } ||
+                constraintEvaluation.violations.any { it.reason.contains("certificate policies") },
             "Expected failure for missing QCStatement or Certificate Policy",
         )
     }
@@ -53,18 +55,19 @@ class LoTECertificateConstraintValidatorTest {
     @Test
     fun `Wallet Provider validator should validate end-entity certificate`() = runTest {
         // Generate a trust anchor (end-entity certificate for Wallet Provider)
-        val (keyPair, certHolder) = CertOps.genTrustAnchor("SHA256withECDSA", cnWalletProvider)
+        val (_, certHolder) = CertOps.genTrustAnchor("SHA256withECDSA", cnWalletProvider)
         val certificate = certHolder.toX509Certificate()
         val trustAnchor = TrustAnchor(certificate, null)
 
         // Validate as Wallet Provider
-        val failures = trustAnchor.validateAsWalletProvider()
+        val constraintEvaluation = trustAnchor.validateAsWalletProvider()
+        assertTrue(!constraintEvaluation.isMet())
 
         // Should pass basic constraints (end-entity) and key usage (digitalSignature)
         // Will fail QCStatement and Certificate Policy (not implemented yet)
         assertTrue(
-            failures.any { it.reason.contains("QCStatement") } ||
-                failures.any { it.reason.contains("certificate policies") },
+            constraintEvaluation.violations.any { it.reason.contains("QCStatement") } ||
+                constraintEvaluation.violations.any { it.reason.contains("certificate policies") },
             "Expected failure for missing QCStatement or Certificate Policy",
         )
     }
@@ -72,17 +75,17 @@ class LoTECertificateConstraintValidatorTest {
     @Test
     fun `WRPAC Provider validator should validate CA certificate`() = runTest {
         // Generate a trust anchor (CA certificate for WRPAC Provider)
-        val (keyPair, certHolder) = CertOps.genTrustAnchor("SHA256withECDSA", cnWrpacProvider)
+        val (_, certHolder) = CertOps.genTrustAnchor("SHA256withECDSA", cnWrpacProvider)
         val certificate = certHolder.toX509Certificate()
         val trustAnchor = TrustAnchor(certificate, null)
 
         // Validate as WRPAC Provider
-        val failures = trustAnchor.validateAsWrpacProvider()
-
+        val constraintEvaluation = trustAnchor.validateAsWrpacProvider()
+        assertTrue(!constraintEvaluation.isMet())
         // Should pass basic constraints (CA) and key usage (keyCertSign)
         // Will fail Certificate Policy (not implemented yet)
         assertTrue(
-            failures.any { it.reason.contains("certificate policies") },
+            constraintEvaluation.violations.any { it.reason.contains("certificate policies") },
             "Expected failure for missing Certificate Policy",
         )
     }
@@ -90,17 +93,18 @@ class LoTECertificateConstraintValidatorTest {
     @Test
     fun `WRPRC Provider validator should validate CA certificate`() = runTest {
         // Generate a trust anchor (CA certificate for WRPRC Provider)
-        val (keyPair, certHolder) = CertOps.genTrustAnchor("SHA256withECDSA", cnWrprcProvider)
+        val (_, certHolder) = CertOps.genTrustAnchor("SHA256withECDSA", cnWrprcProvider)
         val certificate = certHolder.toX509Certificate()
         val trustAnchor = TrustAnchor(certificate, null)
 
         // Validate as WRPRC Provider
-        val failures = trustAnchor.validateAsWrprcProvider()
+        val constraintEvaluation = trustAnchor.validateAsWrprcProvider()
+        assertTrue(!constraintEvaluation.isMet())
 
         // Should pass basic constraints (CA) and key usage (keyCertSign)
         // Will fail Certificate Policy (not implemented yet)
         assertTrue(
-            failures.any { it.reason.contains("certificate policies") },
+            constraintEvaluation.violations.any { it.reason.contains("certificate policies") },
             "Expected failure for missing Certificate Policy",
         )
     }
@@ -108,26 +112,27 @@ class LoTECertificateConstraintValidatorTest {
     @Test
     fun `BasicConstraintsConstraint should reject CA when end-entity expected`() = runTest {
         // Generate a CA certificate (trust anchor)
-        val (keyPair, certHolder) = CertOps.genTrustAnchor("SHA256withECDSA", cnWrpacProvider)
+        val (_, certHolder) = CertOps.genTrustAnchor("SHA256withECDSA", cnWrpacProvider)
         val certificate = certHolder.toX509Certificate()
 
         // Create constraint for end-entity
-        val constraint = BasicConstraintsConstraint.requireEndEntity(
+        val constraint = EvaluateBasicConstraintsConstraint.requireEndEntity(
             getBasicConstraints = X509CertificateConstraintExtractors.getBasicConstraints,
         )
 
         // Validate
-        val result = constraint(certificate)
+        val constraintEvaluation = constraint(certificate)
 
         // Should fail - CA certificate when end-entity expected
-        assertTrue(result is ConstraintValidationResult.Invalid)
-        assertTrue((result as ConstraintValidationResult.Invalid).reason.contains("CA"))
+        assertTrue(!constraintEvaluation.isMet())
+
+        assertTrue(constraintEvaluation.violations.any { it.reason.contains("CA") })
     }
 
     @Test
     fun `KeyUsageConstraint should reject when digitalSignature not set`() = runTest {
         // Generate a CA certificate (has keyCertSign, not digitalSignature)
-        val (keyPair, certHolder) = CertOps.genTrustAnchor("SHA256withECDSA", cnWrpacProvider)
+        val (_, certHolder) = CertOps.genTrustAnchor("SHA256withECDSA", cnWrpacProvider)
         val certificate = certHolder.toX509Certificate()
 
         // Create constraint for digitalSignature
@@ -136,11 +141,11 @@ class LoTECertificateConstraintValidatorTest {
         )
 
         // Validate
-        val result = constraint(certificate)
+        val constraintEvaluation = constraint(certificate)
 
         // Should fail - CA certificate has keyCertSign, not digitalSignature
-        assertTrue(result is ConstraintValidationResult.Invalid)
-        assertTrue((result as ConstraintValidationResult.Invalid).reason.contains("keyUsage"))
+        assertTrue(!constraintEvaluation.isMet())
+        assertTrue(constraintEvaluation.violations.any { it.reason.contains("keyUsage") })
     }
 
     @Test
@@ -167,16 +172,16 @@ class LoTECertificateConstraintValidatorTest {
         )
 
         // Validate
-        val result = constraint(certificate)
+        val contraintEvaluation = constraint(certificate)
 
         // Should pass
-        assertTrue(result is ConstraintValidationResult.Valid)
+        assertTrue(contraintEvaluation.isMet())
     }
 
     @Test
     fun `ValidityPeriodConstraint should accept valid certificate`() = runTest {
         // Generate a valid certificate
-        val (keyPair, certHolder) = CertOps.genTrustAnchor("SHA256withECDSA", cnPidProvider)
+        val (_, certHolder) = CertOps.genTrustAnchor("SHA256withECDSA", cnPidProvider)
         val certificate = certHolder.toX509Certificate()
 
         // Create constraint
@@ -188,42 +193,40 @@ class LoTECertificateConstraintValidatorTest {
         val result = constraint(certificate)
 
         // Should pass - certificate is valid
-        assertTrue(result is ConstraintValidationResult.Valid)
+        assertTrue(result is CertificateConstraintEvaluation.Met)
     }
 
     @Test
     fun `BasicConstraintsConstraint should validate pathLenConstraint for CA certificates`() = runTest {
         // Generate a CA certificate (trust anchor) without pathLenConstraint
-        val (keyPair, certHolder) = CertOps.genTrustAnchor("SHA256withECDSA", cnWrpacProvider)
+        val (_, certHolder) = CertOps.genTrustAnchor("SHA256withECDSA", cnWrpacProvider)
         val certificate = certHolder.toX509Certificate()
 
         // Create constraint for CA with maxPathLen = 2
-        val constraint = BasicConstraintsConstraint.requireCa(
+        val constraint = EvaluateBasicConstraintsConstraint.requireCa(
             maxPathLen = 2,
             getBasicConstraints = X509CertificateConstraintExtractors.getBasicConstraints,
         )
 
         // Validate - should fail because CA certificate has no pathLenConstraint
-        val result = constraint(certificate)
+        val constraintEvaluation = constraint(certificate)
 
         // Should fail - CA certificate missing pathLenConstraint
-        assertTrue(result is ConstraintValidationResult.Invalid)
-        assertTrue((result as ConstraintValidationResult.Invalid).reason.contains("pathLenConstraint"))
+        assertTrue(!constraintEvaluation.isMet())
+        assertTrue(constraintEvaluation.violations.any { it.reason.contains("pathLenConstraint") })
     }
 
     @Test
     fun `CertificateConstraintValidator should collect all failures`() = runTest {
         // Generate a CA certificate (will fail end-entity check)
-        val (keyPair, certHolder) = CertOps.genTrustAnchor("SHA256withECDSA", cnWrpacProvider)
+        val (_, certHolder) = CertOps.genTrustAnchor("SHA256withECDSA", cnWrpacProvider)
         val certificate = certHolder.toX509Certificate()
 
         // Create validator with multiple constraints for PID Provider
-        val validator = LoTEX509CertificateValidators.pidProviderValidator()
+        val evaluateConstraints = LoTEX509CertificateValidators.pidProviderCertificateConstraintsEvaluator()
 
         // Validate
-        val failures = validator.validate(certificate)
-
-        // Should have multiple failures (basic constraints, key usage, etc.)
-        assertTrue(failures.isNotEmpty(), "Expected at least one validation failure")
+        val evaluation = evaluateConstraints(certificate)
+        assertTrue(!evaluation.isMet(), "Expected at least one validation failure")
     }
 }

@@ -13,10 +13,46 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package eu.europa.ec.eudi.etsi1196x2.consultation
+package eu.europa.ec.eudi.etsi1196x2.consultation.certs
 
 import kotlin.time.Clock
 import kotlin.time.Instant
+
+/**
+ * Information about the basicConstraints extension of a certificate.
+ *
+ * @param isCa whether the certificate is a CA certificate (cA=TRUE) or end-entity (cA=FALSE)
+ * @param pathLenConstraint the maximum number of non-self-issued intermediate certificates that may follow this certificate in a valid certification path
+ */
+public data class BasicConstraintsInfo(
+    val isCa: Boolean,
+    val pathLenConstraint: Int?,
+)
+
+/**
+ * Represents the key usage bits in a certificate (RFC 5280).
+ *
+ * @param digitalSignature bit 0 - digitalSignature
+ * @param nonRepudiation bit 1 - nonRepudiation (contentCommitment)
+ * @param keyEncipherment bit 2 - keyEncipherment
+ * @param dataEncipherment bit 3 - dataEncipherment
+ * @param keyAgreement bit 4 - keyAgreement
+ * @param keyCertSign bit 5 - keyCertSign
+ * @param crlSign bit 6 - cRLSign
+ * @param encipherOnly bit 7 - encipherOnly
+ * @param decipherOnly bit 8 - decipherOnly
+ */
+public data class KeyUsageBits(
+    val digitalSignature: Boolean = false,
+    val nonRepudiation: Boolean = false,
+    val keyEncipherment: Boolean = false,
+    val dataEncipherment: Boolean = false,
+    val keyAgreement: Boolean = false,
+    val keyCertSign: Boolean = false,
+    val crlSign: Boolean = false,
+    val encipherOnly: Boolean = false,
+    val decipherOnly: Boolean = false,
+)
 
 /**
  * Constraint 1: Validates the basicConstraints extension of a certificate.
@@ -31,37 +67,40 @@ import kotlin.time.Instant
  *
  * @see BasicConstraintsInfo
  */
-public class BasicConstraintsConstraint<CERT : Any>(
+public class EvaluateBasicConstraintsConstraint<in CERT : Any>(
     private val expectedCa: Boolean,
     private val pathLenConstraint: Int? = null,
     private val getBasicConstraints: suspend (CERT) -> BasicConstraintsInfo,
-) : CertificateConstraint<CERT> {
+) : EvaluateCertificateConstraint<CERT> {
 
-    override suspend fun invoke(certificate: CERT): ConstraintValidationResult {
+    override suspend fun invoke(certificate: CERT): CertificateConstraintEvaluation {
         val info = getBasicConstraints(certificate)
-
-        return when {
-            info.isCa != expectedCa -> {
+        val violations = buildList {
+            if (info.isCa != expectedCa) {
                 val expectedType = if (expectedCa) "CA" else "end-entity"
                 val actualType = if (info.isCa) "CA" else "end-entity"
-                ConstraintValidationResult.Invalid(
-                    "Certificate type mismatch: expected $expectedType but was $actualType",
-                )
+                val violation =
+                    CertificateConstraintViolation("Certificate type mismatch: expected $expectedType but was $actualType")
+                add(violation)
             }
-            expectedCa && pathLenConstraint != null -> {
+            if (expectedCa && pathLenConstraint != null) {
                 val actualPathLen = info.pathLenConstraint
                 when {
-                    actualPathLen == null -> ConstraintValidationResult.Invalid(
-                        "CA certificate missing pathLenConstraint",
-                    )
-                    actualPathLen > pathLenConstraint -> ConstraintValidationResult.Invalid(
-                        "CA certificate pathLenConstraint ($actualPathLen) exceeds maximum allowed ($pathLenConstraint)",
-                    )
-                    else -> ConstraintValidationResult.Valid
+                    actualPathLen == null -> {
+                        add(CertificateConstraintViolation("CA certificate missing pathLenConstraint"))
+                    }
+
+                    actualPathLen > pathLenConstraint -> {
+                        add(
+                            CertificateConstraintViolation(
+                                "CA certificate pathLenConstraint ($actualPathLen) exceeds maximum allowed ($pathLenConstraint)",
+                            ),
+                        )
+                    }
                 }
             }
-            else -> ConstraintValidationResult.Valid
         }
+        return CertificateConstraintEvaluation(violations)
     }
 
     public companion object {
@@ -70,7 +109,7 @@ public class BasicConstraintsConstraint<CERT : Any>(
          */
         public fun <CERT : Any> requireEndEntity(
             getBasicConstraints: suspend (CERT) -> BasicConstraintsInfo,
-        ): BasicConstraintsConstraint<CERT> = BasicConstraintsConstraint(
+        ): EvaluateBasicConstraintsConstraint<CERT> = EvaluateBasicConstraintsConstraint(
             expectedCa = false,
             getBasicConstraints = getBasicConstraints,
         )
@@ -81,7 +120,7 @@ public class BasicConstraintsConstraint<CERT : Any>(
         public fun <CERT : Any> requireCa(
             maxPathLen: Int? = null,
             getBasicConstraints: suspend (CERT) -> BasicConstraintsInfo,
-        ): BasicConstraintsConstraint<CERT> = BasicConstraintsConstraint(
+        ): EvaluateBasicConstraintsConstraint<CERT> = EvaluateBasicConstraintsConstraint(
             expectedCa = true,
             pathLenConstraint = maxPathLen,
             getBasicConstraints = getBasicConstraints,
@@ -109,28 +148,39 @@ public class QCStatementConstraint<CERT : Any>(
     private val requiredQcType: String,
     private val requireCompliance: Boolean = false,
     private val getQcStatements: suspend (CERT) -> List<QCStatementInfo>,
-) : CertificateConstraint<CERT> {
+) : EvaluateCertificateConstraint<CERT> {
 
-    override suspend fun invoke(certificate: CERT): ConstraintValidationResult {
+    override suspend fun invoke(certificate: CERT): CertificateConstraintEvaluation {
         val statements = getQcStatements(certificate)
 
-        return when {
-            statements.isEmpty() -> ConstraintValidationResult.Invalid(
-                "Certificate does not contain any QCStatements (required: $requiredQcType)",
-            )
-            statements.none { it.qcType == requiredQcType } -> {
-                val availableTypes = statements.joinToString(", ") { it.qcType }
-                ConstraintValidationResult.Invalid(
-                    "Certificate does not contain required QCStatement type '$requiredQcType'. Available: [$availableTypes]",
-                )
+        val violations = buildList {
+            when {
+                statements.isEmpty() -> {
+                    val violation = CertificateConstraintViolation(
+                        "Certificate does not contain any QCStatements (required: $requiredQcType)",
+                    )
+                    add(violation)
+                }
+
+                statements.none { it.qcType == requiredQcType } -> {
+                    val availableTypes = statements.joinToString(", ") { it.qcType }
+                    val violation = CertificateConstraintViolation(
+                        "Certificate does not contain required QCStatement type '$requiredQcType'. Available: [$availableTypes]",
+                    )
+                    add(violation)
+                }
+
+                requireCompliance && statements.none { it.qcType == requiredQcType && it.qcCompliance } -> {
+                    val violation = CertificateConstraintViolation(
+                        "Certificate contains QCStatement type '$requiredQcType' but it is not marked as compliant",
+                    )
+                    add(violation)
+                }
+
+                else -> {}
             }
-            requireCompliance && statements.none { it.qcType == requiredQcType && it.qcCompliance } -> {
-                ConstraintValidationResult.Invalid(
-                    "Certificate contains QCStatement type '$requiredQcType' but it is not marked as compliant",
-                )
-            }
-            else -> ConstraintValidationResult.Valid
         }
+        return CertificateConstraintEvaluation(violations)
     }
 
     public companion object {
@@ -198,23 +248,32 @@ public class QCStatementConstraint<CERT : Any>(
 public class KeyUsageConstraint<CERT : Any>(
     private val requiredKeyUsage: KeyUsageBits,
     private val getKeyUsage: suspend (CERT) -> KeyUsageBits?,
-) : CertificateConstraint<CERT> {
+) : EvaluateCertificateConstraint<CERT> {
 
-    override suspend fun invoke(certificate: CERT): ConstraintValidationResult {
+    override suspend fun invoke(certificate: CERT): CertificateConstraintEvaluation {
         val keyUsage = getKeyUsage(certificate)
 
-        return when {
-            keyUsage == null -> ConstraintValidationResult.Invalid(
-                "Certificate does not contain keyUsage extension",
-            )
-            !hasRequiredBits(keyUsage, requiredKeyUsage) -> {
-                val missing = getMissingBits(keyUsage, requiredKeyUsage)
-                ConstraintValidationResult.Invalid(
-                    "Certificate keyUsage missing required bits: $missing",
+        val violations = buildList {
+            when {
+                keyUsage == null -> add(
+                    CertificateConstraintViolation(
+                        "Certificate does not contain keyUsage extension",
+                    ),
                 )
+
+                !hasRequiredBits(keyUsage, requiredKeyUsage) -> {
+                    val missing = getMissingBits(keyUsage, requiredKeyUsage)
+                    add(
+                        CertificateConstraintViolation(
+                            "Certificate keyUsage missing required bits: $missing",
+                        ),
+                    )
+                }
+
+                else -> {}
             }
-            else -> ConstraintValidationResult.Valid
         }
+        return CertificateConstraintEvaluation(violations)
     }
 
     private fun hasRequiredBits(actual: KeyUsageBits, required: KeyUsageBits): Boolean {
@@ -282,21 +341,30 @@ public class KeyUsageConstraint<CERT : Any>(
 public class ValidityPeriodConstraint<CERT : Any>(
     private val validationTime: Instant? = null,
     private val getValidityPeriod: suspend (CERT) -> ValidityPeriod,
-) : CertificateConstraint<CERT> {
+) : EvaluateCertificateConstraint<CERT> {
 
-    override suspend fun invoke(certificate: CERT): ConstraintValidationResult {
+    override suspend fun invoke(certificate: CERT): CertificateConstraintEvaluation {
         val period = getValidityPeriod(certificate)
         val time = validationTime ?: Clock.System.now()
 
-        return when {
-            time < period.notBefore -> ConstraintValidationResult.Invalid(
-                "Certificate is not yet valid. Valid from: ${period.notBefore}, current time: $time",
-            )
-            time > period.notAfter -> ConstraintValidationResult.Invalid(
-                "Certificate has expired. Valid until: ${period.notAfter}, current time: $time",
-            )
-            else -> ConstraintValidationResult.Valid
+        val violations = buildList {
+            when {
+                time < period.notBefore -> add(
+                    CertificateConstraintViolation(
+                        "Certificate is not yet valid. Valid from: ${period.notBefore}, current time: $time",
+                    ),
+                )
+
+                time > period.notAfter -> add(
+                    CertificateConstraintViolation(
+                        "Certificate has expired. Valid until: ${period.notAfter}, current time: $time",
+                    ),
+                )
+
+                else -> {}
+            }
         }
+        return CertificateConstraintEvaluation(violations)
     }
 
     public companion object {
@@ -335,23 +403,40 @@ public class ValidityPeriodConstraint<CERT : Any>(
 public class CertificatePolicyConstraint<CERT : Any>(
     private val requiredPolicyOids: List<String>,
     private val getCertificatePolicies: suspend (CERT) -> List<String>,
-) : CertificateConstraint<CERT> {
+) : EvaluateCertificateConstraint<CERT> {
 
-    override suspend fun invoke(certificate: CERT): ConstraintValidationResult {
+    override suspend fun invoke(certificate: CERT): CertificateConstraintEvaluation {
         val policies = getCertificatePolicies(certificate)
 
-        return when {
-            policies.isEmpty() -> ConstraintValidationResult.Invalid(
-                "Certificate does not contain any certificate policies. Required one of: ${requiredPolicyOids.joinToString(", ")}",
-            )
-            policies.none { it in requiredPolicyOids } -> {
-                val availablePolicies = policies.joinToString(", ")
-                ConstraintValidationResult.Invalid(
-                    "Certificate policies [$availablePolicies] do not match any of the required policies: ${requiredPolicyOids.joinToString(", ")}",
+        val violations = buildList {
+            when {
+                policies.isEmpty() -> add(
+                    CertificateConstraintViolation(
+                        "Certificate does not contain any certificate policies. Required one of: ${
+                            requiredPolicyOids.joinToString(
+                                ", ",
+                            )
+                        }",
+                    ),
                 )
+
+                policies.none { it in requiredPolicyOids } -> {
+                    val availablePolicies = policies.joinToString(", ")
+                    add(
+                        CertificateConstraintViolation(
+                            "Certificate policies [$availablePolicies] do not match any of the required policies: ${
+                                requiredPolicyOids.joinToString(
+                                    ", ",
+                                )
+                            }",
+                        ),
+                    )
+                }
+
+                else -> CertificateConstraintEvaluation.Met
             }
-            else -> ConstraintValidationResult.Valid
         }
+        return CertificateConstraintEvaluation(violations)
     }
 
     public companion object {

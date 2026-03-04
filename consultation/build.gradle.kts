@@ -99,9 +99,6 @@ kotlin {
             }
         }
         val jvmAndAndroidTest by getting {
-            dependencies {
-                implementation(libs.bouncy.castle)
-            }
         }
     }
 }
