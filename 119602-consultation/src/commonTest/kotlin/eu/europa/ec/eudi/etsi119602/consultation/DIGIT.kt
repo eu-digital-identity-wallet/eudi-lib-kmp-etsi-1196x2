@@ -41,6 +41,12 @@ object DIGIT {
 
     private fun LotEMata<VerificationContext, X509Certificate>.noConstraints() =
         copy(certificateConstraints = null)
+
+    //
+    // Has to relax constraints
+    // The advertised lists do not satisfy the ETSI certificates profiles
+    // This is ok, given that those lists are not official
+    //
     val SVC_TYPE_PER_CTX: SupportedLists<LotEMata<VerificationContext, X509Certificate>>
         get() {
             val euBaseline = SupportedLists.eu(EULoTECertificateConstraintsJvm)
