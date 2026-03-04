@@ -19,10 +19,12 @@ import eu.europa.ec.eudi.etsi119602.ETSI19602
 import eu.europa.ec.eudi.etsi119602.URI
 import eu.europa.ec.eudi.etsi1196x2.consultation.SupportedLists
 import eu.europa.ec.eudi.etsi1196x2.consultation.VerificationContext
+import eu.europa.ec.eudi.etsi1196x2.consultation.certs.EvaluateMultipleCertificateConstraints
 
-public data class LotEMata<CTX>(
+public data class LotEMata<CTX, CERT : Any>(
     val svcTypePerCtx: Map<CTX, URI>,
     val directTrust: Boolean,
+    val certificateConstraints: EvaluateMultipleCertificateConstraints<CERT>? = null,
 )
 
 /**
@@ -30,35 +32,40 @@ public data class LotEMata<CTX>(
  * Source are the list profiles specified in [ETSI19602],
  * except the PUB EAA Providers List
  */
-public val SupportedLists.Companion.EU: SupportedLists<LotEMata<VerificationContext>>
-    get() = SupportedLists(
-        pidProviders = LotEMata(
-            svcTypePerCtx = mapOf(
-                VerificationContext.PID to ETSI19602.EU_PID_PROVIDERS_SVC_TYPE_ISSUANCE,
-                VerificationContext.PIDStatus to ETSI19602.EU_PID_PROVIDERS_SVC_TYPE_REVOCATION,
-            ),
-            directTrust = true,
+public fun <CERT : Any> SupportedLists.Companion.eu(
+    constraints: EULoTECertificateConstraints<CERT>,
+): SupportedLists<LotEMata<VerificationContext, CERT>> = SupportedLists(
+    pidProviders = LotEMata(
+        svcTypePerCtx = mapOf(
+            VerificationContext.PID to ETSI19602.EU_PID_PROVIDERS_SVC_TYPE_ISSUANCE,
+            VerificationContext.PIDStatus to ETSI19602.EU_PID_PROVIDERS_SVC_TYPE_REVOCATION,
         ),
-        walletProviders = LotEMata(
-            svcTypePerCtx = mapOf(
-                VerificationContext.WalletInstanceAttestation to ETSI19602.EU_WALLET_PROVIDERS_SVC_TYPE_ISSUANCE,
-                VerificationContext.WalletUnitAttestation to ETSI19602.EU_WALLET_PROVIDERS_SVC_TYPE_ISSUANCE,
-                VerificationContext.WalletUnitAttestationStatus to ETSI19602.EU_WALLET_PROVIDERS_SVC_TYPE_REVOCATION,
-            ),
-            directTrust = true,
+        directTrust = true,
+        certificateConstraints = constraints.pidProviderCertificateConstraintsEvaluator(),
+    ),
+    walletProviders = LotEMata(
+        svcTypePerCtx = mapOf(
+            VerificationContext.WalletInstanceAttestation to ETSI19602.EU_WALLET_PROVIDERS_SVC_TYPE_ISSUANCE,
+            VerificationContext.WalletUnitAttestation to ETSI19602.EU_WALLET_PROVIDERS_SVC_TYPE_ISSUANCE,
+            VerificationContext.WalletUnitAttestationStatus to ETSI19602.EU_WALLET_PROVIDERS_SVC_TYPE_REVOCATION,
         ),
-        wrpacProviders = LotEMata(
-            svcTypePerCtx = mapOf(
-                VerificationContext.WalletRelyingPartyAccessCertificate to ETSI19602.EU_WRPAC_PROVIDERS_SVC_TYPE_ISSUANCE,
-            ),
-            directTrust = false,
+        directTrust = true,
+        certificateConstraints = constraints.walletProviderCertificateConstraintsEvaluator(),
+    ),
+    wrpacProviders = LotEMata(
+        svcTypePerCtx = mapOf(
+            VerificationContext.WalletRelyingPartyAccessCertificate to ETSI19602.EU_WRPAC_PROVIDERS_SVC_TYPE_ISSUANCE,
         ),
-        wrprcProviders = LotEMata(
-            svcTypePerCtx = mapOf(
-                VerificationContext.WalletRelyingPartyRegistrationCertificate to ETSI19602.EU_WRPRC_PROVIDERS_SVC_TYPE_ISSUANCE,
-            ),
-            directTrust = false,
+        directTrust = false,
+        certificateConstraints = constraints.wrpacProviderCertificateConstraintsEvaluator(),
+    ),
+    wrprcProviders = LotEMata(
+        svcTypePerCtx = mapOf(
+            VerificationContext.WalletRelyingPartyRegistrationCertificate to ETSI19602.EU_WRPRC_PROVIDERS_SVC_TYPE_ISSUANCE,
         ),
-        pubEaaProviders = null,
-        qeaProviders = null,
-    )
+        directTrust = false,
+        certificateConstraints = constraints.wrprcProviderCertificateConstraintsEvaluator(),
+    ),
+    pubEaaProviders = null,
+    qeaProviders = null,
+)

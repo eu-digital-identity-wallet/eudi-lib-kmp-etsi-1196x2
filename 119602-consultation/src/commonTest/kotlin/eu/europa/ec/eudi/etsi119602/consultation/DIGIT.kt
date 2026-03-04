@@ -17,9 +17,11 @@ package eu.europa.ec.eudi.etsi119602.consultation
 
 import eu.europa.ec.eudi.etsi119602.PKIObject
 import eu.europa.ec.eudi.etsi119602.consultation.eu.EUMDLProvidersListSpec
+import eu.europa.ec.eudi.etsi119602.x509Certificate
 import eu.europa.ec.eudi.etsi1196x2.consultation.*
 import io.ktor.client.*
 import kotlinx.coroutines.test.runTest
+import java.security.cert.X509Certificate
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 
@@ -37,17 +39,26 @@ object DIGIT {
         ),
     )
 
-    val SVC_TYPE_PER_CTX = SupportedLists.EU.copy(
-        eaaProviders = mapOf(
-            "mdl" to LotEMata(
-                svcTypePerCtx = mapOf(
-                    VerificationContext.EAA("mdl") to EUMDLProvidersListSpec.SVC_TYPE_ISSUANCE,
-                    VerificationContext.EAAStatus("mdl") to EUMDLProvidersListSpec.SVC_TYPE_REVOCATION,
+    private fun LotEMata<VerificationContext, X509Certificate>.noConstraints() =
+        copy(certificateConstraints = null)
+    val SVC_TYPE_PER_CTX: SupportedLists<LotEMata<VerificationContext, X509Certificate>>
+        get() {
+            val euBaseline = SupportedLists.eu(EULoTECertificateConstraintsJvm)
+            return euBaseline.copy(
+                pidProviders = euBaseline.pidProviders?.noConstraints(),
+                walletProviders = euBaseline.walletProviders?.noConstraints(),
+                wrpacProviders = euBaseline.wrpacProviders?.noConstraints(),
+                eaaProviders = mapOf(
+                    "mdl" to LotEMata(
+                        svcTypePerCtx = mapOf(
+                            VerificationContext.EAA("mdl") to EUMDLProvidersListSpec.SVC_TYPE_ISSUANCE,
+                            VerificationContext.EAAStatus("mdl") to EUMDLProvidersListSpec.SVC_TYPE_REVOCATION,
+                        ),
+                        directTrust = true,
+                    ),
                 ),
-                directTrust = true,
-            ),
-        ),
-    )
+            )
+        }
 }
 
 class DIGITTest {
@@ -84,7 +95,7 @@ class DIGITTest {
     ): ComposeChainTrust<*, VerificationContext, PKIObject> {
         val fromHttp =
             ProvisionTrustAnchorsFromLoTEs.eudiw(
-                LoadLoTEAndPointers(
+                loadLoTEAndPointers = LoadLoTEAndPointers(
                     constraints = LoadLoTEAndPointers.Constraints(
                         otherLoTEParallelism = 2,
                         maxDepth = 1,
@@ -93,7 +104,9 @@ class DIGITTest {
                     verifyJwtSignature = NotValidating,
                     loadLoTE = LoadLoTEFromHttp(this),
                 ),
+                constraints = EULoTECertificateConstraintsJvm,
                 svcTypePerCtx = DIGIT.SVC_TYPE_PER_CTX,
+                extractCertificate = { it.x509Certificate() },
                 createTrustAnchors = { it.x509Certificates.orEmpty() },
                 directTrust = ValidateCertificateChainUsingDirectTrust(
                     { _ -> error("Not used") },

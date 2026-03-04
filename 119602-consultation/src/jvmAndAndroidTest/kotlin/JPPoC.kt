@@ -44,7 +44,7 @@ object JPPoC {
     private const val LC_EAA_PROVIDER_SVC_TYPE =
         "http://tl.eujp.ownd-project.com/19602/SvcType/EAA/Issuance"
     private const val LC_USE_CASE = "jp-learning-credential-poc"
-    private val wrpacProviders: LotEMata<VerificationContext> =
+    private val wrpacProviders: LotEMata<VerificationContext, X509Certificate> =
         LotEMata(
             svcTypePerCtx = mapOf(
                 VerificationContext.WalletRelyingPartyAccessCertificate to JP_WRPAC_PROVIDER_ISSUANCE_SVC_TYPE,
@@ -52,14 +52,14 @@ object JPPoC {
             directTrust = false,
         )
 
-    private val learningCredentialProviders: LotEMata<VerificationContext> = LotEMata(
+    private val learningCredentialProviders: LotEMata<VerificationContext, X509Certificate> = LotEMata(
         svcTypePerCtx =
         mapOf(
             VerificationContext.EAA(LC_USE_CASE) to LC_EAA_PROVIDER_SVC_TYPE,
         ),
         directTrust = true,
     )
-    val SVC_TYPE_PER_CTX: SupportedLists<LotEMata<VerificationContext>> =
+    val SVC_TYPE_PER_CTX: SupportedLists<LotEMata<VerificationContext, X509Certificate>> =
         SupportedLists(
             wrpacProviders = wrpacProviders,
             eaaProviders = mapOf(LC_USE_CASE to learningCredentialProviders),
@@ -131,11 +131,11 @@ class JPLoTEDownloaderTest {
 
     private suspend fun HttpClient.getThem(
         loteLocationsSupported: SupportedLists<String>,
-        svcTypePerCtx: SupportedLists<LotEMata<VerificationContext>>,
+        svcTypePerCtx: SupportedLists<LotEMata<VerificationContext, X509Certificate>>,
         provider: String? = null,
     ): ComposeChainTrust<List<X509Certificate>, VerificationContext, TrustAnchor> {
         val fromHttp = ProvisionTrustAnchorsFromLoTEs(
-            LoadLoTEAndPointers(
+            loadLoTEAndPointers = LoadLoTEAndPointers(
                 constraints = LoadLoTEAndPointers.Constraints(
                     otherLoTEParallelism = 1,
                     maxDepth = 1,
@@ -146,6 +146,7 @@ class JPLoTEDownloaderTest {
 
             ),
             svcTypePerCtx = svcTypePerCtx,
+            extractCertificate = { it.trustedCert },
             continueOnProblem = ContinueOnProblem.AlwaysIfDownloaded,
             createTrustAnchors = { serviceDigitalIdentity ->
                 serviceDigitalIdentity.x509Certificates.orEmpty().map { TrustAnchor(it.x509Certificate(provider), null) }
