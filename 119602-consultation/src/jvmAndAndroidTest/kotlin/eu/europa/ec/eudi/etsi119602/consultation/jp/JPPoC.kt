@@ -13,21 +13,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import JPPoC.LC_VCT
-import com.nimbusds.jwt.SignedJWT
+package eu.europa.ec.eudi.etsi119602.consultation.jp
+
 import eu.europa.ec.eudi.etsi119602.consultation.*
+import eu.europa.ec.eudi.etsi119602.consultation.jp.JPPoC.LC_VCT
 import eu.europa.ec.eudi.etsi119602.x509Certificate
 import eu.europa.ec.eudi.etsi1196x2.consultation.*
-import eu.europa.ec.eudi.sdjwt.*
-import eu.europa.ec.eudi.sdjwt.vc.*
+import eu.europa.ec.eudi.sdjwt.vc.ResolveTypeMetadata
+import eu.europa.ec.eudi.sdjwt.vc.SdJwtVcTypeMetadata
+import eu.europa.ec.eudi.sdjwt.vc.TypeMetadataPolicy
+import eu.europa.ec.eudi.sdjwt.vc.Vct
 import io.ktor.client.*
 import io.ktor.client.call.*
 import io.ktor.client.request.*
 import io.ktor.http.*
 import kotlinx.coroutines.test.runTest
-import kotlinx.serialization.json.JsonPrimitive
-import kotlinx.serialization.json.contentOrNull
-import kotlinx.serialization.json.jsonPrimitive
 import java.security.cert.TrustAnchor
 import java.security.cert.X509Certificate
 import kotlin.test.Test
@@ -151,59 +151,12 @@ class JPLoTEDownloaderTest {
             extractCertificate = { it.trustedCert },
             continueOnProblem = ContinueOnProblem.AlwaysIfDownloaded,
             createTrustAnchors = { serviceDigitalIdentity ->
-                serviceDigitalIdentity.x509Certificates.orEmpty().map { TrustAnchor(it.x509Certificate(provider), null) }
+                serviceDigitalIdentity.x509Certificates.orEmpty()
+                    .map { TrustAnchor(it.x509Certificate(provider), null) }
             },
             directTrust = ValidateCertificateChainUsingDirectTrustJvm,
             pkix = ValidateCertificateChainUsingPKIXJvm(customization = { isRevocationEnabled = false }),
         )
         return fromHttp(loteLocationsSupported, parallelism = 2)
     }
-}
-
-object IntegrationWithSdJwtVc {
-    fun <CHAIN : Any> IsChainTrustedForAttestation<CHAIN, *>.sdJwtVcIssuerTrust(): X509CertificateTrust<CHAIN> =
-        X509CertificateTrust { chain, claims ->
-            val vct =
-                claims[SdJwtVcSpec.VCT]
-                    ?.takeIf { it is JsonPrimitive && it.jsonPrimitive.isString }
-                    ?.jsonPrimitive?.contentOrNull
-                    ?.let { AttestationIdentifier.SDJwtVc(it) }
-
-            val validation = vct?.let { issuance(chain, it) }
-            when (validation) {
-                is CertificationChainValidation.NotTrusted -> false
-                is CertificationChainValidation.Trusted<*> -> {
-                    if (validation.trustAnchor is TrustAnchor) {
-                        println("SD-JWT-VC signed by: ${(validation.trustAnchor as TrustAnchor).trustedCert.subjectX500Principal}")
-                    }
-                    true
-                }
-                null -> false
-            }
-        }
-
-    fun <CHAIN : Any, TRUST_ANCHOR : Any> sdJwtVcVerificationMethod(
-        isChainTrustedForAttestation: IsChainTrustedForAttestation<CHAIN, TRUST_ANCHOR>,
-    ): IssuerVerificationMethod.UsingX5c<CHAIN> =
-        IssuerVerificationMethod.usingX5c(
-            x509CertificateTrust = isChainTrustedForAttestation.sdJwtVcIssuerTrust(),
-        )
-
-    fun defaultSdJwtVcVerifier(
-        isChainTrustedForAttestation: IsChainTrustedForAttestation<List<X509Certificate>, TrustAnchor>,
-        typedMetadataPolicy: TypeMetadataPolicy,
-    ): SdJwtVcVerifier<JwtAndClaims> =
-        DefaultSdJwtOps.SdJwtVcVerifier(
-            sdJwtVcVerificationMethod(isChainTrustedForAttestation),
-            typedMetadataPolicy,
-        )
-
-    fun nimbusSdJwtVcVerifier(
-        isChainTrustedForAttestation: IsChainTrustedForAttestation<List<X509Certificate>, TrustAnchor>,
-        typedMetadataPolicy: TypeMetadataPolicy,
-    ): SdJwtVcVerifier<SignedJWT> =
-        NimbusSdJwtOps.SdJwtVcVerifier(
-            sdJwtVcVerificationMethod(isChainTrustedForAttestation),
-            typedMetadataPolicy,
-        )
 }
