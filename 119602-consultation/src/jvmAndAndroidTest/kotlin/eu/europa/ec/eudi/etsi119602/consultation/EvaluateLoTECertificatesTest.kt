@@ -16,7 +16,7 @@
 package eu.europa.ec.eudi.etsi119602.consultation
 
 import eu.europa.ec.eudi.etsi119602.consultation.CertOps.toX509Certificate
-import eu.europa.ec.eudi.etsi1196x2.consultation.X509CertificateConstraintExtractors
+import eu.europa.ec.eudi.etsi1196x2.consultation.CertificateOperationsJvm
 import eu.europa.ec.eudi.etsi1196x2.consultation.certs.*
 import eu.europa.ec.eudi.etsi1196x2.consultation.evaluateCertificateConstraints
 import kotlinx.coroutines.test.runTest
@@ -124,7 +124,7 @@ class EvaluateLoTECertificatesTest {
 
         // Create constraint for end-entity
         val constraint = EvaluateBasicConstraintsConstraint.requireEndEntity(
-            getBasicConstraints = X509CertificateConstraintExtractors::getBasicConstraints,
+            getBasicConstraints = CertificateOperationsJvm::getBasicConstraints,
         )
 
         // Validate
@@ -144,7 +144,7 @@ class EvaluateLoTECertificatesTest {
 
         // Create constraint for digitalSignature
         val constraint = KeyUsageConstraint.requireDigitalSignature(
-            getKeyUsage = X509CertificateConstraintExtractors::getKeyUsage,
+            getKeyUsage = CertificateOperationsJvm::getKeyUsage,
         )
 
         // Validate
@@ -175,7 +175,7 @@ class EvaluateLoTECertificatesTest {
 
         // Create constraint for digitalSignature
         val constraint = KeyUsageConstraint.requireDigitalSignature(
-            getKeyUsage = X509CertificateConstraintExtractors::getKeyUsage,
+            getKeyUsage = CertificateOperationsJvm::getKeyUsage,
         )
 
         // Validate
@@ -193,7 +193,7 @@ class EvaluateLoTECertificatesTest {
 
         // Create constraint
         val constraint = ValidityPeriodConstraint.validateAtCurrentTime(
-            getValidityPeriod = X509CertificateConstraintExtractors::getValidityPeriod,
+            getValidityPeriod = CertificateOperationsJvm::getValidityPeriod,
         )
 
         // Validate
@@ -212,7 +212,7 @@ class EvaluateLoTECertificatesTest {
         // Create constraint for CA with maxPathLen = 2
         val constraint = EvaluateBasicConstraintsConstraint.requireCa(
             maxPathLen = 2,
-            getBasicConstraints = X509CertificateConstraintExtractors::getBasicConstraints,
+            getBasicConstraints = CertificateOperationsJvm::getBasicConstraints,
         )
 
         // Validate - should fail because CA certificate has no pathLenConstraint
@@ -244,8 +244,8 @@ class EvaluateLoTECertificatesTest {
         val certificate = certHolder.toX509Certificate()
 
         val constraint = EvaluateAuthorityInformationAccessConstraint.requireForCaIssued(
-            isSelfSigned = X509CertificateConstraintExtractors::isSelfSigned,
-            getAiaExtension = X509CertificateConstraintExtractors::getAiaExtension,
+            isSelfSigned = CertificateOperationsJvm::isSelfSigned,
+            getAiaExtension = CertificateOperationsJvm::getAiaExtension,
         )
 
         val evaluation = constraint(certificate)
@@ -269,8 +269,8 @@ class EvaluateLoTECertificatesTest {
         val certificate = eeCertHolder.toX509Certificate()
 
         val constraint = EvaluateAuthorityInformationAccessConstraint.requireForCaIssued(
-            isSelfSigned = X509CertificateConstraintExtractors::isSelfSigned,
-            getAiaExtension = X509CertificateConstraintExtractors::getAiaExtension,
+            isSelfSigned = CertificateOperationsJvm::isSelfSigned,
+            getAiaExtension = CertificateOperationsJvm::getAiaExtension,
         )
 
         val evaluation = constraint(certificate)

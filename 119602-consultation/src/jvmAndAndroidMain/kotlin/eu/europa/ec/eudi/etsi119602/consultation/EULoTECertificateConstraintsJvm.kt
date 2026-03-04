@@ -15,7 +15,7 @@
  */
 package eu.europa.ec.eudi.etsi119602.consultation
 
-import eu.europa.ec.eudi.etsi1196x2.consultation.X509CertificateConstraintExtractors
+import eu.europa.ec.eudi.etsi1196x2.consultation.CertificateOperationsJvm
 import java.security.cert.X509Certificate
 
 /**
@@ -26,12 +26,4 @@ import java.security.cert.X509Certificate
  *
  */
 public val EULoTECertificateConstraintsJvm: EULoTECertificateConstraints<X509Certificate> =
-    EULoTECertificateConstraints(
-        getBasicConstraints = X509CertificateConstraintExtractors::getBasicConstraints,
-        getQcStatements = X509CertificateConstraintExtractors::getQcStatements,
-        getKeyUsage = X509CertificateConstraintExtractors::getKeyUsage,
-        getValidityPeriod = X509CertificateConstraintExtractors::getValidityPeriod,
-        getCertificatePolicies = X509CertificateConstraintExtractors::getCertificatePolicies,
-        isSelfSigned = X509CertificateConstraintExtractors::isSelfSigned,
-        getAiaExtension = X509CertificateConstraintExtractors::getAiaExtension,
-    )
+    EULoTECertificateConstraints(CertificateOperationsJvm)

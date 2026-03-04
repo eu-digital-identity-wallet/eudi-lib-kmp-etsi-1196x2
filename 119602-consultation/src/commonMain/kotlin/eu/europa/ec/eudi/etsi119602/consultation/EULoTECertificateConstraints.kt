@@ -15,18 +15,7 @@
  */
 package eu.europa.ec.eudi.etsi119602.consultation
 
-import eu.europa.ec.eudi.etsi1196x2.consultation.certs.AuthorityInformationAccess
-import eu.europa.ec.eudi.etsi1196x2.consultation.certs.BasicConstraintsInfo
-import eu.europa.ec.eudi.etsi1196x2.consultation.certs.CertificatePolicyConstraint
-import eu.europa.ec.eudi.etsi1196x2.consultation.certs.EvaluateAuthorityInformationAccessConstraint
-import eu.europa.ec.eudi.etsi1196x2.consultation.certs.EvaluateBasicConstraintsConstraint
-import eu.europa.ec.eudi.etsi1196x2.consultation.certs.EvaluateMultipleCertificateConstraints
-import eu.europa.ec.eudi.etsi1196x2.consultation.certs.KeyUsageBits
-import eu.europa.ec.eudi.etsi1196x2.consultation.certs.KeyUsageConstraint
-import eu.europa.ec.eudi.etsi1196x2.consultation.certs.QCStatementConstraint
-import eu.europa.ec.eudi.etsi1196x2.consultation.certs.QCStatementInfo
-import eu.europa.ec.eudi.etsi1196x2.consultation.certs.ValidityPeriod
-import eu.europa.ec.eudi.etsi1196x2.consultation.certs.ValidityPeriodConstraint
+import eu.europa.ec.eudi.etsi1196x2.consultation.certs.*
 
 /**
  * Factory functions for creating LoTE-specific certificate constraints.
@@ -95,43 +84,21 @@ public interface EULoTECertificateConstraints<CERT : Any> {
     public companion object {
 
         public operator fun <CERT : Any> invoke(
-            getBasicConstraints: suspend (CERT) -> BasicConstraintsInfo,
-            getQcStatements: suspend (CERT) -> List<QCStatementInfo>,
-            getKeyUsage: suspend (CERT) -> KeyUsageBits?,
-            getValidityPeriod: suspend (CERT) -> ValidityPeriod,
-            getCertificatePolicies: suspend (CERT) -> List<String>,
-            isSelfSigned: suspend (CERT) -> Boolean,
-            getAiaExtension: suspend (CERT) -> AuthorityInformationAccess?,
+            certOperations: CertificateOperations<CERT>,
         ): EULoTECertificateConstraints<CERT> =
 
             object : EULoTECertificateConstraints<CERT> {
                 override fun pidProviderCertificateConstraintsEvaluator(): EvaluateMultipleCertificateConstraints<CERT> =
-                    pidProviderConstraints(
-                        getBasicConstraints,
-                        getQcStatements,
-                        getKeyUsage,
-                        getValidityPeriod,
-                        getCertificatePolicies,
-                        isSelfSigned,
-                        getAiaExtension,
-                    )
+                    certOperations.pidProviderConstraints()
 
                 override fun walletProviderCertificateConstraintsEvaluator(): EvaluateMultipleCertificateConstraints<CERT> =
-                    walletProviderConstraints(
-                        getBasicConstraints,
-                        getQcStatements,
-                        getKeyUsage,
-                        getValidityPeriod,
-                        getCertificatePolicies,
-                        isSelfSigned,
-                        getAiaExtension,
-                    )
+                    certOperations.walletProviderConstraints()
 
                 override fun wrpacProviderCertificateConstraintsEvaluator(): EvaluateMultipleCertificateConstraints<CERT> =
-                    wrpacProviderConstraints(getBasicConstraints, getKeyUsage, getValidityPeriod, getCertificatePolicies)
+                    certOperations.wrpacProviderConstraints()
 
                 override fun wrprcProviderCertificateConstraintsEvaluator(): EvaluateMultipleCertificateConstraints<CERT> =
-                    wrprcProviderConstraints(getBasicConstraints, getKeyUsage, getValidityPeriod, getCertificatePolicies)
+                    certOperations.wrprcProviderConstraints()
             }
 
         /**
@@ -144,31 +111,15 @@ public interface EULoTECertificateConstraints<CERT : Any> {
          * - Validity: Must be valid at validation time
          * - Certificate Policy: ETSI TS 119 412-6
          *
-         * @param getBasicConstraints function to extract basic constraints from a certificate
-         * @param getQcStatements function to extract QCStatements from a certificate
-         * @param getKeyUsage function to extract key usage from a certificate
-         * @param getValidityPeriod function to extract validity period from a certificate
-         * @param getCertificatePolicies function to extract certificate policies from a certificate
-         * @param isSelfSigned function to check if the certificate is self-signed
-         * @param getAiaExtension function to extract AIA information from a certificate
-         *
          * @return a validator configured for PID Provider certificates
          */
-        public fun <CERT : Any> pidProviderConstraints(
-            getBasicConstraints: suspend (CERT) -> BasicConstraintsInfo,
-            getQcStatements: suspend (CERT) -> List<QCStatementInfo>,
-            getKeyUsage: suspend (CERT) -> KeyUsageBits?,
-            getValidityPeriod: suspend (CERT) -> ValidityPeriod,
-            getCertificatePolicies: suspend (CERT) -> List<String>,
-            isSelfSigned: suspend (CERT) -> Boolean,
-            getAiaExtension: suspend (CERT) -> AuthorityInformationAccess?,
-        ): EvaluateMultipleCertificateConstraints<CERT> = EvaluateMultipleCertificateConstraints.of(
-            EvaluateBasicConstraintsConstraint.requireEndEntity(getBasicConstraints),
-            QCStatementConstraint.forPidProvider(getQcStatements),
-            KeyUsageConstraint.requireDigitalSignature(getKeyUsage),
-            ValidityPeriodConstraint.validateAtCurrentTime(getValidityPeriod),
-            CertificatePolicyConstraint.requirePolicy(OIDs.POLICY_PID_PROVIDER, getCertificatePolicies),
-            EvaluateAuthorityInformationAccessConstraint.requireForCaIssued(isSelfSigned, getAiaExtension),
+        public fun <CERT : Any> CertificateOperations<CERT>.pidProviderConstraints(): EvaluateMultipleCertificateConstraints<CERT> = EvaluateMultipleCertificateConstraints.of(
+            EvaluateBasicConstraintsConstraint.requireEndEntity(::getBasicConstraints),
+            QCStatementConstraint.forPidProvider(::getQcStatements),
+            KeyUsageConstraint.requireDigitalSignature(::getKeyUsage),
+            ValidityPeriodConstraint.validateAtCurrentTime(::getValidityPeriod),
+            CertificatePolicyConstraint.requirePolicy(OIDs.POLICY_PID_PROVIDER, ::getCertificatePolicies),
+            EvaluateAuthorityInformationAccessConstraint.requireForCaIssued(::isSelfSigned, ::getAiaExtension),
         )
 
         /**
@@ -181,32 +132,17 @@ public interface EULoTECertificateConstraints<CERT : Any> {
          * - Validity: Must be valid at validation time
          * - Certificate Policy: ETSI TS 119 412-6
          *
-         * @param getBasicConstraints function to extract basic constraints from a certificate
-         * @param getQcStatements function to extract QCStatements from a certificate
-         * @param getKeyUsage function to extract key usage from a certificate
-         * @param getValidityPeriod function to extract validity period from a certificate
-         * @param getCertificatePolicies function to extract certificate policies from a certificate
-         * @param isSelfSigned function to check if the certificate is self-signed
-         * @param getAiaExtension function to extract AIA information from a certificate
-         *
          * @return a validator configured for Wallet Provider certificates
          */
-        public fun <CERT : Any> walletProviderConstraints(
-            getBasicConstraints: suspend (CERT) -> BasicConstraintsInfo,
-            getQcStatements: suspend (CERT) -> List<QCStatementInfo>,
-            getKeyUsage: suspend (CERT) -> KeyUsageBits?,
-            getValidityPeriod: suspend (CERT) -> ValidityPeriod,
-            getCertificatePolicies: suspend (CERT) -> List<String>,
-            isSelfSigned: suspend (CERT) -> Boolean,
-            getAiaExtension: suspend (CERT) -> AuthorityInformationAccess?,
-        ): EvaluateMultipleCertificateConstraints<CERT> = EvaluateMultipleCertificateConstraints.of(
-            EvaluateBasicConstraintsConstraint.requireEndEntity(getBasicConstraints),
-            QCStatementConstraint.forWalletProvider(getQcStatements),
-            KeyUsageConstraint.requireDigitalSignature(getKeyUsage),
-            ValidityPeriodConstraint.validateAtCurrentTime(getValidityPeriod),
-            CertificatePolicyConstraint.requirePolicy(OIDs.POLICY_WALLET_PROVIDER, getCertificatePolicies),
-            EvaluateAuthorityInformationAccessConstraint.requireForCaIssued(isSelfSigned, getAiaExtension),
-        )
+        public fun <CERT : Any> CertificateOperations<CERT>.walletProviderConstraints(): EvaluateMultipleCertificateConstraints<CERT> =
+            EvaluateMultipleCertificateConstraints.of(
+                EvaluateBasicConstraintsConstraint.requireEndEntity(::getBasicConstraints),
+                QCStatementConstraint.forWalletProvider(::getQcStatements),
+                KeyUsageConstraint.requireDigitalSignature(::getKeyUsage),
+                ValidityPeriodConstraint.validateAtCurrentTime(::getValidityPeriod),
+                CertificatePolicyConstraint.requirePolicy(OIDs.POLICY_WALLET_PROVIDER, ::getCertificatePolicies),
+                EvaluateAuthorityInformationAccessConstraint.requireForCaIssued(::isSelfSigned, ::getAiaExtension),
+            )
 
         /**
          * Creates constraints for WRPAC Provider certificates (LoTE CA).
@@ -221,26 +157,17 @@ public interface EULoTECertificateConstraints<CERT : Any> {
          * Note: WRPAC Providers are CAs that issue WRPAC (end-entity) certificates to Wallet Relying Parties.
          * The LoTE contains the WRPAC Provider's CA certificate, not the WRPAC itself.
          *
-         * @param getBasicConstraints function to extract basic constraints from a certificate
-         * @param getKeyUsage function to extract key usage from a certificate
-         * @param getValidityPeriod function to extract validity period from a certificate
-         * @param getCertificatePolicies function to extract certificate policies from a certificate
          * @param maxPathLen optional maximum path length constraint (default: null, no constraint)
          *
          * @return a validator configured for WRPAC Provider certificates
          */
-        public fun <CERT : Any> wrpacProviderConstraints(
-            getBasicConstraints: suspend (CERT) -> BasicConstraintsInfo,
-            getKeyUsage: suspend (CERT) -> KeyUsageBits?,
-            getValidityPeriod: suspend (CERT) -> ValidityPeriod,
-            getCertificatePolicies: suspend (CERT) -> List<String>,
-            maxPathLen: Int? = null,
-        ): EvaluateMultipleCertificateConstraints<CERT> = EvaluateMultipleCertificateConstraints.of(
-            EvaluateBasicConstraintsConstraint.requireCa(maxPathLen, getBasicConstraints),
-            KeyUsageConstraint.requireKeyCertSign(getKeyUsage),
-            ValidityPeriodConstraint.validateAtCurrentTime(getValidityPeriod),
-            CertificatePolicyConstraint.requirePolicy(OIDs.POLICY_WRPAC_PROVIDER, getCertificatePolicies),
-        )
+        public fun <CERT : Any> CertificateOperations<CERT>.wrpacProviderConstraints(maxPathLen: Int? = null): EvaluateMultipleCertificateConstraints<CERT> =
+            EvaluateMultipleCertificateConstraints.of(
+                EvaluateBasicConstraintsConstraint.requireCa(maxPathLen, ::getBasicConstraints),
+                KeyUsageConstraint.requireKeyCertSign(::getKeyUsage),
+                ValidityPeriodConstraint.validateAtCurrentTime(::getValidityPeriod),
+                CertificatePolicyConstraint.requirePolicy(OIDs.POLICY_WRPAC_PROVIDER, ::getCertificatePolicies),
+            )
 
         /**
          * Creates constraints for WRPRC Provider certificates (LoTE CA).
@@ -256,25 +183,17 @@ public interface EULoTECertificateConstraints<CERT : Any> {
          * The LoTE contains the WRPRC Provider's CA certificate.
          * WRPRC validation involves both PKIX (certificate chain) and JWT signature verification.
          *
-         * @param getBasicConstraints function to extract basic constraints from a certificate
-         * @param getKeyUsage function to extract key usage from a certificate
-         * @param getValidityPeriod function to extract validity period from a certificate
-         * @param getCertificatePolicies function to extract certificate policies from a certificate
          * @param maxPathLen optional maximum path length constraint (default: null, no constraint)
          *
          * @return a validator configured for WRPRC Provider certificates
          */
-        public fun <CERT : Any> wrprcProviderConstraints(
-            getBasicConstraints: suspend (CERT) -> BasicConstraintsInfo,
-            getKeyUsage: suspend (CERT) -> KeyUsageBits?,
-            getValidityPeriod: suspend (CERT) -> ValidityPeriod,
-            getCertificatePolicies: suspend (CERT) -> List<String>,
+        public fun <CERT : Any> CertificateOperations<CERT>.wrprcProviderConstraints(
             maxPathLen: Int? = null,
         ): EvaluateMultipleCertificateConstraints<CERT> = EvaluateMultipleCertificateConstraints.of(
-            EvaluateBasicConstraintsConstraint.requireCa(maxPathLen, getBasicConstraints),
-            KeyUsageConstraint.requireKeyCertSign(getKeyUsage),
-            ValidityPeriodConstraint.validateAtCurrentTime(getValidityPeriod),
-            CertificatePolicyConstraint.requirePolicy(OIDs.POLICY_WRPRC_PROVIDER, getCertificatePolicies),
+            EvaluateBasicConstraintsConstraint.requireCa(maxPathLen, ::getBasicConstraints),
+            KeyUsageConstraint.requireKeyCertSign(::getKeyUsage),
+            ValidityPeriodConstraint.validateAtCurrentTime(::getValidityPeriod),
+            CertificatePolicyConstraint.requirePolicy(OIDs.POLICY_WRPRC_PROVIDER, ::getCertificatePolicies),
         )
     }
 

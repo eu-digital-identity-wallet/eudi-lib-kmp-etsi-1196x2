@@ -33,16 +33,16 @@ import kotlin.time.toKotlinInstant
  * This object provides platform-specific functions to extract certificate information
  * required by the constraint validators defined in commonMain.
  */
-public object X509CertificateConstraintExtractors {
+public object CertificateOperationsJvm : CertificateOperations<X509Certificate> {
 
     /**
      * Extracts basic constraints information from an X509Certificate.
      *
      * @return [eu.europa.ec.eudi.etsi1196x2.consultation.certs.BasicConstraintsInfo] with isCa and pathLenConstraint
      */
-    public suspend fun getBasicConstraints(cert: X509Certificate): BasicConstraintsInfo =
+    public override suspend fun getBasicConstraints(certificate: X509Certificate): BasicConstraintsInfo =
         withContext(Dispatchers.IO) {
-            val basicConstraints = cert.basicConstraints
+            val basicConstraints = certificate.basicConstraints
             BasicConstraintsInfo(
                 isCa = basicConstraints >= 0,
                 pathLenConstraint = basicConstraints.takeIf { it >= 0 },
@@ -57,10 +57,10 @@ public object X509CertificateConstraintExtractors {
      *
      * @return list of [eu.europa.ec.eudi.etsi1196x2.consultation.certs.QCStatementInfo] or empty list if no QCStatements present
      */
-    public suspend fun getQcStatements(cert: X509Certificate): List<QCStatementInfo> =
+    public override suspend fun getQcStatements(certificate: X509Certificate): List<QCStatementInfo> =
         withContext(Dispatchers.IO) {
             // OID for QCStatements extension (id-pe-qcStatements)
-            val qcStatementsExtension = cert.getExtensionValue("1.3.6.1.5.5.7.1.3")
+            val qcStatementsExtension = certificate.getExtensionValue("1.3.6.1.5.5.7.1.3")
             qcStatementsExtension?.parseQcStatements().orEmpty()
         }
 
@@ -69,9 +69,9 @@ public object X509CertificateConstraintExtractors {
      *
      * @return [eu.europa.ec.eudi.etsi1196x2.consultation.certs.KeyUsageBits] or null if keyUsage extension is not present
      */
-    public suspend fun getKeyUsage(cert: X509Certificate): KeyUsageBits? =
+    public override suspend fun getKeyUsage(certificate: X509Certificate): KeyUsageBits? =
         withContext(Dispatchers.IO) {
-            cert.keyUsage?.let { keyUsage ->
+            certificate.keyUsage?.let { keyUsage ->
                 KeyUsageBits(
                     digitalSignature = keyUsage.getOrElse(0) { false },
                     nonRepudiation = keyUsage.getOrElse(1) { false },
@@ -91,11 +91,11 @@ public object X509CertificateConstraintExtractors {
      *
      * @return [eu.europa.ec.eudi.etsi1196x2.consultation.certs.ValidityPeriod] with notBefore and notAfter timestamps
      */
-    public suspend fun getValidityPeriod(cert: X509Certificate): ValidityPeriod =
+    public override suspend fun getValidityPeriod(certificate: X509Certificate): ValidityPeriod =
         withContext(Dispatchers.IO) {
             ValidityPeriod(
-                notBefore = cert.notBefore.toInstant().toKotlinInstant(),
-                notAfter = cert.notAfter.toInstant().toKotlinInstant(),
+                notBefore = certificate.notBefore.toInstant().toKotlinInstant(),
+                notAfter = certificate.notAfter.toInstant().toKotlinInstant(),
             )
         }
 
@@ -107,10 +107,10 @@ public object X509CertificateConstraintExtractors {
      *
      * @return list of certificate policy OIDs or empty list if no policies present
      */
-    public suspend fun getCertificatePolicies(cert: X509Certificate): List<String> =
+    public override suspend fun getCertificatePolicies(certificate: X509Certificate): List<String> =
         withContext(Dispatchers.IO) {
             // OID for Certificate Policies extension
-            val certPoliciesExtension = cert.getExtensionValue("2.5.29.32")
+            val certPoliciesExtension = certificate.getExtensionValue("2.5.29.32")
             certPoliciesExtension?.parseCertificatePolicies().orEmpty()
         }
 
@@ -121,9 +121,9 @@ public object X509CertificateConstraintExtractors {
      *
      * @return true if self-signed, false otherwise
      */
-    public suspend fun isSelfSigned(cert: X509Certificate): Boolean =
+    public override suspend fun isSelfSigned(certificate: X509Certificate): Boolean =
         withContext(Dispatchers.IO) {
-            cert.subjectX500Principal == cert.issuerX500Principal
+            certificate.subjectX500Principal == certificate.issuerX500Principal
         }
 
     /**
@@ -131,10 +131,10 @@ public object X509CertificateConstraintExtractors {
      *
      * @return [AuthorityInformationAccess] or null if extension is not present or parsing fails
      */
-    public suspend fun getAiaExtension(cert: X509Certificate): AuthorityInformationAccess? =
+    public override suspend fun getAiaExtension(certificate: X509Certificate): AuthorityInformationAccess? =
         withContext(Dispatchers.IO) {
             // OID for AIA extension (id-pe-authorityInfoAccess)
-            val aiaExtension = cert.getExtensionValue("1.3.6.1.5.5.7.1.1")
+            val aiaExtension = certificate.getExtensionValue("1.3.6.1.5.5.7.1.1")
             aiaExtension?.parseAiaExtension()
         }
 
