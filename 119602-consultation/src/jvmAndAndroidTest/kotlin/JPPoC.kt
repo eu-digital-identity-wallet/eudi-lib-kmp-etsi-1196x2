@@ -50,6 +50,7 @@ object JPPoC {
                 VerificationContext.WalletRelyingPartyAccessCertificate to JP_WRPAC_PROVIDER_ISSUANCE_SVC_TYPE,
             ),
             directTrust = false,
+            certificateConstraints = null,
         )
 
     private val learningCredentialProviders: LotEMata<VerificationContext, X509Certificate> = LotEMata(
@@ -58,6 +59,7 @@ object JPPoC {
             VerificationContext.EAA(LC_USE_CASE) to LC_EAA_PROVIDER_SVC_TYPE,
         ),
         directTrust = true,
+        certificateConstraints = null,
     )
     val SVC_TYPE_PER_CTX: SupportedLists<LotEMata<VerificationContext, X509Certificate>> =
         SupportedLists(

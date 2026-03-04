@@ -24,7 +24,7 @@ import eu.europa.ec.eudi.etsi1196x2.consultation.certs.EvaluateMultipleCertifica
 public data class LotEMata<CTX, CERT : Any>(
     val svcTypePerCtx: Map<CTX, URI>,
     val directTrust: Boolean,
-    val certificateConstraints: EvaluateMultipleCertificateConstraints<CERT>? = null,
+    val certificateConstraints: EvaluateMultipleCertificateConstraints<CERT>?,
 )
 
 /**

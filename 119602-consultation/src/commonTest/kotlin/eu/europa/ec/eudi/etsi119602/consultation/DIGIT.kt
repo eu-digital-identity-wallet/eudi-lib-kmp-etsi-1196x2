@@ -61,6 +61,7 @@ object DIGIT {
                             VerificationContext.EAAStatus("mdl") to EUMDLProvidersListSpec.SVC_TYPE_REVOCATION,
                         ),
                         directTrust = true,
+                        certificateConstraints = null,
                     ),
                 ),
             )
