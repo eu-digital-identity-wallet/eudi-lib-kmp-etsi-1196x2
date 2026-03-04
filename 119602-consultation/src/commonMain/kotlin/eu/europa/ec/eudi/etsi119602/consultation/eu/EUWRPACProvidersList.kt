@@ -20,6 +20,13 @@ import eu.europa.ec.eudi.etsi119602.ETSI19602
 import eu.europa.ec.eudi.etsi119602.LoTEType
 import eu.europa.ec.eudi.etsi119602.MultiLanguageURI
 import eu.europa.ec.eudi.etsi119602.URIValue
+import eu.europa.ec.eudi.etsi119602.consultation.ETSI19412
+import eu.europa.ec.eudi.etsi1196x2.consultation.certs.CertificateOperations
+import eu.europa.ec.eudi.etsi1196x2.consultation.certs.CertificatePolicyConstraint
+import eu.europa.ec.eudi.etsi1196x2.consultation.certs.EvaluateBasicConstraintsConstraint
+import eu.europa.ec.eudi.etsi1196x2.consultation.certs.EvaluateMultipleCertificateConstraints
+import eu.europa.ec.eudi.etsi1196x2.consultation.certs.KeyUsageConstraint
+import eu.europa.ec.eudi.etsi1196x2.consultation.certs.ValidityPeriodConstraint
 
 public val EUWRPACProvidersList: EUListOfTrustedEntitiesProfile =
     EUListOfTrustedEntitiesProfile(
@@ -42,5 +49,35 @@ public val EUWRPACProvidersList: EUListOfTrustedEntitiesProfile =
             ),
             mustContainX509Certificates = true,
             serviceStatuses = emptySet(),
+            chainValidationAlgorithm = ChainValidationAlgorithm.PKIX,
+            hasConstraints = object : CertificateConstraints {
+                override fun <CERT : Any> CertificateOperations<CERT>.evaluator(): EvaluateMultipleCertificateConstraints<CERT> =
+                    wrpacProviderCertificateConstraintsEvaluator()
+            },
         ),
+    )
+
+/**
+ * Creates constraints for WRPAC Provider certificates (LoTE CA).
+ *
+ * Per ETSI TS 119 602 Annex F:
+ * - Certificate type: CA certificate (cA=TRUE)
+ * - QCStatement: NOT required
+ * - Key Usage: keyCertSign REQUIRED
+ * - Validity: Must be valid at validation time
+ * - Certificate Policy: ETSI TS 119 411-8 (Access Certificate Policy)
+ *
+ * Note: WRPAC Providers are CAs that issue WRPAC (end-entity) certificates to Wallet Relying Parties.
+ * The LoTE contains the WRPAC Provider's CA certificate, not the WRPAC itself.
+ *
+ * @param maxPathLen optional maximum path length constraint (default: null, no constraint)
+ *
+ * @return a validator configured for WRPAC Provider certificates
+ */
+public fun <CERT : Any> CertificateOperations<CERT>.wrpacProviderCertificateConstraintsEvaluator(maxPathLen: Int? = null): EvaluateMultipleCertificateConstraints<CERT> =
+    EvaluateMultipleCertificateConstraints.of(
+        EvaluateBasicConstraintsConstraint.requireCa(maxPathLen, ::getBasicConstraints),
+        KeyUsageConstraint.requireKeyCertSign(::getKeyUsage),
+        ValidityPeriodConstraint.validateAtCurrentTime(::getValidityPeriod),
+        CertificatePolicyConstraint.requirePolicy(ETSI19412.POLICY_WRPAC_PROVIDER, ::getCertificatePolicies),
     )

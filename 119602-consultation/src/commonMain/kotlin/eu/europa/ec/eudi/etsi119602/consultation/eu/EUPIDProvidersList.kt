@@ -15,11 +15,9 @@
  */
 package eu.europa.ec.eudi.etsi119602.consultation.eu
 
-import eu.europa.ec.eudi.etsi119602.CountryCode
-import eu.europa.ec.eudi.etsi119602.ETSI19602
-import eu.europa.ec.eudi.etsi119602.LoTEType
-import eu.europa.ec.eudi.etsi119602.MultiLanguageURI
-import eu.europa.ec.eudi.etsi119602.URIValue
+import eu.europa.ec.eudi.etsi119602.*
+import eu.europa.ec.eudi.etsi119602.consultation.ETSI19412
+import eu.europa.ec.eudi.etsi1196x2.consultation.certs.*
 
 /**
  * A LoTE profile aimed at supporting the publication by the European Commission of a list of
@@ -44,5 +42,32 @@ public val EUPIDProvidersList: EUListOfTrustedEntitiesProfile =
             ),
             mustContainX509Certificates = true,
             serviceStatuses = emptySet(),
+            chainValidationAlgorithm = ChainValidationAlgorithm.Direct,
+            hasConstraints = object : CertificateConstraints {
+                override fun <CERT : Any> CertificateOperations<CERT>.evaluator(): EvaluateMultipleCertificateConstraints<CERT> =
+                    pidProviderCertificateConstraintsEvaluator()
+            },
         ),
+    )
+
+/**
+ * Creates constraints for PID Provider certificates (LoTE end-entity).
+ *
+ * Per ETSI TS 119 602 Annex D:
+ * - Certificate type: End-entity ONLY (cA=FALSE)
+ * - QCStatement: id-etsi-qct-pid (0.4.0.1949.1.1) REQUIRED
+ * - Key Usage: digitalSignature REQUIRED
+ * - Validity: Must be valid at validation time
+ * - Certificate Policy: ETSI TS 119 412-6
+ *
+ * @return a validator configured for PID Provider certificates
+ */
+public fun <CERT : Any> CertificateOperations<CERT>.pidProviderCertificateConstraintsEvaluator(): EvaluateMultipleCertificateConstraints<CERT> =
+    EvaluateMultipleCertificateConstraints.of(
+        EvaluateBasicConstraintsConstraint.requireEndEntity(::getBasicConstraints),
+        QCStatementConstraint.forPidProvider(::getQcStatements),
+        KeyUsageConstraint.requireDigitalSignature(::getKeyUsage),
+        ValidityPeriodConstraint.validateAtCurrentTime(::getValidityPeriod),
+        CertificatePolicyConstraint.requirePolicy(ETSI19412.POLICY_PID_PROVIDER, ::getCertificatePolicies),
+        EvaluateAuthorityInformationAccessConstraint.requireForCaIssued(::isSelfSigned, ::getAiaExtension),
     )

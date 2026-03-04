@@ -19,8 +19,15 @@ import eu.europa.ec.eudi.etsi119602.ServiceDigitalIdentity
 import eu.europa.ec.eudi.etsi119602.URI
 import eu.europa.ec.eudi.etsi1196x2.consultation.*
 import eu.europa.ec.eudi.etsi1196x2.consultation.certs.CertificateConstraintEvaluation
+import eu.europa.ec.eudi.etsi1196x2.consultation.certs.EvaluateCertificateConstraint
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.*
+
+public data class LotEMata<CTX, CERT : Any>(
+    val svcTypePerCtx: Map<CTX, URI>,
+    val directTrust: Boolean,
+    val certificateConstraints: EvaluateCertificateConstraint<CERT>?,
+)
 
 public class ProvisionTrustAnchorsFromLoTEs<CHAIN : Any, CTX : Any, TRUST_ANCHOR : Any, CERT : Any>(
     private val loadLoTEAndPointers: LoadLoTEAndPointers,
@@ -93,8 +100,7 @@ public class ProvisionTrustAnchorsFromLoTEs<CHAIN : Any, CTX : Any, TRUST_ANCHOR
     public companion object {
         public fun <CHAIN : Any, TRUST_ANCHOR : Any, CERT : Any> eudiw(
             loadLoTEAndPointers: LoadLoTEAndPointers,
-            constraints: EULoTECertificateConstraints<CERT>,
-            svcTypePerCtx: SupportedLists<LotEMata<VerificationContext, CERT>> = SupportedLists.eu(constraints),
+            svcTypePerCtx: SupportedLists<LotEMata<VerificationContext, CERT>>,
             extractCertificate: (TRUST_ANCHOR) -> CERT,
             continueOnProblem: ContinueOnProblem = ContinueOnProblem.Never,
             directTrust: ValidateCertificateChainUsingDirectTrust<CHAIN, TRUST_ANCHOR, *>,

@@ -17,6 +17,8 @@ package eu.europa.ec.eudi.etsi119602.consultation.eu
 
 import eu.europa.ec.eudi.etsi119602.*
 import eu.europa.ec.eudi.etsi119602.consultation.eu.TrustedEntityAssertions.Companion.ensureTrustedEntities
+import eu.europa.ec.eudi.etsi1196x2.consultation.certs.CertificateOperations
+import eu.europa.ec.eudi.etsi1196x2.consultation.certs.EvaluateCertificateConstraint
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.monthsUntil
 
@@ -78,6 +80,11 @@ public data class EUListOfTrustedEntitiesProfile(
             throw IllegalStateException("Violation of ${listAndSchemeInformation.type}, trusted entities errors: ${trustedEntitiesErrors.map { "${it.key}: ${it.value}" }}")
         }
     }
+
+    public fun <CERT : Any> certificateConstraintsEvaluator(
+        certificateOperations: CertificateOperations<CERT>,
+    ): EvaluateCertificateConstraint<CERT>? =
+        trustedEntities.hasConstraints?.run { certificateOperations.evaluator() }
 }
 
 public sealed interface ValueRequirement<out T> {
@@ -114,6 +121,8 @@ public sealed interface ServiceTypeIdentifiers {
     }
 }
 
+public enum class ChainValidationAlgorithm { Direct, PKIX }
+
 /**
  * Expectations about trusted entities of an EU-specific LoTE
  */
@@ -131,7 +140,15 @@ public data class EUTrustedEntitiesProfile(
      * Exclusive set of service statuses that trusted entities of the LoTE may support.
      */
     val serviceStatuses: Set<URI>,
+
+    val chainValidationAlgorithm: ChainValidationAlgorithm,
+
+    val hasConstraints: CertificateConstraints?,
 )
+
+public interface CertificateConstraints {
+    public fun <CERT : Any> CertificateOperations<CERT>.evaluator(): EvaluateCertificateConstraint<CERT>
+}
 
 /**
  * Assertions about the scheme of an EU-specific LoTE
@@ -293,7 +310,10 @@ internal interface TrustedEntityAssertions {
     }
 
     @Throws(IllegalStateException::class)
-    fun ensureDigitalIdentityContainsX509Certificate(digitalIdentity: ServiceDigitalIdentity, mustContainX509Certificates: Boolean) {
+    fun ensureDigitalIdentityContainsX509Certificate(
+        digitalIdentity: ServiceDigitalIdentity,
+        mustContainX509Certificates: Boolean,
+    ) {
         if (mustContainX509Certificates) {
             // We need to check only that x509Certificates is not null.
             // The ServiceInformation check that if this is not null,

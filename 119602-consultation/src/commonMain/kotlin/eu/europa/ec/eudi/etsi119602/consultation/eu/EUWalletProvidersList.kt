@@ -20,6 +20,15 @@ import eu.europa.ec.eudi.etsi119602.ETSI19602
 import eu.europa.ec.eudi.etsi119602.LoTEType
 import eu.europa.ec.eudi.etsi119602.MultiLanguageURI
 import eu.europa.ec.eudi.etsi119602.URIValue
+import eu.europa.ec.eudi.etsi119602.consultation.ETSI19412
+import eu.europa.ec.eudi.etsi1196x2.consultation.certs.CertificateOperations
+import eu.europa.ec.eudi.etsi1196x2.consultation.certs.CertificatePolicyConstraint
+import eu.europa.ec.eudi.etsi1196x2.consultation.certs.EvaluateAuthorityInformationAccessConstraint
+import eu.europa.ec.eudi.etsi1196x2.consultation.certs.EvaluateBasicConstraintsConstraint
+import eu.europa.ec.eudi.etsi1196x2.consultation.certs.EvaluateMultipleCertificateConstraints
+import eu.europa.ec.eudi.etsi1196x2.consultation.certs.KeyUsageConstraint
+import eu.europa.ec.eudi.etsi1196x2.consultation.certs.QCStatementConstraint
+import eu.europa.ec.eudi.etsi1196x2.consultation.certs.ValidityPeriodConstraint
 
 /**
  * A LoTE profile aimed at supporting the publication by the European Commission of a list of
@@ -46,5 +55,33 @@ public val EUWalletProvidersList: EUListOfTrustedEntitiesProfile =
             ),
             mustContainX509Certificates = true,
             serviceStatuses = emptySet(),
+            chainValidationAlgorithm = ChainValidationAlgorithm.Direct,
+            hasConstraints = object : CertificateConstraints {
+                override fun <CERT : Any> CertificateOperations<CERT>.evaluator(): EvaluateMultipleCertificateConstraints<CERT> =
+                    walletProviderCertificateConstraintsEvaluator()
+            },
         ),
+
+    )
+
+/**
+ * Creates constraints for Wallet Provider certificates (LoTE end-entity).
+ *
+ * Per ETSI TS 119 602 Annex E:
+ * - Certificate type: End-entity ONLY (cA=FALSE)
+ * - QCStatement: id-etsi-qct-wal (0.4.0.1949.1.2) REQUIRED
+ * - Key Usage: digitalSignature REQUIRED
+ * - Validity: Must be valid at validation time
+ * - Certificate Policy: ETSI TS 119 412-6
+ *
+ * @return a validator configured for Wallet Provider certificates
+ */
+public fun <CERT : Any> CertificateOperations<CERT>.walletProviderCertificateConstraintsEvaluator(): EvaluateMultipleCertificateConstraints<CERT> =
+    EvaluateMultipleCertificateConstraints.of(
+        EvaluateBasicConstraintsConstraint.requireEndEntity(::getBasicConstraints),
+        QCStatementConstraint.forWalletProvider(::getQcStatements),
+        KeyUsageConstraint.requireDigitalSignature(::getKeyUsage),
+        ValidityPeriodConstraint.validateAtCurrentTime(::getValidityPeriod),
+        CertificatePolicyConstraint.requirePolicy(ETSI19412.POLICY_WALLET_PROVIDER, ::getCertificatePolicies),
+        EvaluateAuthorityInformationAccessConstraint.requireForCaIssued(::isSelfSigned, ::getAiaExtension),
     )

@@ -49,7 +49,7 @@ object DIGIT {
     //
     val SVC_TYPE_PER_CTX: SupportedLists<LotEMata<VerificationContext, X509Certificate>>
         get() {
-            val euBaseline = SupportedLists.eu(EULoTECertificateConstraintsJvm)
+            val euBaseline = SupportedLists.eu(CertificateOperationsJvm)
             return euBaseline.copy(
                 pidProviders = euBaseline.pidProviders?.noConstraints(),
                 walletProviders = euBaseline.walletProviders?.noConstraints(),
@@ -111,7 +111,6 @@ class DIGITTest {
                     verifyJwtSignature = NotValidating,
                     loadLoTE = LoadLoTEFromHttp(this),
                 ),
-                constraints = EULoTECertificateConstraintsJvm,
                 svcTypePerCtx = DIGIT.SVC_TYPE_PER_CTX,
                 extractCertificate = { it.x509Certificate() },
                 createTrustAnchors = { it.x509Certificates.orEmpty() },

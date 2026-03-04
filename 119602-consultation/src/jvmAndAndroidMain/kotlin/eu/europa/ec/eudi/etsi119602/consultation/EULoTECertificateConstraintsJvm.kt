@@ -15,15 +15,12 @@
  */
 package eu.europa.ec.eudi.etsi119602.consultation
 
+import eu.europa.ec.eudi.etsi119602.consultation.eu.EUTrustedEntitiesProfile
 import eu.europa.ec.eudi.etsi1196x2.consultation.CertificateOperationsJvm
+import eu.europa.ec.eudi.etsi1196x2.consultation.certs.EvaluateCertificateConstraint
 import java.security.cert.X509Certificate
 
-/**
- * Helper functions for creating LoTE-specific validators for [X509Certificate].
- *
- * These validators are configured according to the requirements specified in
- * ETSI TS 119 602 for each provider list type.
- *
- */
-public val EULoTECertificateConstraintsJvm: EULoTECertificateConstraints<X509Certificate> =
-    EULoTECertificateConstraints(CertificateOperationsJvm)
+public val EUTrustedEntitiesProfile.jvmCertificateConstraintsEvaluator: EvaluateCertificateConstraint<X509Certificate>?
+    get() = with(CertificateOperationsJvm) {
+        hasConstraints?.run { evaluator() }
+    }

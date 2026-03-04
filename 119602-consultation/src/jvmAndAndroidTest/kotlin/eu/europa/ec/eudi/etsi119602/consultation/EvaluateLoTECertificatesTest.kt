@@ -16,6 +16,11 @@
 package eu.europa.ec.eudi.etsi119602.consultation
 
 import eu.europa.ec.eudi.etsi119602.consultation.CertOps.toX509Certificate
+import eu.europa.ec.eudi.etsi119602.consultation.eu.EUListOfTrustedEntitiesProfile
+import eu.europa.ec.eudi.etsi119602.consultation.eu.EUPIDProvidersList
+import eu.europa.ec.eudi.etsi119602.consultation.eu.EUWRPRCProvidersList
+import eu.europa.ec.eudi.etsi119602.consultation.eu.EUWalletProvidersList
+import eu.europa.ec.eudi.etsi119602.consultation.eu.pidProviderCertificateConstraintsEvaluator
 import eu.europa.ec.eudi.etsi1196x2.consultation.CertificateOperationsJvm
 import eu.europa.ec.eudi.etsi1196x2.consultation.certs.*
 import eu.europa.ec.eudi.etsi1196x2.consultation.evaluateCertificateConstraints
@@ -35,6 +40,13 @@ class EvaluateLoTECertificatesTest {
     private val cnWrpacProvider = X500Name("CN=WRPAC Provider Test")
     private val cnWrprcProvider = X500Name("CN=WRPRC Provider Test")
 
+    private suspend fun TrustAnchor.evaluateCertificateConstraints(
+        profile: EUListOfTrustedEntitiesProfile,
+    ): CertificateConstraintEvaluation =
+        profile.certificateConstraintsEvaluator(CertificateOperationsJvm)
+            ?.invoke(trustedCert)
+            ?: CertificateConstraintEvaluation.Met
+
     @Test
     fun `PID Provider validator should validate end-entity certificate`() = runTest {
         // Generate a trust anchor (end-entity certificate for PID Provider)
@@ -44,7 +56,7 @@ class EvaluateLoTECertificatesTest {
 
         // Validate as PID Provider
         val constraintEvaluation =
-            trustAnchor.evaluateCertificateConstraints(EULoTECertificateConstraintsJvm.pidProviderCertificateConstraintsEvaluator())
+            trustAnchor.evaluateCertificateConstraints(EUPIDProvidersList)
         assertTrue(!constraintEvaluation.isMet())
 
         // Should pass basic constraints (end-entity) and key usage (digitalSignature)
@@ -65,7 +77,8 @@ class EvaluateLoTECertificatesTest {
 
         // Validate as Wallet Provider
         val constraintEvaluation =
-            trustAnchor.evaluateCertificateConstraints(EULoTECertificateConstraintsJvm.walletProviderCertificateConstraintsEvaluator())
+            trustAnchor.evaluateCertificateConstraints(EUWalletProvidersList)
+
         assertTrue(!constraintEvaluation.isMet())
 
         // Should pass basic constraints (end-entity) and key usage (digitalSignature)
@@ -86,7 +99,7 @@ class EvaluateLoTECertificatesTest {
 
         // Validate as WRPAC Provider
         val constraintEvaluation =
-            trustAnchor.evaluateCertificateConstraints(EULoTECertificateConstraintsJvm.wrpacProviderCertificateConstraintsEvaluator())
+            trustAnchor.evaluateCertificateConstraints(EUWRPRCProvidersList)
         assertTrue(!constraintEvaluation.isMet())
         // Should pass basic constraints (CA) and key usage (keyCertSign)
         // Will fail Certificate Policy (not implemented yet)
@@ -105,7 +118,7 @@ class EvaluateLoTECertificatesTest {
 
         // Validate as WRPRC Provider
         val constraintEvaluation =
-            trustAnchor.evaluateCertificateConstraints(EULoTECertificateConstraintsJvm.wrprcProviderCertificateConstraintsEvaluator())
+            trustAnchor.evaluateCertificateConstraints(EUWRPRCProvidersList)
         assertTrue(!constraintEvaluation.isMet())
 
         // Should pass basic constraints (CA) and key usage (keyCertSign)
@@ -230,7 +243,7 @@ class EvaluateLoTECertificatesTest {
         val certificate = certHolder.toX509Certificate()
 
         // Create validator with multiple constraints for PID Provider
-        val evaluateConstraints = EULoTECertificateConstraintsJvm.pidProviderCertificateConstraintsEvaluator()
+        val evaluateConstraints = CertificateOperationsJvm.pidProviderCertificateConstraintsEvaluator()
 
         // Validate
         val evaluation = evaluateConstraints(certificate)
