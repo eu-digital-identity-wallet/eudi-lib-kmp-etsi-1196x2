@@ -1,16 +1,14 @@
 # Certificate Chain Validation Using EU Provider Lists (LoTE) for EUDI Wallet Attestations
 
-**Document Version:** 4.3
-**Date:** 2026-02-28
+**Document Version:** 4.4
+**Date:** 2026-03-04
 **Purpose:** Analysis of ETSI specifications for certificate chain validation against EU Provider Lists (LoTE) serving
 as trust anchor sources for PID, Wallet, WRPAC, and WRPRC providers
 
-**Version 4.3 Changes:**
+**Version 4.4 Changes:**
 
-- Clarified WRPRC LoTE certificate type: CA certificate (not end-entity signing cert)
-- Added detailed analysis comparing Table G.3 vs Table F.3 wording
-- Updated validation method: PKIX (x5c chain → LoTE CA) + JWT signature verification
-- Added footnote in Executive Summary explaining WRPRC LoTE type determination
+- Updated improvement status: AIA validation for PID/Wallet providers is now implemented and integrated.
+- Standardized OIDs and fixed Wallet Provider policy OID inconsistency.
 
 ---
 

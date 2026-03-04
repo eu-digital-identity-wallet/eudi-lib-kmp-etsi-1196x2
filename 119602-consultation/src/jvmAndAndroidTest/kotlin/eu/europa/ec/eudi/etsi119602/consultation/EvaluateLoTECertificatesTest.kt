@@ -236,4 +236,45 @@ class EvaluateLoTECertificatesTest {
         val evaluation = evaluateConstraints(certificate)
         assertTrue(!evaluation.isMet(), "Expected at least one validation failure")
     }
+
+    @Test
+    fun `AIA constraint should accept self-signed certificate without AIA`() = runTest {
+        // Generate a self-signed certificate (trust anchor)
+        val (_, certHolder) = CertOps.genTrustAnchor("SHA256withECDSA", cnPidProvider)
+        val certificate = certHolder.toX509Certificate()
+
+        val constraint = EvaluateAuthorityInformationAccessConstraint.requireForCaIssued(
+            isSelfSigned = X509CertificateConstraintExtractors::isSelfSigned,
+            getAiaExtension = X509CertificateConstraintExtractors::getAiaExtension,
+        )
+
+        val evaluation = constraint(certificate)
+        assertTrue(evaluation.isMet(), "Self-signed certificate should NOT require AIA")
+    }
+
+    @Test
+    fun `AIA constraint should reject CA-issued certificate without AIA`() = runTest {
+        // Generate CA
+        val (caKeyPair, caCertHolder) = CertOps.genTrustAnchor("SHA256withECDSA", X500Name("CN=Test CA"))
+
+        // Generate EE without AIA
+        val eeKeyPair = CertOps.genTrustAnchor("SHA256withECDSA", cnPidProvider).first
+        val eeCertHolder = CertOps.createEndEntity(
+            caCertHolder,
+            caKeyPair.private,
+            "SHA256withECDSA",
+            eeKeyPair.public,
+            cnPidProvider,
+        )
+        val certificate = eeCertHolder.toX509Certificate()
+
+        val constraint = EvaluateAuthorityInformationAccessConstraint.requireForCaIssued(
+            isSelfSigned = X509CertificateConstraintExtractors::isSelfSigned,
+            getAiaExtension = X509CertificateConstraintExtractors::getAiaExtension,
+        )
+
+        val evaluation = constraint(certificate)
+        assertTrue(!evaluation.isMet(), "CA-issued certificate should require AIA")
+        assertTrue(evaluation.violations.any { it.reason.contains("AIA") })
+    }
 }

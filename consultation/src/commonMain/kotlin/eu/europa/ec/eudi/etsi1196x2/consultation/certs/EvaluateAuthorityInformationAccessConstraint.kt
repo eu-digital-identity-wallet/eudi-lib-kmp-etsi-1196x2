@@ -39,6 +39,7 @@ public data class AuthorityInformationAccess(
  *
  * @param CERT the type representing the certificate
  * @param requiredForCaIssued whether AIA is required (true for CA-issued certificates)
+ * @param isSelfSigned a function to check if the certificate is self-signed
  * @param getAiaExtension a function to extract AIA information from a certificate
  *
  * @see [ETSI TS 119 412-6 PID-4.4.3-01](https://www.etsi.org/deliver/etsi_ts/119400_119499/11941206/)
@@ -46,16 +47,18 @@ public data class AuthorityInformationAccess(
  */
 public class EvaluateAuthorityInformationAccessConstraint<in CERT : Any>(
     private val requiredForCaIssued: Boolean,
+    private val isSelfSigned: suspend (CERT) -> Boolean,
     private val getAiaExtension: suspend (CERT) -> AuthorityInformationAccess?,
 ) : EvaluateCertificateConstraint<CERT> {
 
     override suspend fun invoke(certificate: CERT): CertificateConstraintEvaluation {
-        val aiaInfo = getAiaExtension(certificate)
-
         val violations = buildList {
+            val aiaInfo = getAiaExtension(certificate)
+            val selfSigned = isSelfSigned(certificate)
+
             when {
-                !requiredForCaIssued -> {
-                    // AIA not required (e.g., self-signed certificate)
+                !requiredForCaIssued || selfSigned -> {
+                    // AIA not required (e.g., self-signed certificate or not specified)
                 }
 
                 aiaInfo == null -> {
@@ -84,12 +87,15 @@ public class EvaluateAuthorityInformationAccessConstraint<in CERT : Any>(
         /**
          * Creates a constraint requiring AIA for CA-issued certificates.
          *
+         * @param isSelfSigned function to check if the certificate is self-signed
          * @param getAiaExtension function to extract AIA information from a certificate
          */
         public fun <CERT : Any> requireForCaIssued(
+            isSelfSigned: suspend (CERT) -> Boolean,
             getAiaExtension: suspend (CERT) -> AuthorityInformationAccess?,
         ): EvaluateAuthorityInformationAccessConstraint<CERT> = EvaluateAuthorityInformationAccessConstraint(
             requiredForCaIssued = true,
+            isSelfSigned = isSelfSigned,
             getAiaExtension = getAiaExtension,
         )
 
@@ -102,6 +108,7 @@ public class EvaluateAuthorityInformationAccessConstraint<in CERT : Any>(
             getAiaExtension: suspend (CERT) -> AuthorityInformationAccess?,
         ): EvaluateAuthorityInformationAccessConstraint<CERT> = EvaluateAuthorityInformationAccessConstraint(
             requiredForCaIssued = false,
+            isSelfSigned = { false },
             getAiaExtension = getAiaExtension,
         )
     }

@@ -15,8 +15,10 @@
  */
 package eu.europa.ec.eudi.etsi119602.consultation
 
+import eu.europa.ec.eudi.etsi1196x2.consultation.certs.AuthorityInformationAccess
 import eu.europa.ec.eudi.etsi1196x2.consultation.certs.BasicConstraintsInfo
 import eu.europa.ec.eudi.etsi1196x2.consultation.certs.CertificatePolicyConstraint
+import eu.europa.ec.eudi.etsi1196x2.consultation.certs.EvaluateAuthorityInformationAccessConstraint
 import eu.europa.ec.eudi.etsi1196x2.consultation.certs.EvaluateBasicConstraintsConstraint
 import eu.europa.ec.eudi.etsi1196x2.consultation.certs.EvaluateMultipleCertificateConstraints
 import eu.europa.ec.eudi.etsi1196x2.consultation.certs.KeyUsageBits
@@ -98,14 +100,32 @@ public interface EULoTECertificateConstraints<CERT : Any> {
             getKeyUsage: suspend (CERT) -> KeyUsageBits?,
             getValidityPeriod: suspend (CERT) -> ValidityPeriod,
             getCertificatePolicies: suspend (CERT) -> List<String>,
+            isSelfSigned: suspend (CERT) -> Boolean,
+            getAiaExtension: suspend (CERT) -> AuthorityInformationAccess?,
         ): EULoTECertificateConstraints<CERT> =
 
             object : EULoTECertificateConstraints<CERT> {
                 override fun pidProviderCertificateConstraintsEvaluator(): EvaluateMultipleCertificateConstraints<CERT> =
-                    pidProviderConstraints(getBasicConstraints, getQcStatements, getKeyUsage, getValidityPeriod, getCertificatePolicies)
+                    pidProviderConstraints(
+                        getBasicConstraints,
+                        getQcStatements,
+                        getKeyUsage,
+                        getValidityPeriod,
+                        getCertificatePolicies,
+                        isSelfSigned,
+                        getAiaExtension,
+                    )
 
                 override fun walletProviderCertificateConstraintsEvaluator(): EvaluateMultipleCertificateConstraints<CERT> =
-                    walletProviderConstraints(getBasicConstraints, getQcStatements, getKeyUsage, getValidityPeriod, getCertificatePolicies)
+                    walletProviderConstraints(
+                        getBasicConstraints,
+                        getQcStatements,
+                        getKeyUsage,
+                        getValidityPeriod,
+                        getCertificatePolicies,
+                        isSelfSigned,
+                        getAiaExtension,
+                    )
 
                 override fun wrpacProviderCertificateConstraintsEvaluator(): EvaluateMultipleCertificateConstraints<CERT> =
                     wrpacProviderConstraints(getBasicConstraints, getKeyUsage, getValidityPeriod, getCertificatePolicies)
@@ -129,6 +149,8 @@ public interface EULoTECertificateConstraints<CERT : Any> {
          * @param getKeyUsage function to extract key usage from a certificate
          * @param getValidityPeriod function to extract validity period from a certificate
          * @param getCertificatePolicies function to extract certificate policies from a certificate
+         * @param isSelfSigned function to check if the certificate is self-signed
+         * @param getAiaExtension function to extract AIA information from a certificate
          *
          * @return a validator configured for PID Provider certificates
          */
@@ -138,12 +160,15 @@ public interface EULoTECertificateConstraints<CERT : Any> {
             getKeyUsage: suspend (CERT) -> KeyUsageBits?,
             getValidityPeriod: suspend (CERT) -> ValidityPeriod,
             getCertificatePolicies: suspend (CERT) -> List<String>,
+            isSelfSigned: suspend (CERT) -> Boolean,
+            getAiaExtension: suspend (CERT) -> AuthorityInformationAccess?,
         ): EvaluateMultipleCertificateConstraints<CERT> = EvaluateMultipleCertificateConstraints.of(
             EvaluateBasicConstraintsConstraint.requireEndEntity(getBasicConstraints),
             QCStatementConstraint.forPidProvider(getQcStatements),
             KeyUsageConstraint.requireDigitalSignature(getKeyUsage),
             ValidityPeriodConstraint.validateAtCurrentTime(getValidityPeriod),
             CertificatePolicyConstraint.requirePolicy(OIDs.POLICY_PID_PROVIDER, getCertificatePolicies),
+            EvaluateAuthorityInformationAccessConstraint.requireForCaIssued(isSelfSigned, getAiaExtension),
         )
 
         /**
@@ -161,6 +186,8 @@ public interface EULoTECertificateConstraints<CERT : Any> {
          * @param getKeyUsage function to extract key usage from a certificate
          * @param getValidityPeriod function to extract validity period from a certificate
          * @param getCertificatePolicies function to extract certificate policies from a certificate
+         * @param isSelfSigned function to check if the certificate is self-signed
+         * @param getAiaExtension function to extract AIA information from a certificate
          *
          * @return a validator configured for Wallet Provider certificates
          */
@@ -170,12 +197,15 @@ public interface EULoTECertificateConstraints<CERT : Any> {
             getKeyUsage: suspend (CERT) -> KeyUsageBits?,
             getValidityPeriod: suspend (CERT) -> ValidityPeriod,
             getCertificatePolicies: suspend (CERT) -> List<String>,
+            isSelfSigned: suspend (CERT) -> Boolean,
+            getAiaExtension: suspend (CERT) -> AuthorityInformationAccess?,
         ): EvaluateMultipleCertificateConstraints<CERT> = EvaluateMultipleCertificateConstraints.of(
             EvaluateBasicConstraintsConstraint.requireEndEntity(getBasicConstraints),
             QCStatementConstraint.forWalletProvider(getQcStatements),
             KeyUsageConstraint.requireDigitalSignature(getKeyUsage),
             ValidityPeriodConstraint.validateAtCurrentTime(getValidityPeriod),
             CertificatePolicyConstraint.requirePolicy(OIDs.POLICY_WALLET_PROVIDER, getCertificatePolicies),
+            EvaluateAuthorityInformationAccessConstraint.requireForCaIssued(isSelfSigned, getAiaExtension),
         )
 
         /**

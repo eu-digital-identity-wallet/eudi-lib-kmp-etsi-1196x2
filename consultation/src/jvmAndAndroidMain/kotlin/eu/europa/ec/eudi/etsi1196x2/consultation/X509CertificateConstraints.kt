@@ -15,16 +15,15 @@
  */
 package eu.europa.ec.eudi.etsi1196x2.consultation
 
-import eu.europa.ec.eudi.etsi1196x2.consultation.certs.BasicConstraintsInfo
-import eu.europa.ec.eudi.etsi1196x2.consultation.certs.KeyUsageBits
-import eu.europa.ec.eudi.etsi1196x2.consultation.certs.QCStatementInfo
-import eu.europa.ec.eudi.etsi1196x2.consultation.certs.ValidityPeriod
+import eu.europa.ec.eudi.etsi1196x2.consultation.certs.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.bouncycastle.asn1.ASN1InputStream
 import org.bouncycastle.asn1.ASN1ObjectIdentifier
 import org.bouncycastle.asn1.ASN1Sequence
 import org.bouncycastle.asn1.DEROctetString
+import org.bouncycastle.asn1.x509.AccessDescription
+import org.bouncycastle.asn1.x509.GeneralName
 import java.security.cert.X509Certificate
 import kotlin.time.toKotlinInstant
 
@@ -114,6 +113,62 @@ public object X509CertificateConstraintExtractors {
             val certPoliciesExtension = cert.getExtensionValue("2.5.29.32")
             certPoliciesExtension?.parseCertificatePolicies().orEmpty()
         }
+
+    /**
+     * Checks if an X509Certificate is self-signed.
+     *
+     * A certificate is self-signed if its subject and issuer are the same.
+     *
+     * @return true if self-signed, false otherwise
+     */
+    public suspend fun isSelfSigned(cert: X509Certificate): Boolean =
+        withContext(Dispatchers.IO) {
+            cert.subjectX500Principal == cert.issuerX500Principal
+        }
+
+    /**
+     * Extracts Authority Information Access (AIA) extension from an X509Certificate.
+     *
+     * @return [AuthorityInformationAccess] or null if extension is not present or parsing fails
+     */
+    public suspend fun getAiaExtension(cert: X509Certificate): AuthorityInformationAccess? =
+        withContext(Dispatchers.IO) {
+            // OID for AIA extension (id-pe-authorityInfoAccess)
+            val aiaExtension = cert.getExtensionValue("1.3.6.1.5.5.7.1.1")
+            aiaExtension?.parseAiaExtension()
+        }
+
+    /**
+     * Helper function to parse AIA from DER-encoded extension value.
+     */
+    private fun ByteArray.parseAiaExtension(): AuthorityInformationAccess? = try {
+        ASN1InputStream(this).use { asn1InputStream ->
+            val obj = asn1InputStream.readObject()
+            val octetString = obj as? DEROctetString ?: return null
+            val aiaSequence = ASN1Sequence.getInstance(octetString.octets)
+
+            var caIssuersUri: String? = null
+            var ocspUri: String? = null
+
+            for (i in 0 until aiaSequence.size()) {
+                val accessDescription = AccessDescription.getInstance(aiaSequence.getObjectAt(i))
+                val accessMethod = accessDescription.accessMethod
+                val accessLocation = accessDescription.accessLocation
+
+                if (accessLocation.tagNo == GeneralName.uniformResourceIdentifier) {
+                    val uri = accessLocation.name.toString()
+
+                    when (accessMethod) {
+                        AccessDescription.id_ad_caIssuers -> caIssuersUri = uri
+                        AccessDescription.id_ad_ocsp -> ocspUri = uri
+                    }
+                }
+            }
+            AuthorityInformationAccess(caIssuersUri, ocspUri)
+        }
+    } catch (_: Exception) {
+        null
+    }
 
     /**
      * Helper function to parse QCStatements from DER-encoded extension value.

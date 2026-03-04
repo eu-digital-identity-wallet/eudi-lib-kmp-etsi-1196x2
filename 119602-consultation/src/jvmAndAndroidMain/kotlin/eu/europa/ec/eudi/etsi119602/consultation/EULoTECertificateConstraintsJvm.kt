@@ -32,4 +32,6 @@ public val EULoTECertificateConstraintsJvm: EULoTECertificateConstraints<X509Cer
         getKeyUsage = X509CertificateConstraintExtractors::getKeyUsage,
         getValidityPeriod = X509CertificateConstraintExtractors::getValidityPeriod,
         getCertificatePolicies = X509CertificateConstraintExtractors::getCertificatePolicies,
+        isSelfSigned = X509CertificateConstraintExtractors::isSelfSigned,
+        getAiaExtension = X509CertificateConstraintExtractors::getAiaExtension,
     )
