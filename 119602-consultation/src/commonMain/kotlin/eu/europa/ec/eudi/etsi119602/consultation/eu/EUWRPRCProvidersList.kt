@@ -67,9 +67,18 @@ public val EUWRPRCProvidersList: EUListOfTrustedEntitiesProfile =
  * The LoTE contains the WRPRC Provider's CA certificate.
  * WRPRC validation involves both PKIX (certificate chain) and JWT signature verification.
  *
- * @param maxPathLen optional maximum path length constraint (default: null, no constraint)
+ * @param maxPathLen Optional maximum path length constraint for CA certificates.
+ *                   Per RFC 5280 Section 4.2.1.9, pathLenConstraint specifies the maximum number
+ *                   of non-self-issued intermediate certificates that may follow this certificate
+ *                   in a valid certification path.
+ *                   - `null` (default): No path length constraint enforced
+ *                   - `0`: This CA can only issue end-entity certificates
+ *                   - `1`: This CA can issue one intermediate CA certificate (recommended for most deployments)
+ *                   - `2+`: This CA can issue multiple levels of intermediate CA certificates
  *
  * @return a validator configured for WRPRC Provider certificates
+ *
+ * @see [RFC 5280 Section 4.2.1.9 - Basic Constraints](https://datatracker.ietf.org/doc/html/rfc5280#section-4.2.1.9)
  */
 public fun <CERT : Any> CertificateOperations<CERT>.wrprcProviderCertificateConstraintsEvaluator(
     maxPathLen: Int? = null,
