@@ -24,6 +24,7 @@ import org.bouncycastle.asn1.ASN1Sequence
 import org.bouncycastle.asn1.DEROctetString
 import org.bouncycastle.asn1.x509.AccessDescription
 import org.bouncycastle.asn1.x509.GeneralName
+import org.slf4j.LoggerFactory
 import java.security.cert.X509Certificate
 import kotlin.time.toKotlinInstant
 
@@ -34,6 +35,8 @@ import kotlin.time.toKotlinInstant
  * required by the constraint validators defined in commonMain.
  */
 public object CertificateOperationsJvm : CertificateOperations<X509Certificate> {
+
+    private val logger = LoggerFactory.getLogger(CertificateOperationsJvm::class.java)
 
     /**
      * Extracts basic constraints information from an X509Certificate.
@@ -166,7 +169,8 @@ public object CertificateOperationsJvm : CertificateOperations<X509Certificate> 
             }
             AuthorityInformationAccess(caIssuersUri, ocspUri)
         }
-    } catch (_: Exception) {
+    } catch (e: Exception) {
+        logger.warn("Failed to parse AIA extension from certificate: ${e.message}", e)
         null
     }
 
@@ -215,7 +219,8 @@ public object CertificateOperationsJvm : CertificateOperations<X509Certificate> 
                 )
             }
         }
-    } catch (_: Exception) {
+    } catch (e: Exception) {
+        logger.warn("Failed to parse QCStatements from certificate: ${e.message}", e)
         emptyList()
     }
 
@@ -255,7 +260,8 @@ public object CertificateOperationsJvm : CertificateOperations<X509Certificate> 
                 policyIdObj.id
             }
         }
-    } catch (_: Exception) {
+    } catch (e: Exception) {
+        logger.warn("Failed to parse CertificatePolicies from certificate: ${e.message}", e)
         emptyList()
     }
 }

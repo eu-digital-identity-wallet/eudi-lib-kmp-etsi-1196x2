@@ -20,9 +20,9 @@ import eu.europa.ec.eudi.etsi119602.ETSI19602
 import eu.europa.ec.eudi.etsi119602.LoTEType
 import eu.europa.ec.eudi.etsi119602.MultiLanguageURI
 import eu.europa.ec.eudi.etsi119602.URIValue
-import eu.europa.ec.eudi.etsi119602.consultation.ETSI19412
+import eu.europa.ec.eudi.etsi119602.consultation.ETSI119411
 import eu.europa.ec.eudi.etsi1196x2.consultation.certs.CertificateOperations
-import eu.europa.ec.eudi.etsi1196x2.consultation.certs.CertificatePolicyConstraint
+import eu.europa.ec.eudi.etsi1196x2.consultation.certs.CertificatePolicyConstraint.Companion.requireAnyPolicy
 import eu.europa.ec.eudi.etsi1196x2.consultation.certs.EvaluateBasicConstraintsConstraint
 import eu.europa.ec.eudi.etsi1196x2.consultation.certs.EvaluateMultipleCertificateConstraints
 import eu.europa.ec.eudi.etsi1196x2.consultation.certs.KeyUsageConstraint
@@ -70,6 +70,12 @@ public val EUWRPACProvidersList: EUListOfTrustedEntitiesProfile =
  * Note: WRPAC Providers are CAs that issue WRPAC (end-entity) certificates to Wallet Relying Parties.
  * The LoTE contains the WRPAC Provider's CA certificate, not the WRPAC itself.
  *
+ * Per ETSI TS 119 411-8 Clause 5.3, WRPAC Providers may issue certificates under any of four policies:
+ * - NCP-n-eudiwrp: Natural persons, non-qualified
+ * - NCP-l-eudiwrp: Legal persons, non-qualified
+ * - QCP-n-eudiwrp: Natural persons, qualified
+ * - QCP-l-eudiwrp: Legal persons, qualified
+ *
  * @param maxPathLen optional maximum path length constraint (default: null, no constraint)
  *
  * @return a validator configured for WRPAC Provider certificates
@@ -79,5 +85,5 @@ public fun <CERT : Any> CertificateOperations<CERT>.wrpacProviderCertificateCons
         EvaluateBasicConstraintsConstraint.requireCa(maxPathLen, ::getBasicConstraints),
         KeyUsageConstraint.requireKeyCertSign(::getKeyUsage),
         ValidityPeriodConstraint.validateAtCurrentTime(::getValidityPeriod),
-        CertificatePolicyConstraint.requirePolicy(ETSI19412.POLICY_WRPAC_PROVIDER, ::getCertificatePolicies),
+        requireAnyPolicy(ETSI119411.ALL, ::getCertificatePolicies),
     )

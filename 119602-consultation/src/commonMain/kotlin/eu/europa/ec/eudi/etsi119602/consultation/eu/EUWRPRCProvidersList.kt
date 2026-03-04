@@ -16,7 +16,7 @@
 package eu.europa.ec.eudi.etsi119602.consultation.eu
 
 import eu.europa.ec.eudi.etsi119602.*
-import eu.europa.ec.eudi.etsi119602.consultation.ETSI19412
+import eu.europa.ec.eudi.etsi119602.consultation.ETSI119475
 import eu.europa.ec.eudi.etsi1196x2.consultation.certs.CertificateOperations
 import eu.europa.ec.eudi.etsi1196x2.consultation.certs.CertificatePolicyConstraint
 import eu.europa.ec.eudi.etsi1196x2.consultation.certs.EvaluateBasicConstraintsConstraint
@@ -61,7 +61,7 @@ public val EUWRPRCProvidersList: EUListOfTrustedEntitiesProfile =
  * - QCStatement: NOT required
  * - Key Usage: keyCertSign REQUIRED
  * - Validity: Must be valid at validation time
- * - Certificate Policy: ETSI TS 119 411-8 (or equivalent)
+ * - Certificate Policy: ETSI TS 119 475 Clause 6.1.3 (WRPRC Policy)
  *
  * Note: WRPRC Providers are CAs that sign WRPRC JWT attestations.
  * The LoTE contains the WRPRC Provider's CA certificate.
@@ -77,5 +77,5 @@ public fun <CERT : Any> CertificateOperations<CERT>.wrprcProviderCertificateCons
     EvaluateBasicConstraintsConstraint.requireCa(maxPathLen, ::getBasicConstraints),
     KeyUsageConstraint.requireKeyCertSign(::getKeyUsage),
     ValidityPeriodConstraint.validateAtCurrentTime(::getValidityPeriod),
-    CertificatePolicyConstraint.requirePolicy(ETSI19412.POLICY_WRPRC_PROVIDER, ::getCertificatePolicies),
+    CertificatePolicyConstraint.requirePolicy(ETSI119475.WRPRC, ::getCertificatePolicies),
 )

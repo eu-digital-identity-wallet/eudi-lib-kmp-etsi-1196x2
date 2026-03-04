@@ -20,7 +20,7 @@ import eu.europa.ec.eudi.etsi119602.ETSI19602
 import eu.europa.ec.eudi.etsi119602.LoTEType
 import eu.europa.ec.eudi.etsi119602.MultiLanguageURI
 import eu.europa.ec.eudi.etsi119602.URIValue
-import eu.europa.ec.eudi.etsi119602.consultation.ETSI19412
+import eu.europa.ec.eudi.etsi119602.consultation.ETSI119412
 import eu.europa.ec.eudi.etsi1196x2.consultation.certs.CertificateOperations
 import eu.europa.ec.eudi.etsi1196x2.consultation.certs.CertificatePolicyConstraint
 import eu.europa.ec.eudi.etsi1196x2.consultation.certs.EvaluateAuthorityInformationAccessConstraint
@@ -80,12 +80,12 @@ public fun <CERT : Any> CertificateOperations<CERT>.walletProviderCertificateCon
     EvaluateMultipleCertificateConstraints.of(
         EvaluateBasicConstraintsConstraint.requireEndEntity(::getBasicConstraints),
         QCStatementConstraint(
-            requiredQcType = "0.4.0.1949.1.2",
+            requiredQcType = ETSI119412.ID_ETSI_QCT_WAL,
             requireCompliance = true,
             ::getQcStatements,
-        ) ,
+        ),
         KeyUsageConstraint.requireDigitalSignature(::getKeyUsage),
         ValidityPeriodConstraint.validateAtCurrentTime(::getValidityPeriod),
-        CertificatePolicyConstraint.requirePolicy(ETSI19412.POLICY_WALLET_PROVIDER, ::getCertificatePolicies),
+        CertificatePolicyConstraint.requirePolicy(ETSI119412.ID_ETSI_QCT_WAL, ::getCertificatePolicies),
         EvaluateAuthorityInformationAccessConstraint.requireForCaIssued(::isSelfSigned, ::getAiaExtension),
     )

@@ -88,6 +88,7 @@ kotlin {
         val jvmAndAndroidMain by getting {
             dependencies {
                 implementation(libs.bouncy.castle)
+                implementation(libs.slf4j.api)
             }
         }
 

@@ -16,7 +16,7 @@
 package eu.europa.ec.eudi.etsi119602.consultation.eu
 
 import eu.europa.ec.eudi.etsi119602.*
-import eu.europa.ec.eudi.etsi119602.consultation.ETSI19412
+import eu.europa.ec.eudi.etsi119602.consultation.ETSI119412
 import eu.europa.ec.eudi.etsi1196x2.consultation.certs.*
 import eu.europa.ec.eudi.etsi1196x2.consultation.certs.QCStatementConstraint
 
@@ -67,12 +67,12 @@ public fun <CERT : Any> CertificateOperations<CERT>.pidProviderCertificateConstr
     EvaluateMultipleCertificateConstraints.of(
         EvaluateBasicConstraintsConstraint.requireEndEntity(::getBasicConstraints),
         QCStatementConstraint(
-            requiredQcType = "0.4.0.1949.1.1",
+            requiredQcType = ETSI119412.ID_ETSI_QCT_PID,
             requireCompliance = true,
             ::getQcStatements,
         ),
         KeyUsageConstraint.requireDigitalSignature(::getKeyUsage),
         ValidityPeriodConstraint.validateAtCurrentTime(::getValidityPeriod),
-        CertificatePolicyConstraint.requirePolicy(ETSI19412.POLICY_PID_PROVIDER, ::getCertificatePolicies),
+        CertificatePolicyConstraint.requirePolicy(ETSI119412.ID_ETSI_QCT_PID, ::getCertificatePolicies),
         EvaluateAuthorityInformationAccessConstraint.requireForCaIssued(::isSelfSigned, ::getAiaExtension),
     )
