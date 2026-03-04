@@ -182,56 +182,6 @@ public class QCStatementConstraint<CERT : Any>(
         }
         return CertificateConstraintEvaluation(violations)
     }
-
-    public companion object {
-        /**
-         * Creates a constraint for PID Provider certificates (id-etsi-qct-pid).
-         * OID: 0.4.0.1949.1.1
-         */
-        public fun <CERT : Any> forPidProvider(
-            getQcStatements: suspend (CERT) -> List<QCStatementInfo>,
-        ): QCStatementConstraint<CERT> = QCStatementConstraint(
-            requiredQcType = "0.4.0.1949.1.1",
-            requireCompliance = false,
-            getQcStatements = getQcStatements,
-        )
-
-        /**
-         * Creates a constraint for Wallet Provider certificates (id-etsi-qct-wal).
-         * OID: 0.4.0.1949.1.2
-         */
-        public fun <CERT : Any> forWalletProvider(
-            getQcStatements: suspend (CERT) -> List<QCStatementInfo>,
-        ): QCStatementConstraint<CERT> = QCStatementConstraint(
-            requiredQcType = "0.4.0.1949.1.2",
-            requireCompliance = false,
-            getQcStatements = getQcStatements,
-        )
-
-        /**
-         * Creates a constraint for PID Provider certificates with compliance check.
-         * OID: 0.4.0.1949.1.1
-         */
-        public fun <CERT : Any> forPidProviderWithCompliance(
-            getQcStatements: suspend (CERT) -> List<QCStatementInfo>,
-        ): QCStatementConstraint<CERT> = QCStatementConstraint(
-            requiredQcType = "0.4.0.1949.1.1",
-            requireCompliance = true,
-            getQcStatements = getQcStatements,
-        )
-
-        /**
-         * Creates a constraint for Wallet Provider certificates with compliance check.
-         * OID: 0.4.0.1949.1.2
-         */
-        public fun <CERT : Any> forWalletProviderWithCompliance(
-            getQcStatements: suspend (CERT) -> List<QCStatementInfo>,
-        ): QCStatementConstraint<CERT> = QCStatementConstraint(
-            requiredQcType = "0.4.0.1949.1.2",
-            requireCompliance = true,
-            getQcStatements = getQcStatements,
-        )
-    }
 }
 
 /**
@@ -432,8 +382,6 @@ public class CertificatePolicyConstraint<CERT : Any>(
                         ),
                     )
                 }
-
-                else -> CertificateConstraintEvaluation.Met
             }
         }
         return CertificateConstraintEvaluation(violations)

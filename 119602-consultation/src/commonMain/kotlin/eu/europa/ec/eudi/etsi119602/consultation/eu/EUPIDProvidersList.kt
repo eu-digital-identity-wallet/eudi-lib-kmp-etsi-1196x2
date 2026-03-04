@@ -18,6 +18,7 @@ package eu.europa.ec.eudi.etsi119602.consultation.eu
 import eu.europa.ec.eudi.etsi119602.*
 import eu.europa.ec.eudi.etsi119602.consultation.ETSI19412
 import eu.europa.ec.eudi.etsi1196x2.consultation.certs.*
+import eu.europa.ec.eudi.etsi1196x2.consultation.certs.QCStatementConstraint
 
 /**
  * A LoTE profile aimed at supporting the publication by the European Commission of a list of
@@ -65,7 +66,11 @@ public val EUPIDProvidersList: EUListOfTrustedEntitiesProfile =
 public fun <CERT : Any> CertificateOperations<CERT>.pidProviderCertificateConstraintsEvaluator(): EvaluateMultipleCertificateConstraints<CERT> =
     EvaluateMultipleCertificateConstraints.of(
         EvaluateBasicConstraintsConstraint.requireEndEntity(::getBasicConstraints),
-        QCStatementConstraint.forPidProvider(::getQcStatements),
+        QCStatementConstraint(
+            requiredQcType = "0.4.0.1949.1.1",
+            requireCompliance = true,
+            ::getQcStatements,
+        ),
         KeyUsageConstraint.requireDigitalSignature(::getKeyUsage),
         ValidityPeriodConstraint.validateAtCurrentTime(::getValidityPeriod),
         CertificatePolicyConstraint.requirePolicy(ETSI19412.POLICY_PID_PROVIDER, ::getCertificatePolicies),

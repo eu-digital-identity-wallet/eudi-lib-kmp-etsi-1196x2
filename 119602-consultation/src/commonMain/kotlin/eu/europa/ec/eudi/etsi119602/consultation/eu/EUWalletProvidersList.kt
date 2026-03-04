@@ -79,7 +79,11 @@ public val EUWalletProvidersList: EUListOfTrustedEntitiesProfile =
 public fun <CERT : Any> CertificateOperations<CERT>.walletProviderCertificateConstraintsEvaluator(): EvaluateMultipleCertificateConstraints<CERT> =
     EvaluateMultipleCertificateConstraints.of(
         EvaluateBasicConstraintsConstraint.requireEndEntity(::getBasicConstraints),
-        QCStatementConstraint.forWalletProvider(::getQcStatements),
+        QCStatementConstraint(
+            requiredQcType = "0.4.0.1949.1.2",
+            requireCompliance = true,
+            ::getQcStatements,
+        ) ,
         KeyUsageConstraint.requireDigitalSignature(::getKeyUsage),
         ValidityPeriodConstraint.validateAtCurrentTime(::getValidityPeriod),
         CertificatePolicyConstraint.requirePolicy(ETSI19412.POLICY_WALLET_PROVIDER, ::getCertificatePolicies),
