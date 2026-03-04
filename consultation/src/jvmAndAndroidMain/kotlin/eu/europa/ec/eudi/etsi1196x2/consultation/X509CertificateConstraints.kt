@@ -16,7 +16,6 @@
 package eu.europa.ec.eudi.etsi1196x2.consultation
 
 import eu.europa.ec.eudi.etsi1196x2.consultation.certs.BasicConstraintsInfo
-import eu.europa.ec.eudi.etsi1196x2.consultation.certs.CertificateConstraintValidator
 import eu.europa.ec.eudi.etsi1196x2.consultation.certs.KeyUsageBits
 import eu.europa.ec.eudi.etsi1196x2.consultation.certs.QCStatementInfo
 import eu.europa.ec.eudi.etsi1196x2.consultation.certs.ValidityPeriod
@@ -40,10 +39,9 @@ public object X509CertificateConstraintExtractors {
     /**
      * Extracts basic constraints information from an X509Certificate.
      *
-     * @param cert the certificate to extract information from
      * @return [eu.europa.ec.eudi.etsi1196x2.consultation.certs.BasicConstraintsInfo] with isCa and pathLenConstraint
      */
-    public val getBasicConstraints: suspend (X509Certificate) -> BasicConstraintsInfo = { cert ->
+    public suspend fun getBasicConstraints(cert: X509Certificate): BasicConstraintsInfo =
         withContext(Dispatchers.IO) {
             val basicConstraints = cert.basicConstraints
             BasicConstraintsInfo(
@@ -51,7 +49,6 @@ public object X509CertificateConstraintExtractors {
                 pathLenConstraint = basicConstraints.takeIf { it >= 0 },
             )
         }
-    }
 
     /**
      * Extracts QCStatement information from an X509Certificate.
@@ -59,24 +56,21 @@ public object X509CertificateConstraintExtractors {
      * QCStatements are encoded in the certificate extension with OID 1.3.6.1.5.5.7.1.3.
      * This function parses the DER-encoded extension value to extract QC type OIDs.
      *
-     * @param cert the certificate to extract information from
      * @return list of [eu.europa.ec.eudi.etsi1196x2.consultation.certs.QCStatementInfo] or empty list if no QCStatements present
      */
-    public val getQcStatements: suspend (X509Certificate) -> List<QCStatementInfo> = { cert ->
+    public suspend fun getQcStatements(cert: X509Certificate): List<QCStatementInfo> =
         withContext(Dispatchers.IO) {
             // OID for QCStatements extension (id-pe-qcStatements)
             val qcStatementsExtension = cert.getExtensionValue("1.3.6.1.5.5.7.1.3")
             qcStatementsExtension?.parseQcStatements().orEmpty()
         }
-    }
 
     /**
      * Extracts key usage information from an X509Certificate.
      *
-     * @param cert the certificate to extract information from
      * @return [eu.europa.ec.eudi.etsi1196x2.consultation.certs.KeyUsageBits] or null if keyUsage extension is not present
      */
-    public val getKeyUsage: suspend (X509Certificate) -> KeyUsageBits? = { cert ->
+    public suspend fun getKeyUsage(cert: X509Certificate): KeyUsageBits? =
         withContext(Dispatchers.IO) {
             cert.keyUsage?.let { keyUsage ->
                 KeyUsageBits(
@@ -92,22 +86,19 @@ public object X509CertificateConstraintExtractors {
                 )
             }
         }
-    }
 
     /**
      * Extracts validity period information from an X509Certificate.
      *
-     * @param cert the certificate to extract information from
      * @return [eu.europa.ec.eudi.etsi1196x2.consultation.certs.ValidityPeriod] with notBefore and notAfter timestamps
      */
-    public val getValidityPeriod: suspend (X509Certificate) -> ValidityPeriod = { cert ->
+    public suspend fun getValidityPeriod(cert: X509Certificate): ValidityPeriod =
         withContext(Dispatchers.IO) {
             ValidityPeriod(
                 notBefore = cert.notBefore.toInstant().toKotlinInstant(),
                 notAfter = cert.notAfter.toInstant().toKotlinInstant(),
             )
         }
-    }
 
     /**
      * Extracts certificate policy OIDs from an X509Certificate.
@@ -115,16 +106,14 @@ public object X509CertificateConstraintExtractors {
      * Certificate policies are encoded in the certificate extension with OID 2.5.29.32.
      * This function parses the DER-encoded extension value to extract policy OIDs.
      *
-     * @param cert the certificate to extract information from
      * @return list of certificate policy OIDs or empty list if no policies present
      */
-    public val getCertificatePolicies: suspend (X509Certificate) -> List<String> = { cert ->
+    public suspend fun getCertificatePolicies(cert: X509Certificate): List<String> =
         withContext(Dispatchers.IO) {
             // OID for Certificate Policies extension
             val certPoliciesExtension = cert.getExtensionValue("2.5.29.32")
             certPoliciesExtension?.parseCertificatePolicies().orEmpty()
         }
-    }
 
     /**
      * Helper function to parse QCStatements from DER-encoded extension value.
@@ -140,7 +129,7 @@ public object X509CertificateConstraintExtractors {
      *
      * The extension value is wrapped in an OCTET STRING, so we need to unwrap it first.
      *
-     * @param derValue the DER-encoded extension value
+     * @receiver derValue the DER-encoded extension value
      * @return list of [QCStatementInfo] or empty list if parsing fails
      *
      * @see [ETSI EN 319 412-5](https://www.etsi.org/deliver/etsi_en/319400_319499/31941205/)
@@ -171,8 +160,7 @@ public object X509CertificateConstraintExtractors {
                 )
             }
         }
-    } catch (e: Exception) {
-        // Log error if needed
+    } catch (_: Exception) {
         emptyList()
     }
 
@@ -191,7 +179,7 @@ public object X509CertificateConstraintExtractors {
      *
      * The extension value is wrapped in an OCTET STRING, so we need to unwrap it first.
      *
-     * @param derValue the DER-encoded extension value
+     * @receiver the DER-encoded extension value
      * @return list of policy OIDs or empty list if parsing fails
      *
      * @see [RFC 5280 Section 4.2.1.4](https://datatracker.ietf.org/doc/html/rfc5280#section-4.2.1.4)
@@ -212,103 +200,7 @@ public object X509CertificateConstraintExtractors {
                 policyIdObj.id
             }
         }
-    } catch (e: Exception) {
-        // Log error if needed
+    } catch (_: Exception) {
         emptyList()
     }
-}
-
-/**
- * Helper functions for creating LoTE-specific validators for [X509Certificate].
- *
- * These validators are configured according to the requirements specified in
- * ETSI TS 119 602 for each provider list type.
- *
- * @see [LoTE-Certificate-Validation.md](https://github.com/eu-digital-identity-wallet/eudi-lib-kmp-etsi-1196x2-consultation/blob/main/docs/LoTE-Certificate-Validation.md)
- */
-public object LoTEX509CertificateValidators {
-
-    /**
-     * Creates a validator for PID Provider certificates (LoTE end-entity).
-     *
-     * Per ETSI TS 119 602 Annex D:
-     * - End-entity certificate (cA=FALSE)
-     * - QCStatement: id-etsi-qct-pid REQUIRED
-     * - Key Usage: digitalSignature REQUIRED
-     * - Certificate Policy: ETSI TS 119 412-6
-     *
-     * @return a validator configured for PID Provider certificates
-     *
-     * @see [LoTE-Certificate-Validation.md Section 1.2](https://github.com/eu-digital-identity-wallet/eudi-lib-kmp-etsi-1196x2-consultation/blob/main/docs/LoTE-Certificate-Validation.md#12-lote-servicedigitalidentity-requirements-etsi-ts-119-602-annex-d)
-     */
-    public fun pidProviderCertificateConstraintsEvaluator(): CertificateConstraintValidator<X509Certificate> =
-        LoTECertificateConstraints.pidProviderConstraints(
-            getBasicConstraints = X509CertificateConstraintExtractors.getBasicConstraints,
-            getQcStatements = X509CertificateConstraintExtractors.getQcStatements,
-            getKeyUsage = X509CertificateConstraintExtractors.getKeyUsage,
-            getValidityPeriod = X509CertificateConstraintExtractors.getValidityPeriod,
-            getCertificatePolicies = X509CertificateConstraintExtractors.getCertificatePolicies,
-        )
-
-    /**
-     * Creates a validator for Wallet Provider certificates (LoTE end-entity).
-     *
-     * Per ETSI TS 119 602 Annex E:
-     * - End-entity certificate (cA=FALSE)
-     * - QCStatement: id-etsi-qct-wal REQUIRED
-     * - Key Usage: digitalSignature REQUIRED
-     * - Certificate Policy: ETSI TS 119 412-6
-     *
-     * @return a validator configured for Wallet Provider certificates
-     *
-     * @see [LoTE-Certificate-Validation.md Section 2.2](https://github.com/eu-digital-identity-wallet/eudi-lib-kmp-etsi-1196x2-consultation/blob/main/docs/LoTE-Certificate-Validation.md#22-lote-servicedigitalidentity-requirements-etsi-ts-119-602-annex-e)
-     */
-    public fun walletProviderCertificateConstraintsEvaluator(): CertificateConstraintValidator<X509Certificate> =
-        LoTECertificateConstraints.walletProviderConstraints(
-            getBasicConstraints = X509CertificateConstraintExtractors.getBasicConstraints,
-            getQcStatements = X509CertificateConstraintExtractors.getQcStatements,
-            getKeyUsage = X509CertificateConstraintExtractors.getKeyUsage,
-            getValidityPeriod = X509CertificateConstraintExtractors.getValidityPeriod,
-            getCertificatePolicies = X509CertificateConstraintExtractors.getCertificatePolicies,
-        )
-
-    /**
-     * Creates a validator for WRPAC Provider certificates (LoTE CA).
-     *
-     * Per ETSI TS 119 602 Annex F:
-     * - CA certificate (cA=TRUE)
-     * - Key Usage: keyCertSign REQUIRED
-     * - Certificate Policy: ETSI TS 119 411-8
-     *
-     * @return a validator configured for WRPAC Provider certificates
-     *
-     * @see [LoTE-Certificate-Validation.md Section 3.2](https://github.com/eu-digital-identity-wallet/eudi-lib-kmp-etsi-1196x2-consultation/blob/main/docs/LoTE-Certificate-Validation.md#32-lote-servicedigitalidentity-requirements-etsi-ts-119-602-annex-f)
-     */
-    public fun wrpacProviderCertificateConstraintsEvaluator(): CertificateConstraintValidator<X509Certificate> =
-        LoTECertificateConstraints.wrpacProviderConstraints(
-            getBasicConstraints = X509CertificateConstraintExtractors.getBasicConstraints,
-            getKeyUsage = X509CertificateConstraintExtractors.getKeyUsage,
-            getValidityPeriod = X509CertificateConstraintExtractors.getValidityPeriod,
-            getCertificatePolicies = X509CertificateConstraintExtractors.getCertificatePolicies,
-        )
-
-    /**
-     * Creates a validator for WRPRC Provider certificates (LoTE CA).
-     *
-     * Per ETSI TS 119 602 Annex G:
-     * - CA certificate (cA=TRUE)
-     * - Key Usage: keyCertSign REQUIRED
-     * - Certificate Policy: ETSI TS 119 411-8 (or equivalent)
-     *
-     * @return a validator configured for WRPRC Provider certificates
-     *
-     * @see [LoTE-Certificate-Validation.md Section 4.2](https://github.com/eu-digital-identity-wallet/eudi-lib-kmp-etsi-1196x2-consultation/blob/main/docs/LoTE-Certificate-Validation.md#42-lote-servicedigitalidentity-requirements-etsi-ts-119-602-annex-g)
-     */
-    public fun wrprcProviderCertificateConstraintsEvaluator(): CertificateConstraintValidator<X509Certificate> =
-        LoTECertificateConstraints.wrprcProviderConstraints(
-            getBasicConstraints = X509CertificateConstraintExtractors.getBasicConstraints,
-            getKeyUsage = X509CertificateConstraintExtractors.getKeyUsage,
-            getValidityPeriod = X509CertificateConstraintExtractors.getValidityPeriod,
-            getCertificatePolicies = X509CertificateConstraintExtractors.getCertificatePolicies,
-        )
 }

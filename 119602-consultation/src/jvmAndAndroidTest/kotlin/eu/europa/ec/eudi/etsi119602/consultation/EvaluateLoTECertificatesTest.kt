@@ -13,10 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package eu.europa.ec.eudi.etsi1196x2.consultation
+package eu.europa.ec.eudi.etsi119602.consultation
 
-import eu.europa.ec.eudi.etsi1196x2.consultation.CertOps.toX509Certificate
+import eu.europa.ec.eudi.etsi119602.consultation.CertOps.toX509Certificate
+import eu.europa.ec.eudi.etsi1196x2.consultation.X509CertificateConstraintExtractors
 import eu.europa.ec.eudi.etsi1196x2.consultation.certs.*
+import eu.europa.ec.eudi.etsi1196x2.consultation.evaluateCertificateConstraints
 import kotlinx.coroutines.test.runTest
 import org.bouncycastle.asn1.x500.X500Name
 import java.security.cert.TrustAnchor
@@ -41,7 +43,8 @@ class EvaluateLoTECertificatesTest {
         val trustAnchor = TrustAnchor(certificate, null)
 
         // Validate as PID Provider
-        val constraintEvaluation = trustAnchor.validateAsPidProvider()
+        val constraintEvaluation =
+            trustAnchor.evaluateCertificateConstraints(EULoTECertificateConstraintsJvm.pidProviderCertificateConstraintsEvaluator())
         assertTrue(!constraintEvaluation.isMet())
 
         // Should pass basic constraints (end-entity) and key usage (digitalSignature)
@@ -61,7 +64,8 @@ class EvaluateLoTECertificatesTest {
         val trustAnchor = TrustAnchor(certificate, null)
 
         // Validate as Wallet Provider
-        val constraintEvaluation = trustAnchor.validateAsWalletProvider()
+        val constraintEvaluation =
+            trustAnchor.evaluateCertificateConstraints(EULoTECertificateConstraintsJvm.walletProviderCertificateConstraintsEvaluator())
         assertTrue(!constraintEvaluation.isMet())
 
         // Should pass basic constraints (end-entity) and key usage (digitalSignature)
@@ -81,7 +85,8 @@ class EvaluateLoTECertificatesTest {
         val trustAnchor = TrustAnchor(certificate, null)
 
         // Validate as WRPAC Provider
-        val constraintEvaluation = trustAnchor.validateAsWrpacProvider()
+        val constraintEvaluation =
+            trustAnchor.evaluateCertificateConstraints(EULoTECertificateConstraintsJvm.wrpacProviderCertificateConstraintsEvaluator())
         assertTrue(!constraintEvaluation.isMet())
         // Should pass basic constraints (CA) and key usage (keyCertSign)
         // Will fail Certificate Policy (not implemented yet)
@@ -99,7 +104,8 @@ class EvaluateLoTECertificatesTest {
         val trustAnchor = TrustAnchor(certificate, null)
 
         // Validate as WRPRC Provider
-        val constraintEvaluation = trustAnchor.validateAsWrprcProvider()
+        val constraintEvaluation =
+            trustAnchor.evaluateCertificateConstraints(EULoTECertificateConstraintsJvm.wrprcProviderCertificateConstraintsEvaluator())
         assertTrue(!constraintEvaluation.isMet())
 
         // Should pass basic constraints (CA) and key usage (keyCertSign)
@@ -118,7 +124,7 @@ class EvaluateLoTECertificatesTest {
 
         // Create constraint for end-entity
         val constraint = EvaluateBasicConstraintsConstraint.requireEndEntity(
-            getBasicConstraints = X509CertificateConstraintExtractors.getBasicConstraints,
+            getBasicConstraints = X509CertificateConstraintExtractors::getBasicConstraints,
         )
 
         // Validate
@@ -138,7 +144,7 @@ class EvaluateLoTECertificatesTest {
 
         // Create constraint for digitalSignature
         val constraint = KeyUsageConstraint.requireDigitalSignature(
-            getKeyUsage = X509CertificateConstraintExtractors.getKeyUsage,
+            getKeyUsage = X509CertificateConstraintExtractors::getKeyUsage,
         )
 
         // Validate
@@ -169,7 +175,7 @@ class EvaluateLoTECertificatesTest {
 
         // Create constraint for digitalSignature
         val constraint = KeyUsageConstraint.requireDigitalSignature(
-            getKeyUsage = X509CertificateConstraintExtractors.getKeyUsage,
+            getKeyUsage = X509CertificateConstraintExtractors::getKeyUsage,
         )
 
         // Validate
@@ -187,7 +193,7 @@ class EvaluateLoTECertificatesTest {
 
         // Create constraint
         val constraint = ValidityPeriodConstraint.validateAtCurrentTime(
-            getValidityPeriod = X509CertificateConstraintExtractors.getValidityPeriod,
+            getValidityPeriod = X509CertificateConstraintExtractors::getValidityPeriod,
         )
 
         // Validate
@@ -206,7 +212,7 @@ class EvaluateLoTECertificatesTest {
         // Create constraint for CA with maxPathLen = 2
         val constraint = EvaluateBasicConstraintsConstraint.requireCa(
             maxPathLen = 2,
-            getBasicConstraints = X509CertificateConstraintExtractors.getBasicConstraints,
+            getBasicConstraints = X509CertificateConstraintExtractors::getBasicConstraints,
         )
 
         // Validate - should fail because CA certificate has no pathLenConstraint
@@ -224,7 +230,7 @@ class EvaluateLoTECertificatesTest {
         val certificate = certHolder.toX509Certificate()
 
         // Create validator with multiple constraints for PID Provider
-        val evaluateConstraints = LoTEX509CertificateValidators.pidProviderCertificateConstraintsEvaluator()
+        val evaluateConstraints = EULoTECertificateConstraintsJvm.pidProviderCertificateConstraintsEvaluator()
 
         // Validate
         val evaluation = evaluateConstraints(certificate)

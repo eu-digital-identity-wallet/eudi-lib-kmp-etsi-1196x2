@@ -98,8 +98,6 @@ kotlin {
                 implementation(libs.atomicfu)
             }
         }
-        val jvmAndAndroidTest by getting {
-        }
     }
 }
 

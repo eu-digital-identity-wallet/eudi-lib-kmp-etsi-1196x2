@@ -15,10 +15,14 @@
  */
 package eu.europa.ec.eudi.etsi1196x2.consultation
 
+import eu.europa.ec.eudi.etsi1196x2.consultation.certs.CertificateConstraintEvaluation
+import eu.europa.ec.eudi.etsi1196x2.consultation.certs.EvaluateCertificateConstraint
 import java.security.Provider
 import java.security.cert.CertPathValidator
 import java.security.cert.CertificateFactory
 import java.security.cert.PKIXParameters
+import java.security.cert.TrustAnchor
+import java.security.cert.X509Certificate
 import java.util.*
 import kotlin.time.Instant
 import kotlin.time.toJavaInstant
@@ -53,3 +57,7 @@ public object JvmSecurity {
         date = Date.from(at.toJavaInstant())
     }
 }
+
+public suspend fun TrustAnchor.evaluateCertificateConstraints(
+    evaluateCertificateConstraint: EvaluateCertificateConstraint<X509Certificate>,
+): CertificateConstraintEvaluation = evaluateCertificateConstraint(trustedCert)

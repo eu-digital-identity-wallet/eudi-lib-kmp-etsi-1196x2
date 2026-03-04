@@ -90,7 +90,7 @@ public data class ValidityPeriod(
  *
  * @param CERT the type representing the certificate (e.g., X509Certificate, ByteArray, etc.)
  *
- * @see CertificateConstraintValidator
+ * @see EvaluateMultipleCertificateConstraints
  */
 public fun interface EvaluateCertificateConstraint<in CERT : Any> {
     /**
