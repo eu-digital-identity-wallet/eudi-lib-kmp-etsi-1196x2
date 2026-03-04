@@ -143,7 +143,7 @@ public interface EULoTECertificateConstraints<CERT : Any> {
             QCStatementConstraint.forPidProvider(getQcStatements),
             KeyUsageConstraint.requireDigitalSignature(getKeyUsage),
             ValidityPeriodConstraint.validateAtCurrentTime(getValidityPeriod),
-            CertificatePolicyConstraint.requirePolicy("0.4.0.1949.1.1", getCertificatePolicies),
+            CertificatePolicyConstraint.requirePolicy(OIDs.POLICY_PID_PROVIDER, getCertificatePolicies),
         )
 
         /**
@@ -175,7 +175,7 @@ public interface EULoTECertificateConstraints<CERT : Any> {
             QCStatementConstraint.forWalletProvider(getQcStatements),
             KeyUsageConstraint.requireDigitalSignature(getKeyUsage),
             ValidityPeriodConstraint.validateAtCurrentTime(getValidityPeriod),
-            CertificatePolicyConstraint.requirePolicy(OIDs.ETSI_TS_119_411_8, getCertificatePolicies),
+            CertificatePolicyConstraint.requirePolicy(OIDs.POLICY_WALLET_PROVIDER, getCertificatePolicies),
         )
 
         /**
@@ -209,7 +209,7 @@ public interface EULoTECertificateConstraints<CERT : Any> {
             EvaluateBasicConstraintsConstraint.requireCa(maxPathLen, getBasicConstraints),
             KeyUsageConstraint.requireKeyCertSign(getKeyUsage),
             ValidityPeriodConstraint.validateAtCurrentTime(getValidityPeriod),
-            CertificatePolicyConstraint.requirePolicy(OIDs.ETSI_TS_119_411_8, getCertificatePolicies),
+            CertificatePolicyConstraint.requirePolicy(OIDs.POLICY_WRPAC_PROVIDER, getCertificatePolicies),
         )
 
         /**
@@ -244,7 +244,7 @@ public interface EULoTECertificateConstraints<CERT : Any> {
             EvaluateBasicConstraintsConstraint.requireCa(maxPathLen, getBasicConstraints),
             KeyUsageConstraint.requireKeyCertSign(getKeyUsage),
             ValidityPeriodConstraint.validateAtCurrentTime(getValidityPeriod),
-            CertificatePolicyConstraint.requirePolicy(OIDs.ETSI_TS_119_411_8, getCertificatePolicies),
+            CertificatePolicyConstraint.requirePolicy(OIDs.POLICY_WRPRC_PROVIDER, getCertificatePolicies),
         )
     }
 
@@ -252,13 +252,22 @@ public interface EULoTECertificateConstraints<CERT : Any> {
      * OID constants for LoTE certificate policies and QCStatements.
      */
     public object OIDs {
-        // QCStatement OIDs (ETSI EN 319 412-5)
+        /** QCStatement OID for PID Providers (ETSI TS 119 412-6) */
         public const val ID_ETSI_QCT_PID: String = "0.4.0.1949.1.1"
+
+        /** QCStatement OID for Wallet Providers (ETSI TS 119 412-6) */
         public const val ID_ETSI_QCT_WAL: String = "0.4.0.1949.1.2"
 
-        // Certificate Policy OIDs
-        public const val ETSI_TS_119_412_6_PID: String = "0.4.0.1949.1.1"
-        public const val ETSI_TS_119_412_6_WAL: String = "0.4.0.1949.1.2"
-        public const val ETSI_TS_119_411_8: String = "0.4.0.1949.2.1"
+        /** Certificate Policy OID for PID Provider certificates (ETSI TS 119 412-6) */
+        public const val POLICY_PID_PROVIDER: String = "0.4.0.1949.1.1"
+
+        /** Certificate Policy OID for Wallet Provider certificates (ETSI TS 119 412-6) */
+        public const val POLICY_WALLET_PROVIDER: String = "0.4.0.1949.1.2"
+
+        /** Certificate Policy OID for WRPAC Provider certificates (ETSI TS 119 411-8) */
+        public const val POLICY_WRPAC_PROVIDER: String = "0.4.0.1949.2.1"
+
+        /** Certificate Policy OID for WRPRC Provider certificates (ETSI TS 119 411-8) */
+        public const val POLICY_WRPRC_PROVIDER: String = "0.4.0.1949.2.1"
     }
 }
