@@ -62,19 +62,11 @@ public class EvaluateAuthorityInformationAccessConstraint<in CERT : Any>(
                 }
 
                 aiaInfo == null -> {
-                    add(
-                        CertificateConstraintViolation(
-                            "CA-issued certificate missing Authority Information Access (AIA) extension",
-                        ),
-                    )
+                    add(caIssuedCertificateMissingAia())
                 }
 
                 aiaInfo.caIssuersUri == null -> {
-                    add(
-                        CertificateConstraintViolation(
-                            "AIA extension missing id-ad-caIssuers access method (CA certificate URI)",
-                        ),
-                    )
+                    add(aiaMissingCaIssuersAccessMethod())
                 }
 
                 else -> {}
@@ -84,6 +76,22 @@ public class EvaluateAuthorityInformationAccessConstraint<in CERT : Any>(
     }
 
     public companion object {
+        /**
+         * Creates a violation for CA-issued certificate missing AIA extension.
+         */
+        public fun caIssuedCertificateMissingAia(): CertificateConstraintViolation =
+            CertificateConstraintViolation(
+                "CA-issued certificate missing Authority Information Access (AIA) extension",
+            )
+
+        /**
+         * Creates a violation for AIA extension missing id-ad-caIssuers access method.
+         */
+        public fun aiaMissingCaIssuersAccessMethod(): CertificateConstraintViolation =
+            CertificateConstraintViolation(
+                "AIA extension missing id-ad-caIssuers access method (CA certificate URI)",
+            )
+
         /**
          * Creates a constraint requiring AIA for CA-issued certificates.
          *

@@ -77,25 +77,17 @@ public class EvaluateBasicConstraintsConstraint<in CERT : Any>(
         val info = getBasicConstraints(certificate)
         val violations = buildList {
             if (info.isCa != expectedCa) {
-                val expectedType = if (expectedCa) "CA" else "end-entity"
-                val actualType = if (info.isCa) "CA" else "end-entity"
-                val violation =
-                    CertificateConstraintViolation("Certificate type mismatch: expected $expectedType but was $actualType")
-                add(violation)
+                add(certificateTypeMismatch(expectedCa, info.isCa))
             }
             if (expectedCa && pathLenConstraint != null) {
                 val actualPathLen = info.pathLenConstraint
                 when {
                     actualPathLen == null -> {
-                        add(CertificateConstraintViolation("CA certificate missing pathLenConstraint"))
+                        add(caCertificateMissingPathLenConstraint())
                     }
 
                     actualPathLen > pathLenConstraint -> {
-                        add(
-                            CertificateConstraintViolation(
-                                "CA certificate pathLenConstraint ($actualPathLen) exceeds maximum allowed ($pathLenConstraint)",
-                            ),
-                        )
+                        add(pathLenConstraintExceedsMaximum(actualPathLen, pathLenConstraint))
                     }
                 }
             }
@@ -104,6 +96,27 @@ public class EvaluateBasicConstraintsConstraint<in CERT : Any>(
     }
 
     public companion object {
+        /**
+         * Creates a violation for certificate type mismatch (CA vs end-entity).
+         */
+        public fun certificateTypeMismatch(expectedCa: Boolean, actualIsCa: Boolean): CertificateConstraintViolation {
+            val expectedType = if (expectedCa) "CA" else "end-entity"
+            val actualType = if (actualIsCa) "CA" else "end-entity"
+            return CertificateConstraintViolation("Certificate type mismatch: expected $expectedType but was $actualType")
+        }
+
+        /**
+         * Creates a violation for CA certificate missing pathLenConstraint.
+         */
+        public fun caCertificateMissingPathLenConstraint(): CertificateConstraintViolation =
+            CertificateConstraintViolation("CA certificate missing pathLenConstraint")
+
+        /**
+         * Creates a violation for CA certificate pathLenConstraint exceeding maximum allowed.
+         */
+        public fun pathLenConstraintExceedsMaximum(actual: Int, maximum: Int): CertificateConstraintViolation =
+            CertificateConstraintViolation("CA certificate pathLenConstraint ($actual) exceeds maximum allowed ($maximum)")
+
         /**
          * Creates a constraint for end-entity certificates (cA=FALSE).
          */
@@ -156,31 +169,37 @@ public class QCStatementConstraint<CERT : Any>(
         val violations = buildList {
             when {
                 statements.isEmpty() -> {
-                    val violation = CertificateConstraintViolation(
-                        "Certificate does not contain any QCStatements (required: $requiredQcType)",
-                    )
-                    add(violation)
+                    add(certificateDoesNotContainAnyQCStatement(requiredQcType))
                 }
-
                 statements.none { it.qcType == requiredQcType } -> {
-                    val availableTypes = statements.joinToString(", ") { it.qcType }
-                    val violation = CertificateConstraintViolation(
-                        "Certificate does not contain required QCStatement type '$requiredQcType'. Available: [$availableTypes]",
-                    )
-                    add(violation)
+                    add(certificateDoesNotContainRequiredQCStatement(requiredQcType, statements))
                 }
 
                 requireCompliance && statements.none { it.qcType == requiredQcType && it.qcCompliance } -> {
-                    val violation = CertificateConstraintViolation(
-                        "Certificate contains QCStatement type '$requiredQcType' but it is not marked as compliant",
-                    )
-                    add(violation)
+                    add(certificateContainsRequiredQCStatementButItIsNotMarkedAsCompliant(requiredQcType))
                 }
-
                 else -> {}
             }
         }
         return CertificateConstraintEvaluation(violations)
+    }
+
+    public companion object {
+        public fun certificateDoesNotContainAnyQCStatement(requiredQcType: String): CertificateConstraintViolation =
+            CertificateConstraintViolation("Certificate does not contain any QCStatements (required: $requiredQcType)")
+        public fun certificateDoesNotContainRequiredQCStatement(
+            requiredQcType: String,
+            qcStatements: List<QCStatementInfo>,
+        ): CertificateConstraintViolation =
+            CertificateConstraintViolation(
+                "Certificate does not contain required QCStatement type '$requiredQcType'. Available: ${qcStatements.joinToString { it.qcType }}",
+            )
+        public fun certificateContainsRequiredQCStatementButItIsNotMarkedAsCompliant(
+            requiredQcType: String,
+        ): CertificateConstraintViolation =
+            CertificateConstraintViolation(
+                "Certificate contains QCStatement type '$requiredQcType' but it is not marked as compliant",
+            )
     }
 }
 
@@ -205,19 +224,10 @@ public class KeyUsageConstraint<CERT : Any>(
 
         val violations = buildList {
             when {
-                keyUsage == null -> add(
-                    CertificateConstraintViolation(
-                        "Certificate does not contain keyUsage extension",
-                    ),
-                )
-
+                keyUsage == null -> add(missingKeyUsageExtension())
                 !hasRequiredBits(keyUsage, requiredKeyUsage) -> {
                     val missing = getMissingBits(keyUsage, requiredKeyUsage)
-                    add(
-                        CertificateConstraintViolation(
-                            "Certificate keyUsage missing required bits: $missing",
-                        ),
-                    )
+                    add(missingRequiredKeyUsageBits(missing))
                 }
 
                 else -> {}
@@ -253,6 +263,18 @@ public class KeyUsageConstraint<CERT : Any>(
     }
 
     public companion object {
+        /**
+         * Creates a violation for certificate missing keyUsage extension.
+         */
+        public fun missingKeyUsageExtension(): CertificateConstraintViolation =
+            CertificateConstraintViolation("Certificate does not contain keyUsage extension")
+
+        /**
+         * Creates a violation for certificate missing required key usage bits.
+         */
+        public fun missingRequiredKeyUsageBits(missing: List<String>): CertificateConstraintViolation =
+            CertificateConstraintViolation("Certificate keyUsage missing required bits: ${missing.joinToString(", ")}")
+
         /**
          * Creates a constraint requiring digitalSignature key usage.
          * Suitable for PID and Wallet Provider end-entity certificates.
@@ -299,18 +321,8 @@ public class ValidityPeriodConstraint<CERT : Any>(
 
         val violations = buildList {
             when {
-                time < period.notBefore -> add(
-                    CertificateConstraintViolation(
-                        "Certificate is not yet valid. Valid from: ${period.notBefore}, current time: $time",
-                    ),
-                )
-
-                time > period.notAfter -> add(
-                    CertificateConstraintViolation(
-                        "Certificate has expired. Valid until: ${period.notAfter}, current time: $time",
-                    ),
-                )
-
+                time < period.notBefore -> add(certificateNotYetValid(period.notBefore, time))
+                time > period.notAfter -> add(certificateExpired(period.notAfter, time))
                 else -> {}
             }
         }
@@ -318,6 +330,22 @@ public class ValidityPeriodConstraint<CERT : Any>(
     }
 
     public companion object {
+        /**
+         * Creates a violation for certificate not yet valid.
+         */
+        public fun certificateNotYetValid(notBefore: Instant, currentTime: Instant): CertificateConstraintViolation =
+            CertificateConstraintViolation(
+                "Certificate is not yet valid. Valid from: $notBefore, current time: $currentTime",
+            )
+
+        /**
+         * Creates a violation for certificate expired.
+         */
+        public fun certificateExpired(notAfter: Instant, currentTime: Instant): CertificateConstraintViolation =
+            CertificateConstraintViolation(
+                "Certificate has expired. Valid until: $notAfter, current time: $currentTime",
+            )
+
         /**
          * Creates a constraint that validates the certificate at the current time.
          */
@@ -360,27 +388,9 @@ public class CertificatePolicyConstraint<CERT : Any>(
 
         val violations = buildList {
             when {
-                policies.isEmpty() -> add(
-                    CertificateConstraintViolation(
-                        "Certificate does not contain any certificate policies. Required one of: ${
-                            requiredPolicyOids.joinToString(
-                                ", ",
-                            )
-                        }",
-                    ),
-                )
-
+                policies.isEmpty() -> add(noCertificatePolicies(requiredPolicyOids))
                 policies.none { it in requiredPolicyOids } -> {
-                    val availablePolicies = policies.joinToString(", ")
-                    add(
-                        CertificateConstraintViolation(
-                            "Certificate policies [$availablePolicies] do not match any of the required policies: ${
-                                requiredPolicyOids.joinToString(
-                                    ", ",
-                                )
-                            }",
-                        ),
-                    )
+                    add(policiesDoNotMatch(policies, requiredPolicyOids))
                 }
             }
         }
@@ -388,6 +398,25 @@ public class CertificatePolicyConstraint<CERT : Any>(
     }
 
     public companion object {
+        /**
+         * Creates a violation for certificate with no certificate policies.
+         */
+        public fun noCertificatePolicies(required: List<String>): CertificateConstraintViolation =
+            CertificateConstraintViolation(
+                "Certificate does not contain any certificate policies. Required one of: ${required.joinToString(", ")}",
+            )
+
+        /**
+         * Creates a violation for certificate policies that do not match required policies.
+         */
+        public fun policiesDoNotMatch(
+            available: List<String>,
+            required: List<String>,
+        ): CertificateConstraintViolation =
+            CertificateConstraintViolation(
+                "Certificate policies [${available.joinToString(", ")}] do not match any of the required policies: ${required.joinToString(", ")}",
+            )
+
         /**
          * Creates a constraint requiring a specific policy OID.
          */
