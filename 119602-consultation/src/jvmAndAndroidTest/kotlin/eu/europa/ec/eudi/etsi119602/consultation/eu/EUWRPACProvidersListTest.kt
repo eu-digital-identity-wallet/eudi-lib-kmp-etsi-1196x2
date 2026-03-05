@@ -193,7 +193,24 @@ class EUWRPACProvidersListTest {
         assertTrue(constraintEvaluation.isMet(), "WRPAC Provider certificate with QCP-l policy should pass")
     }
 
-    // Note: Testing rejection of unknown policy OIDs requires deeper investigation
-    // into how CertificatePolicyConstraint handles non-matching OIDs.
-    // The four valid policy types (NCP-n, NCP-l, QCP-n, QCP-l) are tested above.
+    @Test
+    fun `WRPAC Provider validator should reject unknown policy`() = runTest {
+        // Create certificate with unknown policy OID (not in ETSI119411.ALL)
+        val unknownPolicyOid = "0.4.0.1949.999.999"
+        val keyPair = CertOps.genTrustAnchor("SHA256withECDSA", cnWrpacProvider).first
+        val certHolder = CertOps.createCACertificateWithPolicy(
+            keyPair = keyPair,
+            sigAlg = "SHA256withECDSA",
+            name = cnWrpacProvider,
+            policyOids = listOf(unknownPolicyOid),
+        )
+        val certificate = certHolder.toX509Certificate()
+        val trustAnchor = TrustAnchor(certificate, null)
+
+        // Validate as WRPAC Provider - should reject unknown policy
+        val constraintEvaluation = trustAnchor.evaluateCertificateConstraints(EUWRPACProvidersList)
+
+        // Verify rejection
+        assertTrue(!constraintEvaluation.isMet(), "Certificate with unknown policy should be rejected")
+    }
 }
