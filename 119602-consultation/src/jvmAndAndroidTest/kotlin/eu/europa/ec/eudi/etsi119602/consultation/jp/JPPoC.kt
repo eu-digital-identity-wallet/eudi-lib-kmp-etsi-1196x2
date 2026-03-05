@@ -147,16 +147,16 @@ class JPLoTEDownloaderTest {
                 loadLoTE = LoadLoTEFromHttp(this),
 
             ),
-            svcTypePerCtx = svcTypePerCtx,
-            extractCertificate = { it.trustedCert },
-            continueOnProblem = ContinueOnProblem.AlwaysIfDownloaded,
             createTrustAnchors = { serviceDigitalIdentity ->
                 serviceDigitalIdentity.x509Certificates.orEmpty()
                     .map { TrustAnchor(it.x509Certificate(provider), null) }
             },
+            extractCertificate = { it.trustedCert },
+            getCertInfo = { "Info[subject=${it.subjectX500Principal}-sn=${it.serialNumber}]" },
             directTrust = ValidateCertificateChainUsingDirectTrustJvm,
             pkix = ValidateCertificateChainUsingPKIXJvm(customization = { isRevocationEnabled = false }),
-            getCertInfo = { "Info[subject=${it.subjectX500Principal}-sn=${it.serialNumber}]" },
+            continueOnProblem = ContinueOnProblem.AlwaysIfDownloaded,
+            svcTypePerCtx = svcTypePerCtx,
         )
         return fromHttp(loteLocationsSupported, parallelism = 2)
     }

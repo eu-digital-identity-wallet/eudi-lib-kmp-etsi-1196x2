@@ -39,7 +39,8 @@ public sealed interface CertificateConstraintEvaluation {
     /**
      * The constraint is not satisfied.
      */
-    public data class Violated(public val violations: List<CertificateConstraintViolation>) : CertificateConstraintEvaluation {
+    public data class Violated(public val violations: List<CertificateConstraintViolation>) :
+        CertificateConstraintEvaluation {
         init {
             require(violations.isNotEmpty()) { "At least one violation is required" }
         }
@@ -100,6 +101,76 @@ public fun interface EvaluateCertificateConstraint<in CERT : Any> {
      * @return the result of the validation
      */
     public suspend operator fun invoke(certificate: CERT): CertificateConstraintEvaluation
+}
 
-    public suspend fun isValid(certificate: CERT): Boolean = invoke(certificate) is CertificateConstraintEvaluation.Met
+/**
+ * Checks if the specified certificate satisfies the evaluated constraint.
+ *
+ * @param certificate the certificate to validate against the constraint
+ * @return true if the certificate satisfies the constraint, false otherwise
+ * @param CERT the type representing the certificate
+ */
+public suspend fun <CERT : Any> EvaluateCertificateConstraint<CERT>.isValid(
+    certificate: CERT,
+): Boolean =
+    invoke(certificate).isMet()
+
+/**
+ * Evaluates the specified constraint against a collection of certificates and maps each certificate
+ * to its evaluation result.
+ *
+ * @param CERT the type representing the certificate (e.g., X509Certificate, ByteArray, etc.)
+ * @param getCertificateInfo a suspend function used to derive a unique identifier or descriptor
+ *                           for each certificate
+ * @param certificates an iterable collection of certificates to be evaluated
+ * @return a map where the keys are the values produced by the `getCertificateInfo` function for
+ *         each certificate, and the values are the evaluation results of the corresponding
+ *         certificates
+ */
+public suspend fun <CERT : Any> EvaluateCertificateConstraint<CERT>.evaluateAll(
+    getCertificateInfo: suspend (CERT) -> String,
+    certificates: Iterable<CERT>,
+): Map<String, CertificateConstraintEvaluation> = buildMap {
+    certificates.forEach { certificate ->
+        val evaluation = invoke(certificate)
+        put(getCertificateInfo(certificate), evaluation)
+    }
+}
+
+/**
+ * Ensures that all certificates meet the specified constraint.
+ * Checks do not stop at the first violation.
+ *
+ * @param certificates an iterable collection of certificates to be evaluated
+ * @param getCertificateInfo a suspend function used to derive a unique identifier or descriptor
+ *                           for each certificate
+ * @param CERT the type representing the certificate
+ * @throws IllegalStateException if any certificate does not meet the constraint
+ */
+@Throws(IllegalStateException::class)
+public suspend fun <CERT : Any> EvaluateCertificateConstraint<CERT>.ensureAllMet(
+    certificates: Iterable<CERT>,
+    getCertificateInfo: suspend (CERT) -> String = { it.toString() },
+) {
+    val violationsPerCert = buildMap {
+        val evaluations = evaluateAll(getCertificateInfo, certificates)
+        for ((certInfo, evaluation) in evaluations) {
+            if (!evaluation.isMet()) {
+                put(certInfo, evaluation)
+            }
+        }
+    }
+
+    fun error() = buildString {
+        appendLine("Profile violations on ${violationsPerCert.size}  anchors")
+        for ((certInfo, violated) in violationsPerCert) {
+            appendLine("- Certificate: $certInfo")
+            appendLine("- Violations: ")
+            violated.violations.forEachIndexed { index, violation ->
+                appendLine("  ${index + 1}. ${violation.reason}")
+            }
+        }
+    }
+
+    check(violationsPerCert.isEmpty()) { error() }
 }
