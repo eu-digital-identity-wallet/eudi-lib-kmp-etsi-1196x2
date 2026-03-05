@@ -47,35 +47,11 @@ class EUWRPACProvidersListTest {
         val constraintEvaluation = trustAnchor.evaluateCertificateConstraints(EUWRPACProvidersList)
         assertTrue(!constraintEvaluation.isMet())
         // Should pass basic constraints (CA) and key usage (keyCertSign)
-        // Will fail Certificate Policy (not implemented yet)
+        // Will fail Certificate Policy (certificate lacks policy OID)
         assertTrue(
             constraintEvaluation.violations.any { it.reason.contains("certificate policies") },
             "Expected failure for missing Certificate Policy",
         )
-    }
-
-    @Test
-    fun `WRPAC Provider validator should accept CA certificate with valid policy`() = runTest {
-        // Generate CA certificate with WRPAC policy OID
-        // Note: WRPAC Providers are CAs, so they need cA=TRUE
-        val keyPair = CertOps.genTrustAnchor("SHA256withECDSA", cnWrpacProvider).first
-        val certHolder = CertOps.createTrustAnchor(
-            keyPair = keyPair,
-            sigAlg = "SHA256withECDSA",
-            name = cnWrpacProvider,
-        )
-        // Note: We can't easily add policy OIDs to existing certificates
-        // This test documents that CA certificates pass basic constraints check
-        val certificate = certHolder.toX509Certificate()
-        val trustAnchor = TrustAnchor(certificate, null)
-
-        // Validate as WRPAC Provider
-        val constraintEvaluation = trustAnchor.evaluateCertificateConstraints(EUWRPACProvidersList)
-
-        // Should fail - missing certificate policy (can't be added with current test utilities)
-        // This test documents the current limitation
-        assertTrue(!constraintEvaluation.isMet(), "CA certificate without policy should fail")
-        assertTrue(constraintEvaluation.violations.any { it.reason.contains("certificate policies") })
     }
 
     @Test
