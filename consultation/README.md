@@ -9,6 +9,8 @@ to verify the trustworthiness of credentials (PIDs, EAAs)
 and attestation objects (WIA, WUA) by navigating trust trees within
 the European Union's identity framework.
 
+---
+
 ## Quick Start
 
 ### 1. Add dependency
@@ -17,9 +19,14 @@ Add the following to your `build.gradle.kts`:
 
 ```kotlin
 dependencies {
+    // Replace $version with the latest release version
+    // All modules share the same version number
     implementation("eu.europa.ec.eudi:etsi-1196x2-consultation:$version")
 }
 ```
+
+> [!NOTE]
+> Replace `$version` with the latest release version from the [releases page](https://github.com/eu-digital-identity-wallet/eudi-lib-kmp-etsi-1196x2/releases).
 
 ### 2. Configure Attestation Classifications
 
@@ -43,6 +50,8 @@ val isChainTrustedForAttestation = IsChainTrustedForAttestation(
 )
 val result = isChainTrustedForAttestation.issuance(chain, MDoc("eu.europa.ec.eudi.pid.1"))
 ```
+
+---
 
 ## Core abstractions
 
@@ -192,3 +201,11 @@ Notes:
 - `cached()` prevents duplicate concurrent computations for the same query and refreshes entries after `ttl`.
 - Failing to `close()` the cached source may keep background coroutines alive longer than needed and retain memory.
 - Register the `AutoClosable` with a DI framework to ensure it is closed when no longer needed.
+
+---
+
+## See Also
+
+- **[Root README](../README.md)** - Project overview and installation
+- **[Consultation-DSS Module](../consultation-dss/README.md)** - ETSI Trusted Lists support via DSS
+- **[119602-data-model Module](../119602-data-model/README.md)** - ETSI TS 119 602 LoTE JSON data model
