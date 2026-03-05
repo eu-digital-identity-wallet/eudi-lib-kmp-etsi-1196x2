@@ -34,6 +34,7 @@ import kotlinx.serialization.json.jsonPrimitive
 import java.security.cert.TrustAnchor
 import java.security.cert.X509Certificate
 
+@Suppress("unused")
 object IntegrationWithSdJwtVc {
     fun <CHAIN : Any> IsChainTrustedForAttestation<CHAIN, *>.sdJwtVcIssuerTrust(): X509CertificateTrust<CHAIN> =
         X509CertificateTrust { chain, claims ->
