@@ -17,6 +17,7 @@ package eu.europa.ec.eudi.etsi119602.consultation.eu
 
 import eu.europa.ec.eudi.etsi119602.consultation.CertOps
 import eu.europa.ec.eudi.etsi119602.consultation.CertOps.toX509Certificate
+import eu.europa.ec.eudi.etsi119602.consultation.ETSI119475
 import eu.europa.ec.eudi.etsi119602.consultation.evaluateCertificateConstraints
 import eu.europa.ec.eudi.etsi1196x2.consultation.certs.isMet
 import kotlinx.coroutines.test.runTest
@@ -73,5 +74,25 @@ class EUWRPRCProvidersListTest {
         // This test documents the current limitation
         assertTrue(!constraintEvaluation.isMet(), "CA certificate without policy should fail")
         assertTrue(constraintEvaluation.violations.any { it.reason.contains("certificate policies") })
+    }
+
+    @Test
+    fun `WRPRC Provider validator should accept CA certificate with WRPRC policy`() = runTest {
+        // Generate CA certificate with WRPRC policy OID (ETSI TS 119 475)
+        val keyPair = CertOps.genTrustAnchor("SHA256withECDSA", cnWrprcProvider).first
+        val certHolder = CertOps.createCACertificateWithPolicy(
+            keyPair = keyPair,
+            sigAlg = "SHA256withECDSA",
+            name = cnWrprcProvider,
+            policyOids = listOf(ETSI119475.WRPRC),
+        )
+        val certificate = certHolder.toX509Certificate()
+        val trustAnchor = TrustAnchor(certificate, null)
+
+        // Validate as WRPRC Provider
+        val constraintEvaluation = trustAnchor.evaluateCertificateConstraints(EUWRPRCProvidersList)
+
+        // Should pass - has valid WRPRC policy
+        assertTrue(constraintEvaluation.isMet(), "WRPRC Provider certificate with WRPRC policy should pass")
     }
 }

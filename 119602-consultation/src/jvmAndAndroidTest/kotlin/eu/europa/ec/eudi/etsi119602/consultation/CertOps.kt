@@ -30,7 +30,6 @@ import org.bouncycastle.asn1.x509.KeyUsage
 import org.bouncycastle.asn1.x509.PolicyInformation
 import org.bouncycastle.cert.X509CertificateHolder
 import org.bouncycastle.cert.jcajce.JcaX509ExtensionUtils
-import org.bouncycastle.cert.jcajce.JcaX509v1CertificateBuilder
 import org.bouncycastle.cert.jcajce.JcaX509v3CertificateBuilder
 import org.bouncycastle.operator.ContentSigner
 import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder
@@ -225,23 +224,53 @@ object CertOps {
         }.build(sigAlg, signerKey)
 
     /**
-     * Build a sample V3 intermediate CA certificate with policy OIDs.
+     * Build a CA certificate with specific policy OIDs and path length constraint.
      *
-     * @param signerCert certificate carrying the public key that will be used to verify this certificate's signature
-     * @param signerKey private key used to generate the signature
+     * @param keyPair the key pair for the CA certificate
+     * @param sigAlg signature algorithm (e.g., "SHA256withECDSA")
+     * @param name subject/issuer name (self-signed)
+     * @param policyOids list of certificate policy OIDs
+     * @param pathLenConstraint optional path length constraint (null = no constraint)
+     * @return the generated certificate holder
+     */
+    fun createCACertificateWithPolicy(
+        keyPair: KeyPair,
+        sigAlg: String,
+        name: X500Name,
+        policyOids: List<String>,
+        pathLenConstraint: Int? = null,
+    ): X509CertificateHolder {
+        return JcaX509v3CertificateBuilder(
+            name,
+            calculateSerialNumber(),
+            Date.from(notBefore().toJavaInstant()),
+            calculateDate(24 * 31),
+            name,
+            keyPair.public,
+        ).apply {
+            subjectKeyIdentifier(keyPair.public)
+            basicConstraints(BasicConstraints(pathLenConstraint ?: Int.MAX_VALUE))
+            keyUsage(KeyUsage(KeyUsage.keyCertSign or KeyUsage.cRLSign))
+            certificatePolicies(policyOids)
+        }.build(sigAlg, keyPair.private)
+    }
+
+    /**
+     * Build an end-entity certificate with policy OIDs.
+     *
+     * @param signerCert the CA certificate that will sign this certificate
+     * @param signerKey the CA's private key
      * @param sigAlg signature algorithm
-     * @param certKey public key to be installed in the certificate
-     * @param followingCACerts number of CA certificates that can follow in the chain
+     * @param certKey the end-entity's public key
      * @param subject subject name
      * @param policyOids list of certificate policy OIDs
      * @return the generated certificate holder
      */
-    fun createIntermediateCertificateWithPolicy(
+    fun createEndEntityWithPolicy(
         signerCert: X509CertificateHolder,
         signerKey: PrivateKey,
         sigAlg: String,
         certKey: PublicKey,
-        followingCACerts: Int = 0,
         subject: X500Name,
         policyOids: List<String>,
     ): X509CertificateHolder =
@@ -255,10 +284,59 @@ object CertOps {
         ).apply {
             authorityKeyIdentifier(signerCert)
             subjectKeyIdentifier(certKey)
-            basicConstraints(BasicConstraints(followingCACerts))
-            keyUsage(KeyUsage(KeyUsage.keyCertSign or KeyUsage.cRLSign))
+            basicConstraints(BasicConstraints(false))
+            keyUsage(KeyUsage(KeyUsage.digitalSignature))
             certificatePolicies(policyOids)
         }.build(sigAlg, signerKey)
+
+    /**
+     * Build a full PKIX certificate chain.
+     *
+     * @param rootCA the root CA certificate (trust anchor)
+     * @param rootKey the root CA's private key
+     * @param intermediateCount number of intermediate CAs to create (default: 1)
+     * @param sigAlg signature algorithm (default: "SHA256withECDSA")
+     * @return list of certificates from root CA to end-entity (root first, EE last)
+     */
+    fun buildCertificateChain(
+        rootCA: X509CertificateHolder,
+        rootKey: PrivateKey,
+        intermediateCount: Int = 1,
+        sigAlg: String = "SHA256withECDSA",
+    ): List<X509CertificateHolder> {
+        require(intermediateCount >= 0) { "intermediateCount must be non-negative" }
+
+        val chain = mutableListOf(rootCA)
+        var currentCA = rootCA
+        var currentCAKey = rootKey
+
+        // Create intermediate CAs
+        for (i in 0 until intermediateCount) {
+            val intermediateName = X500Name("CN=Intermediate CA $i")
+            val (intermediateKeyPair, intermediateCert) = genIntermediateCertificate(
+                signerCert = currentCA,
+                signerKey = currentCAKey,
+                sigAlg = sigAlg,
+                followingCACerts = if (i == intermediateCount - 1) 0 else intermediateCount - i - 2,
+                subject = intermediateName,
+            )
+            chain.add(intermediateCert)
+            currentCA = intermediateCert
+            currentCAKey = intermediateKeyPair.private
+        }
+
+        // Create end-entity certificate
+        val eeName = X500Name("CN=End Entity")
+        val (_, eeCert) = genEndEntity(
+            signerCert = currentCA,
+            signerKey = currentCAKey,
+            sigAlg = sigAlg,
+            subject = eeName,
+        )
+        chain.add(eeCert)
+
+        return chain
+    }
 
     fun createEndEntity(
         signerCert: X509CertificateHolder,
@@ -291,11 +369,6 @@ object CertOps {
 
     private fun signer(sigAlg: String, privateKey: PrivateKey): ContentSigner =
         Ctx.jcaContentSignerBuilder(sigAlg).build(privateKey)
-
-    private fun JcaX509v1CertificateBuilder.build(sigAlg: String, privateKey: PrivateKey): X509CertificateHolder {
-        val signer = signer(sigAlg, privateKey)
-        return build(signer)
-    }
 
     private fun JcaX509v3CertificateBuilder.build(sigAlg: String, privateKey: PrivateKey): X509CertificateHolder {
         val signer = signer(sigAlg, privateKey)

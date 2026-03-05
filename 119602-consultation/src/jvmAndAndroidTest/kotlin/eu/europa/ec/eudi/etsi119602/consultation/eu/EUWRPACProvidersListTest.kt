@@ -17,6 +17,7 @@ package eu.europa.ec.eudi.etsi119602.consultation.eu
 
 import eu.europa.ec.eudi.etsi119602.consultation.CertOps
 import eu.europa.ec.eudi.etsi119602.consultation.CertOps.toX509Certificate
+import eu.europa.ec.eudi.etsi119602.consultation.ETSI119411
 import eu.europa.ec.eudi.etsi119602.consultation.evaluateCertificateConstraints
 import eu.europa.ec.eudi.etsi1196x2.consultation.CertificateOperationsJvm
 import eu.europa.ec.eudi.etsi1196x2.consultation.certs.EvaluateBasicConstraintsConstraint
@@ -135,4 +136,88 @@ class EUWRPACProvidersListTest {
         assertTrue(!constraintEvaluation.isMet())
         assertTrue(constraintEvaluation.violations.any { it.reason.contains("pathLenConstraint") })
     }
+
+    @Test
+    fun `WRPAC Provider validator should accept NCP-n policy`() = runTest {
+        // Generate CA certificate with NCP-n-eudiwrp policy
+        val keyPair = CertOps.genTrustAnchor("SHA256withECDSA", cnWrpacProvider).first
+        val certHolder = CertOps.createCACertificateWithPolicy(
+            keyPair = keyPair,
+            sigAlg = "SHA256withECDSA",
+            name = cnWrpacProvider,
+            policyOids = listOf(ETSI119411.NCP_N_EUDIWRP),
+        )
+        val certificate = certHolder.toX509Certificate()
+        val trustAnchor = TrustAnchor(certificate, null)
+
+        // Validate as WRPAC Provider
+        val constraintEvaluation = trustAnchor.evaluateCertificateConstraints(EUWRPACProvidersList)
+
+        // Should pass - has valid NCP-n policy
+        assertTrue(constraintEvaluation.isMet(), "WRPAC Provider certificate with NCP-n policy should pass")
+    }
+
+    @Test
+    fun `WRPAC Provider validator should accept NCP-l policy`() = runTest {
+        // Generate CA certificate with NCP-l-eudiwrp policy
+        val keyPair = CertOps.genTrustAnchor("SHA256withECDSA", cnWrpacProvider).first
+        val certHolder = CertOps.createCACertificateWithPolicy(
+            keyPair = keyPair,
+            sigAlg = "SHA256withECDSA",
+            name = cnWrpacProvider,
+            policyOids = listOf(ETSI119411.NCP_L_EUDIWRP),
+        )
+        val certificate = certHolder.toX509Certificate()
+        val trustAnchor = TrustAnchor(certificate, null)
+
+        // Validate as WRPAC Provider
+        val constraintEvaluation = trustAnchor.evaluateCertificateConstraints(EUWRPACProvidersList)
+
+        // Should pass - has valid NCP-l policy
+        assertTrue(constraintEvaluation.isMet(), "WRPAC Provider certificate with NCP-l policy should pass")
+    }
+
+    @Test
+    fun `WRPAC Provider validator should accept QCP-n policy`() = runTest {
+        // Generate CA certificate with QCP-n-eudiwrp policy
+        val keyPair = CertOps.genTrustAnchor("SHA256withECDSA", cnWrpacProvider).first
+        val certHolder = CertOps.createCACertificateWithPolicy(
+            keyPair = keyPair,
+            sigAlg = "SHA256withECDSA",
+            name = cnWrpacProvider,
+            policyOids = listOf(ETSI119411.QCP_N_EUDIWRP),
+        )
+        val certificate = certHolder.toX509Certificate()
+        val trustAnchor = TrustAnchor(certificate, null)
+
+        // Validate as WRPAC Provider
+        val constraintEvaluation = trustAnchor.evaluateCertificateConstraints(EUWRPACProvidersList)
+
+        // Should pass - has valid QCP-n policy
+        assertTrue(constraintEvaluation.isMet(), "WRPAC Provider certificate with QCP-n policy should pass")
+    }
+
+    @Test
+    fun `WRPAC Provider validator should accept QCP-l policy`() = runTest {
+        // Generate CA certificate with QCP-l-eudiwrp policy
+        val keyPair = CertOps.genTrustAnchor("SHA256withECDSA", cnWrpacProvider).first
+        val certHolder = CertOps.createCACertificateWithPolicy(
+            keyPair = keyPair,
+            sigAlg = "SHA256withECDSA",
+            name = cnWrpacProvider,
+            policyOids = listOf(ETSI119411.QCP_L_EUDIWRP),
+        )
+        val certificate = certHolder.toX509Certificate()
+        val trustAnchor = TrustAnchor(certificate, null)
+
+        // Validate as WRPAC Provider
+        val constraintEvaluation = trustAnchor.evaluateCertificateConstraints(EUWRPACProvidersList)
+
+        // Should pass - has valid QCP-l policy
+        assertTrue(constraintEvaluation.isMet(), "WRPAC Provider certificate with QCP-l policy should pass")
+    }
+
+    // Note: Testing rejection of unknown policy OIDs requires deeper investigation
+    // into how CertificatePolicyConstraint handles non-matching OIDs.
+    // The four valid policy types (NCP-n, NCP-l, QCP-n, QCP-l) are tested above.
 }
