@@ -118,6 +118,7 @@ class DIGITTest {
                     { _ -> error("Not used") },
                     { _ -> error("Not used") },
                 ),
+                getCertInfo = { "Info[subject=${it.subjectX500Principal}-sn=${it.serialNumber}]" },
                 pkix = ValidateCertificateChainUsingPKIX { _, _ -> error("Not used") },
 
             )

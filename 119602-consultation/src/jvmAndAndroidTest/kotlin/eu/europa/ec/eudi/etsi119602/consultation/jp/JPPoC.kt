@@ -156,6 +156,7 @@ class JPLoTEDownloaderTest {
             },
             directTrust = ValidateCertificateChainUsingDirectTrustJvm,
             pkix = ValidateCertificateChainUsingPKIXJvm(customization = { isRevocationEnabled = false }),
+            getCertInfo = { "Info[subject=${it.subjectX500Principal}-sn=${it.serialNumber}]" },
         )
         return fromHttp(loteLocationsSupported, parallelism = 2)
     }

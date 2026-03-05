@@ -22,12 +22,17 @@ import eu.europa.ec.eudi.etsi1196x2.consultation.certs.CertificateConstraintEval
 import eu.europa.ec.eudi.etsi1196x2.consultation.certs.EvaluateCertificateConstraint
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.*
+import kotlin.collections.component1
+import kotlin.collections.component2
+import kotlin.collections.iterator
 
 public data class LotEMata<CTX, in CERT : Any>(
     val svcTypePerCtx: Map<CTX, URI>,
     val directTrust: Boolean,
     val certificateConstraints: EvaluateCertificateConstraint<CERT>?,
 )
+
+public typealias CertInfo = String
 
 public class ProvisionTrustAnchorsFromLoTEs<CHAIN : Any, CTX : Any, TRUST_ANCHOR : Any, CERT : Any>(
     private val loadLoTEAndPointers: LoadLoTEAndPointers,
@@ -36,6 +41,7 @@ public class ProvisionTrustAnchorsFromLoTEs<CHAIN : Any, CTX : Any, TRUST_ANCHOR
     private val continueOnProblem: ContinueOnProblem = ContinueOnProblem.Never,
     private val directTrust: ValidateCertificateChainUsingDirectTrust<CHAIN, TRUST_ANCHOR, *>,
     private val pkix: ValidateCertificateChainUsingPKIX<CHAIN, TRUST_ANCHOR>,
+    private val getCertInfo: suspend (CERT) -> CertInfo,
     private val createTrustAnchors: (ServiceDigitalIdentity) -> List<TRUST_ANCHOR>,
 ) {
 
@@ -59,16 +65,16 @@ public class ProvisionTrustAnchorsFromLoTEs<CHAIN : Any, CTX : Any, TRUST_ANCHOR
         val getTrustAnchors = GetTrustAnchors<URI, TRUST_ANCHOR> { query ->
             baseGetTrustAnchors(query)?.also { anchors ->
                 cfg.metadata.certificateConstraints?.let { evaluator ->
+                    val violations = mutableMapOf<CertInfo, CertificateConstraintEvaluation.Violated>()
                     for (anchor in anchors.list) {
                         val cert = extractCertificate(anchor)
-                        val evaluation = evaluator(cert)
+                        val evaluation = evaluator.invoke(cert)
                         if (evaluation is CertificateConstraintEvaluation.Violated) {
-                            throw IllegalStateException(
-                                "Trust anchor from LoTE ${cfg.downloadUrl} for service type $query " +
-                                    "does not meet profile constraints: ${evaluation.violations}",
-                            )
+                            val certInfo = getCertInfo(cert)
+                            violations[certInfo] = evaluation
                         }
                     }
+                    ensureNoViolations(cfg, anchors.list.size, violations)
                 }
             }
         }
@@ -92,6 +98,25 @@ public class ProvisionTrustAnchorsFromLoTEs<CHAIN : Any, CTX : Any, TRUST_ANCHOR
             LoTECfg(url, ctx)
         }
 
+    private fun ensureNoViolations(
+        cfg: LoTECfg<CTX, CERT>,
+        anchorsNo: Int,
+        violationsPerCert: Map<CertInfo, CertificateConstraintEvaluation.Violated>,
+    ) {
+        check(violationsPerCert.isEmpty()) {
+            buildString {
+                appendLine("Profile violations on ${violationsPerCert.size} / $anchorsNo anchors")
+                appendLine("- Download URL: ${cfg.downloadUrl}")
+                for ((certInfo, violated) in violationsPerCert) {
+                    appendLine("- Certificate: $certInfo")
+                    appendLine("- Violations: ")
+                    violated.violations.forEachIndexed { index, violation ->
+                        appendLine("  ${index + 1}. ${violation.reason}")
+                    }
+                }
+            }
+        }
+    }
     private data class LoTECfg<CTX : Any, CERT : Any>(
         val downloadUrl: String,
         val metadata: LotEMata<CTX, CERT>,
@@ -105,6 +130,7 @@ public class ProvisionTrustAnchorsFromLoTEs<CHAIN : Any, CTX : Any, TRUST_ANCHOR
             continueOnProblem: ContinueOnProblem = ContinueOnProblem.Never,
             directTrust: ValidateCertificateChainUsingDirectTrust<CHAIN, TRUST_ANCHOR, *>,
             pkix: ValidateCertificateChainUsingPKIX<CHAIN, TRUST_ANCHOR>,
+            getCertInfo: suspend (CERT) -> CertInfo,
             createTrustAnchors: (ServiceDigitalIdentity) -> List<TRUST_ANCHOR>,
         ): ProvisionTrustAnchorsFromLoTEs<CHAIN, VerificationContext, TRUST_ANCHOR, CERT> =
             ProvisionTrustAnchorsFromLoTEs(
@@ -114,6 +140,7 @@ public class ProvisionTrustAnchorsFromLoTEs<CHAIN : Any, CTX : Any, TRUST_ANCHOR
                 continueOnProblem,
                 directTrust,
                 pkix,
+                getCertInfo,
                 createTrustAnchors,
             )
     }
