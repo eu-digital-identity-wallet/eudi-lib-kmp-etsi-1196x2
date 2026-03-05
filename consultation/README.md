@@ -2,7 +2,8 @@
 
 The EUDI ETSI 119 6x2 Consultation module
 is a Kotlin implementation designed for the European Digital Identity (EUDI) Wallet ecosystem.
-Its purpose is to provide an extensible and secure framework for Certificate Chain Validation against dynamic Trust Anchors.
+Its purpose is to provide an extensible and secure framework for Certificate Chain Validation against dynamic Trust
+Anchors.
 
 The module enables Wallets, Issuers, and Verifiers
 to verify the trustworthiness of credentials (PIDs, EAAs)
@@ -26,7 +27,8 @@ dependencies {
 ```
 
 > [!NOTE]
-> Replace `$version` with the latest release version from the [releases page](https://github.com/eu-digital-identity-wallet/eudi-lib-kmp-etsi-1196x2/releases).
+> Replace `$version` with the latest release version from
+> the [releases page](https://github.com/eu-digital-identity-wallet/eudi-lib-kmp-etsi-1196x2/releases).
 
 ### 2. Configure Attestation Classifications
 
@@ -42,7 +44,7 @@ val classifications = AttestationClassifications(
 ### 3. Use the High-Level API
 
 ```kotlin
-val isChainTrusted : IsChainTrustedForEUDIW // Implementation of IsChainTrustedForEUDIW
+val isChainTrusted: IsChainTrustedForEUDIW // Implementation of IsChainTrustedForEUDIW
 
 val isChainTrustedForAttestation = IsChainTrustedForAttestation(
     isChainTrustedForContext = isChainTrusted, // Implementation of IsChainTrustedForEUDIW
@@ -61,27 +63,49 @@ a high-level functional approach.
 🛡️ **Validation & Context**
 
 - `VerificationContext`: A sealed hierarchy representing specific EUDI use cases.
-  - `PID`, `PubEAA`, `QEAA`: For credentials.
-  - `WalletInstanceAttestation`, `WalletUnitAttestation`: For wallet-specific attestations.
-  - `WalletRelyingPartyRegistrationCertificate`: For Verifier/Issuer certificates.
-- `ValidateCertificateChain`: A functional interface defining the contract for certificate chain validation, with two main implementations:
-  - `ValidateCertificateChainUsingPKIX`: Performs traditional cryptographic PKIX validation (signature verification, path building, etc.)
-  - `ValidateCertificateChainUsingDirectTrust`: Performs direct certificate matching by subject and serial number
-- `IsChainTrustedForEUDIW`: The high-level orchestrator that resolves the correct trust anchors for a given context and triggers the validation engine.
+    - `PID`, `PubEAA`, `QEAA`: For credentials.
+    - `WalletInstanceAttestation`, `WalletUnitAttestation`: For wallet-specific attestations.
+    - `WalletRelyingPartyRegistrationCertificate`: For Verifier/Issuer certificates.
+- `ValidateCertificateChain`: A functional interface defining the contract for certificate chain validation, with two
+  main implementations:
+    - `ValidateCertificateChainUsingPKIX`: Performs traditional cryptographic PKIX validation (signature verification,
+      path building, etc.)
+    - `ValidateCertificateChainUsingDirectTrust`: Performs direct certificate matching by subject and serial number
+- `IsChainTrustedForEUDIW`: The high-level orchestrator that resolves the correct trust anchors for a given context and
+  triggers the validation engine.
 
 🔍 **Trust Discovery**
 
 - `GetTrustAnchors`: A functional interface for retrieving anchors based on a query (e.g., a Regex or a Context).
-- `IsChainTrustedForContext`: The elementary aggregation unit that combines trust anchors and validation logic for a set of supported contexts.
+- `IsChainTrustedForContext`: The elementary aggregation unit that combines trust anchors and validation logic for a set
+  of supported contexts.
 - `ComposeChainTrust`: A higher-level aggregator that combines multiple `IsChainTrustedForContext` instances.
 
 🏷️ **Attestation Classification**
+
 - `AttestationIdentifier`: Support for both ISO/IEC 18013-5 (MDoc), SD-JWT VC or other formats.
-- `AttestationClassifications`: A predicate-based system that maps raw credential types to their required security levels and trust roots.
+- `AttestationClassifications`: A predicate-based system that maps raw credential types to their required security
+  levels and trust roots.
+
+📋 **Certificate Constraint Evaluation**
+
+- `EvaluateCertificateConstraint`: A functional interface for validating specific aspects of a certificate against ETSI
+  certificate profile requirements. Multiple constraints can be aggregated to represent the complete rules of a
+  Certificate Profile
+- **Built-in constraint implementations**:
+    - `EvaluateBasicConstraintsConstraint`: Validates certificate type (CA vs end-entity) and path length constraints
+    - `QCStatementConstraint`: Validates QCStatement extensions per ETSI EN 319 412-5 (required for PID/Wallet
+      certificates)
+    - `KeyUsageConstraint`: Validates key usage bits per RFC 5280 (digitalSignature, keyCertSign, etc.)
+    - `ValidityPeriodConstraint`: Validates certificate validity period (notBefore, notAfter)
+    - `CertificatePolicyConstraint`: Validates certificate policy OIDs (required for WRPAC/WRPRC providers)
+    - `EvaluateAuthorityInformationAccessConstraint`: Validates AIA extension per ETSI TS 119 412-6 (required for
+      CA-issued PID/Wallet certificates)
 
 ## Architecture Overview
 
-The following diagram illustrates how a raw attestation moves through the library to reach a trust decision, supporting both PKIX-based and direct-trust validation approaches:
+The following diagram illustrates how a raw attestation moves through the library to reach a trust decision, supporting
+both PKIX-based and direct-trust validation approaches:
 
 ```mermaid
 graph TD
@@ -91,14 +115,14 @@ graph TD
     D --> E{GetTrustAnchors}
     E -->|Lookup| F[KeyStore / Remote Source]
     F -->|Return| G[List of TrustAnchors]
-    
+
     subgraph Validation Approaches
         G --> H1[ValidateCertificateChain]
         H1 -->|PKIX Validation| I1[CertificationChainValidation Result]
         G --> H2[ValidateCertificateChainUsingDirectTrust]
         H2 -->|Direct Trust Validation| I2[CertificationChainValidation Result]
     end
-    
+
     I1 -->|Trusted| J((Pass))
     I1 -->|NotTrusted| K((Fail))
     I2 -->|Trusted| J((Pass))
@@ -106,8 +130,11 @@ graph TD
 ```
 
 The library supports two validation strategies:
+
 - **PKIX-based validation**: Traditional certificate chain validation using cryptographic PKIX algorithms
-- **Direct-trust validation**: Direct certificate matching where the head certificate is compared against trust anchors by subject and serial number
+- **Direct-trust validation**: Direct certificate matching where the head certificate is compared against trust anchors
+  by subject and serial number
+
 ## Implementation Choices
 
 🧩 **Functional & Declarative Architecture**
@@ -119,6 +146,7 @@ the seamless merging of multiple trust sources.
 🚀 **Non-Blocking & Coroutine Native**
 
 Designed from the ground up for asynchronous environments (KMP):
+
 - `suspend` everywhere: All I/O-bound and CPU-intensive tasks are suspendable.
 - **Structured Concurrency**: Uses `SupervisorJob` and explicit `CoroutineDispatchers` to ensure stability.
 - **Concurrency Guarding**: Features an `AsyncCache` to prevent redundant computations and "cache stampedes".
@@ -126,9 +154,9 @@ Designed from the ground up for asynchronous environments (KMP):
 ## Platform Support
 
 The consultation module is a **Kotlin Multiplatform (KMP)** module.
+
 - **commonMain**: Core logic and abstractions.
 - **jvmAndAndroidMain**: Specific implementations for JVM and Android (e.g., `ValidateCertificateChainJvm`).
-
 
 ## Examples
 
@@ -170,7 +198,8 @@ val pidIssuanceResult = isChainTrusted(chain, VerificationContext.PID)
 
 You can add transparent in-memory caching to any `GetTrustAnchors` source using the `cached()` decorator.
 
-Important: The source returned by `cached()` is `AutoCloseable`. You must manage its lifecycle and call `close()` when it is no longer needed to release resources and stop background operations.
+Important: The source returned by `cached()` is `AutoCloseable`. You must manage its lifecycle and call `close()` when
+it is no longer needed to release resources and stop background operations.
 
 ```kotlin
 
@@ -180,8 +209,8 @@ val getTrustAnchors: GetTrustAnchors<VerificationContext, TrustAnchor> = GetTrus
     // Fetch anchors for the given context
     fetchAnchorsFor(ctx)
 }.cached(
-  ttl = 10.minutes,
-  expectedQueries = 10
+    ttl = 10.minutes,
+    expectedQueries = 10
 )
 
 // 3. Use the cached source with IsChainTrustedForContext
@@ -198,6 +227,7 @@ cachedSource.use { caching ->
 ```
 
 Notes:
+
 - `cached()` prevents duplicate concurrent computations for the same query and refreshes entries after `ttl`.
 - Failing to `close()` the cached source may keep background coroutines alive longer than needed and retain memory.
 - Register the `AutoClosable` with a DI framework to ensure it is closed when no longer needed.
