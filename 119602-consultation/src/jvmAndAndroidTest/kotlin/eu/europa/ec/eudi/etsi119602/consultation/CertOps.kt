@@ -123,7 +123,7 @@ object CertOps {
      * @param keyPair the key pair for the certificate
      * @param sigAlg signature algorithm (e.g., "SHA256withECDSA")
      * @param name subject/issuer name
-     * @param qcType QCStatement type OID (e.g., "0.4.0.1949.1.1" for PID)
+     * @param qcType QCStatement type OID (e.g., [ETSI119412.ID_ETSI_QCT_PID] for PID, [ETSI119412.ID_ETSI_QCT_WAL] for Wallet)
      * @param qcCompliance whether the certificate is compliant with the QC type
      * @param policyOids optional list of certificate policy OIDs
      * @return the generated certificate holder
@@ -159,7 +159,7 @@ object CertOps {
      * @param sigAlg signature algorithm (e.g., "SHA256withECDSA")
      * @param name subject name
      * @param issuerCert issuer certificate (for authority key identifier)
-     * @param qcType QCStatement type OID (e.g., "0.4.0.1949.1.1" for PID)
+     * @param qcType QCStatement type OID (e.g., [ETSI119412.ID_ETSI_QCT_PID] for PID, [ETSI119412.ID_ETSI_QCT_WAL] for Wallet)
      * @param caIssuersUri URI where the CA certificate can be retrieved
      * @param ocspUri optional URI of the OCSP responder
      * @param policyOids optional list of certificate policy OIDs

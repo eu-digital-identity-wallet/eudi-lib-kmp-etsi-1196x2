@@ -29,18 +29,20 @@ public object ETSI119412 {
      *
      * ASN.1 declaration:
      * ```
-     * id-etsi-qct-pid OBJECT IDENTIFIER ::= { id-etsi-eidas2-qct-extensions 1 }
+     * id-etsi-qct-pid OBJECT IDENTIFIER ::= { itu-t(0) identified-organization(4) etsi(0)
+     *   eudiw(194126) qct(1) pid(1) }
      * ```
      */
-    public const val ID_ETSI_QCT_PID: String = "0.4.0.1949.1.1"
+    public const val ID_ETSI_QCT_PID: String = "0.4.0.194126.1.1"
 
     /**
      * QCStatement OID for Wallet Provider certificates (id-etsi-qct-wal).
      *
      * ASN.1 declaration:
      * ```
-     * id-etsi-qct-wal OBJECT IDENTIFIER ::= { id-etsi-eidas2-qct-extensions 2 }
+     * id-etsi-qct-wal OBJECT IDENTIFIER ::= { itu-t(0) identified-organization(4) etsi(0)
+     *   eudiw(194126) qct(1) wal(2) }
      * ```
      */
-    public const val ID_ETSI_QCT_WAL: String = "0.4.0.1949.1.2"
+    public const val ID_ETSI_QCT_WAL: String = "0.4.0.194126.1.2"
 }

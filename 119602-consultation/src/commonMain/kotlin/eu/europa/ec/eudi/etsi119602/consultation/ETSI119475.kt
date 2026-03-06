@@ -36,5 +36,5 @@ public object ETSI119475 {
      *   eudiwrpa(19475) policy-identifiers(3) wrprc(1) }
      * ```
      */
-    public const val WRPRC: String = "0.4.0.1949.3.1"
+    public const val WRPRC: String = "0.4.0.19475.3.1"
 }

@@ -39,7 +39,7 @@ public object ETSI119411 {
      *   eudiwrp(194118) policy-identifiers(1) ncp-natural(1) }
      * ```
      */
-    public const val NCP_N_EUDIWRP: String = "0.4.0.1949.1.1.1"
+    public const val NCP_N_EUDIWRP: String = "0.4.0.194118.1.1"
 
     /**
      * Certificate Policy OID for WRPAC issued to legal persons (NCP).
@@ -53,7 +53,7 @@ public object ETSI119411 {
      *   eudiwrp(194118) policy-identifiers(1) ncp-legal(2) }
      * ```
      */
-    public const val NCP_L_EUDIWRP: String = "0.4.0.1949.1.1.2"
+    public const val NCP_L_EUDIWRP: String = "0.4.0.194118.1.2"
 
     /**
      * Certificate Policy OID for WRPAC issued to natural persons (QCP).
@@ -67,7 +67,7 @@ public object ETSI119411 {
      *   eudiwrp(194118) policy-identifiers(1) qcp-natural(3) }
      * ```
      */
-    public const val QCP_N_EUDIWRP: String = "0.4.0.1949.1.1.3"
+    public const val QCP_N_EUDIWRP: String = "0.4.0.194118.1.3"
 
     /**
      * Certificate Policy OID for WRPAC issued to legal persons (QCP).
@@ -81,7 +81,7 @@ public object ETSI119411 {
      *   eudiwrp(194118) policy-identifiers(1) qcp-legal(4) }
      * ```
      */
-    public const val QCP_L_EUDIWRP: String = "0.4.0.1949.1.1.4"
+    public const val QCP_L_EUDIWRP: String = "0.4.0.194118.1.4"
 
     /**
      * All valid WRPAC certificate policy OIDs.

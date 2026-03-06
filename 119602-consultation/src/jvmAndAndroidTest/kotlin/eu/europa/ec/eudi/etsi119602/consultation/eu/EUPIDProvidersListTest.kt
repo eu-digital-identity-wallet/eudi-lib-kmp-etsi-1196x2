@@ -47,11 +47,10 @@ class EUPIDProvidersListTest {
         assertTrue(!constraintEvaluation.isMet())
 
         // Should pass basic constraints (end-entity) and key usage (digitalSignature)
-        // Will fail QCStatement and Certificate Policy
+        // Will fail QCStatement
         assertTrue(
-            constraintEvaluation.violations.any { it.reason.contains("QCStatement") } ||
-                constraintEvaluation.violations.any { it.reason.contains("certificate policies") },
-            "Expected failure for missing QCStatement or Certificate Policy",
+            constraintEvaluation.violations.any { it.reason.contains("QCStatement") },
+            "Expected failure for missing QCStatement",
         )
     }
 
@@ -65,7 +64,6 @@ class EUPIDProvidersListTest {
             name = cnPidProvider,
             qcType = ETSI119412.ID_ETSI_QCT_PID,
             qcCompliance = true,
-            policyOids = listOf(ETSI119412.ID_ETSI_QCT_PID),
         )
         val certificate = certHolder.toX509Certificate()
         val trustAnchor = TrustAnchor(certificate, null)
@@ -87,7 +85,6 @@ class EUPIDProvidersListTest {
             name = cnPidProvider,
             qcType = ETSI119412.ID_ETSI_QCT_PID,
             qcCompliance = false, // Non-compliant
-            policyOids = listOf(ETSI119412.ID_ETSI_QCT_PID),
         )
         val certificate = certHolder.toX509Certificate()
         val trustAnchor = TrustAnchor(certificate, null)
@@ -111,7 +108,6 @@ class EUPIDProvidersListTest {
             name = cnPidProvider,
             qcType = ETSI119412.ID_ETSI_QCT_WAL, // Wrong type
             qcCompliance = true,
-            policyOids = listOf(ETSI119412.ID_ETSI_QCT_WAL),
         )
         val certificate = certHolder.toX509Certificate()
         val trustAnchor = TrustAnchor(certificate, null)
@@ -139,7 +135,6 @@ class EUPIDProvidersListTest {
             qcType = ETSI119412.ID_ETSI_QCT_PID,
             caIssuersUri = "http://example.com/ca.crt",
             ocspUri = "http://example.com/ocsp",
-            policyOids = listOf(ETSI119412.ID_ETSI_QCT_PID),
         )
         val certificate = eeCertHolder.toX509Certificate()
 

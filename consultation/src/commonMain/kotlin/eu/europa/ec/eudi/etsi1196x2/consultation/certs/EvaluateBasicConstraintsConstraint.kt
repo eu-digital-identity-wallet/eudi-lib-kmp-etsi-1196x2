@@ -150,7 +150,7 @@ public class EvaluateBasicConstraintsConstraint<in CERT : Any>(
  * Optionally, it can also validate that the QCStatement is marked as compliant.
  *
  * @param CERT the type representing the certificate
- * @param requiredQcType the OID of the required QC type (e.g., "0.4.0.1949.1.1" for id-etsi-qct-pid)
+ * @param requiredQcType the OID of the required QC type (e.g., "0.4.0.194126.1.1" for id-etsi-qct-pid)
  * @param requireCompliance whether to require the QCStatement to be marked as compliant
  * @param getQcStatements a function to extract QCStatement information from a certificate
  *

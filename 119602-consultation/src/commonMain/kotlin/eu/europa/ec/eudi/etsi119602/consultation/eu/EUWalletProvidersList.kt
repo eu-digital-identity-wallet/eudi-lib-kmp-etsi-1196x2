@@ -22,7 +22,6 @@ import eu.europa.ec.eudi.etsi119602.MultiLanguageURI
 import eu.europa.ec.eudi.etsi119602.URIValue
 import eu.europa.ec.eudi.etsi119602.consultation.ETSI119412
 import eu.europa.ec.eudi.etsi1196x2.consultation.certs.CertificateOperations
-import eu.europa.ec.eudi.etsi1196x2.consultation.certs.CertificatePolicyConstraint
 import eu.europa.ec.eudi.etsi1196x2.consultation.certs.EvaluateAuthorityInformationAccessConstraint
 import eu.europa.ec.eudi.etsi1196x2.consultation.certs.EvaluateBasicConstraintsConstraint
 import eu.europa.ec.eudi.etsi1196x2.consultation.certs.EvaluateMultipleCertificateConstraints
@@ -67,12 +66,18 @@ public val EUWalletProvidersList: EUListOfTrustedEntitiesProfile =
 /**
  * Creates constraints for Wallet Provider certificates (LoTE end-entity).
  *
- * Per ETSI TS 119 602 Annex E:
+ * Per ETSI TS 119 602 Annex E and ETSI TS 119 412-6:
  * - Certificate type: End-entity ONLY (cA=FALSE)
- * - QCStatement: id-etsi-qct-wal (0.4.0.1949.1.2) REQUIRED
+ * - QCStatement: id-etsi-qct-wal (0.4.0.194126.1.2) REQUIRED in the QCStatement extension
  * - Key Usage: digitalSignature REQUIRED
  * - Validity: Must be valid at validation time
- * - Certificate Policy: ETSI TS 119 412-6
+ * - Certificate Policy: NOT mandated by ETSI TS 119 412-6 (TSP-defined)
+ * - AIA: Required if CA-issued, not required if self-signed
+ *
+ * **Note on Certificate Policy OIDs:** ETSI TS 119 412-6 does NOT mandate specific certificate policy OIDs
+ * for Wallet providers. The OIDs `id-etsi-qct-pid` and `id-etsi-qct-wal` are **QCStatement type OIDs** (QcType)
+ * that MUST appear in the QCStatement extension, NOT in the certificatePolicies extension.
+ * TSPs MAY define their own certificate policy OIDs, but this is not required by the specification.
  *
  * @return a validator configured for Wallet Provider certificates
  */
@@ -86,6 +91,7 @@ public fun <CERT : Any> CertificateOperations<CERT>.walletProviderCertificateCon
         ),
         KeyUsageConstraint.requireDigitalSignature(::getKeyUsage),
         ValidityPeriodConstraint.validateAtCurrentTime(::getValidityPeriod),
-        CertificatePolicyConstraint.requirePolicy(ETSI119412.ID_ETSI_QCT_WAL, ::getCertificatePolicies),
+        // Note: ETSI TS 119 412-6 does not mandate specific certificate policies for Wallet providers
+        // The id-etsi-qct-wal OID is a QCStatement type (QcType), not a certificate policy OID
         EvaluateAuthorityInformationAccessConstraint.requireForCaIssued(::isSelfSigned, ::getAiaExtension),
     )

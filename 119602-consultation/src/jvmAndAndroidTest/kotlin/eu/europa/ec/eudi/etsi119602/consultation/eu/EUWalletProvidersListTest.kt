@@ -46,11 +46,10 @@ class EUWalletProvidersListTest {
         assertTrue(!constraintEvaluation.isMet())
 
         // Should pass basic constraints (end-entity) and key usage (digitalSignature)
-        // Will fail QCStatement and Certificate Policy
+        // Will fail QCStatement
         assertTrue(
-            constraintEvaluation.violations.any { it.reason.contains("QCStatement") } ||
-                constraintEvaluation.violations.any { it.reason.contains("certificate policies") },
-            "Expected failure for missing QCStatement or Certificate Policy",
+            constraintEvaluation.violations.any { it.reason.contains("QCStatement") },
+            "Expected failure for missing QCStatement",
         )
     }
 
@@ -64,7 +63,6 @@ class EUWalletProvidersListTest {
             name = cnWalletProvider,
             qcType = ETSI119412.ID_ETSI_QCT_WAL,
             qcCompliance = true,
-            policyOids = listOf(ETSI119412.ID_ETSI_QCT_WAL),
         )
         val certificate = certHolder.toX509Certificate()
         val trustAnchor = TrustAnchor(certificate, null)

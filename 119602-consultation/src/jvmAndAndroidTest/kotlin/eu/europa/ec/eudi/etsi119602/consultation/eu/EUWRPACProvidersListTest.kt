@@ -196,7 +196,7 @@ class EUWRPACProvidersListTest {
     @Test
     fun `WRPAC Provider validator should reject unknown policy`() = runTest {
         // Create certificate with unknown policy OID (not in ETSI119411.ALL)
-        val unknownPolicyOid = "0.4.0.1949.999.999"
+        val unknownPolicyOid = "0.4.0.194118.999.999"
         val keyPair = CertOps.genTrustAnchor("SHA256withECDSA", cnWrpacProvider).first
         val certHolder = CertOps.createCACertificateWithPolicy(
             keyPair = keyPair,
