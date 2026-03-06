@@ -22,6 +22,7 @@ import eu.europa.ec.eudi.etsi119602.MultiLanguageURI
 import eu.europa.ec.eudi.etsi119602.URIValue
 import eu.europa.ec.eudi.etsi119602.consultation.ETSI119412
 import eu.europa.ec.eudi.etsi1196x2.consultation.certs.CertificateOperations
+import eu.europa.ec.eudi.etsi1196x2.consultation.certs.CertificatePolicyPresenceConstraint
 import eu.europa.ec.eudi.etsi1196x2.consultation.certs.EvaluateAuthorityInformationAccessConstraint
 import eu.europa.ec.eudi.etsi1196x2.consultation.certs.EvaluateBasicConstraintsConstraint
 import eu.europa.ec.eudi.etsi1196x2.consultation.certs.EvaluateMultipleCertificateConstraints
@@ -71,13 +72,17 @@ public val EUWalletProvidersList: EUListOfTrustedEntitiesProfile =
  * - QCStatement: id-etsi-qct-wal (0.4.0.194126.1.2) REQUIRED in the QCStatement extension
  * - Key Usage: digitalSignature REQUIRED
  * - Validity: Must be valid at validation time
- * - Certificate Policy: NOT mandated by ETSI TS 119 412-6 (TSP-defined)
+ * - Certificate Policy: Presence REQUIRED per EN 319 412-2 §4.3.3 (TSP-defined OID, not validated)
  * - AIA: Required if CA-issued, not required if self-signed
  *
- * **Note on Certificate Policy OIDs:** ETSI TS 119 412-6 does NOT mandate specific certificate policy OIDs
- * for Wallet providers. The OIDs `id-etsi-qct-pid` and `id-etsi-qct-wal` are **QCStatement type OIDs** (QcType)
- * that MUST appear in the QCStatement extension, NOT in the certificatePolicies extension.
- * TSPs MAY define their own certificate policy OIDs, but this is not required by the specification.
+ * **Note on Certificate Policy OIDs:** Per EN 319 412-2 §4.3.3, the certificatePolicies extension
+ * shall be present and shall contain at least one certificate policy OID that reflects the practices
+ * and procedures undertaken by the CA. However, ETSI TS 119 412-6 does NOT mandate specific policy
+ * OID values for Wallet providers - these are TSP-defined. The validator checks for the presence of
+ * the certificatePolicies extension but does not validate specific OID values.
+ *
+ * **Note on QCStatement vs Certificate Policy:** The OID `id-etsi-qct-wal` is a **QCStatement type
+ * OID** (QcType) that MUST appear in the QCStatement extension, NOT in the certificatePolicies extension.
  *
  * @return a validator configured for Wallet Provider certificates
  */
@@ -91,7 +96,7 @@ public fun <CERT : Any> CertificateOperations<CERT>.walletProviderCertificateCon
         ),
         KeyUsageConstraint.requireDigitalSignature(::getKeyUsage),
         ValidityPeriodConstraint.validateAtCurrentTime(::getValidityPeriod),
-        // Note: ETSI TS 119 412-6 does not mandate specific certificate policies for Wallet providers
-        // The id-etsi-qct-wal OID is a QCStatement type (QcType), not a certificate policy OID
+        // Per EN 319 412-2 §4.3.3: certificatePolicies extension shall be present (TSP-defined OID)
+        CertificatePolicyPresenceConstraint.requirePresence(::getCertificatePolicies),
         EvaluateAuthorityInformationAccessConstraint.requireForCaIssued(::isSelfSigned, ::getAiaExtension),
     )

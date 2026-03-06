@@ -125,7 +125,8 @@ object CertOps {
      * @param name subject/issuer name
      * @param qcType QCStatement type OID (e.g., [ETSI119412.ID_ETSI_QCT_PID] for PID, [ETSI119412.ID_ETSI_QCT_WAL] for Wallet)
      * @param qcCompliance whether the certificate is compliant with the QC type
-     * @param policyOids optional list of certificate policy OIDs
+     * @param policyOids optional list of certificate policy OIDs. If not provided, a default TSP-defined
+     *        policy OID is added per EN 319 412-2 §4.3.3 (certificatePolicies extension shall be present)
      * @return the generated certificate holder
      */
     fun createTrustAnchorWithQCStatement(
@@ -136,6 +137,9 @@ object CertOps {
         qcCompliance: Boolean = true,
         policyOids: List<String>? = null,
     ): X509CertificateHolder {
+        // Per EN 319 412-2 §4.3.3, certificatePolicies extension shall be present
+        // If not provided, use a default TSP-defined policy OID for testing
+        val policies = policyOids ?: listOf("1.2.3.4.5") // Test TSP-defined policy OID
         return JcaX509v3CertificateBuilder(
             name,
             calculateSerialNumber(),
@@ -148,7 +152,7 @@ object CertOps {
             basicConstraints(BasicConstraints(false)) // End-entity certificate
             keyUsage(KeyUsage(KeyUsage.digitalSignature))
             qcStatement(qcType, qcCompliance)
-            policyOids?.let { certificatePolicies(it) }
+            certificatePolicies(policies)
         }.build(sigAlg, keyPair.private)
     }
 
@@ -162,7 +166,8 @@ object CertOps {
      * @param qcType QCStatement type OID (e.g., [ETSI119412.ID_ETSI_QCT_PID] for PID, [ETSI119412.ID_ETSI_QCT_WAL] for Wallet)
      * @param caIssuersUri URI where the CA certificate can be retrieved
      * @param ocspUri optional URI of the OCSP responder
-     * @param policyOids optional list of certificate policy OIDs
+     * @param policyOids optional list of certificate policy OIDs. If not provided, a default TSP-defined
+     *        policy OID is added per EN 319 412-2 §4.3.3 (certificatePolicies extension shall be present)
      * @return the generated certificate holder
      */
     fun createEndEntityWithAIA(
@@ -175,6 +180,9 @@ object CertOps {
         ocspUri: String? = null,
         policyOids: List<String>? = null,
     ): X509CertificateHolder {
+        // Per EN 319 412-2 §4.3.3, certificatePolicies extension shall be present
+        // If not provided, use a default TSP-defined policy OID for testing
+        val policies = policyOids ?: listOf("1.2.3.4.5") // Test TSP-defined policy OID
         return JcaX509v3CertificateBuilder(
             issuerCert.subject,
             calculateSerialNumber(),
@@ -189,7 +197,7 @@ object CertOps {
             keyUsage(KeyUsage(KeyUsage.digitalSignature))
             qcStatement(qcType, qcCompliance = true)
             authorityInformationAccess(caIssuersUri, ocspUri)
-            policyOids?.let { certificatePolicies(it) }
+            certificatePolicies(policies)
         }.build(sigAlg, keyPair.private)
     }
 

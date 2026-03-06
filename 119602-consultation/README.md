@@ -26,12 +26,16 @@ The module automates the process of:
 
 The module enforces provider-specific certificate constraints according to the following ETSI specifications:
 
-| Provider Type        | Specification     | Certificate Type | Key Constraints                                                     | Validation Method |
-|----------------------|-------------------|------------------|---------------------------------------------------------------------|-------------------|
-| **PID Providers**    | ETSI TS 119 412-6 | End-entity       | QCStatement (id-etsi-qct-pid), digitalSignature, AIA (if CA-issued) | Direct Trust      |
-| **Wallet Providers** | ETSI TS 119 412-6 | End-entity       | QCStatement (id-etsi-qct-wal), digitalSignature, AIA (if CA-issued) | Direct Trust      |
-| **WRPAC Providers**  | ETSI TS 119 411-8 | CA               | keyCertSign, policy OID (NCP-n/NCP-l/QCP-n/QCP-l)                   | PKIX              |
-| **WRPRC Providers**  | ETSI TS 119 475   | CA               | keyCertSign, policy OID (wrprc)                                     | PKIX              |
+| Provider Type        | Specification     | Certificate Type | Key Constraints                                                                                    | Validation Method |
+|----------------------|-------------------|------------------|----------------------------------------------------------------------------------------------------|-------------------|
+| **PID Providers**    | ETSI TS 119 412-6 | End-entity       | QCStatement (id-etsi-qct-pid), digitalSignature, Certificate Policy (presence), AIA (if CA-issued) | Direct Trust      |
+| **Wallet Providers** | ETSI TS 119 412-6 | End-entity       | QCStatement (id-etsi-qct-wal), digitalSignature, Certificate Policy (presence), AIA (if CA-issued) | Direct Trust      |
+| **WRPAC Providers**  | ETSI TS 119 411-8 | CA               | keyCertSign, policy OID (NCP-n/NCP-l/QCP-n/QCP-l)                                                  | PKIX              |
+| **WRPRC Providers**  | ETSI TS 119 475   | CA               | keyCertSign, policy OID (wrprc)                                                                    | PKIX              |
+
+**Note on Certificate Policy for PID/Wallet Providers:** Per EN 319 412-2 §4.3.3, the certificatePolicies extension
+shall be present. The specific policy OIDs are TSP-defined (not mandated by ETSI TS 119 412-6). The validator checks for
+the presence of the certificatePolicies extension but does not validate specific OID values.
 
 ---
 
@@ -96,6 +100,7 @@ Planned abstractions include:
     - QCStatement presence (id-etsi-qct-pid or id-etsi-qct-wal)
     - Key usage (digitalSignature)
     - End-entity certificate (basicConstraints: cA=FALSE)
+    - **Certificate policy extension present** (per EN 319 412-2 §4.3.3, TSP-defined OID)
     - AIA extension (if CA-issued)
 
 - `WrpacCertificateConstraint`: Validates WRPAC provider certificates per ETSI TS 119 411-8
@@ -129,8 +134,9 @@ Used for **PID Providers** and **Wallet Providers**:
 3. Match certificate by subject name and serial number
 4. Verify validity period (notBefore, notAfter)
 5. Verify QCStatement (id-etsi-qct-pid or id-etsi-qct-wal)
-6. Verify revocation status (if CRL/OCSP available)
-7. Verify key usage (digitalSignature bit)
+6. **Verify certificatePolicies extension is present** (per EN 319 412-2 §4.3.3)
+7. Verify revocation status (if CRL/OCSP available)
+8. Verify key usage (digitalSignature bit)
 
 ### PKIX Path Validation
 
