@@ -96,7 +96,7 @@ class JPLoTEDownloaderTest {
         createHttpClient().use { httpClient ->
 
             val fileStore = LoTEFileStore(
-                cacheDirectory = Path(System.getProperty("java.io.tmpdir"), "jp-lote"),
+                cacheDirectory = Path(System.getProperty("java.io.tmpdir")!!, "jp-lote"),
             )
             val verifier = run {
                 val loadLoTE = LoadSingleLoTEWithFileCache(

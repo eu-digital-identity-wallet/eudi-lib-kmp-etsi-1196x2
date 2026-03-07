@@ -75,7 +75,7 @@ class DIGITTest {
     fun testDownload() = runTest {
         createHttpClient().use { httpClient ->
             val fileStore = LoTEFileStore(
-                cacheDirectory = Path(System.getProperty("java.io.tmpdir"), "digit-lote"),
+                cacheDirectory = Path(System.getProperty("java.io.tmpdir")!!, "digit-lote"),
             )
             val loadLoTE = LoadSingleLoTEWithFileCache(
                 fileStore = fileStore,
