@@ -15,4 +15,7 @@
  */
 package eu.europa.ec.eudi.etsi119602.consultation
 
+/**
+ * DO NOT USE IN PRODUCTION !!!.
+ */
 val NotValidating = VerifyJwtSignature { jwt -> VerifyJwtSignature.Outcome.Verified(jwt) }

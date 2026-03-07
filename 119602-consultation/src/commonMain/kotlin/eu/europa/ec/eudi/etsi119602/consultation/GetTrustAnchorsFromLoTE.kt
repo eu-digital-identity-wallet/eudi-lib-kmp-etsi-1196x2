@@ -36,8 +36,8 @@ public data class LoadedLoTE(
     val otherLists: List<ListOfTrustedEntities>,
 )
 
-public class GetTrustAnchorsFromLoTE<out TRUST_ANCHOR : Any, CERT : Any>(
-    private val loTEDownloadUrl: String,
+public class GetTrustAnchorsFromLoTE<out TRUST_ANCHOR : Any, in CERT : Any>(
+    private val loTEDownloadUrl: URI,
     private val certificateConstraints: EvaluateCertificateConstraint<CERT>?,
     private val loadLoTEAndPointers: LoadLoTEAndPointers,
     private val continueOnProblem: ContinueOnProblem = ContinueOnProblem.Never,
@@ -56,50 +56,57 @@ public class GetTrustAnchorsFromLoTE<out TRUST_ANCHOR : Any, CERT : Any>(
      *
      * @param query the service type URI to search for
      * @return a non-empty list of trust anchors, or null if no services of the requested type are found
-     * @throws IllegalStateException if this instance has been closed
+     * @throws IllegalStateException in case of a loading problem or if the certificate constraints are not met
      */
     @Throws(IllegalStateException::class)
     override suspend fun invoke(query: URI): NonEmptyList<TRUST_ANCHOR>? {
-        // Load LoTE and pointers (cached in memory)
-        val loadedLoTE = run {
-            val events = loadLoTEAndPointers(loTEDownloadUrl)
-            val result = LoTELoadResult.collect(events, continueOnProblem)
-            result.toLoadedLoTE()
-        }
-        checkNotNull(loadedLoTE) { "Failed to load LoTE from $loTEDownloadUrl" }
+        val trustAnchors =
+            loadLoTe().compliantTrustAnchorsFor(query)
 
-        // Extract trust anchors from services of the requested type
-        val trustAnchors = loadedLoTE.servicesOfType(query).flatMap { trustedService ->
-            createTrustAnchors(trustedService.information.digitalIdentity)
-        }
-        ensureCertificateConstraintsAreMet(trustAnchors)
         return NonEmptyList.nelOrNull(trustAnchors)
+    }
+
+    private suspend fun loadLoTe(): LoadedLoTE {
+        val events = loadLoTEAndPointers(loTEDownloadUrl)
+        val result = LoTELoadResult.collect(events, continueOnProblem)
+        val loaded = result.toLoadedLoTE()
+        return checkNotNull(loaded) { loadingProblems(result) }
     }
 
     private fun LoTELoadResult.toLoadedLoTE(): LoadedLoTE? =
         list?.let { mainList -> LoadedLoTE(list = mainList.lote, otherLists = otherLists.map { it.lote }) }
 
-    private suspend fun ensureCertificateConstraintsAreMet(
-        anchors: List<TRUST_ANCHOR>,
-    ) {
-        val evaluator = certificateConstraints ?: return
-        val certs = anchors.map { extractCertificate(it) }
-        try {
-            evaluator.ensureAllMet(certs, getCertInfo)
-        } catch (e: IllegalStateException) {
-            val msg = "Found invalid trust anchors to the LoTE loaded from $loTEDownloadUrl"
-            throw IllegalStateException(msg, e)
+    private suspend fun LoadedLoTE.compliantTrustAnchorsFor(svcType: URI): List<TRUST_ANCHOR> =
+        servicesOfType(svcType).flatMap { trustedService ->
+            trustedService.information.digitalIdentity.trustAnchors().apply { ensureCertificateConstraintsAreMet() }
         }
-    }
-
-    //
-    // Helper extensions
-    //
-
-    private fun LoadedLoTE.servicesOfType(svcType: URI): List<TrustedEntityService> =
-        (listOf(list) + otherLists).flatMap { it.servicesOf(svcType) }
 
     private fun ListOfTrustedEntities.servicesOf(svcType: URI): List<TrustedEntityService> =
         entities.orEmpty()
             .flatMap { it.services.filter { svc -> svc.information.typeIdentifier == svcType } }
+
+    private fun LoadedLoTE.servicesOfType(svcType: URI): List<TrustedEntityService> =
+        (listOf(list) + otherLists).flatMap { it.servicesOf(svcType) }
+
+    private fun ServiceDigitalIdentity.trustAnchors(): List<TRUST_ANCHOR> =
+        createTrustAnchors(this)
+
+    private suspend fun List<TRUST_ANCHOR>.ensureCertificateConstraintsAreMet() {
+        val evaluator = certificateConstraints ?: return
+        val certs = map { extractCertificate(it) }
+        try {
+            evaluator.ensureAllMet(certs, getCertInfo)
+        } catch (e: IllegalStateException) {
+            val msg = "Failed to verify trust anchors of LoTE loaded from $loTEDownloadUrl"
+            throw IllegalStateException(msg, e)
+        }
+    }
+
+    private fun loadingProblems(result: LoTELoadResult): String = buildString {
+        appendLine("Failed to load LoTE from $loTEDownloadUrl\n")
+        appendLine("Problems encountered during loading:")
+        result.problems.forEachIndexed { index, problem ->
+            appendLine("${index + 1}. $problem")
+        }
+    }
 }
