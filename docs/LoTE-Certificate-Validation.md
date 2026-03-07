@@ -1,16 +1,14 @@
 # Certificate Chain Validation Using EU Provider Lists (LoTE) for EUDI Wallet Attestations
 
-**Document Version:** 4.3
-**Date:** 2026-02-28
+**Document Version:** 4.4
+**Date:** 2026-03-04
 **Purpose:** Analysis of ETSI specifications for certificate chain validation against EU Provider Lists (LoTE) serving
 as trust anchor sources for PID, Wallet, WRPAC, and WRPRC providers
 
-**Version 4.3 Changes:**
+**Version 4.4 Changes:**
 
-- Clarified WRPRC LoTE certificate type: CA certificate (not end-entity signing cert)
-- Added detailed analysis comparing Table G.3 vs Table F.3 wording
-- Updated validation method: PKIX (x5c chain → LoTE CA) + JWT signature verification
-- Added footnote in Executive Summary explaining WRPRC LoTE type determination
+- Updated improvement status: AIA validation for PID/Wallet providers is now implemented and integrated.
+- Standardized OIDs and fixed Wallet Provider policy OID inconsistency.
 
 ---
 
@@ -145,13 +143,14 @@ specifically for PID issuance.
 
 #### 1.1.5 Summary: PID Certificate Profile (ETSI TS 119 412-6)
 
-| Aspect               | Requirement                                        |
-|----------------------|----------------------------------------------------|
-| **Certificate Type** | End-entity ONLY (NOT CA)                           |
-| **Issuer Options**   | Self-signed OR CA-issued                           |
-| **AIA Extension**    | Required if CA-issued, Not required if self-signed |
-| **QCStatement**      | Mandatory (`id-etsi-qct-pid`)                      |
-| **Key Usage**        | digitalSignature (for signing PID attestations)    |
+| Aspect                 | Requirement                                                          |
+|------------------------|----------------------------------------------------------------------|
+| **Certificate Type**   | End-entity ONLY (NOT CA)                                             |
+| **Issuer Options**     | Self-signed OR CA-issued                                             |
+| **AIA Extension**      | Required if CA-issued, Not required if self-signed                   |
+| **QCStatement**        | Mandatory (`id-etsi-qct-pid`)                                        |
+| **Key Usage**          | digitalSignature (for signing PID attestations)                      |
+| **Certificate Policy** | **Present** (TSP-defined OID per EN 319 412-2 §4.3.3, not validated) |
 
 ---
 
@@ -167,7 +166,8 @@ specifically for PID issuance.
 #### 1.2.2 Table D.3: Service Digital Identity for PID Providers
 
 > "The ServiceDigitalIdentity component **shall contain one or more X.509 certificates** that can be used to verify the
-> signature or seal created by the provider of person identification data **on the person identification data it provides
+> signature or seal created by the provider of person identification data **on the person identification data it
+> provides
 **, and for which the certified identity data include the name, and where applicable, the registration number of the
 > person identification data provider, as specified in the TEName and TETradeName components respectively."
 
@@ -293,6 +293,7 @@ For EU PID Providers List:
 | Self-signed OR CA-issued allowed | ETSI TS 119 412-6   | PID-4.2-01                | MAY (issuer choice)   |
 | AIA if CA-issued                 | ETSI TS 119 412-6   | PID-4.4.3-01              | MUST (conditional)    |
 | QCStatement with id-etsi-qct-pid | ETSI TS 119 412-6   | PID-4.5-01                | MUST                  |
+| Certificate Policy present       | EN 319 412-2        | §4.3.3                    | MUST                  |
 | LoTE contains end-entity cert    | ETSI TS 119 602     | Annex D, Table D.3        | MUST                  |
 | CA certificates NOT in LoTE      | ETSI TS 119 602     | Annex D (absence of NOTE) | MUST NOT              |
 | Validation method                | Inferred from above | N/A                       | **Direct Trust ONLY** |
@@ -309,6 +310,10 @@ For EU PID Providers List:
    key rotation)?
 
 4. **National Variations:** Are there national implementations that deviate from the EU PID Providers List profile?
+
+**Implementation Note:** Per EN 319 412-2 §4.3.3, the certificatePolicies extension shall be present. The specific
+policy OIDs are TSP-defined (not mandated by ETSI TS 119 412-6). The validator checks for the presence of the
+certificatePolicies extension but does not validate specific OID values.
 
 ---
 
@@ -366,13 +371,14 @@ specifically for Wallet issuance.
 
 #### 2.1.5 Summary: Wallet Provider Certificate Profile (ETSI TS 119 412-6)
 
-| Aspect               | Requirement                                        |
-|----------------------|----------------------------------------------------|
-| **Certificate Type** | End-entity ONLY (NOT CA)                           |
-| **Issuer Options**   | Self-signed OR CA-issued                           |
-| **AIA Extension**    | Required if CA-issued, Not required if self-signed |
-| **QCStatement**      | Mandatory (`id-etsi-qct-wal`)                      |
-| **Key Usage**        | digitalSignature (for signing wallet attestations) |
+| Aspect                 | Requirement                                                          |
+|------------------------|----------------------------------------------------------------------|
+| **Certificate Type**   | End-entity ONLY (NOT CA)                                             |
+| **Issuer Options**     | Self-signed OR CA-issued                                             |
+| **AIA Extension**      | Required if CA-issued, Not required if self-signed                   |
+| **QCStatement**        | Mandatory (`id-etsi-qct-wal`)                                        |
+| **Key Usage**          | digitalSignature (for signing wallet attestations)                   |
+| **Certificate Policy** | **Present** (TSP-defined OID per EN 319 412-2 §4.3.3, not validated) |
 
 ---
 
@@ -515,6 +521,7 @@ For EU Wallet Providers List:
 | Self-signed OR CA-issued allowed   | ETSI TS 119 412-6   | PID-4.2-01 (via WAL-5.1-01)   | MAY (issuer choice)   |
 | AIA if CA-issued                   | ETSI TS 119 412-6   | PID-4.4.3-01 (via WAL-5.1-01) | MUST (conditional)    |
 | QCStatement with id-etsi-qct-wal   | ETSI TS 119 412-6   | WAL-5.2-01                    | MUST                  |
+| Certificate Policy present         | EN 319 412-2        | §4.3.3                        | MUST                  |
 | LoTE contains end-entity cert      | ETSI TS 119 602     | Annex E, Table E.3            | MUST                  |
 | CA certificates NOT in LoTE        | ETSI TS 119 602     | Annex E (absence of NOTE)     | MUST NOT              |
 | Validation method                  | Inferred from above | N/A                           | **Direct Trust ONLY** |
@@ -532,6 +539,10 @@ For EU Wallet Providers List:
    different wallet solutions or key rotation)?
 
 4. **National Variations:** Are there national implementations that deviate from the EU Wallet Providers List profile?
+
+**Implementation Note:** Per EN 319 412-2 §4.3.3, the certificatePolicies extension shall be present. The specific
+policy OIDs are TSP-defined (not mandated by ETSI TS 119 412-6). The validator checks for the presence of the
+certificatePolicies extension but does not validate specific OID values.
 
 ---
 
@@ -788,7 +799,8 @@ Per ETSI TS 119 475, Clause 5.2.1:
 Per ETSI TS 119 475, Clause 4.4:
 
 > "WRPRCs are structured data objects that describe the **intended use and attribute access scope** of a WRP registered
-> in a national register. They serve as a **transparency mechanism**, enabling wallet users to understand what information
+> in a national register. They serve as a **transparency mechanism**, enabling wallet users to understand what
+> information
 > a WRP is allowed to request and under which legal or functional entitlement."
 
 **Finding 4.1.2:** WRPRC answers "**What can you do?**" (authorization/entitlements), while WRPAC answers "**Who are

@@ -16,17 +16,40 @@
 package eu.europa.ec.eudi.etsi119602.consultation
 
 import eu.europa.ec.eudi.etsi119602.ServiceDigitalIdentity
+import eu.europa.ec.eudi.etsi119602.URI
 import eu.europa.ec.eudi.etsi1196x2.consultation.*
+import eu.europa.ec.eudi.etsi1196x2.consultation.certs.EvaluateCertificateConstraint
+import eu.europa.ec.eudi.etsi1196x2.consultation.certs.ensureAllMet
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.*
 
-public class ProvisionTrustAnchorsFromLoTEs<CHAIN : Any, CTX : Any, TRUST_ANCHOR : Any>(
+public data class LotEMata<CTX, in CERT : Any>(
+    val svcTypePerCtx: Map<CTX, URI>,
+    val directTrust: Boolean,
+    val certificateConstraints: EvaluateCertificateConstraint<CERT>?,
+)
+
+/**
+ * @param loadLoTEAndPointers A way to load LoTEs and pointers
+ * @param createTrustAnchors Creates trust anchors from a [ServiceDigitalIdentity]
+ * @param extractCertificate extracts a certificate from a trust anchor
+ * @param directTrust Direct trust chain validator
+ * @param pkix PKIX Certificat chain validator
+ * @param getCertInfo A way to represent a certificate in a human-readable form.
+ *        It is used to display certificate information in error messages.
+ * @param continueOnProblem A strategy to handle problems during trust anchor provisioning.
+ *       Defaults to [ContinueOnProblem.Never].
+ * @param svcTypePerCtx
+ */
+public class ProvisionTrustAnchorsFromLoTEs<CHAIN : Any, CTX : Any, TRUST_ANCHOR : Any, CERT : Any>(
     private val loadLoTEAndPointers: LoadLoTEAndPointers,
-    private val svcTypePerCtx: SupportedLists<LotEMata<CTX>>,
-    private val continueOnProblem: ContinueOnProblem = ContinueOnProblem.Never,
+    private val createTrustAnchors: (ServiceDigitalIdentity) -> List<TRUST_ANCHOR>,
+    private val extractCertificate: (TRUST_ANCHOR) -> CERT,
+    private val getCertInfo: suspend (CERT) -> String = { it.toString() },
     private val directTrust: ValidateCertificateChainUsingDirectTrust<CHAIN, TRUST_ANCHOR, *>,
     private val pkix: ValidateCertificateChainUsingPKIX<CHAIN, TRUST_ANCHOR>,
-    private val createTrustAnchors: (ServiceDigitalIdentity) -> List<TRUST_ANCHOR>,
+    private val continueOnProblem: ContinueOnProblem = ContinueOnProblem.Never,
+    private val svcTypePerCtx: SupportedLists<LotEMata<CTX, CERT>>,
 ) {
 
     public suspend operator fun invoke(
@@ -42,17 +65,36 @@ public class ProvisionTrustAnchorsFromLoTEs<CHAIN : Any, CTX : Any, TRUST_ANCHOR
         }
 
     private suspend fun loadLoTEAndCreateTrustAnchorsProvider(
-        cfg: LoTECfg<CTX>,
+        cfg: LoTECfg<CTX, CERT>,
     ): IsChainTrustedForContext<CHAIN, CTX, TRUST_ANCHOR>? {
         val loaded = loadLoTE(cfg) ?: return null
-        val getTrustAnchors = GetTrustAnchorsFromLoTE(loaded, createTrustAnchors)
+        val baseGetTrustAnchors = GetTrustAnchorsFromLoTE(loaded, createTrustAnchors)
+        val getTrustAnchors = GetTrustAnchors<URI, TRUST_ANCHOR> { query ->
+            baseGetTrustAnchors(query)?.also { anchors ->
+                ensureCertificateConstraintsAreMet(cfg, anchors)
+            }
+        }
         val validateCertificateChain =
             if (cfg.metadata.directTrust) directTrust else pkix
         val transformation = cfg.metadata.svcTypePerCtx
         return getTrustAnchors.validator(transformation, validateCertificateChain)
     }
 
-    private suspend fun loadLoTE(cfg: LoTECfg<CTX>): LoadedLoTE? {
+    private suspend fun ensureCertificateConstraintsAreMet(
+        cfg: LoTECfg<CTX, CERT>,
+        anchors: NonEmptyList<TRUST_ANCHOR>,
+    ) {
+        val evaluator = cfg.metadata.certificateConstraints ?: return
+        val certs = anchors.list.map { extractCertificate(it) }
+        try {
+            evaluator.ensureAllMet(certs, getCertInfo)
+        } catch (e: IllegalStateException) {
+            val msg = "Found invalid trust anchors to the LoTE loaded from ${cfg.downloadUrl}"
+            throw IllegalStateException(msg, e)
+        }
+    }
+
+    private suspend fun loadLoTE(cfg: LoTECfg<CTX, CERT>): LoadedLoTE? {
         val downloadFlow = loadLoTEAndPointers(cfg.downloadUrl)
         val result = LoTELoadResult.collect(downloadFlow, continueOnProblem)
         return result.loaded()
@@ -61,32 +103,36 @@ public class ProvisionTrustAnchorsFromLoTEs<CHAIN : Any, CTX : Any, TRUST_ANCHOR
     private fun LoTELoadResult.loaded(): LoadedLoTE? =
         list?.let { mainList -> LoadedLoTE(list = mainList.lote, otherLists = otherLists.map { it.lote }) }
 
-    private fun SupportedLists<String>.cfgs(): SupportedLists<LoTECfg<CTX>> =
+    private fun SupportedLists<String>.cfgs(): SupportedLists<LoTECfg<CTX, CERT>> =
         SupportedLists.combine(this, svcTypePerCtx) { url, ctx ->
             LoTECfg(url, ctx)
         }
 
-    private data class LoTECfg<CTX : Any>(
+    private data class LoTECfg<CTX : Any, CERT : Any>(
         val downloadUrl: String,
-        val metadata: LotEMata<CTX>,
+        val metadata: LotEMata<CTX, CERT>,
     )
 
     public companion object {
-        public fun <CHAIN : Any, TRUST_ANCHOR : Any> eudiw(
+        public fun <CHAIN : Any, TRUST_ANCHOR : Any, CERT : Any> eudiw(
             loadLoTEAndPointers: LoadLoTEAndPointers,
-            svcTypePerCtx: SupportedLists<LotEMata<VerificationContext>> = SupportedLists.EU,
+            svcTypePerCtx: SupportedLists<LotEMata<VerificationContext, CERT>>,
+            extractCertificate: (TRUST_ANCHOR) -> CERT,
             continueOnProblem: ContinueOnProblem = ContinueOnProblem.Never,
             directTrust: ValidateCertificateChainUsingDirectTrust<CHAIN, TRUST_ANCHOR, *>,
             pkix: ValidateCertificateChainUsingPKIX<CHAIN, TRUST_ANCHOR>,
+            getCertInfo: suspend (CERT) -> String,
             createTrustAnchors: (ServiceDigitalIdentity) -> List<TRUST_ANCHOR>,
-        ): ProvisionTrustAnchorsFromLoTEs<CHAIN, VerificationContext, TRUST_ANCHOR> =
+        ): ProvisionTrustAnchorsFromLoTEs<CHAIN, VerificationContext, TRUST_ANCHOR, CERT> =
             ProvisionTrustAnchorsFromLoTEs(
                 loadLoTEAndPointers,
-                svcTypePerCtx,
-                continueOnProblem,
+                createTrustAnchors,
+                extractCertificate,
+                getCertInfo,
                 directTrust,
                 pkix,
-                createTrustAnchors,
+                continueOnProblem,
+                svcTypePerCtx,
             )
     }
 }

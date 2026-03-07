@@ -43,7 +43,7 @@ class LoadLoTEFromHttp(
     }
 }
 
-internal fun createHttpClient(): HttpClient =
+fun createHttpClient(): HttpClient =
     HttpClient {
         install(ContentNegotiation) {
             json(JsonSupportDebug)

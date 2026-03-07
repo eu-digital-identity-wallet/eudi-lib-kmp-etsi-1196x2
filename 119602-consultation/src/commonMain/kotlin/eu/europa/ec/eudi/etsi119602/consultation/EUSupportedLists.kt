@@ -17,48 +17,80 @@ package eu.europa.ec.eudi.etsi119602.consultation
 
 import eu.europa.ec.eudi.etsi119602.ETSI19602
 import eu.europa.ec.eudi.etsi119602.URI
+import eu.europa.ec.eudi.etsi119602.consultation.eu.*
 import eu.europa.ec.eudi.etsi1196x2.consultation.SupportedLists
 import eu.europa.ec.eudi.etsi1196x2.consultation.VerificationContext
-
-public data class LotEMata<CTX>(
-    val svcTypePerCtx: Map<CTX, URI>,
-    val directTrust: Boolean,
-)
+import eu.europa.ec.eudi.etsi1196x2.consultation.certs.CertificateOperations
 
 /**
  * Known combinations of [VerificationContext] and Service Type Identifiers (for LoTEs)
  * Source are the list profiles specified in [ETSI19602],
  * except the PUB EAA Providers List
  */
-public val SupportedLists.Companion.EU: SupportedLists<LotEMata<VerificationContext>>
-    get() = SupportedLists(
-        pidProviders = LotEMata(
-            svcTypePerCtx = mapOf(
-                VerificationContext.PID to ETSI19602.EU_PID_PROVIDERS_SVC_TYPE_ISSUANCE,
-                VerificationContext.PIDStatus to ETSI19602.EU_PID_PROVIDERS_SVC_TYPE_REVOCATION,
-            ),
-            directTrust = true,
+public fun <CERT : Any> SupportedLists.Companion.eu(
+    certificateOperations: CertificateOperations<CERT>,
+): SupportedLists<LotEMata<VerificationContext, CERT>> {
+    fun EUListOfTrustedEntitiesProfile.loteMeta(
+        issuance: Set<VerificationContext>,
+        revocation: Set<VerificationContext> = emptySet(),
+    ) = loteMeta(certificateOperations, issuance, revocation)
+
+    return SupportedLists(
+        pidProviders =
+        EUPIDProvidersList.loteMeta(
+            issuance = setOf(VerificationContext.PID),
+            revocation = setOf(VerificationContext.PIDStatus),
         ),
-        walletProviders = LotEMata(
-            svcTypePerCtx = mapOf(
-                VerificationContext.WalletInstanceAttestation to ETSI19602.EU_WALLET_PROVIDERS_SVC_TYPE_ISSUANCE,
-                VerificationContext.WalletUnitAttestation to ETSI19602.EU_WALLET_PROVIDERS_SVC_TYPE_ISSUANCE,
-                VerificationContext.WalletUnitAttestationStatus to ETSI19602.EU_WALLET_PROVIDERS_SVC_TYPE_REVOCATION,
+        walletProviders =
+        EUWalletProvidersList.loteMeta(
+            issuance = setOf(
+                VerificationContext.WalletInstanceAttestation,
+                VerificationContext.WalletUnitAttestation,
             ),
-            directTrust = true,
+            revocation = setOf(VerificationContext.WalletUnitAttestationStatus),
         ),
-        wrpacProviders = LotEMata(
-            svcTypePerCtx = mapOf(
-                VerificationContext.WalletRelyingPartyAccessCertificate to ETSI19602.EU_WRPAC_PROVIDERS_SVC_TYPE_ISSUANCE,
-            ),
-            directTrust = false,
+
+        wrpacProviders =
+        EUWRPACProvidersList.loteMeta(
+            issuance = setOf(VerificationContext.WalletRelyingPartyAccessCertificate),
+            revocation = emptySet(),
         ),
-        wrprcProviders = LotEMata(
-            svcTypePerCtx = mapOf(
-                VerificationContext.WalletRelyingPartyRegistrationCertificate to ETSI19602.EU_WRPRC_PROVIDERS_SVC_TYPE_ISSUANCE,
-            ),
-            directTrust = false,
+
+        wrprcProviders = EUWRPRCProvidersList.loteMeta(
+            issuance = setOf(VerificationContext.WalletRelyingPartyRegistrationCertificate),
+            revocation = emptySet(),
         ),
         pubEaaProviders = null,
         qeaProviders = null,
     )
+}
+
+private fun <CTX : Any, CERT : Any> EUListOfTrustedEntitiesProfile.loteMeta(
+    certificateOperations: CertificateOperations<CERT>,
+    issuance: Set<CTX>,
+    revocation: Set<CTX>,
+): LotEMata<CTX, CERT> = LotEMata(
+    svcTypePerCtx = svcTypePerCtx(issuance, revocation),
+    directTrust = directTrust,
+    certificateConstraints = certificateConstraintsEvaluator(certificateOperations),
+)
+
+private fun <CTX : Any> EUListOfTrustedEntitiesProfile.svcTypePerCtx(
+    issuance: Set<CTX>,
+    revocation: Set<CTX>,
+): Map<CTX, URI> =
+    when (val ss = trustedEntities.serviceTypeIdentifiers) {
+        is ServiceTypeIdentifiers.OneOrMore -> error("Not supported")
+        is ServiceTypeIdentifiers.IssuanceAndRevocation -> {
+            buildMap {
+                issuance.forEach { put(it, ss.issuance) }
+                revocation.forEach { put(it, ss.revocation) }
+            }
+        }
+    }
+
+private val EUListOfTrustedEntitiesProfile.directTrust: Boolean
+    get() = when (trustedEntities.chainValidationAlgorithm) {
+        ChainValidationAlgorithm.Direct -> true
+        ChainValidationAlgorithm.PKIX -> false
+    }

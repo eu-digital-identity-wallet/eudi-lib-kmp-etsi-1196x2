@@ -48,7 +48,7 @@ object Sample {
                 addRDN(BCStyle.CN, "Demo Root Certificate")
             }.build()
         val (trustKeyPair, trustCertHolder) = genTrustAnchor(SIGN_ALG, name)
-        val trustCert = trustCertHolder.toCertificate()
+        val trustCert = trustCertHolder.toX509Certificate()
 
         //
         // CA
@@ -67,7 +67,7 @@ object Sample {
                 0,
                 caSubject,
             )
-        val caCert = caCertHolder.toCertificate()
+        val caCert = caCertHolder.toX509Certificate()
 
         //
         // End Entity
@@ -80,7 +80,7 @@ object Sample {
             }.build()
         val (_, eeCertHolder) =
             genEndEntity(caCertHolder, caKeyPair.private, SIGN_ALG, eeSubject)
-        val eeCert = eeCertHolder.toCertificate()
+        val eeCert = eeCertHolder.toX509Certificate()
 
         return Certs(eeCert, caCert, trustCert)
     }

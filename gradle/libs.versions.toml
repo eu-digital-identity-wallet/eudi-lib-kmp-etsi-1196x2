@@ -40,6 +40,7 @@ dss-tsl-validation = { module = "eu.europa.ec.joinup.sd-dss:dss-tsl-validation" 
 dss-utils-guava = { module = "eu.europa.ec.joinup.sd-dss:dss-utils-google-guava" }
 bouncy-castle = { module = "org.bouncycastle:bcpkix-jdk18on", version.ref = "bouncyCastle" }
 kotlinx-io-core = { module = "org.jetbrains.kotlinx:kotlinx-io-core", version.ref = "kotlinx-io" }
+slf4j-api = {module ="org.slf4j:slf4j-api", version.ref="slf4j"}
 slf4j-simple = {module ="org.slf4j:slf4j-simple", version.ref="slf4j"}
 
 [plugins]

@@ -51,5 +51,7 @@ public val EUMDLProvidersList: EUListOfTrustedEntitiesProfile =
             ),
             mustContainX509Certificates = true,
             serviceStatuses = emptySet(),
+            chainValidationAlgorithm = ChainValidationAlgorithm.Direct,
+            hasConstraints = null,
         ),
     )

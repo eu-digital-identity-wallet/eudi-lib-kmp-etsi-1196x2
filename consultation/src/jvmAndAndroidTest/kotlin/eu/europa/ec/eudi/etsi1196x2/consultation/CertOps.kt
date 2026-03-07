@@ -160,13 +160,16 @@ internal object CertOps {
             keyUsage(KeyUsage(KeyUsage.digitalSignature))
         }.build(sigAlg, signerKey)
 
-    private fun signer(sigAlg: String, privateKey: PrivateKey): ContentSigner =
-        Ctx.jcaContentSignerBuilder(sigAlg).build(privateKey)
-
-    fun X509CertificateHolder.toCertificate(): X509Certificate {
+    /**
+     * Public extension function for converting [X509CertificateHolder] to [X509Certificate].
+     */
+    fun X509CertificateHolder.toX509Certificate(): X509Certificate {
         val cFact = Ctx.certFactory()
         return cFact.generateCertificate(encoded.inputStream()) as X509Certificate
     }
+
+    private fun signer(sigAlg: String, privateKey: PrivateKey): ContentSigner =
+        Ctx.jcaContentSignerBuilder(sigAlg).build(privateKey)
 
     private fun JcaX509v1CertificateBuilder.build(sigAlg: String, privateKey: PrivateKey): X509CertificateHolder {
         val signer = signer(sigAlg, privateKey)

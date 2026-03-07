@@ -16,6 +16,13 @@
 package eu.europa.ec.eudi.etsi119602.consultation.eu
 
 import eu.europa.ec.eudi.etsi119602.*
+import eu.europa.ec.eudi.etsi119602.consultation.ETSI119475
+import eu.europa.ec.eudi.etsi1196x2.consultation.certs.CertificateOperations
+import eu.europa.ec.eudi.etsi1196x2.consultation.certs.CertificatePolicyConstraint
+import eu.europa.ec.eudi.etsi1196x2.consultation.certs.EvaluateBasicConstraintsConstraint
+import eu.europa.ec.eudi.etsi1196x2.consultation.certs.EvaluateMultipleCertificateConstraints
+import eu.europa.ec.eudi.etsi1196x2.consultation.certs.KeyUsageConstraint
+import eu.europa.ec.eudi.etsi1196x2.consultation.certs.ValidityPeriodConstraint
 
 public val EUWRPRCProvidersList: EUListOfTrustedEntitiesProfile =
     EUListOfTrustedEntitiesProfile(
@@ -38,5 +45,46 @@ public val EUWRPRCProvidersList: EUListOfTrustedEntitiesProfile =
             ),
             mustContainX509Certificates = true,
             serviceStatuses = emptySet(),
+            chainValidationAlgorithm = ChainValidationAlgorithm.PKIX,
+            hasConstraints = object : CertificateConstraints {
+                override fun <CERT : Any> CertificateOperations<CERT>.evaluator(): EvaluateMultipleCertificateConstraints<CERT> =
+                    wrprcProviderCertificateConstraintsEvaluator()
+            },
         ),
     )
+
+/**
+ * Creates constraints for WRPRC Provider certificates (LoTE CA).
+ *
+ * Per ETSI TS 119 602 Annex G:
+ * - Certificate type: CA certificate (cA=TRUE)
+ * - QCStatement: NOT required
+ * - Key Usage: keyCertSign REQUIRED
+ * - Validity: Must be valid at validation time
+ * - Certificate Policy: ETSI TS 119 475 Clause 6.1.3 (WRPRC Policy)
+ *
+ * Note: WRPRC Providers are CAs that sign WRPRC JWT attestations.
+ * The LoTE contains the WRPRC Provider's CA certificate.
+ * WRPRC validation involves both PKIX (certificate chain) and JWT signature verification.
+ *
+ * @param maxPathLen Optional maximum path length constraint for CA certificates.
+ *                   Per RFC 5280 Section 4.2.1.9, pathLenConstraint specifies the maximum number
+ *                   of non-self-issued intermediate certificates that may follow this certificate
+ *                   in a valid certification path.
+ *                   - `null` (default): No path length constraint enforced
+ *                   - `0`: This CA can only issue end-entity certificates
+ *                   - `1`: This CA can issue one intermediate CA certificate (recommended for most deployments)
+ *                   - `2+`: This CA can issue multiple levels of intermediate CA certificates
+ *
+ * @return a validator configured for WRPRC Provider certificates
+ *
+ * @see [RFC 5280 Section 4.2.1.9 - Basic Constraints](https://datatracker.ietf.org/doc/html/rfc5280#section-4.2.1.9)
+ */
+public fun <CERT : Any> CertificateOperations<CERT>.wrprcProviderCertificateConstraintsEvaluator(
+    maxPathLen: Int? = null,
+): EvaluateMultipleCertificateConstraints<CERT> = EvaluateMultipleCertificateConstraints.of(
+    EvaluateBasicConstraintsConstraint.requireCa(maxPathLen, ::getBasicConstraints),
+    KeyUsageConstraint.requireKeyCertSign(::getKeyUsage),
+    ValidityPeriodConstraint.validateAtCurrentTime(::getValidityPeriod),
+    CertificatePolicyConstraint.requirePolicy(ETSI119475.WRPRC, ::getCertificatePolicies),
+)

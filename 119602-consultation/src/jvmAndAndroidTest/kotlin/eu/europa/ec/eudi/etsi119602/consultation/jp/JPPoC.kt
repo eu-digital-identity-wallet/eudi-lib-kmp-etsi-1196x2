@@ -13,21 +13,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import JPPoC.LC_VCT
-import com.nimbusds.jwt.SignedJWT
+package eu.europa.ec.eudi.etsi119602.consultation.jp
+
 import eu.europa.ec.eudi.etsi119602.consultation.*
+import eu.europa.ec.eudi.etsi119602.consultation.jp.JPPoC.LC_VCT
 import eu.europa.ec.eudi.etsi119602.x509Certificate
 import eu.europa.ec.eudi.etsi1196x2.consultation.*
-import eu.europa.ec.eudi.sdjwt.*
-import eu.europa.ec.eudi.sdjwt.vc.*
+import eu.europa.ec.eudi.sdjwt.vc.ResolveTypeMetadata
+import eu.europa.ec.eudi.sdjwt.vc.SdJwtVcTypeMetadata
+import eu.europa.ec.eudi.sdjwt.vc.TypeMetadataPolicy
+import eu.europa.ec.eudi.sdjwt.vc.Vct
 import io.ktor.client.*
 import io.ktor.client.call.*
 import io.ktor.client.request.*
 import io.ktor.http.*
 import kotlinx.coroutines.test.runTest
-import kotlinx.serialization.json.JsonPrimitive
-import kotlinx.serialization.json.contentOrNull
-import kotlinx.serialization.json.jsonPrimitive
 import java.security.cert.TrustAnchor
 import java.security.cert.X509Certificate
 import kotlin.test.Test
@@ -44,22 +44,24 @@ object JPPoC {
     private const val LC_EAA_PROVIDER_SVC_TYPE =
         "http://tl.eujp.ownd-project.com/19602/SvcType/EAA/Issuance"
     private const val LC_USE_CASE = "jp-learning-credential-poc"
-    private val wrpacProviders: LotEMata<VerificationContext> =
+    private val wrpacProviders: LotEMata<VerificationContext, X509Certificate> =
         LotEMata(
             svcTypePerCtx = mapOf(
                 VerificationContext.WalletRelyingPartyAccessCertificate to JP_WRPAC_PROVIDER_ISSUANCE_SVC_TYPE,
             ),
             directTrust = false,
+            certificateConstraints = null,
         )
 
-    private val learningCredentialProviders: LotEMata<VerificationContext> = LotEMata(
+    private val learningCredentialProviders: LotEMata<VerificationContext, X509Certificate> = LotEMata(
         svcTypePerCtx =
         mapOf(
             VerificationContext.EAA(LC_USE_CASE) to LC_EAA_PROVIDER_SVC_TYPE,
         ),
         directTrust = true,
+        certificateConstraints = null,
     )
-    val SVC_TYPE_PER_CTX: SupportedLists<LotEMata<VerificationContext>> =
+    val SVC_TYPE_PER_CTX: SupportedLists<LotEMata<VerificationContext, X509Certificate>> =
         SupportedLists(
             wrpacProviders = wrpacProviders,
             eaaProviders = mapOf(LC_USE_CASE to learningCredentialProviders),
@@ -131,11 +133,11 @@ class JPLoTEDownloaderTest {
 
     private suspend fun HttpClient.getThem(
         loteLocationsSupported: SupportedLists<String>,
-        svcTypePerCtx: SupportedLists<LotEMata<VerificationContext>>,
+        svcTypePerCtx: SupportedLists<LotEMata<VerificationContext, X509Certificate>>,
         provider: String? = null,
     ): ComposeChainTrust<List<X509Certificate>, VerificationContext, TrustAnchor> {
         val fromHttp = ProvisionTrustAnchorsFromLoTEs(
-            LoadLoTEAndPointers(
+            loadLoTEAndPointers = LoadLoTEAndPointers(
                 constraints = LoadLoTEAndPointers.Constraints(
                     otherLoTEParallelism = 1,
                     maxDepth = 1,
@@ -145,62 +147,17 @@ class JPLoTEDownloaderTest {
                 loadLoTE = LoadLoTEFromHttp(this),
 
             ),
-            svcTypePerCtx = svcTypePerCtx,
-            continueOnProblem = ContinueOnProblem.AlwaysIfDownloaded,
             createTrustAnchors = { serviceDigitalIdentity ->
-                serviceDigitalIdentity.x509Certificates.orEmpty().map { TrustAnchor(it.x509Certificate(provider), null) }
+                serviceDigitalIdentity.x509Certificates.orEmpty()
+                    .map { TrustAnchor(it.x509Certificate(provider), null) }
             },
+            extractCertificate = { it.trustedCert },
+            getCertInfo = { "Info[subject=${it.subjectX500Principal}-sn=${it.serialNumber}]" },
             directTrust = ValidateCertificateChainUsingDirectTrustJvm,
             pkix = ValidateCertificateChainUsingPKIXJvm(customization = { isRevocationEnabled = false }),
+            continueOnProblem = ContinueOnProblem.AlwaysIfDownloaded,
+            svcTypePerCtx = svcTypePerCtx,
         )
         return fromHttp(loteLocationsSupported, parallelism = 2)
     }
-}
-
-object IntegrationWithSdJwtVc {
-    fun <CHAIN : Any> IsChainTrustedForAttestation<CHAIN, *>.sdJwtVcIssuerTrust(): X509CertificateTrust<CHAIN> =
-        X509CertificateTrust { chain, claims ->
-            val vct =
-                claims[SdJwtVcSpec.VCT]
-                    ?.takeIf { it is JsonPrimitive && it.jsonPrimitive.isString }
-                    ?.jsonPrimitive?.contentOrNull
-                    ?.let { AttestationIdentifier.SDJwtVc(it) }
-
-            val validation = vct?.let { issuance(chain, it) }
-            when (validation) {
-                is CertificationChainValidation.NotTrusted -> false
-                is CertificationChainValidation.Trusted<*> -> {
-                    if (validation.trustAnchor is TrustAnchor) {
-                        println("SD-JWT-VC signed by: ${(validation.trustAnchor as TrustAnchor).trustedCert.subjectX500Principal}")
-                    }
-                    true
-                }
-                null -> false
-            }
-        }
-
-    fun <CHAIN : Any, TRUST_ANCHOR : Any> sdJwtVcVerificationMethod(
-        isChainTrustedForAttestation: IsChainTrustedForAttestation<CHAIN, TRUST_ANCHOR>,
-    ): IssuerVerificationMethod.UsingX5c<CHAIN> =
-        IssuerVerificationMethod.usingX5c(
-            x509CertificateTrust = isChainTrustedForAttestation.sdJwtVcIssuerTrust(),
-        )
-
-    fun defaultSdJwtVcVerifier(
-        isChainTrustedForAttestation: IsChainTrustedForAttestation<List<X509Certificate>, TrustAnchor>,
-        typedMetadataPolicy: TypeMetadataPolicy,
-    ): SdJwtVcVerifier<JwtAndClaims> =
-        DefaultSdJwtOps.SdJwtVcVerifier(
-            sdJwtVcVerificationMethod(isChainTrustedForAttestation),
-            typedMetadataPolicy,
-        )
-
-    fun nimbusSdJwtVcVerifier(
-        isChainTrustedForAttestation: IsChainTrustedForAttestation<List<X509Certificate>, TrustAnchor>,
-        typedMetadataPolicy: TypeMetadataPolicy,
-    ): SdJwtVcVerifier<SignedJWT> =
-        NimbusSdJwtOps.SdJwtVcVerifier(
-            sdJwtVcVerificationMethod(isChainTrustedForAttestation),
-            typedMetadataPolicy,
-        )
 }

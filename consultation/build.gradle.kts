@@ -85,16 +85,18 @@ kotlin {
             }
         }
 
+        val jvmAndAndroidMain by getting {
+            dependencies {
+                implementation(libs.bouncy.castle)
+                implementation(libs.slf4j.api)
+            }
+        }
+
         commonTest {
             dependencies {
                 implementation(kotlin("test"))
                 implementation(libs.kotlinx.coroutines.test)
                 implementation(libs.atomicfu)
-            }
-        }
-        val jvmAndAndroidTest by getting {
-            dependencies {
-                implementation(libs.bouncy.castle)
             }
         }
     }
