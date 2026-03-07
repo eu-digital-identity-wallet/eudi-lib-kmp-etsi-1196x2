@@ -85,6 +85,10 @@ kotlin {
                 api(projects.etsi1196x2Consultation)
                 implementation(libs.atomicfu)
                 implementation(libs.kotlinx.io.core)
+                implementation(libs.ktor.client.core)
+                implementation(libs.ktor.client.serialization)
+                implementation(libs.ktor.client.content.negotiation)
+                implementation(libs.ktor.serialization.json)
             }
         }
 
@@ -92,10 +96,6 @@ kotlin {
             dependencies {
                 implementation(kotlin("test"))
                 implementation(libs.kotlinx.coroutines.test)
-                implementation(libs.ktor.client.core)
-                implementation(libs.ktor.client.serialization)
-                implementation(libs.ktor.client.content.negotiation)
-                implementation(libs.ktor.serialization.json)
             }
         }
 

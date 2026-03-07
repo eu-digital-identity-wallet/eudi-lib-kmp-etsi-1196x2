@@ -15,22 +15,23 @@
  */
 package eu.europa.ec.eudi.etsi119602.consultation
 
-import eu.europa.ec.eudi.etsi119602.PKIObject
 import eu.europa.ec.eudi.etsi119602.consultation.eu.EUMDLProvidersListSpec
-import eu.europa.ec.eudi.etsi119602.x509Certificate
-import eu.europa.ec.eudi.etsi1196x2.consultation.*
-import io.ktor.client.*
+import eu.europa.ec.eudi.etsi1196x2.consultation.CertificateOperationsJvm
+import eu.europa.ec.eudi.etsi1196x2.consultation.SupportedLists
+import eu.europa.ec.eudi.etsi1196x2.consultation.VerificationContext
 import kotlinx.coroutines.test.runTest
+import kotlinx.io.files.Path
 import java.security.cert.X509Certificate
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
+import kotlin.time.Duration.Companion.hours
 
 object DIGIT {
 
     private fun loteUrl(lote: String): String =
         "https://acceptance.trust.tech.ec.europa.eu/lists/eudiw/$lote"
 
-    val LOTE_LOCATIONS = SupportedLists(
+    val loteLocations = SupportedLists(
         pidProviders = loteUrl("pid-providers.json"),
         walletProviders = loteUrl("wallet-providers.json"),
         wrpacProviders = loteUrl("wrpac-providers.json"),
@@ -72,57 +73,40 @@ class DIGITTest {
 
     @Test
     fun testDownload() = runTest {
-        val trustAnchorsFromLoTE =
-            createHttpClient().use { httpClient -> httpClient.get(DIGIT.LOTE_LOCATIONS) }
-
-        val expectedContexts: List<VerificationContext> =
-            listOf(
-                VerificationContext.PID,
-                VerificationContext.PIDStatus,
-                VerificationContext.WalletInstanceAttestation,
-                VerificationContext.WalletUnitAttestation,
-                VerificationContext.WalletUnitAttestationStatus,
-                VerificationContext.WalletRelyingPartyAccessCertificate,
-                VerificationContext.EAA("mdl"),
-                VerificationContext.EAAStatus("mdl"),
+        createHttpClient().use { httpClient ->
+            val fileStore = LoTEFileStore(
+                cacheDirectory = Path(System.getProperty("java.io.tmpdir"), "digit-lote"),
             )
+            val loadLoTE = LoadSingleLoTEWithFileCache(
+                fileStore = fileStore,
+                downloadSingleLoTE = DownloadSingleLoTE(httpClient),
+                fileCacheExpiration = 24.hours,
+            )
+            // Get the LoTEs, organized them as EUDIW verification contexts
+            val isChainTrustedForContext =
+                composeChainTrust(loadLoTE, DIGIT.loteLocations, DIGIT.SVC_TYPE_PER_CTX)
 
-        val actualContexts = trustAnchorsFromLoTE.supportedContexts
-        assertContentEquals(expectedContexts, actualContexts)
-        actualContexts.forEach { ctx ->
-            when (val outcome = trustAnchorsFromLoTE.getTrustAnchors(ctx)) {
-                null -> println("$ctx : Not found")
-                else -> println("$ctx : ${outcome.list.size} ")
+            val expectedContexts: List<VerificationContext> =
+                listOf(
+                    VerificationContext.PID,
+                    VerificationContext.PIDStatus,
+                    VerificationContext.WalletInstanceAttestation,
+                    VerificationContext.WalletUnitAttestation,
+                    VerificationContext.WalletUnitAttestationStatus,
+                    VerificationContext.WalletRelyingPartyAccessCertificate,
+                    VerificationContext.EAA("mdl"),
+                    VerificationContext.EAAStatus("mdl"),
+                )
+
+            val actualContexts = isChainTrustedForContext.supportedContexts
+            assertContentEquals(expectedContexts, actualContexts)
+            actualContexts.forEach { ctx ->
+                when (val outcome = isChainTrustedForContext.getTrustAnchors(ctx)) {
+                    null -> println("$ctx : Not found")
+                    else -> println("$ctx : ${outcome.list.size} ")
+                }
             }
+            fileStore.clear()
         }
-    }
-
-    private suspend fun HttpClient.get(
-        loteLocationsSupported: SupportedLists<String>,
-    ): ComposeChainTrust<*, VerificationContext, PKIObject> {
-        val fromHttp =
-            ProvisionTrustAnchorsFromLoTEs.eudiw(
-                loadLoTEAndPointers = LoadLoTEAndPointers(
-                    constraints = LoadLoTEAndPointers.Constraints(
-                        otherLoTEParallelism = 2,
-                        maxDepth = 1,
-                        maxLists = 40,
-                    ),
-                    verifyJwtSignature = NotValidating,
-                    loadLoTE = LoadLoTEFromHttp(this),
-                ),
-                svcTypePerCtx = DIGIT.SVC_TYPE_PER_CTX,
-                extractCertificate = { it.x509Certificate() },
-                createTrustAnchors = { it.x509Certificates.orEmpty() },
-                directTrust = ValidateCertificateChainUsingDirectTrust(
-                    { _ -> error("Not used") },
-                    { _ -> error("Not used") },
-                ),
-                getCertInfo = { "Info[subject=${it.subjectX500Principal}-sn=${it.serialNumber}]" },
-                pkix = ValidateCertificateChainUsingPKIX { _, _ -> error("Not used") },
-
-            )
-
-        return fromHttp(loteLocationsSupported, parallelism = 10)
     }
 }
