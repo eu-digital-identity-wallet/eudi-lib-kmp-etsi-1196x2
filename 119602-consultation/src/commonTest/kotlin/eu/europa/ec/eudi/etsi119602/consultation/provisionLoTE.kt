@@ -32,7 +32,7 @@ suspend fun composeChainTrust(
 ): ComposeChainTrust<List<X509Certificate>, VerificationContext, TrustAnchor> {
     val provisionTrustAnchorsFromLoTEs = ProvisionTrustAnchorsFromLoTEs(
         loadLoTEAndPointers = LoadLoTEAndPointers(
-            constraints = LoadLoTEAndPointers.Constraints(
+            constraints = LoadLoTEAndPointers.Constraints.LoadOtherPointers(
                 otherLoTEParallelism = 1,
                 maxDepth = 1,
                 maxLists = 2,
@@ -52,5 +52,5 @@ suspend fun composeChainTrust(
         continueOnProblem = ContinueOnProblem.AlwaysIfDownloaded,
         svcTypePerCtx = svcTypePerCtx,
     )
-    return provisionTrustAnchorsFromLoTEs.invoke(loteLocationsSupported, parallelism = 2)
+    return provisionTrustAnchorsFromLoTEs.invoke(loteLocationsSupported)
 }

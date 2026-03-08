@@ -23,6 +23,8 @@ import eu.europa.ec.eudi.etsi1196x2.consultation.GetTrustAnchors
 import eu.europa.ec.eudi.etsi1196x2.consultation.NonEmptyList
 import eu.europa.ec.eudi.etsi1196x2.consultation.certs.EvaluateCertificateConstraint
 import eu.europa.ec.eudi.etsi1196x2.consultation.certs.ensureAllMet
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 /**
  * A loaded list of trusted entities, including
@@ -36,6 +38,28 @@ public data class LoadedLoTE(
     val otherLists: List<ListOfTrustedEntities>,
 )
 
+/**
+ * An implementation of [GetTrustAnchors] that retrieves trust anchors from a List of Trusted Entities (LoTE).
+ *
+ * This class handles:
+ * 1. Loading a LoTE from a specified URL, including any other lists pointed to by the main list.
+ * 2. Filtering services based on the requested service type URI.
+ * 3. Converting service digital identities into the desired [TRUST_ANCHOR] type.
+ * 4. Validating extracted certificates against optional constraints.
+ *
+ * It uses a [LoadLoTEAndPointers] service which typically implements caching. Access to the [invoke]
+ * method is synchronized to prevent multiple concurrent downloads when the cache is empty.
+ *
+ * @param TRUST_ANCHOR the type of the trust anchor to produce
+ * @param CERT the type of the certificate extracted from the trust anchor for validation
+ * @param loTEDownloadUrl the URI where the LoTE is located
+ * @param certificateConstraints optional constraints to validate the trust anchors
+ * @param loadLoTEAndPointers the service used to load the LoTE and its pointers
+ * @param continueOnProblem strategy for handling errors during the loading process
+ * @param createTrustAnchors factory function to create trust anchors from digital identities
+ * @param extractCertificate function to extract the certificate from a trust anchor for validation
+ * @param getCertInfo function to provide a human-readable representation of a certificate (used in error messages)
+ */
 public class GetTrustAnchorsFromLoTE<out TRUST_ANCHOR : Any, in CERT : Any>(
     private val loTEDownloadUrl: URI,
     private val certificateConstraints: EvaluateCertificateConstraint<CERT>?,
@@ -45,6 +69,8 @@ public class GetTrustAnchorsFromLoTE<out TRUST_ANCHOR : Any, in CERT : Any>(
     private val extractCertificate: (TRUST_ANCHOR) -> CERT,
     private val getCertInfo: suspend (CERT) -> String = { it.toString() },
 ) : GetTrustAnchors<URI, TRUST_ANCHOR> {
+
+    private val mutex = Mutex()
 
     /**
      * Retrieves trust anchors for the specified service type.
@@ -59,11 +85,11 @@ public class GetTrustAnchorsFromLoTE<out TRUST_ANCHOR : Any, in CERT : Any>(
      * @throws IllegalStateException in case of a loading problem or if the certificate constraints are not met
      */
     @Throws(IllegalStateException::class)
-    override suspend fun invoke(query: URI): NonEmptyList<TRUST_ANCHOR>? {
+    override suspend fun invoke(query: URI): NonEmptyList<TRUST_ANCHOR>? = mutex.withLock {
         val trustAnchors =
             loadLoTe().compliantTrustAnchorsFor(query)
 
-        return NonEmptyList.nelOrNull(trustAnchors)
+        NonEmptyList.nelOrNull(trustAnchors)
     }
 
     private suspend fun loadLoTe(): LoadedLoTE {

@@ -65,12 +65,10 @@ public class ProvisionTrustAnchorsFromLoTEs<CHAIN : Any, CTX : Any, TRUST_ANCHOR
 
     public suspend operator fun invoke(
         loteLocationsSupported: SupportedLists<String>,
-        parallelism: Int = 1,
     ): ComposeChainTrust<CHAIN, CTX, TRUST_ANCHOR> =
         coroutineScope {
             loteLocationsSupported.cfgs().asFlow()
                 .map { cfg -> createValidator(cfg) }
-                .buffer(parallelism)
                 .filterNotNull()
                 .fold(ComposeChainTrust.empty()) { acc, provider -> acc + provider }
         }

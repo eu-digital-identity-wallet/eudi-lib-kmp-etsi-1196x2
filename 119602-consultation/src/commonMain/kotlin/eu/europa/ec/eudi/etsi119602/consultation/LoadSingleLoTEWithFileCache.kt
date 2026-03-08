@@ -19,6 +19,8 @@ import eu.europa.ec.eudi.etsi119602.ListOfTrustedEntitiesClaims
 import eu.europa.ec.eudi.etsi119602.URI
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.io.IOException
 import kotlinx.io.buffered
@@ -43,6 +45,22 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.hours
 import kotlin.time.Instant
 
+/**
+ * Implementation of [LoadLoTE] that uses a file-based cache to store and retrieve LoTEs.
+ *
+ * This loader follows a "cache-aside" pattern:
+ * 1. It first attempts to read the LoTE from [LoTEFileStore].
+ * 2. If the cached LoTE is present and not expired, it is returned.
+ * 3. Otherwise, if a [DownloadSingleLoTE] is provided, it downloads the LoTE, stores it in the cache, and returns it.
+ *
+ * This class is thread-safe and prevents redundant downloads of the same LoTE when accessed concurrently.
+ *
+ * @param fileStore the file store used for caching
+ * @param downloadSingleLoTE optional service to download the LoTE if not in cache or expired
+ * @param clock the clock used to determine cache expiration
+ * @param fileCacheExpiration the default duration after which a cached LoTE expires if no nextUpdate is present
+ * @param ioDispatcher the dispatcher used for I/O operations
+ */
 public class LoadSingleLoTEWithFileCache internal constructor(
     private val fileStore: LoTEFileStore,
     private val downloadSingleLoTE: DownloadSingleLoTE? = null,
@@ -67,22 +85,25 @@ public class LoadSingleLoTEWithFileCache internal constructor(
     )
 
     private val parseJwt = ParseJwt<JsonObject, ListOfTrustedEntitiesClaims>()
+    private val mutex = Mutex()
 
-    override suspend fun invoke(uri: URI): LoadLoTE.Outcome<String> = withContext(ioDispatcher) {
-        // Try to read from cache
-        val cached = fileStore.read(uri)
-        if (cached != null) {
-            val now = clock.now()
-            if (now < cached.metadata.expiresAt) {
-                // Cache hit - not expired
-                return@withContext LoadLoTE.Outcome.Loaded(cached.jwt)
+    override suspend fun invoke(uri: URI): LoadLoTE.Outcome<String> = mutex.withLock {
+        withContext(ioDispatcher) {
+            // Try to read from cache
+            val cached = fileStore.read(uri)
+            if (cached != null) {
+                val now = clock.now()
+                if (now < cached.metadata.expiresAt) {
+                    // Cache hit - not expired
+                    return@withContext LoadLoTE.Outcome.Loaded(cached.jwt)
+                }
+                // Cache expired, will re-download
             }
-            // Cache expired, will re-download
-        }
 
-        downloadSingleLoTE
-            ?.let { downloadAndStore(it, uri) }
-            ?: LoadLoTE.Outcome.NotFound(null)
+            downloadSingleLoTE
+                ?.let { downloadAndStore(it, uri) }
+                ?: LoadLoTE.Outcome.NotFound(null)
+        }
     }
 
     private suspend fun downloadAndStore(loadFromHttp: DownloadSingleLoTE, uri: URI): LoadLoTE.Outcome<String> {

@@ -27,6 +27,14 @@ import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.flow.toList
 import kotlinx.serialization.json.JsonObject
 
+/**
+ * Functional interface for loading a List of Trusted Entities (LoTE).
+ *
+ * @param LOTE the type of the loaded LoTE content
+ *
+ * @see DownloadSingleLoTE
+ * @see LoadSingleLoTEWithFileCache
+ */
 public fun interface LoadLoTE<out LOTE : Any> {
     public suspend operator fun invoke(uri: URI): Outcome<LOTE>
 
@@ -36,6 +44,19 @@ public fun interface LoadLoTE<out LOTE : Any> {
     }
 }
 
+/**
+ * A loader that recursively fetches a List of Trusted Entities (LoTE) and its pointers.
+ *
+ * This class handles:
+ * 1. Fetching the primary LoTE from a given URI.
+ * 2. Verifying the JWT signature of the loaded list.
+ * 3. Discovering and recursively loading other LoTEs pointed to by the primary list.
+ * 4. Enforcing constraints such as max depth, max number of lists, and circular references.
+ *
+ * @param constraints limits for the recursive loading process
+ * @param verifyJwtSignature service used to verify the JWT signature of each loaded LoTE
+ * @param loadLoTE the underlying loader used to fetch the content for a specific URI
+ */
 public class LoadLoTEAndPointers(
     private val constraints: Constraints,
     private val verifyJwtSignature: VerifyJwtSignature,
@@ -81,9 +102,11 @@ public class LoadLoTEAndPointers(
         currentCoroutineContext().ensureActive()
 
         // Check constraints
-        violationInStep(state, step)?.let {
-            send(it)
-            return@withContext
+        if (constraints is Constraints.LoadOtherPointers) {
+            violationInStep(constraints, state, step)?.let {
+                send(it)
+                return@withContext
+            }
         }
 
         state.visitedUris.add(step.uri)
@@ -101,8 +124,8 @@ public class LoadLoTEAndPointers(
 
             send(event)
 
-            if (event is Event.LoTELoaded) {
-                handleOtherPointers(state, step, event)
+            if (event is Event.LoTELoaded && constraints is Constraints.LoadOtherPointers) {
+                handleOtherPointers(constraints, state, step, event)
             }
         } catch (e: Exception) {
             send(errorInStep(step, e))
@@ -112,6 +135,7 @@ public class LoadLoTEAndPointers(
     }
 
     private suspend fun ProducerScope<Event>.handleOtherPointers(
+        constraints: Constraints.LoadOtherPointers,
         state: State,
         parentStep: Step,
         event: Event.LoTELoaded,
@@ -155,6 +179,7 @@ public class LoadLoTEAndPointers(
     //
 
     private fun violationInStep(
+        constraints: Constraints.LoadOtherPointers,
         state: State,
         currentStep: Step,
     ): Event.Problem? {
@@ -189,15 +214,18 @@ public class LoadLoTEAndPointers(
     private fun errorInStep(step: Step, error: Throwable): Event.Error =
         Event.Error(step.uri, error)
 
-    public data class Constraints(
-        val otherLoTEParallelism: Int,
-        val maxDepth: Int,
-        val maxLists: Int,
-    ) {
-        init {
-            require(otherLoTEParallelism > 0) { "Parallelism must be greater than 0" }
-            require(maxDepth > 0) { "Max depth must be greater than 0" }
-            require(maxLists > 0) { "Max downloads must be greater than 0" }
+    public sealed interface Constraints {
+        public data object DoNotLoadOtherPointers : Constraints
+        public data class LoadOtherPointers(
+            val otherLoTEParallelism: Int,
+            val maxDepth: Int,
+            val maxLists: Int,
+        ) : Constraints {
+            init {
+                require(otherLoTEParallelism > 0) { "Parallelism must be greater than 0" }
+                require(maxDepth > 0) { "Max depth must be greater than 0" }
+                require(maxLists > 0) { "Max downloads must be greater than 0" }
+            }
         }
     }
 }
