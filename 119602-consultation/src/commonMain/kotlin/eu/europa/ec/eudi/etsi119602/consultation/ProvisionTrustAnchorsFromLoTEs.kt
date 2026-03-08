@@ -19,8 +19,10 @@ import eu.europa.ec.eudi.etsi119602.ServiceDigitalIdentity
 import eu.europa.ec.eudi.etsi119602.URI
 import eu.europa.ec.eudi.etsi1196x2.consultation.*
 import eu.europa.ec.eudi.etsi1196x2.consultation.certs.EvaluateCertificateConstraint
-import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
+import kotlin.time.Clock
+import kotlin.time.Duration
 
 /**
  * Metadata associated with a LoTE configuration.
@@ -35,23 +37,6 @@ public data class LotEMata<CTX, in CERT : Any>(
     val certificateConstraints: EvaluateCertificateConstraint<CERT>?,
 )
 
-/**
- * Provisions trust anchors from multiple Lists of Trusted Entities (LoTEs).
- *
- * This class uses on-demand loading with two-level caching (file + memory) for efficient
- * trust anchor retrieval. It implements [AutoCloseable] to allow proper resource cleanup.
- *
- * @param loadLoTEAndPointers A way to load LoTEs and pointers (with caching)
- * @param createTrustAnchors Creates trust anchors from a [ServiceDigitalIdentity]
- * @param extractCertificate extracts a certificate from a trust anchor
- * @param getCertInfo A way to represent a certificate in a human-readable form.
- *        It is used to display certificate information in error messages.
- * @param directTrust Direct trust chain validator
- * @param pkix PKIX Certificat chain validator
- * @param continueOnProblem A strategy to handle problems during trust anchor provisioning.
- *       Defaults to [ContinueOnProblem.Never].
- * @param svcTypePerCtx
- */
 public class ProvisionTrustAnchorsFromLoTEs<CHAIN : Any, CTX : Any, TRUST_ANCHOR : Any, CERT : Any>(
     private val loadLoTEAndPointers: LoadLoTEAndPointers,
     private val createTrustAnchors: (ServiceDigitalIdentity) -> List<TRUST_ANCHOR>,
@@ -63,20 +48,51 @@ public class ProvisionTrustAnchorsFromLoTEs<CHAIN : Any, CTX : Any, TRUST_ANCHOR
     private val svcTypePerCtx: SupportedLists<LotEMata<CTX, CERT>>,
 ) {
 
-    public suspend operator fun invoke(
+    public operator fun invoke(
         loteLocationsSupported: SupportedLists<String>,
     ): ComposeChainTrust<CHAIN, CTX, TRUST_ANCHOR> =
-        coroutineScope {
-            loteLocationsSupported.cfgs().asFlow()
-                .map { cfg -> createValidator(cfg) }
-                .filterNotNull()
-                .fold(ComposeChainTrust.empty()) { acc, provider -> acc + provider }
-        }
+        loteLocationsSupported.cfgs().map { cfg ->
+            val getTrustAnchors = createGetTrustAnchorsFromLoTE(cfg)
+            createValidator(cfg, getTrustAnchors)
+        }.compose()
+
+    public fun cached(
+        loteLocationsSupported: SupportedLists<String>,
+        ttl: Duration,
+        cacheDispatcher: CoroutineDispatcher = Dispatchers.Default,
+        clock: Clock = Clock.System,
+    ): Pair<ComposeChainTrust<CHAIN, CTX, TRUST_ANCHOR>, AutoCloseable> {
+        val args = CacheArguments(cacheDispatcher, clock, ttl)
+        val sources =
+            loteLocationsSupported.cfgs().associateWith { cfg -> createGetTrustAnchorsFromLoTE(cfg, args) }
+        val autoClosable = AutoCloseable { sources.values.forEach { it.close() } }
+        val composeChainTrust =
+            sources.map { (cfg, getTrustAnchors) -> createValidator(cfg, getTrustAnchors) }
+                .compose()
+        return composeChainTrust to autoClosable
+    }
 
     private fun createValidator(
         cfg: LoTECfg<CTX, CERT>,
+        getTrustAnchors: GetTrustAnchors<URI, TRUST_ANCHOR>,
     ): IsChainTrustedForContext<CHAIN, CTX, TRUST_ANCHOR> {
-        val getTrustAnchors = GetTrustAnchorsFromLoTE(
+        val certificateChainValidator = certificateChainValidator(cfg)
+        val transformation = cfg.metadata.svcTypePerCtx
+        return getTrustAnchors.validator(transformation, certificateChainValidator)
+    }
+
+    private fun createGetTrustAnchorsFromLoTE(
+        cfg: LoTECfg<CTX, CERT>,
+        args: CacheArguments,
+    ): GetTrustAnchorsCachedSource<URI, TRUST_ANCHOR> {
+        val getTrustAnchors = createGetTrustAnchorsFromLoTE(cfg)
+        return getTrustAnchors.cached(args, cfg.metadata.svcTypePerCtx.size)
+    }
+
+    private fun createGetTrustAnchorsFromLoTE(
+        cfg: LoTECfg<CTX, CERT>,
+    ): GetTrustAnchors<URI, TRUST_ANCHOR> =
+        GetTrustAnchorsFromLoTE(
             loTEDownloadUrl = cfg.downloadUrl,
             certificateConstraints = cfg.metadata.certificateConstraints,
             loadLoTEAndPointers = loadLoTEAndPointers,
@@ -85,11 +101,17 @@ public class ProvisionTrustAnchorsFromLoTEs<CHAIN : Any, CTX : Any, TRUST_ANCHOR
             extractCertificate = extractCertificate,
             getCertInfo = getCertInfo,
         )
-        val validateCertificateChain =
-            if (cfg.metadata.directTrust) directTrust else pkix
-        val transformation = cfg.metadata.svcTypePerCtx
-        return getTrustAnchors.validator(transformation, validateCertificateChain)
-    }
+
+    private fun certificateChainValidator(
+        cfg: LoTECfg<CTX, CERT>,
+    ): ValidateCertificateChain<CHAIN, TRUST_ANCHOR> =
+        if (cfg.metadata.directTrust) directTrust else pkix
+
+    private fun GetTrustAnchors<URI, TRUST_ANCHOR>.cached(
+        args: CacheArguments,
+        expectedQueries: Int,
+    ): GetTrustAnchorsCachedSource<URI, TRUST_ANCHOR> =
+        cached(args.cacheDispatcher, args.clock, args.ttl, expectedQueries)
 
     private fun SupportedLists<String>.cfgs(): SupportedLists<LoTECfg<CTX, CERT>> =
         SupportedLists.combine(this, svcTypePerCtx) { url, ctx ->
@@ -99,6 +121,12 @@ public class ProvisionTrustAnchorsFromLoTEs<CHAIN : Any, CTX : Any, TRUST_ANCHOR
     private data class LoTECfg<CTX : Any, CERT : Any>(
         val downloadUrl: String,
         val metadata: LotEMata<CTX, CERT>,
+    )
+
+    private data class CacheArguments(
+        val cacheDispatcher: CoroutineDispatcher,
+        val clock: Clock,
+        val ttl: Duration,
     )
 
     public companion object {
