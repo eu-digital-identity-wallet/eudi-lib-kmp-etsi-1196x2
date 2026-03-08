@@ -24,7 +24,7 @@ import eu.europa.ec.eudi.etsi1196x2.consultation.VerificationContext
 import java.security.cert.TrustAnchor
 import java.security.cert.X509Certificate
 
-suspend fun composeChainTrust(
+fun composeChainTrust(
     loadLoTE: LoadLoTE<String>,
     loteLocationsSupported: SupportedLists<String>,
     svcTypePerCtx: SupportedLists<LotEMata<VerificationContext, X509Certificate>>,
