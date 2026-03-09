@@ -17,6 +17,7 @@ package eu.europa.ec.eudi.etsi119602.consultation
 
 import eu.europa.ec.eudi.etsi119602.URI
 import io.ktor.client.*
+import io.ktor.client.plugins.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
@@ -31,7 +32,7 @@ public class DownloadSingleLoTE(
 ) : LoadLoTE<String> {
 
     override suspend fun invoke(uri: URI): LoadLoTE.Outcome<String> {
-        val httpResponse = httpClient.get(uri)
+        val httpResponse = httpClient.get(uri) { expectSuccess = false }
         return when (httpResponse.status) {
             HttpStatusCode.OK -> {
                 val content = httpResponse.bodyAsText()
@@ -39,7 +40,7 @@ public class DownloadSingleLoTE(
             }
 
             HttpStatusCode.NotFound -> LoadLoTE.Outcome.NotFound(null)
-            else -> throw IllegalStateException("Unexpected response status: ${httpResponse.status}")
+            else -> error("Unexpected response status: ${httpResponse.status}")
         }
     }
 }
