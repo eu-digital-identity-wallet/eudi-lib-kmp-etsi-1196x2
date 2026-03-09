@@ -85,6 +85,7 @@ kotlin {
                 api(projects.etsi1196x2Consultation)
                 implementation(libs.atomicfu)
                 implementation(libs.kotlinx.io.core)
+                api(libs.ktor.client.core)
             }
         }
 
@@ -92,8 +93,6 @@ kotlin {
             dependencies {
                 implementation(kotlin("test"))
                 implementation(libs.kotlinx.coroutines.test)
-                implementation(libs.ktor.client.core)
-                implementation(libs.ktor.client.serialization)
                 implementation(libs.ktor.client.content.negotiation)
                 implementation(libs.ktor.serialization.json)
             }
@@ -108,7 +107,7 @@ kotlin {
         val jvmAndAndroidTest by getting {
             dependencies {
                 implementation(libs.ktor.client.java)
-                implementation("eu.europa.ec.eudi:eudi-lib-jvm-sdjwt-kt:0.18.0")
+                implementation(libs.eudi.lib.jvm.sdjwt)
             }
         }
 

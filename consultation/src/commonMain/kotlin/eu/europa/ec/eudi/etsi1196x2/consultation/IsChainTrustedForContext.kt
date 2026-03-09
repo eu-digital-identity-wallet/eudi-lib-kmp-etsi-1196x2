@@ -62,3 +62,8 @@ public class IsChainTrustedForContext<in CHAIN : Any, CTX : Any, TRUST_ANCHOR : 
         }
     }
 }
+
+@Throws(IllegalArgumentException::class)
+public fun <CHAIN, CTX, TA> Iterable<IsChainTrustedForContext<CHAIN, CTX, TA>>.compose(): ComposeChainTrust<CHAIN, CTX, TA>
+        where CHAIN : Any, CTX : Any, TA : Any =
+    fold(ComposeChainTrust.empty()) { acc, next -> acc + next }

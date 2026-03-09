@@ -21,6 +21,10 @@ import eu.europa.ec.eudi.etsi119602.TrustedEntityService
 import eu.europa.ec.eudi.etsi119602.URI
 import eu.europa.ec.eudi.etsi1196x2.consultation.GetTrustAnchors
 import eu.europa.ec.eudi.etsi1196x2.consultation.NonEmptyList
+import eu.europa.ec.eudi.etsi1196x2.consultation.certs.EvaluateCertificateConstraint
+import eu.europa.ec.eudi.etsi1196x2.consultation.certs.ensureAllMet
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 /**
  * A loaded list of trusted entities, including
@@ -34,27 +38,101 @@ public data class LoadedLoTE(
     val otherLists: List<ListOfTrustedEntities>,
 )
 
-public class GetTrustAnchorsFromLoTE<out TRUST_ANCHOR : Any>(
-    private val loadedLote: LoadedLoTE,
+/**
+ * An implementation of [GetTrustAnchors] that retrieves trust anchors from a List of Trusted Entities (LoTE).
+ *
+ * This class handles:
+ * 1. Loading a LoTE from a specified URL, including any other lists pointed to by the main list.
+ * 2. Filtering services based on the requested service type URI.
+ * 3. Converting service digital identities into the desired [TRUST_ANCHOR] type.
+ * 4. Validating extracted certificates against optional constraints.
+ *
+ * It uses a [LoadLoTEAndPointers] service which typically implements caching. Access to the [invoke]
+ * method is synchronized to prevent multiple concurrent downloads when the cache is empty.
+ *
+ * @param TRUST_ANCHOR the type of the trust anchor to produce
+ * @param CERT the type of the certificate extracted from the trust anchor for validation
+ * @param loTEDownloadUrl the URI where the LoTE is located
+ * @param certificateConstraints optional constraints to validate the trust anchors
+ * @param loadLoTEAndPointers the service used to load the LoTE and its pointers
+ * @param continueOnProblem strategy for handling errors during the loading process
+ * @param createTrustAnchors factory function to create trust anchors from digital identities
+ * @param extractCertificate function to extract the certificate from a trust anchor for validation
+ * @param getCertInfo function to provide a human-readable representation of a certificate (used in error messages)
+ */
+public class GetTrustAnchorsFromLoTE<out TRUST_ANCHOR : Any, in CERT : Any>(
+    private val loTEDownloadUrl: URI,
+    private val certificateConstraints: EvaluateCertificateConstraint<CERT>?,
+    private val loadLoTEAndPointers: LoadLoTEAndPointers,
+    private val continueOnProblem: ContinueOnProblem = ContinueOnProblem.Never,
     private val createTrustAnchors: (ServiceDigitalIdentity) -> List<TRUST_ANCHOR>,
+    private val extractCertificate: (TRUST_ANCHOR) -> CERT,
+    private val getCertInfo: suspend (CERT) -> String = { it.toString() },
 ) : GetTrustAnchors<URI, TRUST_ANCHOR> {
 
-    override suspend fun invoke(query: URI): NonEmptyList<TRUST_ANCHOR>? {
-        val certs =
-            loadedLote.servicesOfType(query).flatMap { trustedService ->
-                createTrustAnchors(trustedService.information.digitalIdentity)
-            }
-        return NonEmptyList.nelOrNull(certs)
+    private val mutex = Mutex()
+
+    /**
+     * Retrieves trust anchors for the specified service type.
+     *
+     * This method:
+     * 1. Loads the LoTE (and its pointers) from cache or downloads if needed
+     * 2. Extracts services of the requested type from all loaded lists
+     * 3. Converts service digital identities to trust anchors
+     *
+     * @param query the service type URI to search for
+     * @return a non-empty list of trust anchors, or null if no services of the requested type are found
+     * @throws IllegalStateException in case of a loading problem or if the certificate constraints are not met
+     */
+    @Throws(IllegalStateException::class)
+    override suspend fun invoke(query: URI): NonEmptyList<TRUST_ANCHOR>? = mutex.withLock {
+        val trustAnchors =
+            loadLoTe().compliantTrustAnchorsFor(query)
+
+        NonEmptyList.nelOrNull(trustAnchors)
     }
 
-    private fun LoadedLoTE.servicesOfType(svcType: URI): List<TrustedEntityService> {
-        return (listOf(list) + otherLists).flatMap { it.servicesOf(svcType) }
+    private suspend fun loadLoTe(): LoadedLoTE {
+        val events = loadLoTEAndPointers(loTEDownloadUrl)
+        val result = LoTELoadResult.collect(events, continueOnProblem)
+        val loaded = result.toLoadedLoTE()
+        return checkNotNull(loaded) { loadingProblems(result) }
     }
+
+    private fun LoTELoadResult.toLoadedLoTE(): LoadedLoTE? =
+        list?.let { mainList -> LoadedLoTE(list = mainList.lote, otherLists = otherLists.map { it.lote }) }
+
+    private suspend fun LoadedLoTE.compliantTrustAnchorsFor(svcType: URI): List<TRUST_ANCHOR> =
+        servicesOfType(svcType).flatMap { trustedService ->
+            trustedService.information.digitalIdentity.trustAnchors().apply { ensureCertificateConstraintsAreMet() }
+        }
 
     private fun ListOfTrustedEntities.servicesOf(svcType: URI): List<TrustedEntityService> =
         entities.orEmpty()
             .flatMap { it.services.filter { svc -> svc.information.typeIdentifier == svcType } }
 
-    public companion object {
+    private fun LoadedLoTE.servicesOfType(svcType: URI): List<TrustedEntityService> =
+        (listOf(list) + otherLists).flatMap { it.servicesOf(svcType) }
+
+    private fun ServiceDigitalIdentity.trustAnchors(): List<TRUST_ANCHOR> =
+        createTrustAnchors(this)
+
+    private suspend fun List<TRUST_ANCHOR>.ensureCertificateConstraintsAreMet() {
+        val evaluator = certificateConstraints ?: return
+        val certs = map { extractCertificate(it) }
+        try {
+            evaluator.ensureAllMet(certs, getCertInfo)
+        } catch (e: IllegalStateException) {
+            val msg = "Failed to verify trust anchors of LoTE loaded from $loTEDownloadUrl"
+            throw IllegalStateException(msg, e)
+        }
+    }
+
+    private fun loadingProblems(result: LoTELoadResult): String = buildString {
+        appendLine("Failed to load LoTE from $loTEDownloadUrl\n")
+        appendLine("Problems encountered during loading:")
+        result.problems.forEachIndexed { index, problem ->
+            appendLine("${index + 1}. $problem")
+        }
     }
 }

@@ -146,34 +146,36 @@ class IsChainTrustedUsingLoTLParallelTest {
             fileCacheExpiration = 24.hours,
             cacheDirectory = createTempDirectory("lotl-cache-dss"),
         )
-        GetTrustAnchorsFromLoTL(dssOptions)
-            .cached(clock = clock, ttl = 10.seconds, expectedQueries = iterations)
-            .use { getTrustAnchors ->
-                doTest(httpLoader, getTrustAnchors, expectedHttpCalls)
-            }
+        useResources {
+            val getTrustAnchors = GetTrustAnchorsFromLoTL(dssOptions)
+                .cached(clock = clock, ttl = 10.seconds, expectedQueries = iterations).bind()
+            doTest(httpLoader, getTrustAnchors, expectedHttpCalls)
+        }
     }
 
     @Ignore("Flaky: DSS FileCacheDataLoader can corrupt cache under concurrent access. Use ConcurrentCacheDataLoader instead.")
     @Test
     fun stressTestDssFileCacheLoaderCommonConstraint() = runTest {
         val expectedHttpCalls = 17
-        ConstraintHttpLoader(
-            cacheDispatcher = Dispatchers.IO.limitedParallelism(1),
-            clock = clock,
-            maxCacheSize = 20,
-            ttl = 5.seconds,
-            proxied = NativeHTTPDataLoader(),
-        ).use { httpLoader ->
+        useResources {
+            val httpLoader = ConstraintHttpLoader(
+                cacheDispatcher = Dispatchers.IO.limitedParallelism(1),
+                clock = clock,
+                maxCacheSize = 20,
+                ttl = 5.seconds,
+                proxied = NativeHTTPDataLoader(),
+            ).bind()
+
             val dssOptions = DssOptions.usingFileCacheDataLoader(
                 httpLoader = httpLoader,
                 fileCacheExpiration = 24.hours,
                 cacheDirectory = createTempDirectory("lotl-cache-dss-constraint"),
             )
-            GetTrustAnchorsFromLoTL(dssOptions)
-                .cached(clock = clock, ttl = 10.seconds, expectedQueries = iterations)
-                .use { getTrustAnchors ->
-                    doTest(httpLoader, getTrustAnchors, expectedHttpCalls)
-                }
+
+            val getTrustAnchors = GetTrustAnchorsFromLoTL(dssOptions)
+                .cached(clock = clock, ttl = 10.seconds, expectedQueries = iterations).bind()
+
+            doTest(httpLoader, getTrustAnchors, expectedHttpCalls)
         }
     }
 
@@ -181,18 +183,17 @@ class IsChainTrustedUsingLoTLParallelTest {
     fun stressTestConcurrentCacheDataLoader() = runTest {
         val expectedHttpCalls = 17
         val httpLoader = ObservableHttpLoader(NativeHTTPDataLoader())
-        val loader = ConcurrentCacheDataLoader(
-            httpLoader = httpLoader,
-            fileCacheExpiration = 24.hours,
-            cacheDirectory = createTempDirectory("lotl-cache-custom"),
-        )
-        val dssOptions = DssOptions(loader = loader)
-        loader.use {
-            GetTrustAnchorsFromLoTL(dssOptions)
-                .cached(clock = clock, ttl = 10.seconds, expectedQueries = iterations)
-                .use { getTrustAnchors ->
-                    doTest(httpLoader, getTrustAnchors, expectedHttpCalls)
-                }
+
+        useResources {
+            val loader = ConcurrentCacheDataLoader(
+                httpLoader = httpLoader,
+                fileCacheExpiration = 24.hours,
+                cacheDirectory = createTempDirectory("lotl-cache-custom"),
+            ).bind()
+            val dssOptions = DssOptions(loader = loader)
+            val getTrustAnchors = GetTrustAnchorsFromLoTL(dssOptions)
+                .cached(clock = clock, ttl = 10.seconds, expectedQueries = iterations).bind()
+            doTest(httpLoader, getTrustAnchors, expectedHttpCalls)
         }
     }
 
@@ -243,7 +244,7 @@ class IsChainTrustedUsingLoTLParallelTest {
         ttl: Duration,
         maxCacheSize: Int,
         proxied: DataLoader,
-    ) : DataLoader by proxied, AutoCloseable, GetCounter {
+    ) : DataLoader by proxied, Disposable, GetCounter {
         private val _callCount = AtomicInteger(0)
         override val callCount: Int get() = _callCount.get()
         private val cache = AsyncCache<String, ByteArray>(
@@ -266,8 +267,8 @@ class IsChainTrustedUsingLoTLParallelTest {
                 cache.invoke(url)
             }
 
-        override fun close() {
-            cache.close()
+        override fun dispose() {
+            cache.dispose()
         }
     }
 }

@@ -29,7 +29,7 @@ public class AsyncCache<A : Any, B>(
     private val maxCacheSize: Int,
     cleanupExpired: Boolean = true,
     private val supplier: suspend (A) -> B,
-) : suspend (A) -> B, AutoCloseable {
+) : suspend (A) -> B, Disposable {
 
     private val cacheScope = CoroutineScope(SupervisorJob() + cacheDispatcher)
 
@@ -94,7 +94,7 @@ public class AsyncCache<A : Any, B>(
      * If you need to wait for in-flight operations to complete gracefully,
      * you should track and await them before calling close().
      */
-    override fun close() {
+    override fun dispose() {
         if (cacheScope.isActive) {
             cacheScope.cancel()
             cache.clear()

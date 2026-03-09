@@ -81,7 +81,7 @@ kotlin {
             dependencies {
                 // Common dependencies
                 api(libs.kotlinx.coroutines.core)
-                api(libs.kotlinx.datetime)
+                implementation(libs.atomicfu)
             }
         }
 
@@ -96,7 +96,6 @@ kotlin {
             dependencies {
                 implementation(kotlin("test"))
                 implementation(libs.kotlinx.coroutines.test)
-                implementation(libs.atomicfu)
             }
         }
     }

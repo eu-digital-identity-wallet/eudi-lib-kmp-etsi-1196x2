@@ -16,6 +16,7 @@
 package eu.europa.ec.eudi.etsi1196x2.consultation.dss
 
 import eu.europa.ec.eudi.etsi1196x2.consultation.AsyncCache
+import eu.europa.ec.eudi.etsi1196x2.consultation.Disposable
 import eu.europa.esig.dss.model.DSSDocument
 import eu.europa.esig.dss.model.FileDocument
 import eu.europa.esig.dss.spi.DSSUtils
@@ -47,7 +48,7 @@ public fun interface CacheFilenameStrategy {
     /**
      * Calculates the cache filename for the given URL.
      * @param url the URL to generate a cache filename for
-     * @return the cache filename (without directory path)
+     * @return the cache filename (without a directory path)
      */
     public fun calculateFilename(url: String): String
 
@@ -106,7 +107,7 @@ public class ConcurrentCacheDataLoader(
     httpCacheTtl: Duration = 5.seconds,
     maxCacheSize: Int = 100,
     private val filenameStrategy: CacheFilenameStrategy = CacheFilenameStrategy.DSS,
-) : DataLoader, DSSCacheFileLoader, AutoCloseable {
+) : DataLoader, DSSCacheFileLoader, Disposable {
 
     init {
         require(fileCacheExpiration.isPositive() && fileCacheExpiration != Duration.INFINITE) {
@@ -206,8 +207,8 @@ public class ConcurrentCacheDataLoader(
         }
     }
 
-    override fun close() {
-        httpCache.close()
+    override fun dispose() {
+        httpCache.dispose()
     }
 
     private fun cacheFileFor(url: String): Path {

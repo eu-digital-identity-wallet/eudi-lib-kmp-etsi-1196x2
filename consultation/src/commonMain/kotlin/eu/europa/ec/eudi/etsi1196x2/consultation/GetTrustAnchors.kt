@@ -47,13 +47,6 @@ public fun interface GetTrustAnchors<in QUERY : Any, out TRUST_ANCHOR : Any> {
     public suspend operator fun invoke(query: QUERY): NonEmptyList<TRUST_ANCHOR>?
 }
 
-@Deprecated("Use transform instead", replaceWith = ReplaceWith("validator(transformation, validateCertificateChain)"))
-public fun <C : Any, Q : Any, TA : Any, Q1 : Any> GetTrustAnchors<Q, TA>.transform(
-    validateCertificateChain: ValidateCertificateChain<C, TA>,
-    transformation: Map<Q1, Q>,
-): IsChainTrustedForContext<C, Q1, TA> =
-    validator(transformation, validateCertificateChain)
-
 public fun <C : Any, Q : Any, TA : Any> GetTrustAnchors<Q, TA>.validator(
     supportedQueries: Set<Q>,
     validateCertificateChain: ValidateCertificateChain<C, TA>,
@@ -120,7 +113,7 @@ public fun <Q : Any, TA : Any, Q2 : Any> GetTrustAnchors<Q, TA>.contraMap(
  * - Expired entries are automatically refreshed upon next access.
  * - Resources are managed within the provided [coroutineScope].
  *
- *  **Resource Management**: This class implements [AutoCloseable] and must be closed when no longer needed
+ *  **Resource Management**: This class implements [Disposable] and must be closed when no longer needed
  *  to release cached resources and cancel background operations. Failure to close may result in
  *  memory leaks and continued background processing.
  *
@@ -149,7 +142,7 @@ public fun <Q : Any, TA : Any> GetTrustAnchors<Q, TA>.cached(
  * - Concurrent requests for the same query result in a single invocation of the underlying source
  * - Cache size is bounded by the [expectedQueries] parameter
  *
- * **Resource Management**: This class implements [AutoCloseable] and must be closed when no longer needed
+ * **Resource Management**: This class implements [Disposable] and must be closed when no longer needed
  * to release cached resources and cancel background operations. Failure to close may result in
  * memory leaks and continued background processing.
  *
@@ -163,7 +156,7 @@ public class GetTrustAnchorsCachedSource<in QUERY : Any, out TRUST_ANCHOR : Any>
     ttl: Duration,
     expectedQueries: Int,
     private val delegate: GetTrustAnchors<QUERY, TRUST_ANCHOR>,
-) : GetTrustAnchors<QUERY, TRUST_ANCHOR>, AutoCloseable {
+) : GetTrustAnchors<QUERY, TRUST_ANCHOR>, Disposable {
 
     private val cached: AsyncCache<QUERY, NonEmptyList<TRUST_ANCHOR>?> =
         AsyncCache(cacheDispatcher, clock, ttl, expectedQueries) { query ->
@@ -172,8 +165,8 @@ public class GetTrustAnchorsCachedSource<in QUERY : Any, out TRUST_ANCHOR : Any>
 
     override suspend fun invoke(query: QUERY): NonEmptyList<TRUST_ANCHOR>? = cached(query)
 
-    override fun close() {
-        cached.close()
+    override fun dispose() {
+        cached.dispose()
     }
 }
 

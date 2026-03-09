@@ -41,12 +41,14 @@ class AsyncCacheTest {
         val ttl = 1000.milliseconds
         val clock = TestClock(testScheduler)
 
-        AsyncCache<String, String>(testDispatcher, clock, ttl, 10) { key ->
-            if (key == "fail") {
-                throw RuntimeException("Planned failure")
-            }
-            "value-$key"
-        }.use { cache ->
+        useResources {
+            val cache = AsyncCache<String, String>(testDispatcher, clock, ttl, 10) { key ->
+                if (key == "fail") {
+                    throw RuntimeException("Planned failure")
+                }
+                "value-$key"
+            }.bind()
+
             // 1. Trigger a failing call
             try {
                 cache("fail")
@@ -67,14 +69,16 @@ class AsyncCacheTest {
         val ttl = 100.milliseconds
         val clock = TestClock(testScheduler)
 
-        AsyncCache<String, String>(testDispatcher, clock, ttl, 10) { key ->
-            supplierCalls++
-            if (key == "fail" && supplierCalls == 1) {
-                delay(200) // Longer than TTL
-                throw RuntimeException("Planned failure")
-            }
-            "value"
-        }.use { cache ->
+        useResources {
+            val cache = AsyncCache<String, String>(testDispatcher, clock, ttl, 10) { key ->
+                supplierCalls++
+                if (key == "fail" && supplierCalls == 1) {
+                    delay(200) // Longer than TTL
+                    throw RuntimeException("Planned failure")
+                }
+                "value"
+            }.bind()
+
             // 1. Trigger a failing call
             val job1 = launch {
                 try {
@@ -119,11 +123,11 @@ class AsyncCacheTest {
         val ttl = 100.milliseconds
         val clock = TestClock(testScheduler)
 
-        AsyncCache<String, String>(testDispatcher, clock, ttl, 10) { key ->
-            supplierCalls++
-            "value-$key"
-        }.use { cache ->
-
+        useResources {
+            val cache = AsyncCache<String, String>(testDispatcher, clock, ttl, 10) { key ->
+                supplierCalls++
+                "value-$key"
+            }.bind()
             // 1. Populate cache
             cache("key1")
             assertEquals(1, supplierCalls)

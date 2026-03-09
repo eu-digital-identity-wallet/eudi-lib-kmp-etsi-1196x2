@@ -15,34 +15,22 @@
  */
 package eu.europa.ec.eudi.etsi119602.consultation
 
-import eu.europa.ec.eudi.etsi119602.URI
-import io.ktor.client.*
-import io.ktor.client.plugins.contentnegotiation.*
-import io.ktor.client.plugins.cookies.*
-import io.ktor.client.request.*
-import io.ktor.client.statement.*
-import io.ktor.http.*
-import io.ktor.serialization.kotlinx.json.*
+import io.ktor.client.HttpClient
+import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.client.plugins.cookies.HttpCookies
+import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.json.Json
 
-class LoadLoTEFromHttp(
-    private val httpClient: HttpClient,
-) : LoadLoTE<String> {
-
-    override suspend fun invoke(uri: URI): LoadLoTE.Outcome<String> {
-        val httpResponse = httpClient.get(uri)
-        return when (httpResponse.status) {
-            HttpStatusCode.OK -> {
-                val content = httpResponse.bodyAsText()
-                LoadLoTE.Outcome.Loaded(content)
-            }
-
-            HttpStatusCode.NotFound -> LoadLoTE.Outcome.NotFound(null)
-            else -> throw IllegalStateException("Unexpected response status: ${httpResponse.status}")
-        }
-    }
-}
-
+/**
+ * Creates an HTTP client with default configuration suitable for loading LoTEs.
+ *
+ * The client is configured with:
+ * - Content negotiation using Kotlinx Serialization JSON
+ * - HTTP cookie support
+ * - Pretty-printed JSON for debugging
+ *
+ * @return a configured [HttpClient] instance
+ */
 fun createHttpClient(): HttpClient =
     HttpClient {
         install(ContentNegotiation) {
@@ -52,7 +40,7 @@ fun createHttpClient(): HttpClient =
     }
 
 private const val TWO_SPACES = "  "
-val JsonSupportDebug: Json =
+internal val JsonSupportDebug: Json =
     Json {
         ignoreUnknownKeys = true
         prettyPrint = true
