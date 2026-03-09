@@ -194,18 +194,18 @@ val isChainTrusted = ComposeChainTrust.of(isChainTrustedForPID, isChainTrustedFo
 val pidIssuanceResult = isChainTrusted(chain, VerificationContext.PID)
 ```
 
-### Using cached() for in-memory caching (AutoCloseable)
+### Using cached() for in-memory caching (`Disposable`)
 
 You can add transparent in-memory caching to any `GetTrustAnchors` source using the `cached()` decorator.
 
-Important: The source returned by `cached()` is `AutoCloseable`. You must manage its lifecycle and call `close()` when
+Important: The source returned by `cached()` is `Disposable`. You must manage its lifecycle and call `dispose()` when
 it is no longer needed to release resources and stop background operations.
 
 ```kotlin
 
 // 1. Define a base trust anchors source
 // and decorate it with caching
-val getTrustAnchors: GetTrustAnchors<VerificationContext, TrustAnchor> = GetTrustAnchors { ctx ->
+val cachedGetTrustAnchors: GetTrustAnchors<VerificationContext, TrustAnchor> = GetTrustAnchors { ctx ->
     // Fetch anchors for the given context
     fetchAnchorsFor(ctx)
 }.cached(
@@ -214,23 +214,24 @@ val getTrustAnchors: GetTrustAnchors<VerificationContext, TrustAnchor> = GetTrus
 )
 
 // 3. Use the cached source with IsChainTrustedForContext
-cachedSource.use { caching ->
-    val validator = IsChainTrustedForContext(
-        supportedContexts = setOf(VerificationContext.PID),
-        getTrustAnchors = caching,
-        validateCertificateChain = ValidateCertificateChainJvm()
-    )
+useResources {
+  val getTrustAnchors = cachedGetTrustAnchors.bind()
+  val validator = IsChainTrustedForContext(
+    supportedContexts = setOf(VerificationContext.PID),
+    getTrustAnchors = getTrustAnchors,
+    validateCertificateChain = ValidateCertificateChainJvm()
+  )
 
-    val isChainTrusted = IsChainTrustedForEUDIW(validator)
-    val result = isChainTrusted(chain, VerificationContext.PID)
+  val isChainTrusted = IsChainTrustedForEUDIW(validator)
+  val result = isChainTrusted(chain, VerificationContext.PID)
 }
 ```
 
 Notes:
 
 - `cached()` prevents duplicate concurrent computations for the same query and refreshes entries after `ttl`.
-- Failing to `close()` the cached source may keep background coroutines alive longer than needed and retain memory.
-- Register the `AutoClosable` with a DI framework to ensure it is closed when no longer needed.
+- Failing to `dispose()` the cached source may keep background coroutines alive longer than needed and retain memory.
+- Register the `Disposable` with a DI framework to ensure it is closed when no longer needed.
 
 ---
 

@@ -189,26 +189,19 @@ val getTrustAnchors = GetTrustAnchorsFromLoTL(
 
 **High-Concurrency (Server-Side):**
 ```kotlin
-import eu.europa.ec.eudi.etsi1196x2.consultation.cached
 
-val loader = ConcurrentCacheDataLoader(
-    httpLoader = NativeHTTPDataLoader(),
-    fileCacheExpiration = 24.hours,
-    cacheDirectory = Paths.get("/cache/lotl"),
-)
+useResoures {
+    val loader = ConcurrentCacheDataLoader(
+        httpLoader = NativeHTTPDataLoader(),
+        fileCacheExpiration = 24.hours,
+        cacheDirectory = Paths.get("/cache/lotl"),
+    ).bind()
 
-val dssOptions = DssOptions(loader = loader)
-val getTrustAnchors = GetTrustAnchorsFromLoTL(dssOptions)
-
-// Use with resource management (implements AutoCloseable)
-loader.use {
+    val dssOptions = DssOptions(loader = loader)
+    val getTrustAnchors = GetTrustAnchorsFromLoTL(dssOptions)
     // Optionally wrap with AsyncCache for additional deduplication
-    getTrustAnchors.cached(
-        ttl = 10.minutes,
-        expectedQueries = 100,
-    ).use { cachedGetTrustAnchors ->
-        // Use cachedGetTrustAnchors for validation
-    }
+    val cachedGetTrustAnchors = getTrustAnchors.cached(ttl = 10.minutes, expectedQueries = 100,).bind()
+    // use cached
 }
 ```
 
@@ -434,7 +427,6 @@ val pubEAAResult = isTrusted(pubEAAChain, VerificationContext.PubEAA)
 ### Example 3: High-Concurrency Setup (Server-Side)
 
 ```kotlin
-import eu.europa.ec.eudi.etsi1196x2.consultation.cached
 import eu.europa.ec.eudi.etsi1196x2.consultation.dss.*
 import eu.europa.ec.eudi.etsi1196x2.consultation.*
 import eu.europa.ec.eudi.etsi1196x2.consultation.ValidateCertificateChainUsingPKIXJvm
@@ -448,46 +440,43 @@ val lotlSource = LOTLSource().apply {
     // Configure predicates...
 }
 
-// 1. Create thread-safe loader with dual-layer caching
-val loader = ConcurrentCacheDataLoader(
-    httpLoader = NativeHTTPDataLoader(),
-    fileCacheExpiration = 24.hours,
-    cacheDirectory = Paths.get("/cache/lotl"),
-)
+useResoures {
+  // 1. Create thread-safe loader with dual-layer caching
+  val loader = ConcurrentCacheDataLoader(
+      httpLoader = NativeHTTPDataLoader(),
+      fileCacheExpiration = 24.hours,
+      cacheDirectory = Paths.get("/cache/lotl"),
+  ).bind()
+  
+  // 2. Configure DSS with the concurrent-safe loader
+  val dssOptions = DssOptions(loader = loader)
+  
+  // 3. Create GetTrustAnchorsFromLoTL
+  val getTrustAnchors = GetTrustAnchorsFromLoTL(dssOptions)
 
-// 2. Configure DSS with the concurrent-safe loader
-val dssOptions = DssOptions(loader = loader)
+  // 4. Wrap with AsyncCache for additional deduplication
+  val cachedGetTrustAnchors = getTrustAnchors.cached(ttl = 10.minutes, expectedQueries = 100,).bind()
+  
+  // 5. Create validator with cached GetTrustAnchors
+  val isChainTrustedForContext = IsChainTrustedForContext(
+    supportedContexts = setOf(VerificationContext.PID),
+    getTrustAnchors = cachedGetTrustAnchors.transform(
+      mapOf(VerificationContext.PID to lotlSource)
+    ),
+    validateCertificateChain = ValidateCertificateChainUsingPKIXJvm.Default
+  )
 
-// 3. Create GetTrustAnchorsFromLoTL
-val getTrustAnchors = GetTrustAnchorsFromLoTL(dssOptions)
-
-// 4. Wrap with AsyncCache for additional deduplication
-//    Both loader and cachedGetTrustAnchors are AutoCloseable
-loader.use {
-    getTrustAnchors.cached(
-        ttl = 10.minutes,
-        expectedQueries = 100,  // Expected concurrent queries
-    ).use { cachedGetTrustAnchors ->
-        // 5. Create validator with cached GetTrustAnchors
-        val isChainTrustedForContext = IsChainTrustedForContext(
-            supportedContexts = setOf(VerificationContext.PID),
-            getTrustAnchors = cachedGetTrustAnchors.transform(
-                mapOf(VerificationContext.PID to lotlSource)
-            ),
-            validateCertificateChain = ValidateCertificateChainUsingPKIXJvm.Default
-        )
-
-        // 6. Handle concurrent validation requests efficiently
-        runBlocking {
-            (1..100).map { i ->
-                async {
-                    val result = isChainTrustedForContext(chain, VerificationContext.PID)
-                    // Process result...
-                }
-            }.awaitAll()
-        }
-    }
+  // 6. Handle concurrent validation requests efficiently
+  runBlocking {
+    (1..100).map { i ->
+      async {
+        val result = isChainTrustedForContext(chain, VerificationContext.PID)
+        // Process result...
+      }
+    }.awaitAll()
+  }
 }
+
 ```
 
 ---

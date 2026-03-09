@@ -149,7 +149,7 @@ public fun <Q : Any, TA : Any> GetTrustAnchors<Q, TA>.cached(
  * - Concurrent requests for the same query result in a single invocation of the underlying source
  * - Cache size is bounded by the [expectedQueries] parameter
  *
- * **Resource Management**: This class implements [AutoCloseable] and must be closed when no longer needed
+ * **Resource Management**: This class implements [Disposable] and must be closed when no longer needed
  * to release cached resources and cancel background operations. Failure to close may result in
  * memory leaks and continued background processing.
  *
