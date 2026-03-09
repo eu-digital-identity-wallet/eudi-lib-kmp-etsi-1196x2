@@ -55,20 +55,23 @@ public class ProvisionTrustAnchorsFromLoTEs<CHAIN : Any, CTX : Any, TRUST_ANCHOR
         }.compose()
 
     public fun cached(
+        disposableScope: DisposableScope,
         loteLocationsSupported: SupportedLists<String>,
         ttl: Duration,
         cacheDispatcher: CoroutineDispatcher = Dispatchers.Default,
         clock: Clock = Clock.System,
-    ): DisposableScope.() -> ComposeChainTrust<CHAIN, CTX, TRUST_ANCHOR> = {
+    ): ComposeChainTrust<CHAIN, CTX, TRUST_ANCHOR> {
         val args = CacheArguments(cacheDispatcher, clock, ttl)
         val sources =
             loteLocationsSupported.cfgs().associateWith { cfg -> createGetTrustAnchorsFromLoTE(cfg, args) }
-        sources.values.forEach { it.bind() }
+        with(disposableScope) {
+            sources.values.forEach { it.bind() }
+        }
 
         val composeChainTrust =
             sources.map { (cfg, getTrustAnchors) -> createValidator(cfg, getTrustAnchors) }
                 .compose()
-        composeChainTrust
+        return composeChainTrust
     }
 
     private fun createValidator(

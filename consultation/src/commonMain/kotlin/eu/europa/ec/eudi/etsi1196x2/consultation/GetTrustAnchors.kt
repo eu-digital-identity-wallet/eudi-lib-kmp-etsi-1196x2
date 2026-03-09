@@ -47,13 +47,6 @@ public fun interface GetTrustAnchors<in QUERY : Any, out TRUST_ANCHOR : Any> {
     public suspend operator fun invoke(query: QUERY): NonEmptyList<TRUST_ANCHOR>?
 }
 
-@Deprecated("Use transform instead", replaceWith = ReplaceWith("validator(transformation, validateCertificateChain)"))
-public fun <C : Any, Q : Any, TA : Any, Q1 : Any> GetTrustAnchors<Q, TA>.transform(
-    validateCertificateChain: ValidateCertificateChain<C, TA>,
-    transformation: Map<Q1, Q>,
-): IsChainTrustedForContext<C, Q1, TA> =
-    validator(transformation, validateCertificateChain)
-
 public fun <C : Any, Q : Any, TA : Any> GetTrustAnchors<Q, TA>.validator(
     supportedQueries: Set<Q>,
     validateCertificateChain: ValidateCertificateChain<C, TA>,

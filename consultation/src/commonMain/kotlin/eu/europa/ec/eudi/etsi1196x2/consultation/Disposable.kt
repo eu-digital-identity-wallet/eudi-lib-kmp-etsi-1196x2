@@ -28,7 +28,6 @@ public interface Disposable {
 
 public interface DisposableScope : Disposable {
     public fun <T : Disposable> T.bind(): T
-    public fun <T : Disposable> List<T>.bindAll(scope: DisposableScope): List<T>
 }
 
 public inline fun <T> useResources(block: DisposableScope.() -> T): T {
@@ -89,6 +88,4 @@ public open class DisposableContainer : DisposableScope {
     }
 
     override fun <T : Disposable> T.bind(): T = apply { add(this) }
-
-    override fun <T : Disposable> List<T>.bindAll(scope: DisposableScope): List<T> = apply { forEach { it.bind() } }
 }
