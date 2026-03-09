@@ -16,7 +16,6 @@
 package eu.europa.ec.eudi.etsi119602.consultation
 
 import eu.europa.ec.eudi.etsi119602.x509Certificate
-import eu.europa.ec.eudi.etsi1196x2.consultation.ComposeChainTrust
 import eu.europa.ec.eudi.etsi1196x2.consultation.SupportedLists
 import eu.europa.ec.eudi.etsi1196x2.consultation.ValidateCertificateChainUsingDirectTrustJvm
 import eu.europa.ec.eudi.etsi1196x2.consultation.ValidateCertificateChainUsingPKIXJvm
@@ -24,13 +23,12 @@ import eu.europa.ec.eudi.etsi1196x2.consultation.VerificationContext
 import java.security.cert.TrustAnchor
 import java.security.cert.X509Certificate
 
-fun composeChainTrust(
+fun getTrustAnchorsProvisioner(
     loadLoTE: LoadLoTE<String>,
-    loteLocationsSupported: SupportedLists<String>,
     svcTypePerCtx: SupportedLists<LotEMata<VerificationContext, X509Certificate>>,
     provider: String? = null,
-): ComposeChainTrust<List<X509Certificate>, VerificationContext, TrustAnchor> {
-    val provisionTrustAnchorsFromLoTEs = ProvisionTrustAnchorsFromLoTEs(
+): ProvisionTrustAnchorsFromLoTEs<List<X509Certificate>, VerificationContext, TrustAnchor, X509Certificate> =
+    ProvisionTrustAnchorsFromLoTEs(
         loadLoTEAndPointers = LoadLoTEAndPointers(
             constraints = LoadLoTEAndPointers.Constraints.LoadOtherPointers(
                 otherLoTEParallelism = 1,
@@ -52,5 +50,3 @@ fun composeChainTrust(
         continueOnProblem = ContinueOnProblem.AlwaysIfDownloaded,
         svcTypePerCtx = svcTypePerCtx,
     )
-    return provisionTrustAnchorsFromLoTEs.invoke(loteLocationsSupported)
-}

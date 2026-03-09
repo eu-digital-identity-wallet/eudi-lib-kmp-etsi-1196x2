@@ -48,9 +48,7 @@ public class ProvisionTrustAnchorsFromLoTEs<CHAIN : Any, CTX : Any, TRUST_ANCHOR
     private val svcTypePerCtx: SupportedLists<LotEMata<CTX, CERT>>,
 ) {
 
-    public operator fun invoke(
-        loteLocationsSupported: SupportedLists<String>,
-    ): ComposeChainTrust<CHAIN, CTX, TRUST_ANCHOR> =
+    public fun nonCached(loteLocationsSupported: SupportedLists<String>): ComposeChainTrust<CHAIN, CTX, TRUST_ANCHOR> =
         loteLocationsSupported.cfgs().map { cfg ->
             val getTrustAnchors = createGetTrustAnchorsFromLoTE(cfg)
             createValidator(cfg, getTrustAnchors)
@@ -61,15 +59,16 @@ public class ProvisionTrustAnchorsFromLoTEs<CHAIN : Any, CTX : Any, TRUST_ANCHOR
         ttl: Duration,
         cacheDispatcher: CoroutineDispatcher = Dispatchers.Default,
         clock: Clock = Clock.System,
-    ): Pair<ComposeChainTrust<CHAIN, CTX, TRUST_ANCHOR>, AutoCloseable> {
+    ): DisposableScope.() -> ComposeChainTrust<CHAIN, CTX, TRUST_ANCHOR> = {
         val args = CacheArguments(cacheDispatcher, clock, ttl)
         val sources =
             loteLocationsSupported.cfgs().associateWith { cfg -> createGetTrustAnchorsFromLoTE(cfg, args) }
-        val autoClosable = AutoCloseable { sources.values.forEach { it.close() } }
+        sources.values.forEach { it.bind() }
+
         val composeChainTrust =
             sources.map { (cfg, getTrustAnchors) -> createValidator(cfg, getTrustAnchors) }
                 .compose()
-        return composeChainTrust to autoClosable
+        composeChainTrust
     }
 
     private fun createValidator(

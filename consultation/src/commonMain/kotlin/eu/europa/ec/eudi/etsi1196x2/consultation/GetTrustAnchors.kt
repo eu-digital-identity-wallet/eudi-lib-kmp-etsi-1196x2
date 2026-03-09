@@ -120,7 +120,7 @@ public fun <Q : Any, TA : Any, Q2 : Any> GetTrustAnchors<Q, TA>.contraMap(
  * - Expired entries are automatically refreshed upon next access.
  * - Resources are managed within the provided [coroutineScope].
  *
- *  **Resource Management**: This class implements [AutoCloseable] and must be closed when no longer needed
+ *  **Resource Management**: This class implements [Disposable] and must be closed when no longer needed
  *  to release cached resources and cancel background operations. Failure to close may result in
  *  memory leaks and continued background processing.
  *
@@ -163,7 +163,7 @@ public class GetTrustAnchorsCachedSource<in QUERY : Any, out TRUST_ANCHOR : Any>
     ttl: Duration,
     expectedQueries: Int,
     private val delegate: GetTrustAnchors<QUERY, TRUST_ANCHOR>,
-) : GetTrustAnchors<QUERY, TRUST_ANCHOR>, AutoCloseable {
+) : GetTrustAnchors<QUERY, TRUST_ANCHOR>, Disposable {
 
     private val cached: AsyncCache<QUERY, NonEmptyList<TRUST_ANCHOR>?> =
         AsyncCache(cacheDispatcher, clock, ttl, expectedQueries) { query ->
@@ -172,8 +172,8 @@ public class GetTrustAnchorsCachedSource<in QUERY : Any, out TRUST_ANCHOR : Any>
 
     override suspend fun invoke(query: QUERY): NonEmptyList<TRUST_ANCHOR>? = cached(query)
 
-    override fun close() {
-        cached.close()
+    override fun dispose() {
+        cached.dispose()
     }
 }
 

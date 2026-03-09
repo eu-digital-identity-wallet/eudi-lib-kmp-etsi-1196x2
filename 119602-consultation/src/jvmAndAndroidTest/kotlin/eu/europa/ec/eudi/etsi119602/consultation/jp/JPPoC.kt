@@ -105,8 +105,8 @@ class JPLoTEDownloaderTest {
                     fileCacheExpiration = 24.hours,
                 )
                 // Get the LoTEs, organized them as EUDIW verification contexts
-                val isChainTrustedForContext =
-                    composeChainTrust(loadLoTE, JPPoC.loteLocations, JPPoC.SVC_TYPE_PER_CTX)
+                val provision = getTrustAnchorsProvisioner(loadLoTE, JPPoC.SVC_TYPE_PER_CTX)
+                val isChainTrustedForContext = provision.nonCached(JPPoC.loteLocations)
 
                 // Establish a chain verifier for attestation
                 val isChainTrustedForAttestation =

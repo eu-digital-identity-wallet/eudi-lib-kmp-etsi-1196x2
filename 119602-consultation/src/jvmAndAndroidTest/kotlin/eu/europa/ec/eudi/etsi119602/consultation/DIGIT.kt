@@ -83,9 +83,8 @@ class DIGITTest {
                 fileCacheExpiration = 24.hours,
             )
             // Get the LoTEs, organized them as EUDIW verification contexts
-            val isChainTrustedForContext =
-                composeChainTrust(loadLoTE, DIGIT.loteLocations, DIGIT.SVC_TYPE_PER_CTX)
-
+            val provisionTrustAnchors = getTrustAnchorsProvisioner(loadLoTE, DIGIT.SVC_TYPE_PER_CTX)
+            val isChainTrustedForContext = provisionTrustAnchors.nonCached(DIGIT.loteLocations)
             val expectedContexts: List<VerificationContext> =
                 listOf(
                     VerificationContext.PID,
