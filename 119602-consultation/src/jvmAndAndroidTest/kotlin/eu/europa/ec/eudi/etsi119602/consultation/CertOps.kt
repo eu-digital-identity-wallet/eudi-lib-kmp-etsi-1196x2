@@ -61,6 +61,8 @@ object CertOps {
     private fun notBefore(d: Duration = Duration.ZERO): Instant =
         (clock.now() + d)
 
+    fun generateECPair(): KeyPair = Ctx.generateECPair()
+
     fun genTrustAnchor(
         sigAlg: String,
         name: X500Name,

@@ -17,9 +17,9 @@ package eu.europa.ec.eudi.etsi119602.consultation.eu
 
 import eu.europa.ec.eudi.etsi119602.*
 import eu.europa.ec.eudi.etsi119602.consultation.eu.TrustedEntityAssertions.Companion.ensureTrustedEntities
+import eu.europa.ec.eudi.etsi1196x2.consultation.certs.CertificateConstraintEvaluation
 import eu.europa.ec.eudi.etsi1196x2.consultation.certs.CertificateOperations
 import eu.europa.ec.eudi.etsi1196x2.consultation.certs.EvaluateCertificateConstraint
-import eu.europa.ec.eudi.etsi1196x2.consultation.certs.or
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.monthsUntil
 
@@ -82,6 +82,11 @@ public data class EUListOfTrustedEntitiesProfile(
             throw IllegalStateException("Violation of ${listAndSchemeInformation.type}, trusted entities errors: ${trustedEntitiesErrors.map { "${it.key}: ${it.value}" }}")
         }
     }
+
+    public inline fun <reified CERT : Any> certificateConstraintsEvaluator(
+        certificateOperations: CertificateOperations<CERT>,
+    ): EvaluateCertificateConstraint<CERT>? =
+        trustedEntities.certificateProfile.certificateConstraintsEvaluator(certificateOperations)
 }
 
 public sealed interface ValueRequirement<out T> {
@@ -133,12 +138,18 @@ public sealed interface CertificateProfile {
             is EndEntity -> constraints?.evaluator(certificateOperations)
             is CA -> constraints?.evaluator(certificateOperations)
             is EndEntityOrCA -> {
-                val eeEv = endEntityConstraints?.evaluator(certificateOperations)
-                val caEv = caConstraints?.evaluator(certificateOperations)
-                if (eeEv != null && caEv != null) {
-                    eeEv or caEv
-                } else {
-                    eeEv ?: caEv
+                // For EndEntityOrCA, we need to check the certificate type and apply appropriate constraints
+                // This is NOT an "or" combinator - we apply constraints based on actual certificate type
+                object : EvaluateCertificateConstraint<CERT> {
+                    override suspend fun invoke(certificate: CERT): CertificateConstraintEvaluation {
+                        val isCA = certificateOperations.getBasicConstraints(certificate).isCa
+                        val evaluator = if (isCA) {
+                            caConstraints?.evaluator(certificateOperations)
+                        } else {
+                            endEntityConstraints?.evaluator(certificateOperations)
+                        }
+                        return evaluator?.invoke(certificate) ?: CertificateConstraintEvaluation.Met
+                    }
                 }
             }
         }
