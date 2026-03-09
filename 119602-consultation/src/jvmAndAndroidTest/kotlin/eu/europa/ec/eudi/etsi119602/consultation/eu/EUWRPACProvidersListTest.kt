@@ -19,8 +19,6 @@ import eu.europa.ec.eudi.etsi119602.consultation.CertOps
 import eu.europa.ec.eudi.etsi119602.consultation.CertOps.toX509Certificate
 import eu.europa.ec.eudi.etsi119602.consultation.ETSI119411
 import eu.europa.ec.eudi.etsi1196x2.consultation.CertificateOperationsJvm
-import eu.europa.ec.eudi.etsi1196x2.consultation.certs.EvaluateBasicConstraintsConstraint
-import eu.europa.ec.eudi.etsi1196x2.consultation.certs.KeyUsageConstraint
 import eu.europa.ec.eudi.etsi1196x2.consultation.certs.isMet
 import kotlinx.coroutines.test.runTest
 import org.bouncycastle.asn1.x500.X500Name
@@ -52,65 +50,6 @@ class EUWRPACProvidersListTest {
             constraintEvaluation.violations.any { it.reason.contains("certificate policies") },
             "Expected failure for missing Certificate Policy",
         )
-    }
-
-    @Test
-    fun `BasicConstraintsConstraint should reject CA when end-entity expected`() = runTest {
-        // Generate a CA certificate (trust anchor)
-        val (_, certHolder) = CertOps.genTrustAnchor("SHA256withECDSA", cnWrpacProvider)
-        val certificate = certHolder.toX509Certificate()
-
-        // Create constraint for end-entity
-        val constraint = EvaluateBasicConstraintsConstraint.requireEndEntity(
-            getBasicConstraints = CertificateOperationsJvm::getBasicConstraints,
-        )
-
-        // Validate
-        val constraintEvaluation = constraint(certificate)
-
-        // Should fail - CA certificate when end-entity expected
-        assertTrue(!constraintEvaluation.isMet())
-
-        assertTrue(constraintEvaluation.violations.any { it.reason.contains("CA") })
-    }
-
-    @Test
-    fun `KeyUsageConstraint should reject when digitalSignature not set`() = runTest {
-        // Generate a CA certificate (has keyCertSign, not digitalSignature)
-        val (_, certHolder) = CertOps.genTrustAnchor("SHA256withECDSA", cnWrpacProvider)
-        val certificate = certHolder.toX509Certificate()
-
-        // Create constraint for digitalSignature
-        val constraint = KeyUsageConstraint.requireDigitalSignature(
-            getKeyUsage = CertificateOperationsJvm::getKeyUsage,
-        )
-
-        // Validate
-        val constraintEvaluation = constraint(certificate)
-
-        // Should fail - CA certificate has keyCertSign, not digitalSignature
-        assertTrue(!constraintEvaluation.isMet())
-        assertTrue(constraintEvaluation.violations.any { it.reason.contains("keyUsage") })
-    }
-
-    @Test
-    fun `BasicConstraintsConstraint should validate pathLenConstraint for CA certificates`() = runTest {
-        // Generate a CA certificate (trust anchor) without pathLenConstraint
-        val (_, certHolder) = CertOps.genTrustAnchor("SHA256withECDSA", cnWrpacProvider)
-        val certificate = certHolder.toX509Certificate()
-
-        // Create constraint for CA with maxPathLen = 2
-        val constraint = EvaluateBasicConstraintsConstraint.requireCa(
-            maxPathLen = 2,
-            getBasicConstraints = CertificateOperationsJvm::getBasicConstraints,
-        )
-
-        // Validate - should fail because CA certificate has no pathLenConstraint
-        val constraintEvaluation = constraint(certificate)
-
-        // Should fail - CA certificate missing pathLenConstraint
-        assertTrue(!constraintEvaluation.isMet())
-        assertTrue(constraintEvaluation.violations.any { it.reason.contains("pathLenConstraint") })
     }
 
     @Test

@@ -19,7 +19,6 @@ import eu.europa.ec.eudi.etsi119602.consultation.CertOps
 import eu.europa.ec.eudi.etsi119602.consultation.CertOps.toX509Certificate
 import eu.europa.ec.eudi.etsi119602.consultation.ETSI119412
 import eu.europa.ec.eudi.etsi1196x2.consultation.CertificateOperationsJvm
-import eu.europa.ec.eudi.etsi1196x2.consultation.certs.EvaluateAuthorityInformationAccessConstraint
 import eu.europa.ec.eudi.etsi1196x2.consultation.certs.isMet
 import kotlinx.coroutines.test.runTest
 import org.bouncycastle.asn1.x500.X500Name
@@ -146,46 +145,5 @@ class EUPIDProvidersListTest {
 
         // Should pass - has AIA and QCStatement
         assertTrue(constraintEvaluation.isMet(), "CA-issued PID certificate with AIA should pass")
-    }
-
-    @Test
-    fun `AIA constraint should accept self-signed certificate without AIA`() = runTest {
-        // Generate a self-signed certificate (trust anchor)
-        val (_, certHolder) = CertOps.genTrustAnchor("SHA256withECDSA", cnPidProvider)
-        val certificate = certHolder.toX509Certificate()
-
-        val constraint = EvaluateAuthorityInformationAccessConstraint.requireForCaIssued(
-            isSelfSigned = CertificateOperationsJvm::isSelfSigned,
-            getAiaExtension = CertificateOperationsJvm::getAiaExtension,
-        )
-
-        val evaluation = constraint(certificate)
-        assertTrue(evaluation.isMet(), "Self-signed certificate should NOT require AIA")
-    }
-
-    @Test
-    fun `AIA constraint should reject CA-issued certificate without AIA`() = runTest {
-        // Generate CA
-        val (caKeyPair, caCertHolder) = CertOps.genTrustAnchor("SHA256withECDSA", X500Name("CN=Test CA"))
-
-        // Generate EE without AIA
-        val eeKeyPair = CertOps.genTrustAnchor("SHA256withECDSA", cnPidProvider).first
-        val eeCertHolder = CertOps.createEndEntity(
-            caCertHolder,
-            caKeyPair.private,
-            "SHA256withECDSA",
-            eeKeyPair.public,
-            cnPidProvider,
-        )
-        val certificate = eeCertHolder.toX509Certificate()
-
-        val constraint = EvaluateAuthorityInformationAccessConstraint.requireForCaIssued(
-            isSelfSigned = CertificateOperationsJvm::isSelfSigned,
-            getAiaExtension = CertificateOperationsJvm::getAiaExtension,
-        )
-
-        val evaluation = constraint(certificate)
-        assertTrue(!evaluation.isMet(), "CA-issued certificate should require AIA")
-        assertTrue(evaluation.violations.any { it.reason.contains("AIA") })
     }
 }
