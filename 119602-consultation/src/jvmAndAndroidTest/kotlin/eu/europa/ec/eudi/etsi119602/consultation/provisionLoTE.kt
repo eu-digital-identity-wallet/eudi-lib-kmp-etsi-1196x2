@@ -15,10 +15,8 @@
  */
 package eu.europa.ec.eudi.etsi119602.consultation
 
-import eu.europa.ec.eudi.etsi119602.x509Certificate
 import eu.europa.ec.eudi.etsi1196x2.consultation.SensitiveApi
 import eu.europa.ec.eudi.etsi1196x2.consultation.SupportedLists
-import eu.europa.ec.eudi.etsi1196x2.consultation.ValidateCertificateChainUsingDirectTrustJvm
 import eu.europa.ec.eudi.etsi1196x2.consultation.ValidateCertificateChainUsingPKIXJvm
 import eu.europa.ec.eudi.etsi1196x2.consultation.VerificationContext
 import java.security.cert.TrustAnchor
@@ -28,27 +26,13 @@ import java.security.cert.X509Certificate
 fun getTrustAnchorsProvisioner(
     loadLoTE: LoadLoTE<String>,
     svcTypePerCtx: SupportedLists<LotEMata<VerificationContext, X509Certificate>>,
-    provider: String? = null,
 ): ProvisionTrustAnchorsFromLoTEs<List<X509Certificate>, VerificationContext, TrustAnchor, X509Certificate> =
-    ProvisionTrustAnchorsFromLoTEs(
+    ProvisionTrustAnchorsFromLoTEs.eudiwJvm(
         loadLoTEAndPointers = LoadLoTEAndPointers(
-            constraints = LoadLoTEAndPointers.Constraints.LoadOtherPointers(
-                otherLoTEParallelism = 1,
-                maxDepth = 1,
-                maxLists = 2,
-            ),
+            constraints = LoadLoTEAndPointers.Constraints.DoNotLoadOtherPointers,
             verifyJwtSignature = NotValidating,
             loadLoTE = loadLoTE,
-
         ),
-        createTrustAnchors = { serviceDigitalIdentity ->
-            serviceDigitalIdentity.x509Certificates.orEmpty()
-                .map { TrustAnchor(it.x509Certificate(provider), null) }
-        },
-        extractCertificate = { it.trustedCert },
-        getCertInfo = { "Info[subject=${it.subjectX500Principal}-sn=${it.serialNumber}]" },
-        directTrust = ValidateCertificateChainUsingDirectTrustJvm,
-        pkix = ValidateCertificateChainUsingPKIXJvm(customization = { isRevocationEnabled = false }),
-        continueOnProblem = ContinueOnProblem.AlwaysIfDownloaded,
         svcTypePerCtx = svcTypePerCtx,
+        pkix = ValidateCertificateChainUsingPKIXJvm(customization = { isRevocationEnabled = false }),
     )
