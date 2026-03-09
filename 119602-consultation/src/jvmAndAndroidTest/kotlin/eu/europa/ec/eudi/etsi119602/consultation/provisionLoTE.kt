@@ -25,8 +25,8 @@ import java.security.cert.X509Certificate
 @SensitiveApi
 fun getTrustAnchorsProvisioner(
     loadLoTE: LoadLoTE<String>,
-    svcTypePerCtx: SupportedLists<LotEMata<VerificationContext, X509Certificate>>,
-): ProvisionTrustAnchorsFromLoTEs<List<X509Certificate>, VerificationContext, TrustAnchor, X509Certificate> =
+    svcTypePerCtx: SupportedLists<LotEMata<VerificationContext>>,
+): ProvisionTrustAnchorsFromLoTEs<List<X509Certificate>, VerificationContext, TrustAnchor> =
     ProvisionTrustAnchorsFromLoTEs.eudiwJvm(
         loadLoTEAndPointers = LoadLoTEAndPointers(
             constraints = LoadLoTEAndPointers.Constraints.DoNotLoadOtherPointers,

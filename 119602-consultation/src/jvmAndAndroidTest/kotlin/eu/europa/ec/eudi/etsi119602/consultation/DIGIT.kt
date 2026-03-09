@@ -15,14 +15,13 @@
  */
 package eu.europa.ec.eudi.etsi119602.consultation
 
+import eu.europa.ec.eudi.etsi119602.consultation.eu.CertificateProfile
 import eu.europa.ec.eudi.etsi119602.consultation.eu.EUMDLProvidersListSpec
-import eu.europa.ec.eudi.etsi1196x2.consultation.CertificateOperationsJvm
 import eu.europa.ec.eudi.etsi1196x2.consultation.SensitiveApi
 import eu.europa.ec.eudi.etsi1196x2.consultation.SupportedLists
 import eu.europa.ec.eudi.etsi1196x2.consultation.VerificationContext
 import kotlinx.coroutines.test.runTest
 import kotlinx.io.files.Path
-import java.security.cert.X509Certificate
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.time.Duration.Companion.hours
@@ -41,17 +40,17 @@ object DIGIT {
         ),
     )
 
-    private fun LotEMata<VerificationContext, X509Certificate>.noConstraints() =
-        copy(certificateConstraints = null)
+    private fun LotEMata<VerificationContext>.noConstraints() =
+        copy(certificateProfile = certificateProfile.noConstraints())
 
     //
     // Has to relax constraints
     // The advertised lists do not satisfy the ETSI certificates profiles
     // This is ok, given that those lists are not official
     //
-    val SVC_TYPE_PER_CTX: SupportedLists<LotEMata<VerificationContext, X509Certificate>>
+    val SVC_TYPE_PER_CTX: SupportedLists<LotEMata<VerificationContext>>
         get() {
-            val euBaseline = SupportedLists.eu(CertificateOperationsJvm)
+            val euBaseline = SupportedLists.eu()
             return euBaseline.copy(
                 pidProviders = euBaseline.pidProviders?.noConstraints(),
                 walletProviders = euBaseline.walletProviders?.noConstraints(),
@@ -62,8 +61,8 @@ object DIGIT {
                             VerificationContext.EAA("mdl") to EUMDLProvidersListSpec.SVC_TYPE_ISSUANCE,
                             VerificationContext.EAAStatus("mdl") to EUMDLProvidersListSpec.SVC_TYPE_REVOCATION,
                         ),
-                        directTrust = true,
-                        certificateConstraints = null,
+                        certificateProfile = CertificateProfile.EndEntityOrCA(),
+
                     ),
                 ),
             )
@@ -72,7 +71,8 @@ object DIGIT {
 
 class DIGITTest {
 
-    @Test @SensitiveApi
+    @Test
+    @SensitiveApi
     fun testDownload() = runTest {
         createHttpClient().use { httpClient ->
             val fileStore = LoTEFileStore(

@@ -23,6 +23,6 @@ import java.security.cert.TrustAnchor
 suspend fun TrustAnchor.evaluateCertificateConstraints(
     profile: EUListOfTrustedEntitiesProfile,
 ): CertificateConstraintEvaluation =
-    profile.certificateConstraintsEvaluator(CertificateOperationsJvm)
+    profile.trustedEntities.certificateProfile.certificateConstraintsEvaluator(CertificateOperationsJvm)
         ?.invoke(trustedCert)
         ?: CertificateConstraintEvaluation.Met

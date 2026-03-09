@@ -139,7 +139,7 @@ class EUPIDProvidersListTest {
         val certificate = eeCertHolder.toX509Certificate()
 
         // Validate as PID Provider (should pass AIA check)
-        val constraintEvaluation = CertificateOperationsJvm.pidProviderCertificateConstraintsEvaluator()(certificate)
+        val constraintEvaluation = CertificateOperationsJvm.pidProviderCertificateProfileEvaluator()(certificate)
 
         // Should pass - has AIA and QCStatement
         assertTrue(constraintEvaluation.isMet(), "CA-issued PID certificate with AIA should pass")

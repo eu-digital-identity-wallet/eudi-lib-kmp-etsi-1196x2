@@ -21,8 +21,6 @@ import eu.europa.ec.eudi.etsi119602.TrustedEntityService
 import eu.europa.ec.eudi.etsi119602.URI
 import eu.europa.ec.eudi.etsi1196x2.consultation.GetTrustAnchors
 import eu.europa.ec.eudi.etsi1196x2.consultation.NonEmptyList
-import eu.europa.ec.eudi.etsi1196x2.consultation.certs.EvaluateCertificateConstraint
-import eu.europa.ec.eudi.etsi1196x2.consultation.certs.ensureAllMet
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
@@ -53,21 +51,15 @@ public data class LoadedLoTE(
  * @param TRUST_ANCHOR the type of the trust anchor to produce
  * @param CERT the type of the certificate extracted from the trust anchor for validation
  * @param loTEDownloadUrl the URI where the LoTE is located
- * @param certificateConstraints optional constraints to validate the trust anchors
  * @param loadLoTEAndPointers the service used to load the LoTE and its pointers
  * @param continueOnProblem strategy for handling errors during the loading process
  * @param createTrustAnchors factory function to create trust anchors from digital identities
- * @param extractCertificate function to extract the certificate from a trust anchor for validation
- * @param getCertInfo function to provide a human-readable representation of a certificate (used in error messages)
  */
-public class GetTrustAnchorsFromLoTE<out TRUST_ANCHOR : Any, in CERT : Any>(
+public class GetTrustAnchorsFromLoTE<out TRUST_ANCHOR : Any>(
     private val loTEDownloadUrl: URI,
-    private val certificateConstraints: EvaluateCertificateConstraint<CERT>?,
     private val loadLoTEAndPointers: LoadLoTEAndPointers,
     private val continueOnProblem: ContinueOnProblem = ContinueOnProblem.Never,
     private val createTrustAnchors: (ServiceDigitalIdentity) -> List<TRUST_ANCHOR>,
-    private val extractCertificate: (TRUST_ANCHOR) -> CERT,
-    private val getCertInfo: suspend (CERT) -> String = { it.toString() },
 ) : GetTrustAnchors<URI, TRUST_ANCHOR> {
 
     private val mutex = Mutex()
@@ -87,7 +79,7 @@ public class GetTrustAnchorsFromLoTE<out TRUST_ANCHOR : Any, in CERT : Any>(
     @Throws(IllegalStateException::class)
     override suspend fun invoke(query: URI): NonEmptyList<TRUST_ANCHOR>? = mutex.withLock {
         val trustAnchors =
-            loadLoTe().compliantTrustAnchorsFor(query)
+            loadLoTe().trustAnchorsFor(query)
 
         NonEmptyList.nelOrNull(trustAnchors)
     }
@@ -102,9 +94,9 @@ public class GetTrustAnchorsFromLoTE<out TRUST_ANCHOR : Any, in CERT : Any>(
     private fun LoTELoadResult.toLoadedLoTE(): LoadedLoTE? =
         list?.let { mainList -> LoadedLoTE(list = mainList.lote, otherLists = otherLists.map { it.lote }) }
 
-    private suspend fun LoadedLoTE.compliantTrustAnchorsFor(svcType: URI): List<TRUST_ANCHOR> =
+    private fun LoadedLoTE.trustAnchorsFor(svcType: URI): List<TRUST_ANCHOR> =
         servicesOfType(svcType).flatMap { trustedService ->
-            trustedService.information.digitalIdentity.trustAnchors().apply { ensureCertificateConstraintsAreMet() }
+            trustedService.information.digitalIdentity.trustAnchors()
         }
 
     private fun ListOfTrustedEntities.servicesOf(svcType: URI): List<TrustedEntityService> =
@@ -116,17 +108,6 @@ public class GetTrustAnchorsFromLoTE<out TRUST_ANCHOR : Any, in CERT : Any>(
 
     private fun ServiceDigitalIdentity.trustAnchors(): List<TRUST_ANCHOR> =
         createTrustAnchors(this)
-
-    private suspend fun List<TRUST_ANCHOR>.ensureCertificateConstraintsAreMet() {
-        val evaluator = certificateConstraints ?: return
-        val certs = map { extractCertificate(it) }
-        try {
-            evaluator.ensureAllMet(certs, getCertInfo)
-        } catch (e: IllegalStateException) {
-            val msg = "Failed to verify trust anchors of LoTE loaded from $loTEDownloadUrl"
-            throw IllegalStateException(msg, e)
-        }
-    }
 
     private fun loadingProblems(result: LoTELoadResult): String = buildString {
         appendLine("Failed to load LoTE from $loTEDownloadUrl\n")

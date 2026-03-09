@@ -49,11 +49,13 @@ public val EUWRPACProvidersList: EUListOfTrustedEntitiesProfile =
             ),
             mustContainX509Certificates = true,
             serviceStatuses = emptySet(),
-            chainValidationAlgorithm = ChainValidationAlgorithm.PKIX,
-            hasConstraints = object : CertificateConstraints {
-                override fun <CERT : Any> CertificateOperations<CERT>.evaluator(): EvaluateMultipleCertificateConstraints<CERT> =
-                    wrpacProviderCertificateConstraintsEvaluator()
-            },
+            certificateProfile = CertificateProfile.CA(
+                object : CertificateConstraints {
+                    override fun <CERT : Any> CertificateOperations<CERT>.evaluator(): EvaluateMultipleCertificateConstraints<CERT> =
+                        wrpacProviderCertificateConstraintsEvaluator()
+                },
+            ),
+
         ),
     )
 

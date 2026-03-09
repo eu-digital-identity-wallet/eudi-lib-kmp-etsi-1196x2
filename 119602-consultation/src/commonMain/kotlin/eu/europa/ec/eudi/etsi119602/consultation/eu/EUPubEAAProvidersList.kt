@@ -43,7 +43,6 @@ public val EUPubEAAProvidersList: EUListOfTrustedEntitiesProfile =
                 "http://uri.etsi.org/19602/PubEAAProvidersList/SvcStatus/notified",
                 "http://uri.etsi.org/19602/PubEAAProvidersList/SvcStatus/withdrawn",
             ),
-            chainValidationAlgorithm = ChainValidationAlgorithm.PKIX,
-            hasConstraints = null,
+            certificateProfile = CertificateProfile.CA(constraints = null),
         ),
     )

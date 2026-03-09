@@ -19,6 +19,7 @@ import eu.europa.ec.eudi.etsi119602.*
 import eu.europa.ec.eudi.etsi119602.consultation.eu.TrustedEntityAssertions.Companion.ensureTrustedEntities
 import eu.europa.ec.eudi.etsi1196x2.consultation.certs.CertificateOperations
 import eu.europa.ec.eudi.etsi1196x2.consultation.certs.EvaluateCertificateConstraint
+import eu.europa.ec.eudi.etsi1196x2.consultation.certs.or
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.monthsUntil
 
@@ -30,6 +31,7 @@ import kotlinx.datetime.monthsUntil
  * @see EUWRPACProvidersList
  * @see EUWRPRCProvidersList
  * @see EUPubEAAProvidersList
+ * @see EUMDLProvidersList
  */
 public data class EUListOfTrustedEntitiesProfile(
     /**
@@ -80,11 +82,6 @@ public data class EUListOfTrustedEntitiesProfile(
             throw IllegalStateException("Violation of ${listAndSchemeInformation.type}, trusted entities errors: ${trustedEntitiesErrors.map { "${it.key}: ${it.value}" }}")
         }
     }
-
-    public fun <CERT : Any> certificateConstraintsEvaluator(
-        certificateOperations: CertificateOperations<CERT>,
-    ): EvaluateCertificateConstraint<CERT>? =
-        trustedEntities.hasConstraints?.run { certificateOperations.evaluator() }
 }
 
 public sealed interface ValueRequirement<out T> {
@@ -121,7 +118,49 @@ public sealed interface ServiceTypeIdentifiers {
     }
 }
 
-public enum class ChainValidationAlgorithm { Direct, PKIX }
+public sealed interface CertificateProfile {
+    public data class EndEntity(val constraints: CertificateConstraints? = null) : CertificateProfile
+    public data class CA(val constraints: CertificateConstraints? = null) : CertificateProfile
+    public data class EndEntityOrCA(
+        val endEntityConstraints: CertificateConstraints? = null,
+        val caConstraints: CertificateConstraints? = null,
+    ) : CertificateProfile
+
+    public fun <CERT : Any> certificateConstraintsEvaluator(
+        certificateOperations: CertificateOperations<CERT>,
+    ): EvaluateCertificateConstraint<CERT>? {
+        return when (this) {
+            is EndEntity -> constraints?.evaluator(certificateOperations)
+            is CA -> constraints?.evaluator(certificateOperations)
+            is EndEntityOrCA -> {
+                val eeEv = endEntityConstraints?.evaluator(certificateOperations)
+                val caEv = caConstraints?.evaluator(certificateOperations)
+                if (eeEv != null && caEv != null) {
+                    eeEv or caEv
+                } else {
+                    eeEv ?: caEv
+                }
+            }
+        }
+    }
+    public fun noConstraints(): CertificateProfile =
+        when (this) {
+            is CA -> if (constraints == null) this else CA(null)
+            is EndEntity -> if (constraints == null) this else EndEntity(null)
+            is EndEntityOrCA -> {
+                if (endEntityConstraints == null && caConstraints == null) {
+                    this
+                } else {
+                    EndEntityOrCA(null, null)
+                }
+            }
+        }
+
+    private fun <CERT : Any> CertificateConstraints.evaluator(
+        certificateOperations: CertificateOperations<CERT>,
+    ): EvaluateCertificateConstraint<CERT> =
+        certificateOperations.evaluator()
+}
 
 /**
  * Expectations about trusted entities of an EU-specific LoTE
@@ -141,9 +180,8 @@ public data class EUTrustedEntitiesProfile(
      */
     val serviceStatuses: Set<URI>,
 
-    val chainValidationAlgorithm: ChainValidationAlgorithm,
+    val certificateProfile: CertificateProfile,
 
-    val hasConstraints: CertificateConstraints?,
 )
 
 public interface CertificateConstraints {
