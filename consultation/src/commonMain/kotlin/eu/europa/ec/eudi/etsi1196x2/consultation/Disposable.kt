@@ -17,6 +17,9 @@ package eu.europa.ec.eudi.etsi1196x2.consultation
 
 import kotlinx.atomicfu.atomic
 
+/**
+ * Represents a disposable resource that can be released.
+ */
 public interface Disposable {
     /**
      * Releases the resource.
@@ -24,10 +27,31 @@ public interface Disposable {
     public fun dispose()
 }
 
+/**
+ * Represents a scope that can be used to manage disposable resources.
+ */
 public interface DisposableScope : Disposable {
+    /**
+     * Binds a disposable resource to this scope.
+     */
     public fun <T : Disposable> T.bind(): T
 }
 
+/**
+ * Executes the given [block] function and automatically disposes all resources created within its scope.
+ *
+ * Example usage:
+ * ```
+ * useResources {
+ *    val resource1 = SomeDisposable().bind()
+ *    val resource2 = SomeOtherDisposable().bind()
+ *
+ *    // use resources
+ * }
+ * ```
+ *
+ * @param block The block of code to execute within the disposable scope.
+ */
 public inline fun <T> useResources(block: DisposableScope.() -> T): T {
     val scope = DisposableContainer()
     return try {
@@ -37,6 +61,11 @@ public inline fun <T> useResources(block: DisposableScope.() -> T): T {
     }
 }
 
+/**
+ * A concrete implementation of [DisposableScope] that manages a collection of [Disposable] resources.
+ * It ensures that all registered resources are disposed when [dispose] is called,
+ * even if some of them throw exceptions during disposal.
+ */
 public open class DisposableContainer : DisposableScope {
     private val disposables = atomic<List<Disposable>>(emptyList())
     private val isDisposed = atomic(false)
@@ -58,7 +87,7 @@ public open class DisposableContainer : DisposableScope {
     }
 
     override fun dispose() {
-        if (!isDisposed.compareAndSet(false, true)) return
+        if (!isDisposed.compareAndSet(expect = false, update = true)) return
 
         val toDispose = disposables.getAndSet(emptyList())
 
