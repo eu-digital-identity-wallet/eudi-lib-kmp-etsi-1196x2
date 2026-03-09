@@ -1,9 +1,16 @@
 # Certificate Chain Validation Using EU Provider Lists (LoTE) for EUDI Wallet Attestations
 
-**Document Version:** 4.4
-**Date:** 2026-03-04
+**Document Version:** 4.5
+**Date:** 2026-03-09
 **Purpose:** Analysis of ETSI specifications for certificate chain validation against EU Provider Lists (LoTE) serving
 as trust anchor sources for PID, Wallet, WRPAC, and WRPRC providers
+
+**Version 4.5 Changes:**
+
+- Corrected specification ambiguity analysis for PID/Wallet Providers (Annexes D/E)
+- Acknowledged that ETSI TS 119 602 Annexes D/E do not explicitly exclude CA certificates
+- Added implementation guidance for handling specification ambiguity
+- Changed validation method conclusions from definitive to qualified language
 
 **Version 4.4 Changes:**
 
@@ -19,27 +26,24 @@ TS 119 602) can be used to validate certificate chains for attestations issued i
 
 ### Key Findings
 
-| Provider List        | ETSI TS 119 602 Annex | LoTE Certificate Type | What LoTE Validates        | Certificate Chain Validation |
-|----------------------|-----------------------|-----------------------|----------------------------|------------------------------|
-| **PID Providers**    | Annex D               | End-entity ONLY       | PID signing certificate    | **Direct Trust**             |
-| **Wallet Providers** | Annex E               | End-entity ONLY       | Wallet signing certificate | **Direct Trust**             |
-| **WRPAC Providers**  | Annex F               | CA (WRPAC Provider)   | WRPAC X.509 certificate    | **PKIX**                     |
-| **WRPRC Providers**  | Annex G               | CA (WRPRC Provider)¹  | WRPRC JWT `x5c` chain      | **PKIX**                     |
+| Provider List        | ETSI TS 119 602 Annex | LoTE Certificate Type                              | What LoTE Validates        | Certificate Chain Validation        |
+|----------------------|-----------------------|----------------------------------------------------|----------------------------|-------------------------------------|
+| **PID Providers**    | Annex D               | End-entity OR CA¹                                  | PID signing certificate    | **Direct Trust OR PKIX**¹           |
+| **Wallet Providers** | Annex E               | End-entity OR CA¹                                  | Wallet signing certificate | **Direct Trust OR PKIX**¹           |
+| **WRPAC Providers**  | Annex F               | CA (WRPAC Provider)                                | WRPAC X.509 certificate    | **PKIX**                            |
+| **WRPRC Providers**  | Annex G               | CA (WRPRC Provider)²                               | WRPRC JWT `x5c` chain      | **PKIX**                            |
 
 **Footnotes:**
-¹ **WRPRC LoTE Certificate Type:** Table G.3 wording ("verify the signature... on the registration certificate it
-provides") is identical to Table F.3 (WRPAC), indicating the LoTE contains a **CA certificate** (WRPRC Provider), not an
-end-entity signing certificate. The WRPRC JWT `x5c` header contains "the whole certificate chain" (ETSI TS 119 475 Table
-5), which builds via PKIX to the LoTE CA. See Section 4.2.2 for detailed analysis.
+
+¹ **PID/Wallet Specification Ambiguity:** ETSI TS 119 602 Annexes D and E describe the *purpose* of certificates ("verify the signature... on the person identification data" / "authenticate and validate the components of the wallet unit") but do not explicitly specify whether the certificate must be end-entity or CA. The functional description is compatible with **both** Direct Trust (end-entity in LoTE) and PKIX (CA in LoTE) validation methods. Implementations should support both validation methods. See Section 1.7 for detailed analysis.
+
+² **WRPRC LoTE Certificate Type:** Table G.3 wording ("verify the signature... on the registration certificate it provides") is identical to Table F.3 (WRPAC), indicating the LoTE contains a **CA certificate** (WRPRC Provider), not an end-entity signing certificate. The WRPRC JWT `x5c` header contains "the whole certificate chain" (ETSI TS 119 475 Table 5), which builds via PKIX to the LoTE CA. See Section 4.2.2 for detailed analysis.
 
 **Critical Distinction:**
 
-- **PID/Wallet Providers**: Sign data directly → End-entity certificate in LoTE → Direct Trust validation (certificate
-  match)
-- **WRPAC Providers**: Issue X.509 certificates to Relying Parties → CA certificate in LoTE → PKIX validation (chain
-  from WRPAC to LoTE CA)
-- **WRPRC Providers**: Sign JWT attestations → CA certificate in LoTE → PKIX validation (chain from WRPRC `x5c` to LoTE
-  CA), then JWT signature verification
+- **PID/Wallet Providers**: Sign data directly → End-entity OR CA certificate in LoTE → Direct Trust OR PKIX validation - *Specification allows both options*
+- **WRPAC Providers**: Issue X.509 certificates to Relying Parties → CA certificate in LoTE → PKIX validation (chain from WRPAC to LoTE CA)
+- **WRPRC Providers**: Sign JWT attestations → CA certificate in LoTE → PKIX validation (chain from WRPRC `x5c` to LoTE CA), then JWT signature verification
 
 **Note on WRPRC:** The WRPRC itself is a JWT attestation (NOT an X.509 certificate). The certificate chain validation (
 PKIX) verifies the `x5c` certificates in the WRPRC JWT header against the LoTE. JWT signature verification is a separate
@@ -70,10 +74,9 @@ step that uses the validated certificate.
 ### HAIP v1 / OpenID4VCI v1 Context
 
 - `x5c` in JWT header MUST NOT include trust anchor (per HAIP v1)
-- For PID/Wallet: `x5c` contains end-entity, LoTE contains same end-entity → Direct match
+- For PID/Wallet: `x5c` contains end-entity, LoTE contains end-entity (Direct Trust) OR CA (PKIX) → **Support both validation methods**
 - For WRPAC: `x5c` contains end-entity, LoTE contains CA → PKIX path validation required
-- For WRPRC: `x5c` in WRPRC JWT header contains cert chain (end-entity → CA), LoTE contains CA → PKIX path validation
-  required (then JWT signature verification)
+- For WRPRC: `x5c` in WRPRC JWT header contains cert chain (end-entity → CA), LoTE contains CA → PKIX path validation required (then JWT signature verification)
 
 ---
 
@@ -171,58 +174,77 @@ specifically for PID issuance.
 **, and for which the certified identity data include the name, and where applicable, the registration number of the
 > person identification data provider, as specified in the TEName and TETradeName components respectively."
 
-**Critical Finding 1.2.2:** The wording explicitly states certificates are used to verify signatures **"on the person
-identification data it provides"** - this indicates the **actual signing certificate** (end-entity), NOT a CA
-certificate.
+**Finding 1.2.2:** The wording describes the **purpose** ("verify the signature... on the person identification data it provides") but does not explicitly specify certificate type. Both end-entity (Direct Trust) and CA certificates (PKIX) can serve this purpose. The specification allows both interpretations. See Section 1.7 for detailed ambiguity analysis.
 
-#### 1.2.3 Absence of CA Certificate Option
+#### 1.2.3 Absence of CA Certificate Option NOTE
 
-**Critical Observation:** Unlike Annex H (Pub-EAA Providers), Annex D **does NOT contain** the following NOTE:
+**Observation:** Unlike Annex H (Pub-EAA Providers), Annex D **does NOT contain** the following NOTE:
 
-> ~~"NOTE: This can be the X.509 certificate corresponding to the private key used to sign or seal the electronic
-attestation of attributes, or it can be the X.509 certificate corresponding to a CA issuing such X.509 certificates
-provided the other requirements applying to the present component are met."~~
+> ~~"NOTE: This can be the X.509 certificate corresponding to the private key used to sign or seal the electronic attestation of attributes, or it can be the X.509 certificate corresponding to a CA issuing such X.509 certificates provided the other requirements applying to the present component are met."~~
 
-**Finding 1.2.3:** The absence of this NOTE in Annex D (while present in Annex H) indicates that **CA certificates are
-NOT allowed** in the ServiceDigitalIdentity for EU PID Providers List.
+**Finding 1.2.3:** The absence of this NOTE in Annex D (while present in Annex H) is **not a normative exclusion**. The functional description in Table D.3 is compatible with both end-entity and CA certificates. The NOTE in Annex H is clarifying, not restrictive. See Section 1.7 for detailed analysis.
 
 #### 1.2.4 Summary: EU PID Providers LoTE Requirements (ETSI TS 119 602 Annex D)
 
-| Aspect                       | Requirement                                      |
-|------------------------------|--------------------------------------------------|
-| **Certificate Type in LoTE** | End-entity ONLY (the actual signing certificate) |
-| **CA Certificates Allowed?** | **NO** - Annex D does not permit CA certificates |
-| **Purpose**                  | Verify signatures on PID data directly           |
-| **Validation Method**        | **Direct Trust ONLY**                            |
+| Aspect                       | Requirement                                            |
+|------------------------------|--------------------------------------------------------|
+| **Certificate Type in LoTE** | **End-entity OR CA** - specification allows both       |
+| **CA Certificates Allowed?** | **YES** - specification does not exclude CA            |
+| **Purpose**                  | Verify signatures on PID data directly                 |
+| **Validation Method**        | **Direct Trust OR PKIX** - support both                |
 
 ---
 
 ## 1.3 Reconciliation: Certificate Profile vs LoTE Profile
 
-#### 1.3.1 Apparent Tension
+#### 1.3.1 Specification Independence
 
 | Specification                               | Allows                                                 |
 |---------------------------------------------|--------------------------------------------------------|
 | **ETSI TS 119 412-6 (Certificate Profile)** | Self-signed OR CA-issued end-entity certificates       |
-| **ETSI TS 119 602 Annex D (LoTE Profile)**  | Only end-entity certificates in ServiceDigitalIdentity |
+| **ETSI TS 119 602 Annex D (LoTE Profile)**  | End-entity OR CA in ServiceDigitalIdentity             |
 
 **Resolution:**
 
-1. **PID Provider certificates** themselves CAN be CA-issued per ETSI TS 119 412-6 (the PID Provider may have an
-   intermediate CA)
-2. **BUT** the certificate published in the EU PID Providers LoTE MUST be the **end-entity signing certificate**, NOT
-   the intermediate CA
-3. This means **Direct Trust validation** is the ONLY method for EU PID Providers List
+1. **ETSI TS 119 412-6 and ETSI TS 119 602 are independent** - The certificate profile requirements do not constrain LoTE ServiceDigitalIdentity requirements
+2. **Annex D wording is ambiguous** - Describes purpose ("verify the signature"), not certificate type
+3. **Both interpretations are valid**:
+   - **Option A (Direct Trust)**: LoTE contains end-entity certificate (same as `x5c`)
+   - **Option B (PKIX)**: LoTE contains CA certificate (issues the `x5c` end-entity)
+4. **Implementations should support both** validation methods for maximum interoperability
 
-#### 1.3.2 Certificate Chain Structure for EU PID Providers
+#### 1.3.2 Certificate Chain Structures for EU PID Providers
 
+**Option A: Direct Trust (LoTE contains end-entity)**
 ```
-If PID Provider uses CA-issued model internally:
-
 ┌─────────────────────────────────┐
-│  Intermediate CA Certificate    │
-│  (NOT published in LoTE)        │
+│  EU PID Providers LoTE          │
+│  (PID Provider End-Entity Cert) │
+│  - basicConstraints: cA=FALSE   │
+│  - QCStatement: id-etsi-qct-pid │
+│  ★ PUBLISHED IN LoTE ★          │
+└─────────────────────────────────┘
+         │
+         │ Matches
+         ▼
+┌─────────────────────────────────┐
+│  PID Attestation (SD-JWT-VC)    │
+│  - x5c: [PID Provider Cert]     │
+│  - (same as LoTE certificate)   │
+└─────────────────────────────────┘
+
+LoTE ServiceDigitalIdentity contains: PID Provider end-entity certificate
+Validation Method: Direct Trust (certificate subject + serial match)
+```
+
+**Option B: PKIX (LoTE contains CA)**
+```
+┌─────────────────────────────────┐
+│  EU PID Providers LoTE          │
+│  (PID Provider CA Certificate)  │
 │  - basicConstraints: cA=TRUE    │
+│  - Trust Anchor                 │
+│  ★ PUBLISHED IN LoTE ★          │
 └─────────────────────────────────┘
          │
          │ Issues
@@ -234,7 +256,7 @@ If PID Provider uses CA-issued model internally:
 │  - QCStatement: id-etsi-qct-pid │
 │  - AIA: id-ad-caIssuers         │
 │  - Key Usage: digitalSignature  │
-│  ★ PUBLISHED IN LoTE ★          │
+│  ★ In JWT x5c ★                 │
 └─────────────────────────────────┘
          │
          │ Signs
@@ -242,15 +264,14 @@ If PID Provider uses CA-issued model internally:
 ┌─────────────────────────────────┐
 │  PID Attestation (SD-JWT-VC)    │
 │  - x5c: [PID Provider Cert]     │
-│  - (MAY include intermediate)   │
+│  - (end-entity, issued by CA)   │
 └─────────────────────────────────┘
 
-LoTE ServiceDigitalIdentity contains: PID Provider end-entity certificate ONLY
-Validation Method: Direct Trust (certificate subject + serial match)
+LoTE ServiceDigitalIdentity contains: PID Provider CA certificate
+Validation Method: PKIX (chain from x5c end-entity to LoTE CA)
 ```
 
-**Key Point:** Even if the PID Provider internally uses a CA-issued certificate model, the **end-entity certificate
-itself** is published in the LoTE, not the issuing CA.
+**Key Point:** The specification allows both options. Implementations should support both Direct Trust and PKIX validation methods.
 
 ---
 
@@ -258,8 +279,7 @@ itself** is published in the LoTE, not the issuing CA.
 
 #### 1.4.1 Direct Trust Validation
 
-Since the LoTE contains the end-entity signing certificate (same as the one in the JWT `x5c`), validation is performed
-by direct certificate matching:
+When the LoTE contains the end-entity signing certificate (same as the one in the JWT `x5c`), validation is performed by direct certificate matching:
 
 1. Extract the first certificate from JWT `x5c` header
 2. Load trust anchors from EU PID Providers LoTE ServiceDigitalIdentity
@@ -268,35 +288,36 @@ by direct certificate matching:
 5. Verify revocation status (if CRL/OCSP available)
 6. Verify key usage (digitalSignature bit)
 
-#### 1.4.2 Why PKIX is NOT Applicable
+#### 1.4.2 PKIX Validation
 
-PKIX validation requires:
+When the LoTE contains a CA certificate, validation is performed via PKIX path validation:
 
-1. A certification path from end-entity to trust anchor
-2. The trust anchor to be a CA certificate
+1. Extract the certificate chain from JWT `x5c` header
+2. Load trust anchors from EU PID Providers LoTE ServiceDigitalIdentity
+3. Build certification path from end-entity certificate to LoTE trust anchor
+4. Verify signature on each certificate in the path
+5. Verify basicConstraints (cA=TRUE for intermediates)
+6. Verify pathLenConstraint
+7. Verify validity periods
+8. Check revocation (CRL/OCSP)
+9. Verify key usage (digitalSignature for end-entity)
 
-For EU PID Providers List:
-
-- The LoTE contains the **end-entity certificate itself** (not a CA)
-- There is no certification path to build
-- PKIX validation would degenerate to direct certificate matching
-
-**Conclusion:** Direct Trust is the ONLY appropriate validation method for EU PID Providers List.
+**Note:** The specification allows both validation methods. Implementations should support both.
 
 ---
 
 ## 1.5 Compliance Requirements Summary for PID Providers
 
-| Requirement                      | Specification       | Clause                    | Requirement Level     |
-|----------------------------------|---------------------|---------------------------|-----------------------|
-| PID certificates are end-entity  | ETSI TS 119 412-6   | Scope                     | MUST                  |
-| Self-signed OR CA-issued allowed | ETSI TS 119 412-6   | PID-4.2-01                | MAY (issuer choice)   |
-| AIA if CA-issued                 | ETSI TS 119 412-6   | PID-4.4.3-01              | MUST (conditional)    |
-| QCStatement with id-etsi-qct-pid | ETSI TS 119 412-6   | PID-4.5-01                | MUST                  |
-| Certificate Policy present       | EN 319 412-2        | §4.3.3                    | MUST                  |
-| LoTE contains end-entity cert    | ETSI TS 119 602     | Annex D, Table D.3        | MUST                  |
-| CA certificates NOT in LoTE      | ETSI TS 119 602     | Annex D (absence of NOTE) | MUST NOT              |
-| Validation method                | Inferred from above | N/A                       | **Direct Trust ONLY** |
+| Requirement                      | Specification       | Clause                    | Requirement Level            |
+|----------------------------------|---------------------|---------------------------|------------------------------|
+| PID certificates are end-entity  | ETSI TS 119 412-6   | Scope                     | MUST                          |
+| Self-signed OR CA-issued allowed | ETSI TS 119 412-6   | PID-4.2-01                | MAY (issuer choice)          |
+| AIA if CA-issued                 | ETSI TS 119 412-6   | PID-4.4.3-01              | MUST (conditional)           |
+| QCStatement with id-etsi-qct-pid | ETSI TS 119 412-6   | PID-4.5-01                | MUST                          |
+| Certificate Policy present       | EN 319 412-2        | §4.3.3                    | MUST                          |
+| LoTE certificate type            | ETSI TS 119 602     | Annex D, Table D.3        | **End-entity OR CA**          |
+| CA certificates allowed in LoTE  | ETSI TS 119 602     | Annex D                   | **YES** - not excluded        |
+| Validation method                | Inferred from above | N/A                       | **Direct Trust AND PKIX**     |
 
 ---
 
@@ -314,6 +335,80 @@ For EU PID Providers List:
 **Implementation Note:** Per EN 319 412-2 §4.3.3, the certificatePolicies extension shall be present. The specific
 policy OIDs are TSP-defined (not mandated by ETSI TS 119 412-6). The validator checks for the presence of the
 certificatePolicies extension but does not validate specific OID values.
+
+---
+
+## 1.7 Specification Ambiguity Analysis
+
+### 1.7.1 The Ambiguity in ETSI TS 119 602 Annex D
+
+ETSI TS 119 602 Annex D Table D.3 states:
+
+> "The ServiceDigitalIdentity component **shall contain one or more X.509 certificates** that can be used to verify the signature or seal created by the provider of person identification data **on the person identification data it provides**, and for which the certified identity data include the name, and where applicable, the registration number of the person identification data provider, as specified in the TEName and TETradeName components respectively."
+
+**Critical Analysis:** This wording describes the **purpose** of the certificates ("verify the signature... on the person identification data") but does **not** explicitly specify:
+
+1. Whether the certificate must be the **end-entity signing certificate** (Direct Trust)
+2. Whether the certificate can be a **CA certificate** that issued the signing certificate (PKIX)
+
+**Both interpretations are technically valid:**
+- An end-entity certificate can verify signatures directly
+- A CA certificate can verify signatures via PKIX path validation
+
+### 1.7.2 Comparison with Annex H (Pub-EAA Providers)
+
+Annex H (Pub-EAA Providers) **explicitly clarifies** this ambiguity with the following NOTE:
+
+> "NOTE: This can be the X.509 certificate corresponding to the private key used to sign or seal the electronic attestation of attributes, **or it can be the X.509 certificate corresponding to a CA issuing such X.509 certificates** provided the other requirements applying to the present component are met."
+
+**This NOTE proves that:**
+1. The drafters of ETSI TS 119 602 were **aware** of the ambiguity
+2. They **explicitly clarified** it for Annex H (Pub-EAA) to allow both options
+3. The **absence of this NOTE** in Annexes D and E is significant, but not definitive
+
+### 1.7.3 Interpretation vs. Specification Requirement
+
+The document's previous conclusion that "CA certificates are NOT allowed" in Annex D was based on:
+- The absence of the clarifying NOTE present in Annex H
+- An interpretation of the phrase "verify the signature... on the person identification data"
+
+**This is an interpretation, NOT a specification requirement.** The specification text does not explicitly exclude CA certificates.
+
+### 1.7.4 Independence of ETSI TS 119 412-6 and ETSI TS 119 602
+
+**Critical Finding:** ETSI TS 119 412-6 (Certificate Profiles for PID/Wallet providers) makes **no normative reference** to ETSI TS 119 602 (LoTE specification). These are independent specifications:
+
+- **ETSI TS 119 412-6**: Defines certificate profiles for PID/Wallet provider certificates (end-entity, with QCStatement)
+- **ETSI TS 119 602**: Defines LoTE data model and what certificates can be published in ServiceDigitalIdentity
+
+The certificate profile requirements (412-6) do not constrain the LoTE ServiceDigitalIdentity requirements (119 602), and vice versa.
+
+### 1.7.5 Recommended Implementation Approach
+
+Given the specification ambiguity, implementations should:
+
+1. **Support Both Validation Methods**
+   - Direct Trust: For deployments where LoTE contains end-entity certificates
+   - PKIX: For deployments where LoTE contains CA certificates
+   - Both options are valid per the specification
+
+2. **Monitor for Clarification**
+   - ETSI may issue clarification or corrigendum
+   - National authorities may provide implementation guidance
+
+3. **Log Validation Method**
+   - Log which validation method was used (Direct Trust vs PKIX)
+   - Include validation method in audit trails
+
+### 1.7.6 Conclusion on Specification Ambiguity
+
+| Aspect                               | Conclusion                                                                 |
+|--------------------------------------|----------------------------------------------------------------------------|
+| Specification text                   | Ambiguous - describes purpose, not certificate type                        |
+| Absence of Annex H NOTE in D/E       | Not a normative exclusion - both options are valid                         |
+| Valid interpretations                | **Both** end-entity (Direct Trust) AND CA (PKIX)                           |
+| Recommended implementation           | **Support both** Direct Trust AND PKIX                                     |
+| Need for ETSI clarification          | **Yes** - Should explicitly clarify Annexes D/E in future revision         |
 
 ---
 
@@ -399,57 +494,77 @@ specifically for Wallet issuance.
 > applicable, the registration number of the wallet provider, as specified in the TEName and TETradeName components
 > respectively."
 
-**Critical Finding 2.2.2:** The wording explicitly states certificates are used to "authenticate and validate the
-components of the wallet unit" - this indicates the **actual signing certificate** (end-entity), NOT a CA certificate.
+**Finding 2.2.2:** The wording describes the **purpose** ("authenticate and validate the components of the wallet unit") but does not explicitly specify certificate type. Both end-entity (Direct Trust) and CA certificates (PKIX) can serve this purpose. The specification allows both interpretations. See Section 1.7 for detailed ambiguity analysis.
 
-#### 2.2.3 Absence of CA Certificate Option
+#### 2.2.3 Absence of CA Certificate Option NOTE
 
-**Critical Observation:** Unlike Annex H (Pub-EAA Providers), Annex E **does NOT contain** the following NOTE:
+**Observation:** Unlike Annex H (Pub-EAA Providers), Annex E **does NOT contain** the following NOTE:
 
-> ~~"NOTE: This can be the X.509 certificate corresponding to the private key used to sign or seal the electronic
-attestation of attributes, or it can be the X.509 certificate corresponding to a CA issuing such X.509 certificates
-provided the other requirements applying to the present component are met."~~
+> ~~"NOTE: This can be the X.509 certificate corresponding to the private key used to sign or seal the electronic attestation of attributes, or it can be the X.509 certificate corresponding to a CA issuing such X.509 certificates provided the other requirements applying to the present component are met."~~
 
-**Finding 2.2.3:** The absence of this NOTE in Annex E (while present in Annex H) indicates that **CA certificates are
-NOT allowed** in the ServiceDigitalIdentity for EU Wallet Providers List.
+**Finding 2.2.3:** The absence of this NOTE in Annex E (while present in Annex H) is **not a normative exclusion**. The functional description in Table E.3 is compatible with both end-entity and CA certificates. The NOTE in Annex H is clarifying, not restrictive. See Section 1.7 for detailed analysis.
 
 #### 2.2.4 Summary: EU Wallet Providers LoTE Requirements (ETSI TS 119 602 Annex E)
 
 | Aspect                       | Requirement                                      |
 |------------------------------|--------------------------------------------------|
-| **Certificate Type in LoTE** | End-entity ONLY (the actual signing certificate) |
-| **CA Certificates Allowed?** | **NO** - Annex E does not permit CA certificates |
+| **Certificate Type in LoTE** | **End-entity OR CA** - specification allows both |
+| **CA Certificates Allowed?** | **YES** - specification does not exclude CA      |
 | **Purpose**                  | Authenticate and validate wallet unit components |
-| **Validation Method**        | **Direct Trust ONLY**                            |
+| **Validation Method**        | **Direct Trust OR PKIX** - support both          |
 
 ---
 
 ## 2.3 Reconciliation: Certificate Profile vs LoTE Profile
 
-#### 2.3.1 Apparent Tension
+#### 2.3.1 Specification Independence
 
 | Specification                               | Allows                                                 |
 |---------------------------------------------|--------------------------------------------------------|
 | **ETSI TS 119 412-6 (Certificate Profile)** | Self-signed OR CA-issued end-entity certificates       |
-| **ETSI TS 119 602 Annex E (LoTE Profile)**  | Only end-entity certificates in ServiceDigitalIdentity |
+| **ETSI TS 119 602 Annex E (LoTE Profile)**  | End-entity OR CA in ServiceDigitalIdentity             |
 
 **Resolution:**
 
-1. **Wallet Provider certificates** themselves CAN be CA-issued per ETSI TS 119 412-6 (the Wallet Provider may have an
-   intermediate CA)
-2. **BUT** the certificate published in the EU Wallet Providers LoTE MUST be the **end-entity signing certificate**, NOT
-   the intermediate CA
-3. This means **Direct Trust validation** is the ONLY method for EU Wallet Providers List
+1. **ETSI TS 119 412-6 and ETSI TS 119 602 are independent** - The certificate profile requirements do not constrain LoTE ServiceDigitalIdentity requirements
+2. **Annex E wording is ambiguous** - Describes purpose ("authenticate and validate"), not certificate type
+3. **Both interpretations are valid**:
+   - **Option A (Direct Trust)**: LoTE contains end-entity certificate (same as `x5c`)
+   - **Option B (PKIX)**: LoTE contains CA certificate (issues the `x5c` end-entity)
+4. **Implementations should support both** validation methods for maximum interoperability
 
-#### 2.3.2 Certificate Chain Structure for EU Wallet Providers
+#### 2.3.2 Certificate Chain Structures for EU Wallet Providers
 
+**Option A: Direct Trust (LoTE contains end-entity)**
 ```
-If Wallet Provider uses CA-issued model internally:
-
 ┌─────────────────────────────────┐
-│  Intermediate CA Certificate    │
-│  (NOT published in LoTE)        │
+│  EU Wallet Providers LoTE       │
+│  (Wallet Provider End-Entity)   │
+│  - basicConstraints: cA=FALSE   │
+│  - QCStatement: id-etsi-qct-wal │
+│  ★ PUBLISHED IN LoTE ★          │
+└─────────────────────────────────┘
+         │
+         │ Matches
+         ▼
+┌─────────────────────────────────┐
+│  Wallet Attestation (JWT)       │
+│  - x5c: [Wallet Provider Cert]  │
+│  - (same as LoTE certificate)   │
+└─────────────────────────────────┘
+
+LoTE ServiceDigitalIdentity contains: Wallet Provider end-entity certificate
+Validation Method: Direct Trust (certificate subject + serial match)
+```
+
+**Option B: PKIX (LoTE contains CA)**
+```
+┌─────────────────────────────────┐
+│  EU Wallet Providers LoTE       │
+│  (Wallet Provider CA Cert)      │
 │  - basicConstraints: cA=TRUE    │
+│  - Trust Anchor                 │
+│  ★ PUBLISHED IN LoTE ★          │
 └─────────────────────────────────┘
          │
          │ Issues
@@ -461,7 +576,7 @@ If Wallet Provider uses CA-issued model internally:
 │  - QCStatement: id-etsi-qct-wal │
 │  - AIA: id-ad-caIssuers         │
 │  - Key Usage: digitalSignature  │
-│  ★ PUBLISHED IN LoTE ★          │
+│  ★ In JWT x5c ★                 │
 └─────────────────────────────────┘
          │
          │ Signs
@@ -469,15 +584,14 @@ If Wallet Provider uses CA-issued model internally:
 ┌─────────────────────────────────┐
 │  Wallet Attestation (JWT)       │
 │  - x5c: [Wallet Provider Cert]  │
-│  - (MAY include intermediate)   │
+│  - (end-entity, issued by CA)   │
 └─────────────────────────────────┘
 
-LoTE ServiceDigitalIdentity contains: Wallet Provider end-entity certificate ONLY
-Validation Method: Direct Trust (certificate subject + serial match)
+LoTE ServiceDigitalIdentity contains: Wallet Provider CA certificate
+Validation Method: PKIX (chain from x5c end-entity to LoTE CA)
 ```
 
-**Key Point:** Even if the Wallet Provider internally uses a CA-issued certificate model, the **end-entity certificate
-itself** is published in the LoTE, not the issuing CA.
+**Key Point:** The specification allows both options. Implementations should support both Direct Trust and PKIX validation methods.
 
 ---
 
@@ -485,8 +599,7 @@ itself** is published in the LoTE, not the issuing CA.
 
 #### 2.4.1 Direct Trust Validation
 
-Since the LoTE contains the end-entity signing certificate (same as the one in the JWT `x5c`), validation is performed
-by direct certificate matching:
+When the LoTE contains the end-entity signing certificate (same as the one in the JWT `x5c`), validation is performed by direct certificate matching:
 
 1. Extract the first certificate from JWT `x5c` header
 2. Load trust anchors from EU Wallet Providers LoTE ServiceDigitalIdentity
@@ -496,35 +609,36 @@ by direct certificate matching:
 6. Verify revocation status (if CRL/OCSP available)
 7. Verify key usage (digitalSignature bit)
 
-#### 2.4.2 Why PKIX is NOT Applicable
+#### 2.4.2 PKIX Validation
 
-PKIX validation requires:
+When the LoTE contains a CA certificate, validation is performed via PKIX path validation:
 
-1. A certification path from end-entity to trust anchor
-2. The trust anchor to be a CA certificate
+1. Extract the certificate chain from JWT `x5c` header
+2. Load trust anchors from EU Wallet Providers LoTE ServiceDigitalIdentity
+3. Build certification path from end-entity certificate to LoTE trust anchor
+4. Verify signature on each certificate in the path
+5. Verify basicConstraints (cA=TRUE for intermediates)
+6. Verify pathLenConstraint
+7. Verify validity periods
+8. Check revocation (CRL/OCSP)
+9. Verify key usage (digitalSignature for end-entity)
 
-For EU Wallet Providers List:
-
-- The LoTE contains the **end-entity certificate itself** (not a CA)
-- There is no certification path to build
-- PKIX validation would degenerate to direct certificate matching
-
-**Conclusion:** Direct Trust is the ONLY appropriate validation method for EU Wallet Providers List.
+**Note:** The specification allows both validation methods. Implementations should support both.
 
 ---
 
 ## 2.5 Compliance Requirements Summary for Wallet Providers
 
-| Requirement                        | Specification       | Clause                        | Requirement Level     |
-|------------------------------------|---------------------|-------------------------------|-----------------------|
+| Requirement                        | Specification       | Clause                        | Requirement Level    |
+|------------------------------------|---------------------|-------------------------------|----------------------|
 | Wallet certificates are end-entity | ETSI TS 119 412-6   | Scope (via WAL-5.1-01)        | MUST                  |
-| Self-signed OR CA-issued allowed   | ETSI TS 119 412-6   | PID-4.2-01 (via WAL-5.1-01)   | MAY (issuer choice)   |
-| AIA if CA-issued                   | ETSI TS 119 412-6   | PID-4.4.3-01 (via WAL-5.1-01) | MUST (conditional)    |
+| Self-signed OR CA-issued allowed   | ETSI TS 119 412-6   | PID-4.2-01 (via WAL-5.1-01)   | MAY (issuer choice)  |
+| AIA if CA-issued                   | ETSI TS 119 412-6   | PID-4.4.3-01 (via WAL-5.1-01) | MUST (conditional)   |
 | QCStatement with id-etsi-qct-wal   | ETSI TS 119 412-6   | WAL-5.2-01                    | MUST                  |
 | Certificate Policy present         | EN 319 412-2        | §4.3.3                        | MUST                  |
-| LoTE contains end-entity cert      | ETSI TS 119 602     | Annex E, Table E.3            | MUST                  |
-| CA certificates NOT in LoTE        | ETSI TS 119 602     | Annex E (absence of NOTE)     | MUST NOT              |
-| Validation method                  | Inferred from above | N/A                           | **Direct Trust ONLY** |
+| LoTE certificate type              | ETSI TS 119 602     | Annex E, Table E.3            | **End-entity OR CA**  |
+| CA certificates allowed in LoTE    | ETSI TS 119 602     | Annex E                       | **YES** - not excluded |
+| Validation method                  | Inferred from above | N/A                           | **Direct Trust AND PKIX** |
 
 ---
 
@@ -1147,6 +1261,130 @@ attestation, not an X.509 certificate.
     - **Status:** ETSI TS 119 412-6 does not cover WRPRC Providers; may follow ETSI EN 319 412-2/3 or ETSI TS 119 411-8.
     - **Note:** Section 4.2.2 clarifies that LoTE contains CA certificate (not end-entity), based on Table G.3 wording
       pattern matching Table F.3 (WRPAC).
+
+---
+
+## Implementation Guidance
+
+### IG.1 Summary of Validation Methods
+
+| Provider List        | Validation Methods | Specification Status           |
+|----------------------|--------------------|--------------------------------|
+| **PID Providers**    | Direct Trust AND PKIX | Ambiguous (Annex D)         |
+| **Wallet Providers** | Direct Trust AND PKIX | Ambiguous (Annex E)         |
+| **WRPAC Providers**  | PKIX                | Clear (Annex F)                |
+| **WRPRC Providers**  | PKIX                | Clear (Annex G)                |
+
+### IG.2 Recommended Implementation Strategy
+
+#### IG.2.1 For PID and Wallet Providers
+
+The specification allows both Direct Trust and PKIX validation. Implementations should:
+
+1. **Support Both Validation Methods**
+   - Direct Trust: For deployments where LoTE contains end-entity certificates
+   - PKIX: For deployments where LoTE contains CA certificates
+   - Both options are valid per the specification
+
+2. **Log Validation Method**
+   - Record which method was used (Direct Trust vs PKIX)
+   - Include in audit trails for compliance
+   - Helps identify specification interpretation patterns
+
+3. **Monitor for Clarification**
+   - Track ETSI corrigenda or new revisions
+   - Monitor national implementation guidance
+   - Adjust implementation based on clarified requirements
+
+#### IG.2.2 For WRPAC and WRPRC Providers
+
+Specification is clear - use PKIX validation:
+
+1. **WRPAC Validation**
+   - Extract WRPAC certificate from JWT `x5c`
+   - Build path from WRPAC to LoTE trust anchor
+   - Verify WRPAC is end-entity (cA=FALSE)
+   - Verify LoTE certificate is CA (cA=TRUE)
+
+2. **WRPRC Validation**
+   - Extract certificate chain from WRPRC JWT `x5c`
+   - Build path from `x5c` end-entity to LoTE trust anchor
+   - Verify WRPRC JWT signature using validated certificate
+   - Two-step process: PKIX then JWT signature verification
+
+### IG.3 Error Handling and Reporting
+
+#### IG.3.1 Validation Failure Categories
+
+| Failure Type              | Action                                    | Log Level |
+|---------------------------|-------------------------------------------|-----------|
+| Direct Trust mismatch     | Try PKIX                                  | DEBUG     |
+| PKIX path building fails  | Report validation failure                 | WARN      |
+| Certificate expired       | Report validation failure                 | WARN      |
+| Revocation check fails    | Report validation failure (if required)   | WARN      |
+| QCStatement missing       | Report constraint violation               | WARN      |
+| Wrong key usage           | Report constraint violation               | WARN      |
+
+#### IG.3.2 Validation Method Logging
+
+For PID/Wallet validation, log which method succeeded:
+
+```kotlin
+when (validationMethod) {
+    DIRECT_TRUST -> logger.debug("Validated via Direct Trust (subject+serial match)")
+    PKIX -> logger.debug("Validated via PKIX (LoTE contained CA certificate)")
+}
+```
+
+### IG.4 Testing Recommendations
+
+#### IG.4.1 Test Scenarios for PID/Wallet Providers
+
+1. **Direct Trust Success**
+   - LoTE contains end-entity certificate
+   - `x5c` contains same end-entity certificate
+   - Expected: Direct Trust validation succeeds
+
+2. **PKIX Success**
+   - LoTE contains CA certificate
+   - `x5c` contains end-entity issued by CA
+   - Expected: PKIX validation succeeds
+
+3. **Validation Failure**
+   - LoTE contains unrelated certificate
+   - `x5c` contains untrusted certificate
+   - Expected: Both Direct Trust and PKIX fail
+
+#### IG.4.2 Test Scenarios for WRPAC/WRPRC Providers
+
+1. **WRPAC PKIX Success**
+   - LoTE contains WRPAC Provider CA
+   - `x5c` contains WRPAC issued by CA
+   - Expected: PKIX validation succeeds
+
+2. **WRPRC Two-Step Success**
+   - LoTE contains WRPRC Provider CA
+   - WRPRC `x5c` contains chain to CA
+   - Expected: PKIX + JWT signature validation succeed
+
+### IG.5 Specification Feedback
+
+If you encounter issues or ambiguities in implementation:
+
+1. **Document the Issue**
+   - Specification reference (Annex, clause, table)
+   - Actual behavior observed
+   - Expected behavior based on interpretation
+
+2. **Report Through Appropriate Channels**
+   - National authorities (for national implementations)
+   - ETSI technical committee (for specification issues)
+   - EUDI Wallet reference implementation maintainers
+
+3. **Share with Community**
+   - Contribute to open-source implementations
+   - Participate in EUDI Wallet working groups
+   - Help clarify specification through practical experience
 
 ---
 
