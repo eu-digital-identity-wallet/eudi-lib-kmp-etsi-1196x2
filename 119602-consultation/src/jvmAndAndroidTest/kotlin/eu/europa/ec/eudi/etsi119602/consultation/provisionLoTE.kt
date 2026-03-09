@@ -16,6 +16,7 @@
 package eu.europa.ec.eudi.etsi119602.consultation
 
 import eu.europa.ec.eudi.etsi119602.x509Certificate
+import eu.europa.ec.eudi.etsi1196x2.consultation.SensitiveApi
 import eu.europa.ec.eudi.etsi1196x2.consultation.SupportedLists
 import eu.europa.ec.eudi.etsi1196x2.consultation.ValidateCertificateChainUsingDirectTrustJvm
 import eu.europa.ec.eudi.etsi1196x2.consultation.ValidateCertificateChainUsingPKIXJvm
@@ -23,6 +24,7 @@ import eu.europa.ec.eudi.etsi1196x2.consultation.VerificationContext
 import java.security.cert.TrustAnchor
 import java.security.cert.X509Certificate
 
+@SensitiveApi
 fun getTrustAnchorsProvisioner(
     loadLoTE: LoadLoTE<String>,
     svcTypePerCtx: SupportedLists<LotEMata<VerificationContext, X509Certificate>>,

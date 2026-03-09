@@ -17,6 +17,7 @@ package eu.europa.ec.eudi.etsi119602.consultation
 
 import eu.europa.ec.eudi.etsi119602.consultation.eu.EUMDLProvidersListSpec
 import eu.europa.ec.eudi.etsi1196x2.consultation.CertificateOperationsJvm
+import eu.europa.ec.eudi.etsi1196x2.consultation.SensitiveApi
 import eu.europa.ec.eudi.etsi1196x2.consultation.SupportedLists
 import eu.europa.ec.eudi.etsi1196x2.consultation.VerificationContext
 import kotlinx.coroutines.test.runTest
@@ -71,7 +72,7 @@ object DIGIT {
 
 class DIGITTest {
 
-    @Test
+    @Test @SensitiveApi
     fun testDownload() = runTest {
         createHttpClient().use { httpClient ->
             val fileStore = LoTEFileStore(

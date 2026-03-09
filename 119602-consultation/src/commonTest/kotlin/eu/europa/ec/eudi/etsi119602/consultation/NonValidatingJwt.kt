@@ -15,7 +15,10 @@
  */
 package eu.europa.ec.eudi.etsi119602.consultation
 
+import eu.europa.ec.eudi.etsi1196x2.consultation.SensitiveApi
+
 /**
  * DO NOT USE IN PRODUCTION !!!.
  */
+@SensitiveApi
 val NotValidating = VerifyJwtSignature { jwt -> VerifyJwtSignature.Outcome.Verified(jwt) }

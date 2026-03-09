@@ -91,7 +91,7 @@ object JPPoC {
 
 class JPLoTEDownloaderTest {
 
-    @Test
+    @Test @SensitiveApi
     fun testDownload() = runTest {
         createHttpClient().use { httpClient ->
 
