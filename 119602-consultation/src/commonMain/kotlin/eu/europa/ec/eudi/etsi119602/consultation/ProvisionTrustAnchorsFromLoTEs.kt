@@ -37,23 +37,66 @@ public data class LotEMata<CTX, in CERT : Any>(
     val certificateConstraints: EvaluateCertificateConstraint<CERT>?,
 )
 
+/**
+ * Provides functionality for provisioning trust anchors derived from Lots of Trust Entities (LoTEs) and validating
+ * certificate chains. The class supports both cached and non-cached configurations for trust anchor extraction and
+ * chain validation.
+ *
+ * @param CHAIN The type representing a certificate chain.
+ * @param CTX The type representing a context within which a trust decision is made.
+ * @param TRUST_ANCHOR The type representing a trust anchor.
+ * @param CERT The type representing a certificate.
+ *
+ * @property loadLoTEAndPointers A loader for fetching LoTEs and their pointers.
+ * @property createTrustAnchors A function that creates a list of trust anchors from a service digital identity.
+ * @property extractCertificate A function extracting the certificate type from a trust anchor.
+ * @property getCertInfo A suspending function to retrieve certificate information as a string. It is being used to report errors related to certificates not complying to constraints
+ * Defaults to the string representation of the certificate.
+ * @property directTrust A certificate chain validator based on direct trust.
+ * @property pkix A certificate chain validator based on PKIX.
+ * @property continueOnProblem Strategy indicating whether to continue on specific issues.
+ * @property svcTypePerCtx Supported metadata linked to LoTEs, defining service types per specific contexts.
+ */
 public class ProvisionTrustAnchorsFromLoTEs<CHAIN : Any, CTX : Any, TRUST_ANCHOR : Any, CERT : Any>(
     private val loadLoTEAndPointers: LoadLoTEAndPointers,
+    private val svcTypePerCtx: SupportedLists<LotEMata<CTX, CERT>>,
     private val createTrustAnchors: (ServiceDigitalIdentity) -> List<TRUST_ANCHOR>,
     private val extractCertificate: (TRUST_ANCHOR) -> CERT,
     private val getCertInfo: suspend (CERT) -> String = { it.toString() },
     private val directTrust: ValidateCertificateChainUsingDirectTrust<CHAIN, TRUST_ANCHOR, *>,
     private val pkix: ValidateCertificateChainUsingPKIX<CHAIN, TRUST_ANCHOR>,
     private val continueOnProblem: ContinueOnProblem = ContinueOnProblem.Never,
-    private val svcTypePerCtx: SupportedLists<LotEMata<CTX, CERT>>,
 ) {
 
+    /**
+     * Creates a [ComposeChainTrust] for a given LoTE configuration and trust anchor extraction function, suitable to be
+     * used in a low-concurrency environment where caching is not required.
+     *
+     * @param loteLocationsSupported the list of LoTE locations to use
+     *
+     * @return a [ComposeChainTrust] instance
+     */
     public fun nonCached(loteLocationsSupported: SupportedLists<String>): ComposeChainTrust<CHAIN, CTX, TRUST_ANCHOR> =
         loteLocationsSupported.cfgs().map { cfg ->
             val getTrustAnchors = createGetTrustAnchorsFromLoTE(cfg)
             createValidator(cfg, getTrustAnchors)
         }.compose()
 
+    /**
+     * Creates a [ComposeChainTrust] for a given LoTE configuration and trust anchor extraction function, suitable to be
+     * used in a high-concurrency environment where caching is required.
+     *
+     * Each of the individual [GetTrustAnchorsFromLoTE] will be cached, offering thread-safe caching.
+     *
+     * @param disposableScope the [DisposableScope] to use for binding the cache sources
+     * @param loteLocationsSupported the list of LoTE locations to use
+     * @param ttl the time-to-live for cached entries
+     * @param cacheDispatcher the dispatcher to use for the cache background operations. Defaults to [Dispatchers.Default]
+     * @param clock the clock to use by the cache. Defaults to [Clock.System]
+     *
+     * @see GetTrustAnchorsCachedSource
+     * @see DisposableScope
+     */
     public fun cached(
         disposableScope: DisposableScope,
         loteLocationsSupported: SupportedLists<String>,
@@ -135,22 +178,22 @@ public class ProvisionTrustAnchorsFromLoTEs<CHAIN : Any, CTX : Any, TRUST_ANCHOR
         public fun <CHAIN : Any, TRUST_ANCHOR : Any, CERT : Any> eudiw(
             loadLoTEAndPointers: LoadLoTEAndPointers,
             svcTypePerCtx: SupportedLists<LotEMata<VerificationContext, CERT>>,
+            createTrustAnchors: (ServiceDigitalIdentity) -> List<TRUST_ANCHOR>,
             extractCertificate: (TRUST_ANCHOR) -> CERT,
-            continueOnProblem: ContinueOnProblem = ContinueOnProblem.Never,
+            getCertInfo: suspend (CERT) -> String,
             directTrust: ValidateCertificateChainUsingDirectTrust<CHAIN, TRUST_ANCHOR, *>,
             pkix: ValidateCertificateChainUsingPKIX<CHAIN, TRUST_ANCHOR>,
-            getCertInfo: suspend (CERT) -> String,
-            createTrustAnchors: (ServiceDigitalIdentity) -> List<TRUST_ANCHOR>,
+            continueOnProblem: ContinueOnProblem = ContinueOnProblem.Never,
         ): ProvisionTrustAnchorsFromLoTEs<CHAIN, VerificationContext, TRUST_ANCHOR, CERT> =
             ProvisionTrustAnchorsFromLoTEs(
                 loadLoTEAndPointers,
+                svcTypePerCtx,
                 createTrustAnchors,
                 extractCertificate,
                 getCertInfo,
                 directTrust,
                 pkix,
                 continueOnProblem,
-                svcTypePerCtx,
             )
     }
 }
