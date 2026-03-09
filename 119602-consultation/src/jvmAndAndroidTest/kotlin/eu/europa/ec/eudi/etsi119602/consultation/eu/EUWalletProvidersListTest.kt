@@ -37,12 +37,10 @@ class EUWalletProvidersListTest {
     @Test
     fun `Wallet Provider validator should validate end-entity certificate`() = runTest {
         val caKeyPair = CertOps.genTrustAnchor("SHA256withECDSA", cnWalletProvider)
-        val eeKeyPair = CertOps.generateECPair()
-        val certHolder = CertOps.createEndEntity(
+        val (_, certHolder) = CertOps.genEndEntity(
             signerCert = caKeyPair.second,
             signerKey = caKeyPair.first.private,
             sigAlg = "SHA256withECDSA",
-            certKey = eeKeyPair.public,
             subject = cnWalletProvider,
         )
         val certificate = certHolder.toX509Certificate()
@@ -62,9 +60,7 @@ class EUWalletProvidersListTest {
     @Test
     fun `Wallet Provider validator should accept certificate with valid QCStatement`() = runTest {
         // Generate certificate with id-etsi-qct-wal QCStatement
-        val keyPair = CertOps.generateECPair()
-        val certHolder = CertOps.createTrustAnchorWithQCStatement(
-            keyPair = keyPair,
+        val (_, certHolder) = CertOps.genTrustAnchorWithQCStatement(
             sigAlg = "SHA256withECDSA",
             name = cnWalletProvider,
             qcType = ETSI119412.ID_ETSI_QCT_WAL,

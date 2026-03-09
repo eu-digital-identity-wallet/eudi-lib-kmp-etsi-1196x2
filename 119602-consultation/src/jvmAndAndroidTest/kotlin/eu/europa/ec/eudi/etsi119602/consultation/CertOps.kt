@@ -119,6 +119,18 @@ object CertOps {
         }.build(sigAlg, keyPair.private)
     }
 
+    fun genTrustAnchorWithQCStatement(
+        sigAlg: String,
+        name: X500Name,
+        qcType: String,
+        qcCompliance: Boolean = true,
+        policyOids: List<String>? = null,
+    ): Pair<KeyPair, X509CertificateHolder> {
+        val kp = Ctx.generateECPair()
+        val certHolder = createTrustAnchorWithQCStatement(kp, sigAlg, name, qcType, qcCompliance, policyOids)
+        return kp to certHolder
+    }
+
     /**
      * Build a sample self-signed V3 certificate with QCStatement for PID/Wallet providers.
      *
@@ -156,6 +168,29 @@ object CertOps {
             qcStatement(qcType, qcCompliance)
             certificatePolicies(policies)
         }.build(sigAlg, keyPair.private)
+    }
+
+    fun genEndEntityWithAIA(
+        signerCert: X509CertificateHolder,
+        sigAlg: String,
+        subject: X500Name,
+        qcType: String,
+        caIssuersUri: String,
+        ocspUri: String? = null,
+        policyOids: List<String>? = null,
+    ): Pair<KeyPair, X509CertificateHolder> {
+        val eeKp = Ctx.generateECPair()
+        val eeCertHolder = createEndEntityWithAIA(
+            eeKp,
+            sigAlg,
+            subject,
+            signerCert,
+            qcType,
+            caIssuersUri,
+            ocspUri,
+            policyOids,
+        )
+        return eeKp to eeCertHolder
     }
 
     /**
@@ -232,6 +267,17 @@ object CertOps {
             basicConstraints(BasicConstraints(followingCACerts)) // allow this cert to sign other certs
             keyUsage(KeyUsage(KeyUsage.digitalSignature or KeyUsage.keyCertSign or KeyUsage.cRLSign))
         }.build(sigAlg, signerKey)
+
+    fun genCACertifiicateWithPolicy(
+        sigAlg: String,
+        name: X500Name,
+        policyOids: List<String>,
+        pathLenConstraint: Int? = null,
+    ): Pair<KeyPair, X509CertificateHolder> {
+        val kp = Ctx.generateECPair()
+        val certHolder = createCACertificateWithPolicy(kp, sigAlg, name, policyOids, pathLenConstraint)
+        return kp to certHolder
+    }
 
     /**
      * Build a CA certificate with specific policy OIDs and path length constraint.

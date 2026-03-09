@@ -38,12 +38,10 @@ class EUPIDProvidersListTest {
     @Test
     fun `PID Provider validator should validate end-entity certificate`() = runTest {
         val (caKeyPair, caCert) = CertOps.genTrustAnchor("SHA256withECDSA", cnPidProvider)
-        val eeKeyPair = CertOps.generateECPair()
-        val certHolder = CertOps.createEndEntity(
+        val (_, certHolder) = CertOps.genEndEntity(
             signerCert = caCert,
             signerKey = caKeyPair.private,
             sigAlg = "SHA256withECDSA",
-            certKey = eeKeyPair.public,
             subject = cnPidProvider,
         )
         val certificate = certHolder.toX509Certificate()
@@ -82,9 +80,7 @@ class EUPIDProvidersListTest {
     @Test
     fun `PID Provider validator should reject certificate without QCStatement compliance`() = runTest {
         // Generate certificate with non-compliant QCStatement
-        val keyPair = CertOps.generateECPair()
-        val certHolder = CertOps.createTrustAnchorWithQCStatement(
-            keyPair = keyPair,
+        val (_, certHolder) = CertOps.genTrustAnchorWithQCStatement(
             sigAlg = "SHA256withECDSA",
             name = cnPidProvider,
             qcType = ETSI119412.ID_ETSI_QCT_PID,
@@ -104,9 +100,7 @@ class EUPIDProvidersListTest {
     @Test
     fun `PID Provider validator should reject certificate with wrong QCStatement type`() = runTest {
         // Generate certificate with wrong QCStatement type (Wallet instead of PID)
-        val keyPair = CertOps.generateECPair()
-        val certHolder = CertOps.createTrustAnchorWithQCStatement(
-            keyPair = keyPair,
+        val (_, certHolder) = CertOps.genTrustAnchorWithQCStatement(
             sigAlg = "SHA256withECDSA",
             name = cnPidProvider,
             qcType = ETSI119412.ID_ETSI_QCT_WAL, // Wrong type
@@ -128,12 +122,10 @@ class EUPIDProvidersListTest {
         val (_, caCert) = CertOps.genTrustAnchor("SHA256withECDSA", X500Name("CN=Test CA"))
 
         // Generate EE with AIA and QCStatement
-        val eeKeyPair = CertOps.generateECPair()
-        val eeCertHolder = CertOps.createEndEntityWithAIA(
-            keyPair = eeKeyPair,
+        val (_, eeCertHolder) = CertOps.genEndEntityWithAIA(
+            signerCert = caCert,
             sigAlg = "SHA256withECDSA",
-            name = cnPidProvider,
-            issuerCert = caCert,
+            subject = cnPidProvider,
             qcType = ETSI119412.ID_ETSI_QCT_PID,
             caIssuersUri = "http://example.com/ca.crt",
             ocspUri = "http://example.com/ocsp",

@@ -55,9 +55,7 @@ class EUWRPACProvidersListTest {
     @Test
     fun `WRPAC Provider validator should accept NCP-n policy`() = runTest {
         // Generate CA certificate with NCP-n-eudiwrp policy
-        val keyPair = CertOps.genTrustAnchor("SHA256withECDSA", cnWrpacProvider).first
-        val certHolder = CertOps.createCACertificateWithPolicy(
-            keyPair = keyPair,
+        val (_, certHolder) = CertOps.genCACertifiicateWithPolicy(
             sigAlg = "SHA256withECDSA",
             name = cnWrpacProvider,
             policyOids = listOf(ETSI119411.NCP_N_EUDIWRP),
@@ -74,9 +72,7 @@ class EUWRPACProvidersListTest {
     @Test
     fun `WRPAC Provider validator should accept NCP-l policy`() = runTest {
         // Generate CA certificate with NCP-l-eudiwrp policy
-        val keyPair = CertOps.generateECPair()
-        val certHolder = CertOps.createCACertificateWithPolicy(
-            keyPair = keyPair,
+        val (_, certHolder) = CertOps.genCACertifiicateWithPolicy(
             sigAlg = "SHA256withECDSA",
             name = cnWrpacProvider,
             policyOids = listOf(ETSI119411.NCP_L_EUDIWRP),
@@ -93,9 +89,7 @@ class EUWRPACProvidersListTest {
     @Test
     fun `WRPAC Provider validator should accept QCP-n policy`() = runTest {
         // Generate CA certificate with QCP-n-eudiwrp policy
-        val keyPair = CertOps.generateECPair()
-        val certHolder = CertOps.createCACertificateWithPolicy(
-            keyPair = keyPair,
+        val (_, certHolder) = CertOps.genCACertifiicateWithPolicy(
             sigAlg = "SHA256withECDSA",
             name = cnWrpacProvider,
             policyOids = listOf(ETSI119411.QCP_N_EUDIWRP),
@@ -112,9 +106,7 @@ class EUWRPACProvidersListTest {
     @Test
     fun `WRPAC Provider validator should accept QCP-l policy`() = runTest {
         // Generate CA certificate with QCP-l-eudiwrp policy
-        val keyPair = CertOps.generateECPair()
-        val certHolder = CertOps.createCACertificateWithPolicy(
-            keyPair = keyPair,
+        val (_, certHolder) = CertOps.genCACertifiicateWithPolicy(
             sigAlg = "SHA256withECDSA",
             name = cnWrpacProvider,
             policyOids = listOf(ETSI119411.QCP_L_EUDIWRP),
@@ -132,9 +124,7 @@ class EUWRPACProvidersListTest {
     fun `WRPAC Provider validator should reject unknown policy`() = runTest {
         // Create certificate with unknown policy OID (not in ETSI119411.ALL)
         val unknownPolicyOid = "0.4.0.194118.999.999"
-        val keyPair = CertOps.generateECPair()
-        val certHolder = CertOps.createCACertificateWithPolicy(
-            keyPair = keyPair,
+        val (_, certHolder) = CertOps.genCACertifiicateWithPolicy(
             sigAlg = "SHA256withECDSA",
             name = cnWrpacProvider,
             policyOids = listOf(unknownPolicyOid),
