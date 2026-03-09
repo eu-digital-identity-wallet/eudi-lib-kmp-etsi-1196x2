@@ -15,9 +15,7 @@
  */
 package eu.europa.ec.eudi.etsi1196x2.consultation
 
-import kotlin.concurrent.atomics.AtomicInt
-import kotlin.concurrent.atomics.AtomicReference
-import kotlin.concurrent.atomics.ExperimentalAtomicApi
+import kotlinx.atomicfu.atomic
 
 public interface Disposable {
     /**
@@ -39,19 +37,18 @@ public inline fun <T> useResources(block: DisposableScope.() -> T): T {
     }
 }
 
-@OptIn(ExperimentalAtomicApi::class)
 public open class DisposableContainer : DisposableScope {
-    private val disposables = AtomicReference<List<Disposable>>(emptyList())
-    private val isDisposed = AtomicInt(0)
+    private val disposables = atomic<List<Disposable>>(emptyList())
+    private val isDisposed = atomic(false)
 
     public fun add(disposable: Disposable) {
         while (true) {
-            if (isDisposed.load() == 1) {
+            if (isDisposed.value) {
                 disposable.dispose()
                 return
             }
 
-            val current = disposables.load()
+            val current = disposables.value
             val next = current + disposable
 
             if (disposables.compareAndSet(current, next)) {
@@ -61,13 +58,9 @@ public open class DisposableContainer : DisposableScope {
     }
 
     override fun dispose() {
-        if (!isDisposed.compareAndSet(0, 1)) return
+        if (!isDisposed.compareAndSet(false, true)) return
 
-        var toDispose: List<Disposable>
-        while (true) {
-            toDispose = disposables.load()
-            if (disposables.compareAndSet(toDispose, emptyList())) break
-        }
+        val toDispose = disposables.getAndSet(emptyList())
 
         var primaryError: Throwable? = null
         val suppressed = mutableListOf<Throwable>()
