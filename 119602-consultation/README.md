@@ -8,9 +8,6 @@ attestation objects by navigating trust trees defined in LoTE format, as specifi
 enforces certificate constraints per ETSI TS 119 412-6 (PID/Wallet), ETSI TS 119 411-8 (WRPAC), and ETSI TS 119 475 (
 WRPRC).
 
-> [!WARNING]
-> **Status: Under Development** - This module is currently being developed. API and features may change.
-
 ---
 
 ## Purpose
@@ -68,50 +65,114 @@ This module implements certificate validation according to the following ETSI sp
 
 ## Quick Start
 
-> [!NOTE]
-> API and usage examples will be added once the module implementation is complete.
+### 1. Add dependency
+
+Add the following to your `build.gradle.kts`:
 
 ```kotlin
-// TBD - API under development
+dependencies {
+    // Replace $version with the latest release version
+    // All modules share the same same version number
+    implementation("eu.europa.ec.eudi:etsi-119602-consultation:$version")
+}
+```
+
+> [!NOTE]
+> Replace `$version` with the latest release version from
+> the [releases page](https://github.com/eu-digital-identity-wallet/eudi-lib-kmp-etsi-1196x2/releases).
+
+### 2. Configure and use ProvisionTrustAnchorsFromLoTEs
+
+```kotlin
+import eu.europa.ec.eudi.etsi119602.consultation.*
+import eu.europa.ec.eudi.etsi119602.consultation.eu.*
+import eu.europa.ec.eudi.etsi1196x2.consultation.*
+import eu.europa.ec.eudi.etsi1196x2.consultation.VerificationContext
+import io.ktor.client.*
+import io.ktor.client.engine.java.*
+import kotlinx.coroutines.*
+import kotlinx.io.files.Path
+import java.security.cert.TrustAnchor
+import java.security.cert.X509Certificate
+import kotlin.time.Duration.Companion.hours
+import kotlin.time.Duration.Companion.minutes
+
+// 1. Setup HTTP client and file cache
+val httpClient = HttpClient(Java)
+val fileStore = LoTEFileStore(
+    cacheDirectory = Path(System.getProperty("java.io.tmpdir")!!, "lote-cache")
+)
+val loadLoTE = LoadSingleLoTEWithFileCache(
+    fileStore = fileStore,
+    downloadSingleLoTE = DownloadSingleLoTE(httpClient),
+    fileCacheExpiration = 24.hours
+)
+
+// 2. Configure LoTE locations and service types
+val loteLocations = SupportedLists(
+    pidProviders = "https://example.com/pid-providers.json",
+    walletProviders = "https://example.com/wallet-providers.json"
+)
+val svcTypePerCtx = SupportedLists.eu(CertificateOperationsJvm)
+
+// 3. Create the main entry point
+val provisionTrustAnchors = ProvisionTrustAnchorsFromLoTEs.eudiwJvm(
+    loadLoTEAndPointers = loadLoTE,
+    svcTypePerCtx = svcTypePerCtx,
+)
+
+// 4a. Use nonCached() for simple/low-concurrency scenarios
+val isChainTrustedForContext = provisionTrustAnchors.nonCached(loteLocations)
+
+// 4b. Use cached() for high-concurrency scenarios (e.g., server-side)
+useResources { scope ->
+    val cachedValidator = provisionTrustAnchors.cached(
+        disposableScope = scope,
+        loteLocationsSupported = loteLocations,
+        ttl = 10.minutes
+    )
+    // Use cachedValidator for concurrent requests
+}
+```
+
+### 3. Validate certificate chains
+
+```kotlin
+import kotlinx.coroutines.runBlocking
+
+runBlocking {
+    // Using nonCached validator
+    val result = isChainTrustedForContext(certificateChain, VerificationContext.PID)
+    println("Trusted: ${result.isTrusted()}")
+    
+    // Or using cached validator
+    val cachedResult = cachedValidator(certificateChain, VerificationContext.PID)
+    println("Trusted (cached): ${cachedResult.isTrusted()}")
+}
 ```
 
 ---
 
 ## Core Abstractions
 
-> [!NOTE]
-> Detailed documentation of core abstractions will be added once the module implementation is complete.
+The module provides the following key abstractions for working with ETSI TS 119 602 LoTE documents:
 
-Planned abstractions include:
+🔍 **LoTE Discovery & Loading**
 
-🔍 **LoTE Discovery**
+- `ProvisionTrustAnchorsFromLoTEs`: **Main entry point** - High-level factory for provisioning trust anchors from LoTEs with built-in caching support (`cached()` for high-concurrency, `nonCached()` for simple scenarios)
+- `LoadLoTEAndPointers`: Loads LoTE documents and follows pointers to related lists with configurable depth limits
+- `LoadSingleLoTEWithFileCache`: File-cached implementation combining `DownloadSingleLoTE` with persistent storage
+- `DownloadSingleLoTE`: HTTP client-based loader for fetching single LoTE documents
+- `GetTrustAnchorsFromLoTE`: Low-level extractor for trust anchors from LoTE documents (used internally by `ProvisionTrustAnchorsFromLoTEs`)
 
-- `LoadLoTE`: Fetching and parsing LoTE documents
-- `GetTrustAnchorsFromLoTE`: Extracting trust anchors from LoTE entries
+🛡️ **LoTE Profiles**
 
-🛡️ **Validation**
+Predefined profiles for EU LoTE types, enforcing certificate constraints per ETSI specifications:
 
-- Integration with `ValidateCertificateChainUsingPKIX` and `ValidateCertificateChainUsingDirectTrust` from the
-  consultation module
-
-📋 **Certificate Constraints**
-
-- `PidWalletCertificateConstraint`: Validates PID/Wallet provider certificates per ETSI TS 119 412-6
-    - QCStatement presence (id-etsi-qct-pid or id-etsi-qct-wal)
-    - Key usage (digitalSignature)
-    - End-entity certificate (basicConstraints: cA=FALSE)
-    - **Certificate policy extension present** (per EN 319 412-2 §4.3.3, TSP-defined OID)
-    - AIA extension (if CA-issued)
-
-- `WrpacCertificateConstraint`: Validates WRPAC provider certificates per ETSI TS 119 411-8
-    - CA certificate (basicConstraints: cA=TRUE)
-    - Key usage (keyCertSign)
-    - Certificate policy OID (NCP-n-eudiwrp, NCP-l-eudiwrp, QCP-n-eudiwrp, QCP-l-eudiwrp)
-
-- `WrprcCertificateConstraint`: Validates WRPRC provider certificates per ETSI TS 119 475
-    - CA certificate (basicConstraints: cA=TRUE)
-    - Key usage (keyCertSign)
-    - Certificate policy OID (wrprc)
+- `EUPIDProvidersList`: PID Provider profile (ETSI TS 119 602 Annex D)
+- `EUWalletProvidersList`: Wallet Provider profile (ETSI TS 119 602 Annex E)
+- `EUWRPACProvidersList`: WRPAC Provider profile (ETSI TS 119 602 Annex F)
+- `EUWRPRCProvidersList`: WRPRC Provider profile (ETSI TS 119 602 Annex G)
 
 ---
 
@@ -235,14 +296,41 @@ The 119602-consultation module is a **Kotlin Multiplatform (KMP)** module.
 
 ## Dependencies
 
-> [!NOTE]
-> Dependencies will be documented once the module implementation is complete.
+### Required
 
-Expected dependencies:
+```kotlin
+dependencies {
+    // Core consultation abstractions
+    api("eu.europa.ec.eudi:etsi-1196x2-consultation:$version")
+    
+    // LoTE data model (transitive via api dependency)
+    api("eu.europa.ec.eudi:etsi-119602-data-model:$version")
+    
+    // Ktor client for HTTP operations
+    api("io.ktor:ktor-client-core:$ktorVersion")
+    
+    // Kotlinx IO for file operations
+    implementation("org.jetbrains.kotlinx:kotlinx-io-core:$kotlinxIoVersion")
+    
+    // AtomicFU for atomic operations (transitive)
+    implementation("org.jetbrains.kotlinx:atomicfu:$atomicfuVersion")
+}
+```
 
-- `eu.europa.ec.eudi:etsi-1196x2-consultation` (core consultation module)
-- `eu.europa.ec.eudi:etsi-119602-data-model` (LoTE data model)
-- kotlinx.serialization (JSON parsing)
+### JVM/Android Specific
+
+```kotlin
+dependencies {
+    // Bouncy Castle for cryptographic operations
+    implementation("org.bouncycastle:bcprov-jdk18on:$bouncyCastleVersion")
+}
+```
+
+### Transitive Dependencies
+
+- `kotlinx-serialization-json` (via `etsi-119602-data-model`)
+- `kotlinx-coroutines-core` (for suspend functions)
+- `atomicfu` (for thread-safe operations)
 
 ---
 

@@ -59,13 +59,13 @@ public data class LotEMata<CTX, in CERT : Any>(
  */
 public class ProvisionTrustAnchorsFromLoTEs<CHAIN : Any, CTX : Any, TRUST_ANCHOR : Any, CERT : Any>(
     private val loadLoTEAndPointers: LoadLoTEAndPointers,
+    private val svcTypePerCtx: SupportedLists<LotEMata<CTX, CERT>>,
     private val createTrustAnchors: (ServiceDigitalIdentity) -> List<TRUST_ANCHOR>,
     private val extractCertificate: (TRUST_ANCHOR) -> CERT,
     private val getCertInfo: suspend (CERT) -> String = { it.toString() },
     private val directTrust: ValidateCertificateChainUsingDirectTrust<CHAIN, TRUST_ANCHOR, *>,
     private val pkix: ValidateCertificateChainUsingPKIX<CHAIN, TRUST_ANCHOR>,
     private val continueOnProblem: ContinueOnProblem = ContinueOnProblem.Never,
-    private val svcTypePerCtx: SupportedLists<LotEMata<CTX, CERT>>,
 ) {
 
     /**
@@ -178,22 +178,22 @@ public class ProvisionTrustAnchorsFromLoTEs<CHAIN : Any, CTX : Any, TRUST_ANCHOR
         public fun <CHAIN : Any, TRUST_ANCHOR : Any, CERT : Any> eudiw(
             loadLoTEAndPointers: LoadLoTEAndPointers,
             svcTypePerCtx: SupportedLists<LotEMata<VerificationContext, CERT>>,
+            createTrustAnchors: (ServiceDigitalIdentity) -> List<TRUST_ANCHOR>,
             extractCertificate: (TRUST_ANCHOR) -> CERT,
-            continueOnProblem: ContinueOnProblem = ContinueOnProblem.Never,
+            getCertInfo: suspend (CERT) -> String,
             directTrust: ValidateCertificateChainUsingDirectTrust<CHAIN, TRUST_ANCHOR, *>,
             pkix: ValidateCertificateChainUsingPKIX<CHAIN, TRUST_ANCHOR>,
-            getCertInfo: suspend (CERT) -> String,
-            createTrustAnchors: (ServiceDigitalIdentity) -> List<TRUST_ANCHOR>,
+            continueOnProblem: ContinueOnProblem = ContinueOnProblem.Never,
         ): ProvisionTrustAnchorsFromLoTEs<CHAIN, VerificationContext, TRUST_ANCHOR, CERT> =
             ProvisionTrustAnchorsFromLoTEs(
                 loadLoTEAndPointers,
+                svcTypePerCtx,
                 createTrustAnchors,
                 extractCertificate,
                 getCertInfo,
                 directTrust,
                 pkix,
                 continueOnProblem,
-                svcTypePerCtx,
             )
     }
 }
