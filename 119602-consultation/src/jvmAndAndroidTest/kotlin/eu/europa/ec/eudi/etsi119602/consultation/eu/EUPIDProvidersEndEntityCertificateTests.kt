@@ -28,7 +28,7 @@ import kotlin.test.assertTrue
 /**
  * Tests for PID Provider certificate constraints (ETSI TS 119 602 Annex D).
  */
-class EUPIDProvidersListTest {
+class EUPIDProvidersEndEntityCertificateTests {
 
     private val cnPidProvider = X500Name("CN=PID Provider Test")
 

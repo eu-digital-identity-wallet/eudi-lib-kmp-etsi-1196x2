@@ -28,7 +28,7 @@ import kotlin.test.assertTrue
 /**
  * Tests for Wallet Provider certificate constraints (ETSI TS 119 602 Annex E).
  */
-class EUWalletProvidersListTest {
+class EUWalletProvidersEndEntityCertificateTest {
 
     private val cnWalletProvider = X500Name("CN=Wallet Provider Test")
     private val evaluateCertificateConstraints =

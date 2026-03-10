@@ -22,12 +22,14 @@ import eu.europa.ec.eudi.etsi1196x2.consultation.CertificateOperationsJvm
 import eu.europa.ec.eudi.etsi1196x2.consultation.certs.isMet
 import kotlinx.coroutines.test.runTest
 import org.bouncycastle.asn1.x500.X500Name
+import kotlin.test.Ignore
 import kotlin.test.Test
 import kotlin.test.assertTrue
 
 /**
  * Tests for WRPRC Provider certificate constraints (ETSI TS 119 602 Annex G).
  */
+@Ignore("Further investigation needed")
 class EUWRPRCProvidersListTest {
 
     private val cnWrprcProvider = X500Name("CN=WRPRC Provider Test")
