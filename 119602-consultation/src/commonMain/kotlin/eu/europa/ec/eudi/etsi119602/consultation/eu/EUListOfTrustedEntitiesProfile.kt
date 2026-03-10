@@ -138,17 +138,17 @@ public sealed interface CertificateProfile {
             is EndEntity -> constraints?.evaluator(certificateOperations)
             is CA -> constraints?.evaluator(certificateOperations)
             is EndEntityOrCA -> {
-                // For EndEntityOrCA, we need to check the certificate type and apply appropriate constraints
-                // This is NOT an "or" combinator - we apply constraints based on actual certificate type
-                object : EvaluateCertificateConstraint<CERT> {
-                    override suspend fun invoke(certificate: CERT): CertificateConstraintEvaluation {
+                if (endEntityConstraints == null && caConstraints == null) {
+                    null
+                } else {
+                    EvaluateCertificateConstraint { certificate ->
                         val isCA = certificateOperations.getBasicConstraints(certificate).isCa
                         val evaluator = if (isCA) {
                             caConstraints?.evaluator(certificateOperations)
                         } else {
                             endEntityConstraints?.evaluator(certificateOperations)
                         }
-                        return evaluator?.invoke(certificate) ?: CertificateConstraintEvaluation.Met
+                        evaluator?.invoke(certificate) ?: CertificateConstraintEvaluation.Met
                     }
                 }
             }
