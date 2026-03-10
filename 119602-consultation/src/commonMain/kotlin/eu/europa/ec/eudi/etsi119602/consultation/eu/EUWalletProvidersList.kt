@@ -50,18 +50,13 @@ public val EUWalletProvidersList: EUListOfTrustedEntitiesProfile =
             ),
             mustContainX509Certificates = true,
             serviceStatuses = emptySet(),
-            // Support both Direct Trust (end-entity in LoTE) and PKIX (CA in LoTE)
-            certificateProfile = CertificateProfile.EndEntityOrCA(
-                endEntityConstraints = object : CertificateConstraints {
-                    override fun <CERT : Any> CertificateOperations<CERT>.evaluator(): EvaluateMultipleCertificateConstraints<CERT> =
-                        walletProviderCertificateConstraintsEvaluator()
-                },
-                caConstraints = object : CertificateConstraints {
-                    override fun <CERT : Any> CertificateOperations<CERT>.evaluator(): EvaluateMultipleCertificateConstraints<CERT> =
-                        walletProviderCACertificateConstraintsEvaluator()
-                },
-            ),
+            serviceDigitalIdentityCertificateType = ServiceDigitalIdentityCertificateType.EndEntityOrCA,
+
         ),
+        endEntityCertificateConstraints = object : CertificateConstraints {
+            override fun <CERT : Any> CertificateOperations<CERT>.evaluator(): EvaluateMultipleCertificateConstraints<CERT> =
+                walletProviderCertificateConstraintsEvaluator()
+        },
 
     )
 

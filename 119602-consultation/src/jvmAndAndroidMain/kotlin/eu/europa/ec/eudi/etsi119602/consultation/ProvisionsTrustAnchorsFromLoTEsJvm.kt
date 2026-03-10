@@ -23,7 +23,7 @@ import java.security.cert.X509Certificate
 
 public fun ProvisionTrustAnchorsFromLoTEs.Companion.eudiwJvm(
     loadLoTEAndPointers: LoadLoTEAndPointers,
-    svcTypePerCtx: SupportedLists<LotEMata<VerificationContext>> = SupportedLists.eu(),
+    svcTypePerCtx: SupportedLists<LotEMeta<VerificationContext>> = SupportedLists.eu(),
     continueOnProblem: ContinueOnProblem = ContinueOnProblem.Never,
     directTrust: ValidateCertificateChainUsingDirectTrust<List<X509Certificate>, TrustAnchor, X509CertificateIdentify> = ValidateCertificateChainUsingDirectTrustJvm,
     pkix: ValidateCertificateChainUsingPKIX<List<X509Certificate>, TrustAnchor> = ValidateCertificateChainUsingPKIXJvm(),
@@ -39,7 +39,7 @@ public fun ProvisionTrustAnchorsFromLoTEs.Companion.eudiwJvm(
 
 public fun <CTX : Any> ProvisionTrustAnchorsFromLoTEs.Companion.jvm(
     loadLoTEAndPointers: LoadLoTEAndPointers,
-    svcTypePerCtx: SupportedLists<LotEMata<CTX>>,
+    svcTypePerCtx: SupportedLists<LotEMeta<CTX>>,
     createTrustAnchors: (ServiceDigitalIdentity) -> List<TrustAnchor> = ::defaultCreateTrustAnchors,
     continueOnProblem: ContinueOnProblem = ContinueOnProblem.Never,
     directTrust: ValidateCertificateChainUsingDirectTrust<List<X509Certificate>, TrustAnchor, X509CertificateIdentify> = ValidateCertificateChainUsingDirectTrustJvm,

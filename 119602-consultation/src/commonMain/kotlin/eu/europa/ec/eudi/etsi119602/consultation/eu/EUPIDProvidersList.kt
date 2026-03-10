@@ -48,19 +48,13 @@ public val EUPIDProvidersList: EUListOfTrustedEntitiesProfile =
             ),
             mustContainX509Certificates = true,
             serviceStatuses = emptySet(),
-            // Support both Direct Trust (end-entity in LoTE) and PKIX (CA in LoTE)
-            certificateProfile = CertificateProfile.EndEntityOrCA(
-                endEntityConstraints = object : CertificateConstraints {
-                    override fun <CERT : Any> CertificateOperations<CERT>.evaluator(): EvaluateMultipleCertificateConstraints<CERT> =
-                        pidProviderCertificateProfileEvaluator()
-                },
-                caConstraints = object : CertificateConstraints {
-                    override fun <CERT : Any> CertificateOperations<CERT>.evaluator(): EvaluateMultipleCertificateConstraints<CERT> =
-                        pidProviderCACertificateConstraintsEvaluator()
-                },
-            ),
-
+            serviceDigitalIdentityCertificateType = ServiceDigitalIdentityCertificateType.EndEntityOrCA,
         ),
+        endEntityCertificateConstraints = object : CertificateConstraints {
+            override fun <CERT : Any> CertificateOperations<CERT>.evaluator(): EvaluateMultipleCertificateConstraints<CERT> =
+                pidProviderCertificateProfileEvaluator()
+        },
+
     )
 
 /**

@@ -33,7 +33,7 @@ class EUPIDProvidersListTest {
     private val cnPidProvider = X500Name("CN=PID Provider Test")
 
     private val evaluateCertificateConstraints =
-        checkNotNull(EUPIDProvidersList.certificateConstraintsEvaluator(CertificateOperationsJvm))
+        checkNotNull(EUPIDProvidersList.endEntityCertificateConstrainsEvaluator(CertificateOperationsJvm))
 
     @Test
     fun `PID Provider validator should validate end-entity certificate`() = runTest {

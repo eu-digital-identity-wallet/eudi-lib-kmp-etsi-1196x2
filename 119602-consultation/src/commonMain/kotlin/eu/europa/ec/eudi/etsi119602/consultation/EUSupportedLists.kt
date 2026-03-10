@@ -26,7 +26,7 @@ import eu.europa.ec.eudi.etsi1196x2.consultation.VerificationContext
  * Source are the list profiles specified in [ETSI19602],
  * except the PUB EAA Providers List
  */
-public fun SupportedLists.Companion.eu(): SupportedLists<LotEMata<VerificationContext>> =
+public fun SupportedLists.Companion.eu(): SupportedLists<LotEMeta<VerificationContext>> =
     SupportedLists(
         pidProviders =
         EUPIDProvidersList.loteMeta(
@@ -59,9 +59,10 @@ public fun SupportedLists.Companion.eu(): SupportedLists<LotEMata<VerificationCo
 private fun <CTX : Any> EUListOfTrustedEntitiesProfile.loteMeta(
     issuance: Set<CTX>,
     revocation: Set<CTX>,
-): LotEMata<CTX> = LotEMata(
+): LotEMeta<CTX> = LotEMeta(
     svcTypePerCtx = svcTypePerCtx(issuance, revocation),
-    certificateProfile = trustedEntities.certificateProfile,
+    serviceDigitalIdentityCertificateType = trustedEntities.serviceDigitalIdentityCertificateType,
+    endEntityCertificateConstraints = endEntityCertificateConstraints,
 )
 
 private fun <CTX : Any> EUListOfTrustedEntitiesProfile.svcTypePerCtx(

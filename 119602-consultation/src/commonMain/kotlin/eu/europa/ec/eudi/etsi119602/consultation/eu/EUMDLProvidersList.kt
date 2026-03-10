@@ -51,6 +51,7 @@ public val EUMDLProvidersList: EUListOfTrustedEntitiesProfile =
             ),
             mustContainX509Certificates = true,
             serviceStatuses = emptySet(),
-            certificateProfile = CertificateProfile.EndEntity(null),
+            serviceDigitalIdentityCertificateType = ServiceDigitalIdentityCertificateType.EndEntityOrCA,
         ),
+        endEntityCertificateConstraints = null,
     )

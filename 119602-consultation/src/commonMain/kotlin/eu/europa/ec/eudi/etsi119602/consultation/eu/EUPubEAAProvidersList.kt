@@ -43,6 +43,7 @@ public val EUPubEAAProvidersList: EUListOfTrustedEntitiesProfile =
                 "http://uri.etsi.org/19602/PubEAAProvidersList/SvcStatus/notified",
                 "http://uri.etsi.org/19602/PubEAAProvidersList/SvcStatus/withdrawn",
             ),
-            certificateProfile = CertificateProfile.CA(constraints = null),
+            serviceDigitalIdentityCertificateType = ServiceDigitalIdentityCertificateType.EndEntityOrCA,
         ),
+        endEntityCertificateConstraints = null,
     )

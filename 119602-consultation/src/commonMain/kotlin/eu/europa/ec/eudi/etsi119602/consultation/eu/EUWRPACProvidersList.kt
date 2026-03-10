@@ -49,14 +49,9 @@ public val EUWRPACProvidersList: EUListOfTrustedEntitiesProfile =
             ),
             mustContainX509Certificates = true,
             serviceStatuses = emptySet(),
-            certificateProfile = CertificateProfile.CA(
-                object : CertificateConstraints {
-                    override fun <CERT : Any> CertificateOperations<CERT>.evaluator(): EvaluateMultipleCertificateConstraints<CERT> =
-                        wrpacProviderCertificateConstraintsEvaluator()
-                },
-            ),
-
+            serviceDigitalIdentityCertificateType = ServiceDigitalIdentityCertificateType.CA,
         ),
+        endEntityCertificateConstraints = null,
     )
 
 /**

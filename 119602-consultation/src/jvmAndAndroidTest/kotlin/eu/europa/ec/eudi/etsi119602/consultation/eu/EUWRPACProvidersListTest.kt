@@ -33,7 +33,7 @@ class EUWRPACProvidersListTest {
     private val cnWrpacProvider = X500Name("CN=WRPAC Provider Test")
 
     private val evaluateCertificateConstraints =
-        checkNotNull(EUWRPACProvidersList.certificateConstraintsEvaluator(CertificateOperationsJvm))
+        checkNotNull(EUWRPACProvidersList.endEntityCertificateConstrainsEvaluator(CertificateOperationsJvm))
 
     @Test
     fun `WRPAC Provider validator should validate CA certificate`() = runTest {

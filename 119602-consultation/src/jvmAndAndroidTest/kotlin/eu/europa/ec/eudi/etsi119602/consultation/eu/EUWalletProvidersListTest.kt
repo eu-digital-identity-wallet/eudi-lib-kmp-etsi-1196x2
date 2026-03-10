@@ -32,7 +32,7 @@ class EUWalletProvidersListTest {
 
     private val cnWalletProvider = X500Name("CN=Wallet Provider Test")
     private val evaluateCertificateConstraints =
-        checkNotNull(EUWalletProvidersList.certificateConstraintsEvaluator(CertificateOperationsJvm))
+        checkNotNull(EUWalletProvidersList.endEntityCertificateConstrainsEvaluator(CertificateOperationsJvm))
 
     @Test
     fun `Wallet Provider validator should validate end-entity certificate`() = runTest {

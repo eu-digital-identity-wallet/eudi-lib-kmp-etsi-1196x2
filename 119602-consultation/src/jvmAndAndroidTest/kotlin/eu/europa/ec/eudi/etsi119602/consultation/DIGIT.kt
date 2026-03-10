@@ -15,8 +15,8 @@
  */
 package eu.europa.ec.eudi.etsi119602.consultation
 
-import eu.europa.ec.eudi.etsi119602.consultation.eu.CertificateProfile
 import eu.europa.ec.eudi.etsi119602.consultation.eu.EUMDLProvidersListSpec
+import eu.europa.ec.eudi.etsi119602.consultation.eu.ServiceDigitalIdentityCertificateType
 import eu.europa.ec.eudi.etsi1196x2.consultation.SensitiveApi
 import eu.europa.ec.eudi.etsi1196x2.consultation.SupportedLists
 import eu.europa.ec.eudi.etsi1196x2.consultation.VerificationContext
@@ -40,29 +40,23 @@ object DIGIT {
         ),
     )
 
-    private fun LotEMata<VerificationContext>.noConstraints() =
-        copy(certificateProfile = certificateProfile.noConstraints())
-
     //
     // Has to relax constraints
     // The advertised lists do not satisfy the ETSI certificates profiles
     // This is ok, given that those lists are not official
     //
-    val SVC_TYPE_PER_CTX: SupportedLists<LotEMata<VerificationContext>>
+    val SVC_TYPE_PER_CTX: SupportedLists<LotEMeta<VerificationContext>>
         get() {
             val euBaseline = SupportedLists.eu()
             return euBaseline.copy(
-                pidProviders = euBaseline.pidProviders?.noConstraints(),
-                walletProviders = euBaseline.walletProviders?.noConstraints(),
-                wrpacProviders = euBaseline.wrpacProviders?.noConstraints(),
                 eaaProviders = mapOf(
-                    "mdl" to LotEMata(
+                    "mdl" to LotEMeta(
                         svcTypePerCtx = mapOf(
                             VerificationContext.EAA("mdl") to EUMDLProvidersListSpec.SVC_TYPE_ISSUANCE,
                             VerificationContext.EAAStatus("mdl") to EUMDLProvidersListSpec.SVC_TYPE_REVOCATION,
                         ),
-                        certificateProfile = CertificateProfile.EndEntityOrCA(),
-
+                        serviceDigitalIdentityCertificateType = ServiceDigitalIdentityCertificateType.EndEntityOrCA,
+                        endEntityCertificateConstraints = null,
                     ),
                 ),
             )

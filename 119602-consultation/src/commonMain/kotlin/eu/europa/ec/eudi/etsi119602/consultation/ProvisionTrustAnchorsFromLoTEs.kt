@@ -17,7 +17,8 @@ package eu.europa.ec.eudi.etsi119602.consultation
 
 import eu.europa.ec.eudi.etsi119602.ServiceDigitalIdentity
 import eu.europa.ec.eudi.etsi119602.URI
-import eu.europa.ec.eudi.etsi119602.consultation.eu.CertificateProfile
+import eu.europa.ec.eudi.etsi119602.consultation.eu.CertificateConstraints
+import eu.europa.ec.eudi.etsi119602.consultation.eu.ServiceDigitalIdentityCertificateType
 import eu.europa.ec.eudi.etsi1196x2.consultation.*
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
@@ -27,12 +28,11 @@ import kotlin.time.Duration
 /**
  * Metadata associated with a LoTE configuration.
  *
- * @param svcTypePerCtx mapping of contexts to service type URIs
- * @param certificateProfile the certificate chain validation algorithm to use
  */
-public data class LotEMata<CTX>(
+public data class LotEMeta<CTX>(
     val svcTypePerCtx: Map<CTX, URI>,
-    val certificateProfile: CertificateProfile,
+    val serviceDigitalIdentityCertificateType: ServiceDigitalIdentityCertificateType,
+    val endEntityCertificateConstraints: CertificateConstraints?,
 )
 
 /**
@@ -54,7 +54,7 @@ public data class LotEMata<CTX>(
  */
 public class ProvisionTrustAnchorsFromLoTEs<CHAIN : Any, CTX : Any, TRUST_ANCHOR : Any>(
     private val loadLoTEAndPointers: LoadLoTEAndPointers,
-    private val svcTypePerCtx: SupportedLists<LotEMata<CTX>>,
+    private val svcTypePerCtx: SupportedLists<LotEMeta<CTX>>,
     private val createTrustAnchors: (ServiceDigitalIdentity) -> List<TRUST_ANCHOR>,
     private val directTrust: ValidateCertificateChainUsingDirectTrust<CHAIN, TRUST_ANCHOR, *>,
     private val pkix: ValidateCertificateChainUsingPKIX<CHAIN, TRUST_ANCHOR>,
@@ -140,10 +140,10 @@ public class ProvisionTrustAnchorsFromLoTEs<CHAIN : Any, CTX : Any, TRUST_ANCHOR
     private fun certificateChainValidator(
         cfg: LoTECfg<CTX>,
     ): ValidateCertificateChain<CHAIN, TRUST_ANCHOR> =
-        when (cfg.metadata.certificateProfile) {
-            is CertificateProfile.EndEntity -> directTrust
-            is CertificateProfile.CA -> pkix
-            is CertificateProfile.EndEntityOrCA -> pkix or directTrust
+        when (cfg.metadata.serviceDigitalIdentityCertificateType) {
+            ServiceDigitalIdentityCertificateType.EndEntity -> directTrust
+            ServiceDigitalIdentityCertificateType.CA -> pkix
+            ServiceDigitalIdentityCertificateType.EndEntityOrCA -> directTrust or pkix
         }
 
     private fun GetTrustAnchors<URI, TRUST_ANCHOR>.cached(
@@ -159,7 +159,7 @@ public class ProvisionTrustAnchorsFromLoTEs<CHAIN : Any, CTX : Any, TRUST_ANCHOR
 
     private data class LoTECfg<CTX : Any>(
         val downloadUrl: String,
-        val metadata: LotEMata<CTX>,
+        val metadata: LotEMeta<CTX>,
     )
 
     private data class CacheArguments(
@@ -171,7 +171,7 @@ public class ProvisionTrustAnchorsFromLoTEs<CHAIN : Any, CTX : Any, TRUST_ANCHOR
     public companion object {
         public fun <CHAIN : Any, TRUST_ANCHOR : Any> eudiw(
             loadLoTEAndPointers: LoadLoTEAndPointers,
-            svcTypePerCtx: SupportedLists<LotEMata<VerificationContext>> = SupportedLists.eu(),
+            svcTypePerCtx: SupportedLists<LotEMeta<VerificationContext>> = SupportedLists.eu(),
             createTrustAnchors: (ServiceDigitalIdentity) -> List<TRUST_ANCHOR>,
             directTrust: ValidateCertificateChainUsingDirectTrust<CHAIN, TRUST_ANCHOR, *>,
             pkix: ValidateCertificateChainUsingPKIX<CHAIN, TRUST_ANCHOR>,

@@ -43,6 +43,8 @@ public data class EUListOfTrustedEntitiesProfile(
      * Trusted entities expectations
      */
     val trustedEntities: EUTrustedEntitiesProfile,
+
+    val endEntityCertificateConstraints: CertificateConstraints?,
 ) {
 
     /**
@@ -83,10 +85,10 @@ public data class EUListOfTrustedEntitiesProfile(
         }
     }
 
-    public inline fun <reified CERT : Any> certificateConstraintsEvaluator(
+    public inline fun <reified CERT : Any> endEntityCertificateConstrainsEvaluator(
         certificateOperations: CertificateOperations<CERT>,
     ): EvaluateCertificateConstraint<CERT>? =
-        trustedEntities.certificateProfile.certificateConstraintsEvaluator(certificateOperations)
+        with(certificateOperations) { endEntityCertificateConstraints?.run { evaluator() } }
 }
 
 public sealed interface ValueRequirement<out T> {
@@ -123,6 +125,7 @@ public sealed interface ServiceTypeIdentifiers {
     }
 }
 
+@Deprecated("Use CertificateProfile instead")
 public sealed interface CertificateProfile {
     public data class EndEntity(val constraints: CertificateConstraints? = null) : CertificateProfile
     public data class CA(val constraints: CertificateConstraints? = null) : CertificateProfile
@@ -154,6 +157,7 @@ public sealed interface CertificateProfile {
             }
         }
     }
+
     public fun noConstraints(): CertificateProfile =
         when (this) {
             is CA -> if (constraints == null) this else CA(null)
@@ -171,6 +175,12 @@ public sealed interface CertificateProfile {
         certificateOperations: CertificateOperations<CERT>,
     ): EvaluateCertificateConstraint<CERT> =
         certificateOperations.evaluator()
+}
+
+public enum class ServiceDigitalIdentityCertificateType {
+    EndEntity,
+    CA,
+    EndEntityOrCA,
 }
 
 /**
@@ -191,7 +201,7 @@ public data class EUTrustedEntitiesProfile(
      */
     val serviceStatuses: Set<URI>,
 
-    val certificateProfile: CertificateProfile,
+    val serviceDigitalIdentityCertificateType: ServiceDigitalIdentityCertificateType,
 
 )
 
