@@ -18,14 +18,12 @@ package eu.europa.ec.eudi.etsi119602.consultation
 import eu.europa.ec.eudi.etsi119602.ServiceDigitalIdentity
 import eu.europa.ec.eudi.etsi119602.x509Certificate
 import eu.europa.ec.eudi.etsi1196x2.consultation.*
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import java.security.cert.TrustAnchor
 import java.security.cert.X509Certificate
 
 public fun ProvisionTrustAnchorsFromLoTEs.Companion.eudiwJvm(
     loadLoTEAndPointers: LoadLoTEAndPointers,
-    svcTypePerCtx: SupportedLists<LotEMata<VerificationContext, X509Certificate>>,
+    svcTypePerCtx: SupportedLists<LotEMeta<VerificationContext>> = SupportedLists.eu(),
     continueOnProblem: ContinueOnProblem = ContinueOnProblem.Never,
     directTrust: ValidateCertificateChainUsingDirectTrust<List<X509Certificate>, TrustAnchor, X509CertificateIdentify> = ValidateCertificateChainUsingDirectTrustJvm,
     pkix: ValidateCertificateChainUsingPKIX<List<X509Certificate>, TrustAnchor> = ValidateCertificateChainUsingPKIXJvm(),
@@ -37,33 +35,28 @@ public fun ProvisionTrustAnchorsFromLoTEs.Companion.eudiwJvm(
         continueOnProblem,
         directTrust,
         pkix,
-        ::defaultGetCertificateInfo,
     )
 
 public fun <CTX : Any> ProvisionTrustAnchorsFromLoTEs.Companion.jvm(
     loadLoTEAndPointers: LoadLoTEAndPointers,
-    svcTypePerCtx: SupportedLists<LotEMata<CTX, X509Certificate>>,
+    svcTypePerCtx: SupportedLists<LotEMeta<CTX>>,
     createTrustAnchors: (ServiceDigitalIdentity) -> List<TrustAnchor> = ::defaultCreateTrustAnchors,
     continueOnProblem: ContinueOnProblem = ContinueOnProblem.Never,
     directTrust: ValidateCertificateChainUsingDirectTrust<List<X509Certificate>, TrustAnchor, X509CertificateIdentify> = ValidateCertificateChainUsingDirectTrustJvm,
     pkix: ValidateCertificateChainUsingPKIX<List<X509Certificate>, TrustAnchor> = ValidateCertificateChainUsingPKIXJvm(),
-    getCertInfo: suspend (X509Certificate) -> String = ::defaultGetCertificateInfo,
 ): ProvisionTrustAnchorsFromLoTEs<List<X509Certificate>, CTX, TrustAnchor, X509Certificate> =
     ProvisionTrustAnchorsFromLoTEs(
         loadLoTEAndPointers,
         svcTypePerCtx,
         createTrustAnchors,
-        extractCertificate = { trustAnchor -> trustAnchor.trustedCert },
         continueOnProblem = continueOnProblem,
-        getCertInfo = getCertInfo,
         directTrust = directTrust,
         pkix = pkix,
+        certificateOperations = CertificateOperationsJvm,
+        endEntityCertificateOf = { checkNotNull(it.firstOrNull()) { "Chaing cannot be empty" } },
     )
 
 public fun defaultCreateTrustAnchors(serviceDigitalIdentity: ServiceDigitalIdentity): List<TrustAnchor> =
     serviceDigitalIdentity.x509Certificates.orEmpty().map {
         TrustAnchor(it.x509Certificate(), null)
     }
-
-internal suspend fun defaultGetCertificateInfo(cert: X509Certificate): String =
-    withContext(Dispatchers.IO) { cert.identity().toString() }

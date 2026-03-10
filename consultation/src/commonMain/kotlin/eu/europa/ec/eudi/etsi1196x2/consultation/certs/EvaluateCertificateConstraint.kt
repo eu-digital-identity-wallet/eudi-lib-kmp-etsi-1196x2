@@ -174,3 +174,34 @@ public suspend fun <CERT : Any> EvaluateCertificateConstraint<CERT>.ensureAllMet
 
     check(violationsPerCert.isEmpty()) { error() }
 }
+
+public infix fun <CERT : Any> EvaluateCertificateConstraint<CERT>.or(
+    other: EvaluateCertificateConstraint<CERT>,
+): EvaluateCertificateConstraint<CERT> = EvaluateCertificateConstraintOr(this, other)
+
+private class EvaluateCertificateConstraintOr<in CERT : Any>(
+    val primary: EvaluateCertificateConstraint<CERT>,
+    val alternative: EvaluateCertificateConstraint<CERT>,
+) : EvaluateCertificateConstraint<CERT> {
+
+    override suspend fun invoke(certificate: CERT): CertificateConstraintEvaluation =
+        when (val primary = primary(certificate)) {
+            is CertificateConstraintEvaluation.Met -> primary
+            is CertificateConstraintEvaluation.Violated -> {
+                when (val alternative = alternative(certificate)) {
+                    is CertificateConstraintEvaluation.Met -> alternative
+                    is CertificateConstraintEvaluation.Violated -> combineViolations(primary, alternative)
+                }
+            }
+        }
+
+    private fun combineViolations(
+        primary: CertificateConstraintEvaluation.Violated,
+        alternative: CertificateConstraintEvaluation.Violated,
+    ): CertificateConstraintEvaluation.Violated {
+        fun CertificateConstraintEvaluation.Violated.prefix(p: String) = violations.map { it.copy(reason = "$p: ${it.reason}") }
+        return CertificateConstraintEvaluation.Violated(
+            primary.prefix("Primary") + alternative.prefix("Alternative"),
+        )
+    }
+}

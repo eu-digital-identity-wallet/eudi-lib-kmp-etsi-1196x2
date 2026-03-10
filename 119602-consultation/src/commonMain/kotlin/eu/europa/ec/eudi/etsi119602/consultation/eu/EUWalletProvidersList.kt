@@ -15,24 +15,19 @@
  */
 package eu.europa.ec.eudi.etsi119602.consultation.eu
 
-import eu.europa.ec.eudi.etsi119602.CountryCode
-import eu.europa.ec.eudi.etsi119602.ETSI19602
-import eu.europa.ec.eudi.etsi119602.LoTEType
-import eu.europa.ec.eudi.etsi119602.MultiLanguageURI
-import eu.europa.ec.eudi.etsi119602.URIValue
+import eu.europa.ec.eudi.etsi119602.*
 import eu.europa.ec.eudi.etsi119602.consultation.ETSI119412
-import eu.europa.ec.eudi.etsi1196x2.consultation.certs.CertificateOperations
-import eu.europa.ec.eudi.etsi1196x2.consultation.certs.CertificatePolicyPresenceConstraint
-import eu.europa.ec.eudi.etsi1196x2.consultation.certs.EvaluateAuthorityInformationAccessConstraint
-import eu.europa.ec.eudi.etsi1196x2.consultation.certs.EvaluateBasicConstraintsConstraint
-import eu.europa.ec.eudi.etsi1196x2.consultation.certs.EvaluateMultipleCertificateConstraints
-import eu.europa.ec.eudi.etsi1196x2.consultation.certs.KeyUsageConstraint
-import eu.europa.ec.eudi.etsi1196x2.consultation.certs.QCStatementConstraint
-import eu.europa.ec.eudi.etsi1196x2.consultation.certs.ValidityPeriodConstraint
+import eu.europa.ec.eudi.etsi1196x2.consultation.certs.*
 
 /**
  * A LoTE profile aimed at supporting the publication by the European Commission of a list of
- * wallet providers according to CIR 2024/2980 i.2 Article 5(2)
+ * Wallet providers according to CIR 2024/2980 Article 5(2).
+ *
+ * **Important:** Per ETSI TS 119 602 Annex E, the ServiceDigitalIdentity may contain either:
+ * - End-entity certificates (Direct Trust validation)
+ * - CA certificates (PKIX validation)
+ *
+ * This profile supports **both** validation methods as specified in LoTE-Certificate-Validation.md v4.5.
  */
 public val EUWalletProvidersList: EUListOfTrustedEntitiesProfile =
     EUListOfTrustedEntitiesProfile(
@@ -53,19 +48,20 @@ public val EUWalletProvidersList: EUListOfTrustedEntitiesProfile =
                 issuance = ETSI19602.EU_WALLET_PROVIDERS_SVC_TYPE_ISSUANCE,
                 revocation = ETSI19602.EU_WALLET_PROVIDERS_SVC_TYPE_REVOCATION,
             ),
-            mustContainX509Certificates = true,
+            serviceDigitalIdentityMustHaveCertificates = true,
             serviceStatuses = emptySet(),
-            chainValidationAlgorithm = ChainValidationAlgorithm.Direct,
-            hasConstraints = object : CertificateConstraints {
-                override fun <CERT : Any> CertificateOperations<CERT>.evaluator(): EvaluateMultipleCertificateConstraints<CERT> =
-                    walletProviderCertificateConstraintsEvaluator()
-            },
+            serviceDigitalIdentityCertificateType = ServiceDigitalIdentityCertificateType.EndEntityOrCA,
+
         ),
+        endEntityCertificateConstraints = object : CertificateConstraints {
+            override fun <CERT : Any> CertificateOperations<CERT>.evaluator(): EvaluateMultipleCertificateConstraints<CERT> =
+                walletProviderCertificateConstraintsEvaluator()
+        },
 
     )
 
 /**
- * Creates constraints for Wallet Provider certificates (LoTE end-entity).
+ * Creates constraints for Wallet Provider end-entity certificates in LoTE.
  *
  * Per ETSI TS 119 602 Annex E and ETSI TS 119 412-6:
  * - Certificate type: End-entity ONLY (cA=FALSE)
@@ -84,7 +80,7 @@ public val EUWalletProvidersList: EUListOfTrustedEntitiesProfile =
  * **Note on QCStatement vs Certificate Policy:** The OID `id-etsi-qct-wal` is a **QCStatement type
  * OID** (QcType) that MUST appear in the QCStatement extension, NOT in the certificatePolicies extension.
  *
- * @return a validator configured for Wallet Provider certificates
+ * @return a validator configured for Wallet Provider end-entity certificates
  */
 public fun <CERT : Any> CertificateOperations<CERT>.walletProviderCertificateConstraintsEvaluator(): EvaluateMultipleCertificateConstraints<CERT> =
     EvaluateMultipleCertificateConstraints.of(
@@ -99,4 +95,26 @@ public fun <CERT : Any> CertificateOperations<CERT>.walletProviderCertificateCon
         // Per EN 319 412-2 §4.3.3: certificatePolicies extension shall be present (TSP-defined OID)
         CertificatePolicyPresenceConstraint.requirePresence(::getCertificatePolicies),
         EvaluateAuthorityInformationAccessConstraint.requireForCaIssued(::isSelfSigned, ::getAiaExtension),
+    )
+
+/**
+ * Creates constraints for Wallet Provider CA certificates in LoTE.
+ *
+ * When the LoTE contains a CA certificate (for PKIX validation), different constraints apply:
+ * - Certificate type: CA (cA=TRUE)
+ * - QCStatement: NOT required (QCStatements are for end-entity certificates only)
+ * - Key Usage: keyCertSign REQUIRED (for issuing certificates)
+ * - Validity: Must be valid at validation time
+ * - Certificate Policy: NOT required for CA certificates
+ * - AIA: NOT required (this is a trust anchor)
+ *
+ * @return a validator configured for Wallet Provider CA certificates
+ */
+public fun <CERT : Any> CertificateOperations<CERT>.walletProviderCACertificateConstraintsEvaluator(
+    maxPathLen: Int? = null,
+): EvaluateMultipleCertificateConstraints<CERT> =
+    EvaluateMultipleCertificateConstraints.of(
+        EvaluateBasicConstraintsConstraint.requireCa(maxPathLen, ::getBasicConstraints),
+        KeyUsageConstraint.requireKeyCertSign(::getKeyUsage),
+        ValidityPeriodConstraint.validateAtCurrentTime(::getValidityPeriod),
     )

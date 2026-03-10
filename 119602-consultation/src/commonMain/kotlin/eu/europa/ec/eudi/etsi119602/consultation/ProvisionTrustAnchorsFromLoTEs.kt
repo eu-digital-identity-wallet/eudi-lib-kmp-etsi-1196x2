@@ -17,8 +17,10 @@ package eu.europa.ec.eudi.etsi119602.consultation
 
 import eu.europa.ec.eudi.etsi119602.ServiceDigitalIdentity
 import eu.europa.ec.eudi.etsi119602.URI
+import eu.europa.ec.eudi.etsi119602.consultation.eu.CertificateConstraints
+import eu.europa.ec.eudi.etsi119602.consultation.eu.ServiceDigitalIdentityCertificateType
 import eu.europa.ec.eudi.etsi1196x2.consultation.*
-import eu.europa.ec.eudi.etsi1196x2.consultation.certs.EvaluateCertificateConstraint
+import eu.europa.ec.eudi.etsi1196x2.consultation.certs.CertificateOperations
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlin.time.Clock
@@ -27,14 +29,11 @@ import kotlin.time.Duration
 /**
  * Metadata associated with a LoTE configuration.
  *
- * @param svcTypePerCtx mapping of contexts to service type URIs
- * @param directTrust whether to use direct trust validation
- * @param certificateConstraints optional certificate constraints to validate
  */
-public data class LotEMata<CTX, in CERT : Any>(
+public data class LotEMeta<CTX>(
     val svcTypePerCtx: Map<CTX, URI>,
-    val directTrust: Boolean,
-    val certificateConstraints: EvaluateCertificateConstraint<CERT>?,
+    val serviceDigitalIdentityCertificateType: ServiceDigitalIdentityCertificateType,
+    val endEntityCertificateConstraints: CertificateConstraints?,
 )
 
 /**
@@ -45,27 +44,24 @@ public data class LotEMata<CTX, in CERT : Any>(
  * @param CHAIN The type representing a certificate chain.
  * @param CTX The type representing a context within which a trust decision is made.
  * @param TRUST_ANCHOR The type representing a trust anchor.
- * @param CERT The type representing a certificate.
  *
  * @property loadLoTEAndPointers A loader for fetching LoTEs and their pointers.
  * @property createTrustAnchors A function that creates a list of trust anchors from a service digital identity.
- * @property extractCertificate A function extracting the certificate type from a trust anchor.
- * @property getCertInfo A suspending function to retrieve certificate information as a string. It is being used to report errors related to certificates not complying to constraints
  * Defaults to the string representation of the certificate.
  * @property directTrust A certificate chain validator based on direct trust.
  * @property pkix A certificate chain validator based on PKIX.
  * @property continueOnProblem Strategy indicating whether to continue on specific issues.
  * @property svcTypePerCtx Supported metadata linked to LoTEs, defining service types per specific contexts.
  */
-public class ProvisionTrustAnchorsFromLoTEs<CHAIN : Any, CTX : Any, TRUST_ANCHOR : Any, CERT : Any>(
+public class ProvisionTrustAnchorsFromLoTEs<CHAIN : Any, CTX : Any, TRUST_ANCHOR : Any, in CERT : Any>(
     private val loadLoTEAndPointers: LoadLoTEAndPointers,
-    private val svcTypePerCtx: SupportedLists<LotEMata<CTX, CERT>>,
+    private val svcTypePerCtx: SupportedLists<LotEMeta<CTX>>,
     private val createTrustAnchors: (ServiceDigitalIdentity) -> List<TRUST_ANCHOR>,
-    private val extractCertificate: (TRUST_ANCHOR) -> CERT,
-    private val getCertInfo: suspend (CERT) -> String = { it.toString() },
     private val directTrust: ValidateCertificateChainUsingDirectTrust<CHAIN, TRUST_ANCHOR, *>,
     private val pkix: ValidateCertificateChainUsingPKIX<CHAIN, TRUST_ANCHOR>,
     private val continueOnProblem: ContinueOnProblem = ContinueOnProblem.Never,
+    private val certificateOperations: CertificateOperations<CERT>,
+    private val endEntityCertificateOf: (CHAIN) -> CERT,
 ) {
 
     /**
@@ -118,7 +114,7 @@ public class ProvisionTrustAnchorsFromLoTEs<CHAIN : Any, CTX : Any, TRUST_ANCHOR
     }
 
     private fun createValidator(
-        cfg: LoTECfg<CTX, CERT>,
+        cfg: LoTECfg<CTX>,
         getTrustAnchors: GetTrustAnchors<URI, TRUST_ANCHOR>,
     ): IsChainTrustedForContext<CHAIN, CTX, TRUST_ANCHOR> {
         val certificateChainValidator = certificateChainValidator(cfg)
@@ -127,7 +123,7 @@ public class ProvisionTrustAnchorsFromLoTEs<CHAIN : Any, CTX : Any, TRUST_ANCHOR
     }
 
     private fun createGetTrustAnchorsFromLoTE(
-        cfg: LoTECfg<CTX, CERT>,
+        cfg: LoTECfg<CTX>,
         args: CacheArguments,
     ): GetTrustAnchorsCachedSource<URI, TRUST_ANCHOR> {
         val getTrustAnchors = createGetTrustAnchorsFromLoTE(cfg)
@@ -135,22 +131,30 @@ public class ProvisionTrustAnchorsFromLoTEs<CHAIN : Any, CTX : Any, TRUST_ANCHOR
     }
 
     private fun createGetTrustAnchorsFromLoTE(
-        cfg: LoTECfg<CTX, CERT>,
+        cfg: LoTECfg<CTX>,
     ): GetTrustAnchors<URI, TRUST_ANCHOR> =
         GetTrustAnchorsFromLoTE(
             loTEDownloadUrl = cfg.downloadUrl,
-            certificateConstraints = cfg.metadata.certificateConstraints,
             loadLoTEAndPointers = loadLoTEAndPointers,
             continueOnProblem = continueOnProblem,
             createTrustAnchors = createTrustAnchors,
-            extractCertificate = extractCertificate,
-            getCertInfo = getCertInfo,
         )
 
     private fun certificateChainValidator(
-        cfg: LoTECfg<CTX, CERT>,
-    ): ValidateCertificateChain<CHAIN, TRUST_ANCHOR> =
-        if (cfg.metadata.directTrust) directTrust else pkix
+        cfg: LoTECfg<CTX>,
+    ): ValidateCertificateChain<CHAIN, TRUST_ANCHOR> {
+        val endEntityCertificateConstraints = cfg.metadata.endEntityCertificateConstraints?.run { with(certificateOperations) { evaluator() } }
+        val validator = when (cfg.metadata.serviceDigitalIdentityCertificateType) {
+            ServiceDigitalIdentityCertificateType.EndEntity -> directTrust
+            ServiceDigitalIdentityCertificateType.CA -> pkix
+            ServiceDigitalIdentityCertificateType.EndEntityOrCA -> directTrust or pkix
+        }
+        return if (endEntityCertificateConstraints != null) {
+            validator.withEndEntityConstraints(endEntityCertificateConstraints, endEntityCertificateOf)
+        } else {
+            validator
+        }
+    }
 
     private fun GetTrustAnchors<URI, TRUST_ANCHOR>.cached(
         args: CacheArguments,
@@ -158,14 +162,14 @@ public class ProvisionTrustAnchorsFromLoTEs<CHAIN : Any, CTX : Any, TRUST_ANCHOR
     ): GetTrustAnchorsCachedSource<URI, TRUST_ANCHOR> =
         cached(args.cacheDispatcher, args.clock, args.ttl, expectedQueries)
 
-    private fun SupportedLists<String>.cfgs(): SupportedLists<LoTECfg<CTX, CERT>> =
+    private fun SupportedLists<String>.cfgs(): SupportedLists<LoTECfg<CTX>> =
         SupportedLists.combine(this, svcTypePerCtx) { url, ctx ->
             LoTECfg(url, ctx)
         }
 
-    private data class LoTECfg<CTX : Any, CERT : Any>(
+    private data class LoTECfg<CTX : Any>(
         val downloadUrl: String,
-        val metadata: LotEMata<CTX, CERT>,
+        val metadata: LotEMeta<CTX>,
     )
 
     private data class CacheArguments(
@@ -177,23 +181,23 @@ public class ProvisionTrustAnchorsFromLoTEs<CHAIN : Any, CTX : Any, TRUST_ANCHOR
     public companion object {
         public fun <CHAIN : Any, TRUST_ANCHOR : Any, CERT : Any> eudiw(
             loadLoTEAndPointers: LoadLoTEAndPointers,
-            svcTypePerCtx: SupportedLists<LotEMata<VerificationContext, CERT>>,
+            svcTypePerCtx: SupportedLists<LotEMeta<VerificationContext>> = SupportedLists.eu(),
             createTrustAnchors: (ServiceDigitalIdentity) -> List<TRUST_ANCHOR>,
-            extractCertificate: (TRUST_ANCHOR) -> CERT,
-            getCertInfo: suspend (CERT) -> String,
             directTrust: ValidateCertificateChainUsingDirectTrust<CHAIN, TRUST_ANCHOR, *>,
             pkix: ValidateCertificateChainUsingPKIX<CHAIN, TRUST_ANCHOR>,
             continueOnProblem: ContinueOnProblem = ContinueOnProblem.Never,
+            certificateOperations: CertificateOperations<CERT>,
+            endEntityCertificateOf: (CHAIN) -> CERT,
         ): ProvisionTrustAnchorsFromLoTEs<CHAIN, VerificationContext, TRUST_ANCHOR, CERT> =
             ProvisionTrustAnchorsFromLoTEs(
                 loadLoTEAndPointers,
                 svcTypePerCtx,
                 createTrustAnchors,
-                extractCertificate,
-                getCertInfo,
                 directTrust,
                 pkix,
                 continueOnProblem,
+                certificateOperations,
+                endEntityCertificateOf,
             )
     }
 }

@@ -38,12 +38,12 @@ public val EUPubEAAProvidersList: EUListOfTrustedEntitiesProfile =
                 issuance = ETSI19602.EU_PUB_EAA_PROVIDERS_SVC_TYPE_ISSUANCE,
                 revocation = ETSI19602.EU_PUB_EAA_PROVIDERS_SVC_TYPE_REVOCATION,
             ),
-            mustContainX509Certificates = false,
+            serviceDigitalIdentityMustHaveCertificates = false,
             serviceStatuses = setOf(
                 "http://uri.etsi.org/19602/PubEAAProvidersList/SvcStatus/notified",
                 "http://uri.etsi.org/19602/PubEAAProvidersList/SvcStatus/withdrawn",
             ),
-            chainValidationAlgorithm = ChainValidationAlgorithm.PKIX,
-            hasConstraints = null,
+            serviceDigitalIdentityCertificateType = ServiceDigitalIdentityCertificateType.EndEntityOrCA,
         ),
+        endEntityCertificateConstraints = null,
     )

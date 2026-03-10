@@ -15,6 +15,9 @@
  */
 package eu.europa.ec.eudi.etsi1196x2.consultation
 
+import eu.europa.ec.eudi.etsi1196x2.consultation.certs.CertificateConstraintEvaluation
+import eu.europa.ec.eudi.etsi1196x2.consultation.certs.EvaluateCertificateConstraint
+
 /**
  * An abstraction for validating a certificate chain, given a set of trust anchors
  *
@@ -58,6 +61,24 @@ public fun interface ValidateCertificateChain<in CHAIN : Any, TRUST_ANCHOR : Any
 public fun interface ValidateCertificateChainUsingPKIX<in CHAIN : Any, TRUST_ANCHOR : Any> :
     ValidateCertificateChain<CHAIN, TRUST_ANCHOR>
 
+public class ValidateCertificateChainUsingDirectTrust<in CHAIN : Any, TRUST_ANCHOR : Any, in CERT_ID : Any>(
+    private val headCertificateId: (CHAIN) -> CERT_ID,
+    private val trustToCertificateId: (TRUST_ANCHOR) -> CERT_ID,
+) : ValidateCertificateChain<CHAIN, TRUST_ANCHOR> {
+    override suspend fun invoke(
+        chain: CHAIN,
+        trustAnchors: NonEmptyList<TRUST_ANCHOR>,
+    ): CertificationChainValidation<TRUST_ANCHOR> {
+        val head = headCertificateId(chain)
+        val trustAnchor = trustAnchors.list.firstOrNull { trustToCertificateId(it) == head }
+        return if (trustAnchor != null) {
+            CertificationChainValidation.Trusted(trustAnchor)
+        } else {
+            CertificationChainValidation.NotTrusted(IllegalStateException("Not trusted"))
+        }
+    }
+}
+
 /**
  * Represents the outcome of the validation
  *
@@ -83,21 +104,6 @@ public sealed interface CertificationChainValidation<out TRUST_ANCHOR : Any> {
     public data class NotTrusted(val cause: Throwable) : CertificationChainValidation<Nothing>
 }
 
-public class ValidateCertificateChainUsingDirectTrust<in CHAIN : Any, TRUST_ANCHOR : Any, in CERT_ID : Any>(
-    private val headCertificateId: (CHAIN) -> CERT_ID,
-    private val trustToCertificateId: (TRUST_ANCHOR) -> CERT_ID,
-) : ValidateCertificateChain<CHAIN, TRUST_ANCHOR> {
-    override suspend fun invoke(chain: CHAIN, trustAnchors: NonEmptyList<TRUST_ANCHOR>): CertificationChainValidation<TRUST_ANCHOR> {
-        val head = headCertificateId(chain)
-        val trustAnchor = trustAnchors.list.firstOrNull { trustToCertificateId(it) == head }
-        return if (trustAnchor != null) {
-            CertificationChainValidation.Trusted(trustAnchor)
-        } else {
-            CertificationChainValidation.NotTrusted(IllegalStateException("Not trusted"))
-        }
-    }
-}
-
 /**
  * Changes the representation of the certificate chain
  *
@@ -118,4 +124,86 @@ private class ValidateCertificateChainContraMap<C1 : Any, TA : Any, C2 : Any>(
 ) : ValidateCertificateChain<C2, TA> {
     override suspend fun invoke(chain: C2, trustAnchors: NonEmptyList<TA>): CertificationChainValidation<TA> =
         delegate(transform(chain), trustAnchors)
+}
+
+public infix fun <C : Any, TA : Any> ValidateCertificateChain<C, TA>.or(
+    other: ValidateCertificateChain<C, TA>,
+): ValidateCertificateChain<C, TA> =
+    ValidateCertificateChainUsingAlternatives(this, other)
+
+private class ValidateCertificateChainUsingAlternatives<CHAIN : Any, TRUST_ANCHOR : Any>(
+    private val primary: ValidateCertificateChain<CHAIN, TRUST_ANCHOR>,
+    private val alternative: ValidateCertificateChain<CHAIN, TRUST_ANCHOR>,
+) : ValidateCertificateChain<CHAIN, TRUST_ANCHOR> {
+    override suspend fun invoke(
+        chain: CHAIN,
+        trustAnchors: NonEmptyList<TRUST_ANCHOR>,
+    ): CertificationChainValidation<TRUST_ANCHOR> =
+        when (val primary = primary(chain, trustAnchors)) {
+            is CertificationChainValidation.Trusted -> primary
+            is CertificationChainValidation.NotTrusted -> alternative(chain, trustAnchors)
+        }
+}
+
+/**
+ * Wraps this validator to first validate end-entity certificate constraints
+ * before performing chain validation.
+ *
+ * This is a convenience overload for [ValidateCertificateChain] with `CHAIN = List<CERT>`.
+ * Extracts the first certificate from the chain as the end-entity certificate.
+ *
+ * @param evaluateCertificateConstraints constraint evaluator for end-entity certificates
+ * @return a new validator that enforces constraints before chain validation
+ *
+ * @see withEndEntityConstraints general version with custom extractor
+ */
+public fun <TA : Any, CERT : Any> ValidateCertificateChain<List<CERT>, TA>.withEndEntityConstraints(
+    evaluateCertificateConstraints: EvaluateCertificateConstraint<CERT>,
+): ValidateCertificateChain<List<CERT>, TA> =
+    withEndEntityConstraints(evaluateCertificateConstraints) { chain ->
+        requireNotNull(chain.firstOrNull()) { "Chain cannot be empty" }
+    }
+
+/**
+ * Wraps this validator to first validate end-entity certificate constraints
+ * before performing chain validation.
+ *
+*
+ * @param evaluateCertificateConstraints constraint evaluator for end-entity certificates
+ * @param endEntityCertificateOf function to extract the end-entity certificate from the chain
+ * @return a new validator that enforces constraints before chain validation
+ *
+ * @see withEndEntityConstraints general version with custom extractor
+ */
+public fun <CHAIN : Any, TA : Any, CERT : Any> ValidateCertificateChain<CHAIN, TA>.withEndEntityConstraints(
+    evaluateCertificateConstraints: EvaluateCertificateConstraint<CERT>,
+    endEntityCertificateOf: (CHAIN) -> CERT,
+): ValidateCertificateChain<CHAIN, TA> =
+    ValidateCertificateChainWithEndEntityConstraints(this, evaluateCertificateConstraints, endEntityCertificateOf)
+
+private class ValidateCertificateChainWithEndEntityConstraints<CHAIN : Any, TRUST_ANCHOR : Any, CERT : Any>(
+    private val primary: ValidateCertificateChain<CHAIN, TRUST_ANCHOR>,
+    private val evaluateCertificateConstraints: EvaluateCertificateConstraint<CERT>,
+    private val endEntityCertificateOf: (CHAIN) -> CERT,
+) : ValidateCertificateChain<CHAIN, TRUST_ANCHOR> {
+    override suspend fun invoke(
+        chain: CHAIN,
+        trustAnchors: NonEmptyList<TRUST_ANCHOR>,
+    ): CertificationChainValidation<TRUST_ANCHOR> {
+        val endEntityCertificate = endEntityCertificateOf(chain)
+        return when (val evaluation = evaluateCertificateConstraints(endEntityCertificate)) {
+            is CertificateConstraintEvaluation.Met -> primary(chain, trustAnchors)
+            is CertificateConstraintEvaluation.Violated -> {
+                noTrustedDueToViolations(evaluation)
+            }
+        }
+    }
+
+    private fun noTrustedDueToViolations(
+        violated: CertificateConstraintEvaluation.Violated,
+    ): CertificationChainValidation.NotTrusted {
+        val msg =
+            "End-entity Certificate violates constraints: " + violated.violations.joinToString(separator = "\n") { it.reason }
+        return CertificationChainValidation.NotTrusted(IllegalStateException(msg))
+    }
 }

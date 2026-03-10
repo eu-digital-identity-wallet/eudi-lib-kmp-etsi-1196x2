@@ -16,13 +16,12 @@
 package eu.europa.ec.eudi.etsi119602.consultation
 
 import eu.europa.ec.eudi.etsi119602.consultation.eu.EUMDLProvidersListSpec
-import eu.europa.ec.eudi.etsi1196x2.consultation.CertificateOperationsJvm
+import eu.europa.ec.eudi.etsi119602.consultation.eu.ServiceDigitalIdentityCertificateType
 import eu.europa.ec.eudi.etsi1196x2.consultation.SensitiveApi
 import eu.europa.ec.eudi.etsi1196x2.consultation.SupportedLists
 import eu.europa.ec.eudi.etsi1196x2.consultation.VerificationContext
 import kotlinx.coroutines.test.runTest
 import kotlinx.io.files.Path
-import java.security.cert.X509Certificate
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.time.Duration.Companion.hours
@@ -41,29 +40,23 @@ object DIGIT {
         ),
     )
 
-    private fun LotEMata<VerificationContext, X509Certificate>.noConstraints() =
-        copy(certificateConstraints = null)
-
     //
     // Has to relax constraints
     // The advertised lists do not satisfy the ETSI certificates profiles
     // This is ok, given that those lists are not official
     //
-    val SVC_TYPE_PER_CTX: SupportedLists<LotEMata<VerificationContext, X509Certificate>>
+    val SVC_TYPE_PER_CTX: SupportedLists<LotEMeta<VerificationContext>>
         get() {
-            val euBaseline = SupportedLists.eu(CertificateOperationsJvm)
+            val euBaseline = SupportedLists.eu()
             return euBaseline.copy(
-                pidProviders = euBaseline.pidProviders?.noConstraints(),
-                walletProviders = euBaseline.walletProviders?.noConstraints(),
-                wrpacProviders = euBaseline.wrpacProviders?.noConstraints(),
                 eaaProviders = mapOf(
-                    "mdl" to LotEMata(
+                    "mdl" to LotEMeta(
                         svcTypePerCtx = mapOf(
                             VerificationContext.EAA("mdl") to EUMDLProvidersListSpec.SVC_TYPE_ISSUANCE,
                             VerificationContext.EAAStatus("mdl") to EUMDLProvidersListSpec.SVC_TYPE_REVOCATION,
                         ),
-                        directTrust = true,
-                        certificateConstraints = null,
+                        serviceDigitalIdentityCertificateType = ServiceDigitalIdentityCertificateType.EndEntityOrCA,
+                        endEntityCertificateConstraints = null,
                     ),
                 ),
             )
@@ -72,7 +65,8 @@ object DIGIT {
 
 class DIGITTest {
 
-    @Test @SensitiveApi
+    @Test
+    @SensitiveApi
     fun testDownload() = runTest {
         createHttpClient().use { httpClient ->
             val fileStore = LoTEFileStore(

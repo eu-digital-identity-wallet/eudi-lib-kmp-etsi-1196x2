@@ -49,9 +49,9 @@ public val EUMDLProvidersList: EUListOfTrustedEntitiesProfile =
                 issuance = EUMDLProvidersListSpec.SVC_TYPE_ISSUANCE,
                 revocation = EUMDLProvidersListSpec.SVC_TYPE_REVOCATION,
             ),
-            mustContainX509Certificates = true,
+            serviceDigitalIdentityMustHaveCertificates = true,
             serviceStatuses = emptySet(),
-            chainValidationAlgorithm = ChainValidationAlgorithm.Direct,
-            hasConstraints = null,
+            serviceDigitalIdentityCertificateType = ServiceDigitalIdentityCertificateType.EndEntityOrCA,
         ),
+        endEntityCertificateConstraints = null,
     )

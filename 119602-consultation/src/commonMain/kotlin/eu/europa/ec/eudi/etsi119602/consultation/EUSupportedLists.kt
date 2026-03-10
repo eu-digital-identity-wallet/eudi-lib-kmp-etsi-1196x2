@@ -20,22 +20,14 @@ import eu.europa.ec.eudi.etsi119602.URI
 import eu.europa.ec.eudi.etsi119602.consultation.eu.*
 import eu.europa.ec.eudi.etsi1196x2.consultation.SupportedLists
 import eu.europa.ec.eudi.etsi1196x2.consultation.VerificationContext
-import eu.europa.ec.eudi.etsi1196x2.consultation.certs.CertificateOperations
 
 /**
  * Known combinations of [VerificationContext] and Service Type Identifiers (for LoTEs)
  * Source are the list profiles specified in [ETSI19602],
  * except the PUB EAA Providers List
  */
-public fun <CERT : Any> SupportedLists.Companion.eu(
-    certificateOperations: CertificateOperations<CERT>,
-): SupportedLists<LotEMata<VerificationContext, CERT>> {
-    fun EUListOfTrustedEntitiesProfile.loteMeta(
-        issuance: Set<VerificationContext>,
-        revocation: Set<VerificationContext> = emptySet(),
-    ) = loteMeta(certificateOperations, issuance, revocation)
-
-    return SupportedLists(
+public fun SupportedLists.Companion.eu(): SupportedLists<LotEMeta<VerificationContext>> =
+    SupportedLists(
         pidProviders =
         EUPIDProvidersList.loteMeta(
             issuance = setOf(VerificationContext.PID),
@@ -63,16 +55,14 @@ public fun <CERT : Any> SupportedLists.Companion.eu(
         pubEaaProviders = null,
         qeaProviders = null,
     )
-}
 
-private fun <CTX : Any, CERT : Any> EUListOfTrustedEntitiesProfile.loteMeta(
-    certificateOperations: CertificateOperations<CERT>,
+private fun <CTX : Any> EUListOfTrustedEntitiesProfile.loteMeta(
     issuance: Set<CTX>,
     revocation: Set<CTX>,
-): LotEMata<CTX, CERT> = LotEMata(
+): LotEMeta<CTX> = LotEMeta(
     svcTypePerCtx = svcTypePerCtx(issuance, revocation),
-    directTrust = directTrust,
-    certificateConstraints = certificateConstraintsEvaluator(certificateOperations),
+    serviceDigitalIdentityCertificateType = trustedEntities.serviceDigitalIdentityCertificateType,
+    endEntityCertificateConstraints = endEntityCertificateConstraints,
 )
 
 private fun <CTX : Any> EUListOfTrustedEntitiesProfile.svcTypePerCtx(
@@ -87,10 +77,4 @@ private fun <CTX : Any> EUListOfTrustedEntitiesProfile.svcTypePerCtx(
                 revocation.forEach { put(it, ss.revocation) }
             }
         }
-    }
-
-private val EUListOfTrustedEntitiesProfile.directTrust: Boolean
-    get() = when (trustedEntities.chainValidationAlgorithm) {
-        ChainValidationAlgorithm.Direct -> true
-        ChainValidationAlgorithm.PKIX -> false
     }

@@ -17,12 +17,7 @@ package eu.europa.ec.eudi.etsi119602.consultation.eu
 
 import eu.europa.ec.eudi.etsi119602.*
 import eu.europa.ec.eudi.etsi119602.consultation.ETSI119475
-import eu.europa.ec.eudi.etsi1196x2.consultation.certs.CertificateOperations
-import eu.europa.ec.eudi.etsi1196x2.consultation.certs.CertificatePolicyConstraint
-import eu.europa.ec.eudi.etsi1196x2.consultation.certs.EvaluateBasicConstraintsConstraint
-import eu.europa.ec.eudi.etsi1196x2.consultation.certs.EvaluateMultipleCertificateConstraints
-import eu.europa.ec.eudi.etsi1196x2.consultation.certs.KeyUsageConstraint
-import eu.europa.ec.eudi.etsi1196x2.consultation.certs.ValidityPeriodConstraint
+import eu.europa.ec.eudi.etsi1196x2.consultation.certs.*
 
 public val EUWRPRCProvidersList: EUListOfTrustedEntitiesProfile =
     EUListOfTrustedEntitiesProfile(
@@ -43,14 +38,11 @@ public val EUWRPRCProvidersList: EUListOfTrustedEntitiesProfile =
                 issuance = ETSI19602.EU_WRPRC_PROVIDERS_SVC_TYPE_ISSUANCE,
                 revocation = ETSI19602.EU_WRPRC_PROVIDERS_SVC_TYPE_REVOCATION,
             ),
-            mustContainX509Certificates = true,
+            serviceDigitalIdentityMustHaveCertificates = true,
             serviceStatuses = emptySet(),
-            chainValidationAlgorithm = ChainValidationAlgorithm.PKIX,
-            hasConstraints = object : CertificateConstraints {
-                override fun <CERT : Any> CertificateOperations<CERT>.evaluator(): EvaluateMultipleCertificateConstraints<CERT> =
-                    wrprcProviderCertificateConstraintsEvaluator()
-            },
+            serviceDigitalIdentityCertificateType = ServiceDigitalIdentityCertificateType.EndEntityOrCA,
         ),
+        endEntityCertificateConstraints = null,
     )
 
 /**

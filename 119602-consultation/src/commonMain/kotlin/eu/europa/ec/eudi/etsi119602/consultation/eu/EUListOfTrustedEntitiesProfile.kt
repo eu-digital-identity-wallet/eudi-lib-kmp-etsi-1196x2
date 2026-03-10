@@ -30,6 +30,7 @@ import kotlinx.datetime.monthsUntil
  * @see EUWRPACProvidersList
  * @see EUWRPRCProvidersList
  * @see EUPubEAAProvidersList
+ * @see EUMDLProvidersList
  */
 public data class EUListOfTrustedEntitiesProfile(
     /**
@@ -41,6 +42,8 @@ public data class EUListOfTrustedEntitiesProfile(
      * Trusted entities expectations
      */
     val trustedEntities: EUTrustedEntitiesProfile,
+
+    val endEntityCertificateConstraints: CertificateConstraints?,
 ) {
 
     /**
@@ -81,10 +84,10 @@ public data class EUListOfTrustedEntitiesProfile(
         }
     }
 
-    public fun <CERT : Any> certificateConstraintsEvaluator(
+    public inline fun <reified CERT : Any> endEntityCertificateConstrainsEvaluator(
         certificateOperations: CertificateOperations<CERT>,
     ): EvaluateCertificateConstraint<CERT>? =
-        trustedEntities.hasConstraints?.run { certificateOperations.evaluator() }
+        with(certificateOperations) { endEntityCertificateConstraints?.run { evaluator() } }
 }
 
 public sealed interface ValueRequirement<out T> {
@@ -121,7 +124,11 @@ public sealed interface ServiceTypeIdentifiers {
     }
 }
 
-public enum class ChainValidationAlgorithm { Direct, PKIX }
+public enum class ServiceDigitalIdentityCertificateType {
+    EndEntity,
+    CA,
+    EndEntityOrCA,
+}
 
 /**
  * Expectations about trusted entities of an EU-specific LoTE
@@ -135,15 +142,13 @@ public data class EUTrustedEntitiesProfile(
      * Indicates whether the LoTE must contain services that are identified in
      * terms of X509 certificates
      */
-    val mustContainX509Certificates: Boolean,
+    val serviceDigitalIdentityMustHaveCertificates: Boolean,
     /**
      * Exclusive set of service statuses that trusted entities of the LoTE may support.
      */
     val serviceStatuses: Set<URI>,
 
-    val chainValidationAlgorithm: ChainValidationAlgorithm,
-
-    val hasConstraints: CertificateConstraints?,
+    val serviceDigitalIdentityCertificateType: ServiceDigitalIdentityCertificateType,
 )
 
 public interface CertificateConstraints {
@@ -349,14 +354,14 @@ internal interface TrustedEntityAssertions {
     @Throws(IllegalStateException::class)
     fun ServiceInformation.ensureCompliesTo(trustedEntities: EUTrustedEntitiesProfile) {
         ensureServiceTypeIsAnyOf(trustedEntities.serviceTypeIdentifiers)
-        ensureDigitalIdentityContainsX509Certificate(trustedEntities.mustContainX509Certificates)
+        ensureDigitalIdentityContainsX509Certificate(trustedEntities.serviceDigitalIdentityMustHaveCertificates)
         ensureServiceStatusIn(trustedEntities.serviceStatuses)
     }
 
     @Throws(IllegalStateException::class)
     fun ServiceHistoryInstance.ensureCompliesTo(trustedEntities: EUTrustedEntitiesProfile) {
         ensureServiceTypeIsAnyOf(trustedEntities.serviceTypeIdentifiers)
-        ensureDigitalIdentityContainsX509Certificate(trustedEntities.mustContainX509Certificates)
+        ensureDigitalIdentityContainsX509Certificate(trustedEntities.serviceDigitalIdentityMustHaveCertificates)
     }
 
     @Throws(IllegalStateException::class)

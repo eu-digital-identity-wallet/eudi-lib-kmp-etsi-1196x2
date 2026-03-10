@@ -17,6 +17,7 @@ package eu.europa.ec.eudi.etsi119602.consultation.jp
 
 import com.nimbusds.jwt.SignedJWT
 import eu.europa.ec.eudi.etsi119602.consultation.*
+import eu.europa.ec.eudi.etsi119602.consultation.eu.ServiceDigitalIdentityCertificateType
 import eu.europa.ec.eudi.etsi119602.consultation.jp.JPPoC.LC_VCT
 import eu.europa.ec.eudi.etsi1196x2.consultation.*
 import eu.europa.ec.eudi.sdjwt.vc.*
@@ -43,24 +44,25 @@ object JPPoC {
     private const val LC_EAA_PROVIDER_SVC_TYPE =
         "http://tl.eujp.ownd-project.com/19602/SvcType/EAA/Issuance"
     private const val LC_USE_CASE = "jp-learning-credential-poc"
-    private val wrpacProviders: LotEMata<VerificationContext, X509Certificate> =
-        LotEMata(
+    private val wrpacProviders: LotEMeta<VerificationContext> =
+        LotEMeta(
             svcTypePerCtx = mapOf(
                 VerificationContext.WalletRelyingPartyAccessCertificate to JP_WRPAC_PROVIDER_ISSUANCE_SVC_TYPE,
             ),
-            directTrust = false,
-            certificateConstraints = null,
+            serviceDigitalIdentityCertificateType = ServiceDigitalIdentityCertificateType.CA,
+            endEntityCertificateConstraints = null,
+
         )
 
-    private val learningCredentialProviders: LotEMata<VerificationContext, X509Certificate> = LotEMata(
+    private val learningCredentialProviders: LotEMeta<VerificationContext> = LotEMeta(
         svcTypePerCtx =
         mapOf(
             VerificationContext.EAA(LC_USE_CASE) to LC_EAA_PROVIDER_SVC_TYPE,
         ),
-        directTrust = true,
-        certificateConstraints = null,
+        serviceDigitalIdentityCertificateType = ServiceDigitalIdentityCertificateType.EndEntityOrCA,
+        endEntityCertificateConstraints = null,
     )
-    val SVC_TYPE_PER_CTX: SupportedLists<LotEMata<VerificationContext, X509Certificate>> =
+    val SVC_TYPE_PER_CTX: SupportedLists<LotEMeta<VerificationContext>> =
         SupportedLists(
             wrpacProviders = wrpacProviders,
             eaaProviders = mapOf(LC_USE_CASE to learningCredentialProviders),
@@ -91,7 +93,8 @@ object JPPoC {
 
 class JPLoTEDownloaderTest {
 
-    @Test @SensitiveApi
+    @Test
+    @SensitiveApi
     fun testDownload() = runTest {
         createHttpClient().use { httpClient ->
 
