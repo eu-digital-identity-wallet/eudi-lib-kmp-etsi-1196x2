@@ -17,7 +17,6 @@ package eu.europa.ec.eudi.etsi119602.consultation.eu
 
 import eu.europa.ec.eudi.etsi119602.*
 import eu.europa.ec.eudi.etsi119602.consultation.eu.TrustedEntityAssertions.Companion.ensureTrustedEntities
-import eu.europa.ec.eudi.etsi1196x2.consultation.certs.CertificateConstraintEvaluation
 import eu.europa.ec.eudi.etsi1196x2.consultation.certs.CertificateOperations
 import eu.europa.ec.eudi.etsi1196x2.consultation.certs.EvaluateCertificateConstraint
 import kotlinx.datetime.TimeZone
@@ -125,58 +124,6 @@ public sealed interface ServiceTypeIdentifiers {
     }
 }
 
-@Deprecated("Use CertificateProfile instead")
-public sealed interface CertificateProfile {
-    public data class EndEntity(val constraints: CertificateConstraints? = null) : CertificateProfile
-    public data class CA(val constraints: CertificateConstraints? = null) : CertificateProfile
-    public data class EndEntityOrCA(
-        val endEntityConstraints: CertificateConstraints? = null,
-        val caConstraints: CertificateConstraints? = null,
-    ) : CertificateProfile
-
-    public fun <CERT : Any> certificateConstraintsEvaluator(
-        certificateOperations: CertificateOperations<CERT>,
-    ): EvaluateCertificateConstraint<CERT>? {
-        return when (this) {
-            is EndEntity -> constraints?.evaluator(certificateOperations)
-            is CA -> constraints?.evaluator(certificateOperations)
-            is EndEntityOrCA -> {
-                if (endEntityConstraints == null && caConstraints == null) {
-                    null
-                } else {
-                    EvaluateCertificateConstraint { certificate ->
-                        val isCA = certificateOperations.getBasicConstraints(certificate).isCa
-                        val evaluator = if (isCA) {
-                            caConstraints?.evaluator(certificateOperations)
-                        } else {
-                            endEntityConstraints?.evaluator(certificateOperations)
-                        }
-                        evaluator?.invoke(certificate) ?: CertificateConstraintEvaluation.Met
-                    }
-                }
-            }
-        }
-    }
-
-    public fun noConstraints(): CertificateProfile =
-        when (this) {
-            is CA -> if (constraints == null) this else CA(null)
-            is EndEntity -> if (constraints == null) this else EndEntity(null)
-            is EndEntityOrCA -> {
-                if (endEntityConstraints == null && caConstraints == null) {
-                    this
-                } else {
-                    EndEntityOrCA(null, null)
-                }
-            }
-        }
-
-    private fun <CERT : Any> CertificateConstraints.evaluator(
-        certificateOperations: CertificateOperations<CERT>,
-    ): EvaluateCertificateConstraint<CERT> =
-        certificateOperations.evaluator()
-}
-
 public enum class ServiceDigitalIdentityCertificateType {
     EndEntity,
     CA,
@@ -195,14 +142,13 @@ public data class EUTrustedEntitiesProfile(
      * Indicates whether the LoTE must contain services that are identified in
      * terms of X509 certificates
      */
-    val mustContainX509Certificates: Boolean,
+    val serviceDigitalIdentityMustHaveCertificates: Boolean,
     /**
      * Exclusive set of service statuses that trusted entities of the LoTE may support.
      */
     val serviceStatuses: Set<URI>,
 
     val serviceDigitalIdentityCertificateType: ServiceDigitalIdentityCertificateType,
-
 )
 
 public interface CertificateConstraints {
@@ -408,14 +354,14 @@ internal interface TrustedEntityAssertions {
     @Throws(IllegalStateException::class)
     fun ServiceInformation.ensureCompliesTo(trustedEntities: EUTrustedEntitiesProfile) {
         ensureServiceTypeIsAnyOf(trustedEntities.serviceTypeIdentifiers)
-        ensureDigitalIdentityContainsX509Certificate(trustedEntities.mustContainX509Certificates)
+        ensureDigitalIdentityContainsX509Certificate(trustedEntities.serviceDigitalIdentityMustHaveCertificates)
         ensureServiceStatusIn(trustedEntities.serviceStatuses)
     }
 
     @Throws(IllegalStateException::class)
     fun ServiceHistoryInstance.ensureCompliesTo(trustedEntities: EUTrustedEntitiesProfile) {
         ensureServiceTypeIsAnyOf(trustedEntities.serviceTypeIdentifiers)
-        ensureDigitalIdentityContainsX509Certificate(trustedEntities.mustContainX509Certificates)
+        ensureDigitalIdentityContainsX509Certificate(trustedEntities.serviceDigitalIdentityMustHaveCertificates)
     }
 
     @Throws(IllegalStateException::class)

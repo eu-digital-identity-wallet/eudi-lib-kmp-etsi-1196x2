@@ -38,7 +38,7 @@ public val EUWRPRCProvidersList: EUListOfTrustedEntitiesProfile =
                 issuance = ETSI19602.EU_WRPRC_PROVIDERS_SVC_TYPE_ISSUANCE,
                 revocation = ETSI19602.EU_WRPRC_PROVIDERS_SVC_TYPE_REVOCATION,
             ),
-            mustContainX509Certificates = true,
+            serviceDigitalIdentityMustHaveCertificates = true,
             serviceStatuses = emptySet(),
             serviceDigitalIdentityCertificateType = ServiceDigitalIdentityCertificateType.EndEntityOrCA,
         ),
