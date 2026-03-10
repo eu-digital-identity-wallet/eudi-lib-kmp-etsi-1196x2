@@ -170,27 +170,27 @@ public fun <TA : Any, CERT : Any> ValidateCertificateChain<List<CERT>, TA>.withE
  *
 *
  * @param evaluateCertificateConstraints constraint evaluator for end-entity certificates
- * @param endEntityCertificate function to extract the end-entity certificate from the chain
+ * @param endEntityCertificateOf function to extract the end-entity certificate from the chain
  * @return a new validator that enforces constraints before chain validation
  *
  * @see withEndEntityConstraints general version with custom extractor
  */
 public fun <CHAIN : Any, TA : Any, CERT : Any> ValidateCertificateChain<CHAIN, TA>.withEndEntityConstraints(
     evaluateCertificateConstraints: EvaluateCertificateConstraint<CERT>,
-    endEntityCertificate: (CHAIN) -> CERT,
+    endEntityCertificateOf: (CHAIN) -> CERT,
 ): ValidateCertificateChain<CHAIN, TA> =
-    ValidateCertificateChainWithEndEntityConstraints(this, evaluateCertificateConstraints, endEntityCertificate)
+    ValidateCertificateChainWithEndEntityConstraints(this, evaluateCertificateConstraints, endEntityCertificateOf)
 
 private class ValidateCertificateChainWithEndEntityConstraints<CHAIN : Any, TRUST_ANCHOR : Any, CERT : Any>(
     private val primary: ValidateCertificateChain<CHAIN, TRUST_ANCHOR>,
     private val evaluateCertificateConstraints: EvaluateCertificateConstraint<CERT>,
-    private val endEntityCertificate: (CHAIN) -> CERT,
+    private val endEntityCertificateOf: (CHAIN) -> CERT,
 ) : ValidateCertificateChain<CHAIN, TRUST_ANCHOR> {
     override suspend fun invoke(
         chain: CHAIN,
         trustAnchors: NonEmptyList<TRUST_ANCHOR>,
     ): CertificationChainValidation<TRUST_ANCHOR> {
-        val endEntityCertificate = endEntityCertificate(chain)
+        val endEntityCertificate = endEntityCertificateOf(chain)
         return when (val evaluation = evaluateCertificateConstraints(endEntityCertificate)) {
             is CertificateConstraintEvaluation.Met -> primary(chain, trustAnchors)
             is CertificateConstraintEvaluation.Violated -> {

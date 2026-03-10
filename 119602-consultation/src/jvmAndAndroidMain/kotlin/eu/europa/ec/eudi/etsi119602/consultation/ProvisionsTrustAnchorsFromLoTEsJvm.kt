@@ -27,7 +27,7 @@ public fun ProvisionTrustAnchorsFromLoTEs.Companion.eudiwJvm(
     continueOnProblem: ContinueOnProblem = ContinueOnProblem.Never,
     directTrust: ValidateCertificateChainUsingDirectTrust<List<X509Certificate>, TrustAnchor, X509CertificateIdentify> = ValidateCertificateChainUsingDirectTrustJvm,
     pkix: ValidateCertificateChainUsingPKIX<List<X509Certificate>, TrustAnchor> = ValidateCertificateChainUsingPKIXJvm(),
-): ProvisionTrustAnchorsFromLoTEs<List<X509Certificate>, VerificationContext, TrustAnchor> =
+): ProvisionTrustAnchorsFromLoTEs<List<X509Certificate>, VerificationContext, TrustAnchor, X509Certificate> =
     jvm(
         loadLoTEAndPointers,
         svcTypePerCtx,
@@ -44,7 +44,7 @@ public fun <CTX : Any> ProvisionTrustAnchorsFromLoTEs.Companion.jvm(
     continueOnProblem: ContinueOnProblem = ContinueOnProblem.Never,
     directTrust: ValidateCertificateChainUsingDirectTrust<List<X509Certificate>, TrustAnchor, X509CertificateIdentify> = ValidateCertificateChainUsingDirectTrustJvm,
     pkix: ValidateCertificateChainUsingPKIX<List<X509Certificate>, TrustAnchor> = ValidateCertificateChainUsingPKIXJvm(),
-): ProvisionTrustAnchorsFromLoTEs<List<X509Certificate>, CTX, TrustAnchor> =
+): ProvisionTrustAnchorsFromLoTEs<List<X509Certificate>, CTX, TrustAnchor, X509Certificate> =
     ProvisionTrustAnchorsFromLoTEs(
         loadLoTEAndPointers,
         svcTypePerCtx,
@@ -52,6 +52,8 @@ public fun <CTX : Any> ProvisionTrustAnchorsFromLoTEs.Companion.jvm(
         continueOnProblem = continueOnProblem,
         directTrust = directTrust,
         pkix = pkix,
+        certificateOperations = CertificateOperationsJvm,
+        endEntityCertificateOf = { checkNotNull(it.firstOrNull()) { "Chaing cannot be empty" } },
     )
 
 public fun defaultCreateTrustAnchors(serviceDigitalIdentity: ServiceDigitalIdentity): List<TrustAnchor> =

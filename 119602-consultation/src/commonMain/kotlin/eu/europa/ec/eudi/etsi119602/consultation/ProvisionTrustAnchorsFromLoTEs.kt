@@ -20,6 +20,7 @@ import eu.europa.ec.eudi.etsi119602.URI
 import eu.europa.ec.eudi.etsi119602.consultation.eu.CertificateConstraints
 import eu.europa.ec.eudi.etsi119602.consultation.eu.ServiceDigitalIdentityCertificateType
 import eu.europa.ec.eudi.etsi1196x2.consultation.*
+import eu.europa.ec.eudi.etsi1196x2.consultation.certs.CertificateOperations
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlin.time.Clock
@@ -52,13 +53,15 @@ public data class LotEMeta<CTX>(
  * @property continueOnProblem Strategy indicating whether to continue on specific issues.
  * @property svcTypePerCtx Supported metadata linked to LoTEs, defining service types per specific contexts.
  */
-public class ProvisionTrustAnchorsFromLoTEs<CHAIN : Any, CTX : Any, TRUST_ANCHOR : Any>(
+public class ProvisionTrustAnchorsFromLoTEs<CHAIN : Any, CTX : Any, TRUST_ANCHOR : Any, in CERT : Any>(
     private val loadLoTEAndPointers: LoadLoTEAndPointers,
     private val svcTypePerCtx: SupportedLists<LotEMeta<CTX>>,
     private val createTrustAnchors: (ServiceDigitalIdentity) -> List<TRUST_ANCHOR>,
     private val directTrust: ValidateCertificateChainUsingDirectTrust<CHAIN, TRUST_ANCHOR, *>,
     private val pkix: ValidateCertificateChainUsingPKIX<CHAIN, TRUST_ANCHOR>,
     private val continueOnProblem: ContinueOnProblem = ContinueOnProblem.Never,
+    private val certificateOperations: CertificateOperations<CERT>,
+    private val endEntityCertificateOf: (CHAIN) -> CERT,
 ) {
 
     /**
@@ -139,12 +142,19 @@ public class ProvisionTrustAnchorsFromLoTEs<CHAIN : Any, CTX : Any, TRUST_ANCHOR
 
     private fun certificateChainValidator(
         cfg: LoTECfg<CTX>,
-    ): ValidateCertificateChain<CHAIN, TRUST_ANCHOR> =
-        when (cfg.metadata.serviceDigitalIdentityCertificateType) {
+    ): ValidateCertificateChain<CHAIN, TRUST_ANCHOR> {
+        val endEntityCertificateConstraints = cfg.metadata.endEntityCertificateConstraints?.run { with(certificateOperations) { evaluator() } }
+        val validator = when (cfg.metadata.serviceDigitalIdentityCertificateType) {
             ServiceDigitalIdentityCertificateType.EndEntity -> directTrust
             ServiceDigitalIdentityCertificateType.CA -> pkix
             ServiceDigitalIdentityCertificateType.EndEntityOrCA -> directTrust or pkix
         }
+        return if (endEntityCertificateConstraints != null) {
+            validator.withEndEntityConstraints(endEntityCertificateConstraints, endEntityCertificateOf)
+        } else {
+            validator
+        }
+    }
 
     private fun GetTrustAnchors<URI, TRUST_ANCHOR>.cached(
         args: CacheArguments,
@@ -169,14 +179,16 @@ public class ProvisionTrustAnchorsFromLoTEs<CHAIN : Any, CTX : Any, TRUST_ANCHOR
     )
 
     public companion object {
-        public fun <CHAIN : Any, TRUST_ANCHOR : Any> eudiw(
+        public fun <CHAIN : Any, TRUST_ANCHOR : Any, CERT : Any> eudiw(
             loadLoTEAndPointers: LoadLoTEAndPointers,
             svcTypePerCtx: SupportedLists<LotEMeta<VerificationContext>> = SupportedLists.eu(),
             createTrustAnchors: (ServiceDigitalIdentity) -> List<TRUST_ANCHOR>,
             directTrust: ValidateCertificateChainUsingDirectTrust<CHAIN, TRUST_ANCHOR, *>,
             pkix: ValidateCertificateChainUsingPKIX<CHAIN, TRUST_ANCHOR>,
             continueOnProblem: ContinueOnProblem = ContinueOnProblem.Never,
-        ): ProvisionTrustAnchorsFromLoTEs<CHAIN, VerificationContext, TRUST_ANCHOR> =
+            certificateOperations: CertificateOperations<CERT>,
+            endEntityCertificateOf: (CHAIN) -> CERT,
+        ): ProvisionTrustAnchorsFromLoTEs<CHAIN, VerificationContext, TRUST_ANCHOR, CERT> =
             ProvisionTrustAnchorsFromLoTEs(
                 loadLoTEAndPointers,
                 svcTypePerCtx,
@@ -184,6 +196,8 @@ public class ProvisionTrustAnchorsFromLoTEs<CHAIN : Any, CTX : Any, TRUST_ANCHOR
                 directTrust,
                 pkix,
                 continueOnProblem,
+                certificateOperations,
+                endEntityCertificateOf,
             )
     }
 }
