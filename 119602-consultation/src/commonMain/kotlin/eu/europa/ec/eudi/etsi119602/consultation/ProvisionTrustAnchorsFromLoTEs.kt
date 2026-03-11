@@ -27,8 +27,21 @@ import kotlin.time.Clock
 import kotlin.time.Duration
 
 /**
- * Metadata associated with a LoTE configuration.
+ * Metadata associated with a specific LoTE configuration, used by [ProvisionTrustAnchorsFromLoTEs]
  *
+ * Requirements
+ * - The LoTE must include a [eu.europa.ec.eudi.etsi119602.ServiceInformation.typeIdentifier] (in general it is optional), for every information
+ * - All service type identifies in [svcTypePerCtx] are available to the same LoTE profile
+ * - For each trusted service there is at least one certificate within [ServiceDigitalIdentity.x509Certificates]
+ *
+ * @param svcTypePerCtx A map which correlates a verification context [CTX] to a [eu.europa.ec.eudi.etsi119602.ServiceInformation.typeIdentifier].
+ * @param serviceDigitalIdentityCertificateType A hint, indicating whether the [ServiceDigitalIdentity.x509Certificates]
+ * are expecting/required to be End-Entity, CA or Both. This will drive the selection of chain validation method (direct trust, PKIX, or both)
+ * @param endEntityCertificateConstraints an optional set of rules for the end-entity certificate, for which this LoTE will be used to validate
+ * a chain. If provided, the chain validation will first evaluate that the end-entity certificate aligns with the given rules.
+ *
+ * @param CTX the type representing a verification context
+ * @see ProvisionTrustAnchorsFromLoTEs
  */
 public data class LotEMeta<CTX>(
     val svcTypePerCtx: Map<CTX, URI>,
@@ -44,14 +57,18 @@ public data class LotEMeta<CTX>(
  * @param CHAIN The type representing a certificate chain.
  * @param CTX The type representing a context within which a trust decision is made.
  * @param TRUST_ANCHOR The type representing a trust anchor.
+ * @param CERT The type representing a X509 Certificate, found in [CHAIN]
  *
  * @property loadLoTEAndPointers A loader for fetching LoTEs and their pointers.
+ * @property svcTypePerCtx Supported metadata linked to LoTEs, defining service types per specific contexts.
  * @property createTrustAnchors A function that creates a list of trust anchors from a service digital identity.
- * Defaults to the string representation of the certificate.
  * @property directTrust A certificate chain validator based on direct trust.
  * @property pkix A certificate chain validator based on PKIX.
- * @property continueOnProblem Strategy indicating whether to continue on specific issues.
- * @property svcTypePerCtx Supported metadata linked to LoTEs, defining service types per specific contexts.
+ * @property continueOnProblem Strategy indicating whether to continue on specific problems while loading a LoTE.
+ * Defaults to [ContinueOnProblem.Never]
+ * @property certificateOperations an abstraction for certificate operations. It will be used to thread validation
+ * of end-entity certificate of a chain to the chain validation.
+ * @param endEntityCertificateOf A way to obtain the end entity certificate from a chain.
  */
 public class ProvisionTrustAnchorsFromLoTEs<CHAIN : Any, CTX : Any, TRUST_ANCHOR : Any, in CERT : Any>(
     private val loadLoTEAndPointers: LoadLoTEAndPointers,

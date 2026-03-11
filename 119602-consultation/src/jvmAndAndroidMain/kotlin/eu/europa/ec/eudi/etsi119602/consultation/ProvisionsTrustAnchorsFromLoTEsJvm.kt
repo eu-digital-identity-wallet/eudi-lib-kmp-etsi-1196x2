@@ -53,7 +53,7 @@ public fun <CTX : Any> ProvisionTrustAnchorsFromLoTEs.Companion.jvm(
         directTrust = directTrust,
         pkix = pkix,
         certificateOperations = CertificateOperationsJvm,
-        endEntityCertificateOf = { checkNotNull(it.firstOrNull()) { "Chaing cannot be empty" } },
+        endEntityCertificateOf = { checkNotNull(it.firstOrNull()) { "Chain cannot be empty" } },
     )
 
 public fun defaultCreateTrustAnchors(serviceDigitalIdentity: ServiceDigitalIdentity): List<TrustAnchor> =

@@ -49,7 +49,6 @@ public data class LoadedLoTE(
  * method is synchronized to prevent multiple concurrent downloads when the cache is empty.
  *
  * @param TRUST_ANCHOR the type of the trust anchor to produce
- * @param CERT the type of the certificate extracted from the trust anchor for validation
  * @param loTEDownloadUrl the URI where the LoTE is located
  * @param loadLoTEAndPointers the service used to load the LoTE and its pointers
  * @param continueOnProblem strategy for handling errors during the loading process
