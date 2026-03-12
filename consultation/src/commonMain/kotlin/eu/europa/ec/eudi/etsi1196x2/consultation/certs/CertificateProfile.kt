@@ -37,9 +37,8 @@ public data class CertificateConstraint<T>(
  * The constraint is not satisfied.
  *
  * @param reason a human-readable description of why the constraint failed
- * @param cause the underlying cause of the failure, if any
  */
-public data class CertificateConstraintViolation(val reason: String, val cause: Throwable? = null)
+public data class CertificateConstraintViolation(val reason: String)
 
 /**
  * Result of validating a certificate constraint.
@@ -82,13 +81,7 @@ public fun CertificateConstraintEvaluation.isMet(): Boolean {
  *
  * @property requirements the list of constraints that must be validated
  */
-public data class CertificateProfile(val requirements: List<CertificateConstraint<*>>) {
-    /**
-     * Combines this profile with another profile.
-     */
-    public infix operator fun plus(other: CertificateProfile): CertificateProfile =
-        CertificateProfile(this.requirements + other.requirements)
-}
+public data class CertificateProfile(val requirements: List<CertificateConstraint<*>>)
 
 /**
  * A DSL builder for creating certificate profiles.
