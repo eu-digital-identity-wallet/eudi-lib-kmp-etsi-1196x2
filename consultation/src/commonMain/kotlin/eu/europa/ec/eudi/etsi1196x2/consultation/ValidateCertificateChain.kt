@@ -16,7 +16,8 @@
 package eu.europa.ec.eudi.etsi1196x2.consultation
 
 import eu.europa.ec.eudi.etsi1196x2.consultation.certs.CertificateConstraintEvaluation
-import eu.europa.ec.eudi.etsi1196x2.consultation.certs.EvaluateCertificateConstraint
+import eu.europa.ec.eudi.etsi1196x2.consultation.certs.CertificateProfile
+import eu.europa.ec.eudi.etsi1196x2.consultation.certs.CertificateProfileValidator
 
 /**
  * An abstraction for validating a certificate chain, given a set of trust anchors
@@ -152,40 +153,48 @@ private class ValidateCertificateChainUsingAlternatives<CHAIN : Any, TRUST_ANCHO
  * This is a convenience overload for [ValidateCertificateChain] with `CHAIN = List<CERT>`.
  * Extracts the first certificate from the chain as the end-entity certificate.
  *
- * @param evaluateCertificateConstraints constraint evaluator for end-entity certificates
+ * @param certificateProfileValidator validator to use for end-entity certificates
+ * @param endEntityCertificateProfile constraint evaluator for end-entity certificates
  * @return a new validator that enforces constraints before chain validation
  *
- * @see withEndEntityConstraints general version with custom extractor
+ * @see withEndEntityProfile general version with custom extractor
  */
-public fun <TA : Any, CERT : Any> ValidateCertificateChain<List<CERT>, TA>.withEndEntityConstraints(
-    evaluateCertificateConstraints: EvaluateCertificateConstraint<CERT>,
+public fun <TA : Any, CERT : Any> ValidateCertificateChain<List<CERT>, TA>.withEndEntityProfile(
+    certificateProfileValidator: CertificateProfileValidator<CERT>,
+    endEntityCertificateProfile: CertificateProfile,
 ): ValidateCertificateChain<List<CERT>, TA> =
-    withEndEntityConstraints(evaluateCertificateConstraints) { chain ->
+    withEndEntityProfile(certificateProfileValidator, endEntityCertificateProfile) { chain ->
         requireNotNull(chain.firstOrNull()) { "Chain cannot be empty" }
     }
 
 /**
  * Wraps this validator to first validate end-entity certificate constraints
  * before performing chain validation.
- *
-*
- * @param evaluateCertificateConstraints constraint evaluator for end-entity certificates
+ * @param endEntityCertificateProfile profile to validate against
  * @param endEntityCertificateOf function to extract the end-entity certificate from the chain
+ * @param certificateProfileValidator validator to use for end-entity certificates
  * @return a new validator that enforces constraints before chain validation
- *
- * @see withEndEntityConstraints general version with custom extractor
+ * @see withEndEntityProfile general version with custom extractor
  */
-public fun <CHAIN : Any, TA : Any, CERT : Any> ValidateCertificateChain<CHAIN, TA>.withEndEntityConstraints(
-    evaluateCertificateConstraints: EvaluateCertificateConstraint<CERT>,
+public fun <CHAIN : Any, TA : Any, CERT : Any> ValidateCertificateChain<CHAIN, TA>.withEndEntityProfile(
+    certificateProfileValidator: CertificateProfileValidator<CERT>,
+    endEntityCertificateProfile: CertificateProfile,
     endEntityCertificateOf: (CHAIN) -> CERT,
 ): ValidateCertificateChain<CHAIN, TA> =
-    ValidateCertificateChainWithEndEntityConstraints(this, evaluateCertificateConstraints, endEntityCertificateOf)
+    ValidateCertificateChainWithEndEntityProfile(
+        this,
+        endEntityCertificateProfile,
+        certificateProfileValidator,
+        endEntityCertificateOf,
+    )
 
-private class ValidateCertificateChainWithEndEntityConstraints<CHAIN : Any, TRUST_ANCHOR : Any, CERT : Any>(
+private class ValidateCertificateChainWithEndEntityProfile<CHAIN : Any, TRUST_ANCHOR : Any, CERT : Any>(
     private val primary: ValidateCertificateChain<CHAIN, TRUST_ANCHOR>,
-    private val evaluateCertificateConstraints: EvaluateCertificateConstraint<CERT>,
+    private val endEntityCertificateProfile: CertificateProfile,
+    private val certificateProfileValidator: CertificateProfileValidator<CERT>,
     private val endEntityCertificateOf: (CHAIN) -> CERT,
 ) : ValidateCertificateChain<CHAIN, TRUST_ANCHOR> {
+
     override suspend fun invoke(
         chain: CHAIN,
         trustAnchors: NonEmptyList<TRUST_ANCHOR>,
@@ -198,6 +207,9 @@ private class ValidateCertificateChainWithEndEntityConstraints<CHAIN : Any, TRUS
             }
         }
     }
+
+    private suspend fun evaluateCertificateConstraints(certificate: CERT): CertificateConstraintEvaluation =
+        certificateProfileValidator.validate(endEntityCertificateProfile, certificate)
 
     private fun noTrustedDueToViolations(
         violated: CertificateConstraintEvaluation.Violated,

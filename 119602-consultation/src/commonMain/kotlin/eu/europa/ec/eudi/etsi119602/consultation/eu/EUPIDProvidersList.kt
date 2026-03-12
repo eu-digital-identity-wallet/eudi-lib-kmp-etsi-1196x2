@@ -18,6 +18,7 @@ package eu.europa.ec.eudi.etsi119602.consultation.eu
 import eu.europa.ec.eudi.etsi119602.*
 import eu.europa.ec.eudi.etsi119602.consultation.ETSI119412
 import eu.europa.ec.eudi.etsi1196x2.consultation.certs.*
+import kotlin.time.Instant
 
 /**
  * A LoTE profile aimed at supporting the publication by the European Commission of a list of
@@ -50,10 +51,7 @@ public val EUPIDProvidersList: EUListOfTrustedEntitiesProfile =
             serviceStatuses = emptySet(),
             serviceDigitalIdentityCertificateType = ServiceDigitalIdentityCertificateType.EndEntityOrCA,
         ),
-        endEntityCertificateConstraints = object : CertificateConstraints {
-            override fun <CERT : Any> CertificateOperations<CERT>.evaluator(): EvaluateMultipleCertificateConstraints<CERT> =
-                pidProviderCertificateProfileEvaluator()
-        },
+        endEntityCertificateProfile = pidProviderCertificateProfile(),
 
     )
 
@@ -79,20 +77,15 @@ public val EUPIDProvidersList: EUListOfTrustedEntitiesProfile =
  *
  * @return a validator configured for PID Provider end-entity certificates
  */
-public fun <CERT : Any> CertificateOperations<CERT>.pidProviderCertificateProfileEvaluator(): EvaluateMultipleCertificateConstraints<CERT> =
-    EvaluateMultipleCertificateConstraints.of(
-        EvaluateBasicConstraintsConstraint.requireEndEntity(::getBasicConstraints),
-        QCStatementConstraint(
-            requiredQcType = ETSI119412.ID_ETSI_QCT_PID,
-            requireCompliance = true,
-            ::getQcStatements,
-        ),
-        KeyUsageConstraint.requireDigitalSignature(::getKeyUsage),
-        ValidityPeriodConstraint.validateAtCurrentTime(::getValidityPeriod),
-        // Per EN 319 412-2 §4.3.3: certificatePolicies extension shall be present (TSP-defined OID)
-        CertificatePolicyPresenceConstraint.requirePresence(::getCertificatePolicies),
-        EvaluateAuthorityInformationAccessConstraint.requireForCaIssued(::isSelfSigned, ::getAiaExtension),
-    )
+public fun pidProviderCertificateProfile(at: Instant? = null): CertificateProfile = certificateProfile {
+    requireEndEntityCertificate()
+    requireQcStatement(qcType = ETSI119412.ID_ETSI_QCT_PID, requireCompliance = true)
+    requireDigitalSignature()
+    requireValidAt(at)
+    // Per EN 319 412-2 §4.3.3: certificatePolicies extension shall be present (TSP-defined OID)
+    requirePolicyPresence()
+    requireAiaForCaIssued()
+}
 
 /**
  * Creates constraints for PID Provider CA certificates in LoTE.
@@ -107,11 +100,12 @@ public fun <CERT : Any> CertificateOperations<CERT>.pidProviderCertificateProfil
  *
  * @return a validator configured for PID Provider CA certificates
  */
-public fun <CERT : Any> CertificateOperations<CERT>.pidProviderCACertificateConstraintsEvaluator(
+public fun pidProviderCACertificateProfile(
+    at: Instant? = null,
     maxPathLen: Int? = null,
-): EvaluateMultipleCertificateConstraints<CERT> =
-    EvaluateMultipleCertificateConstraints.of(
-        EvaluateBasicConstraintsConstraint.requireCa(maxPathLen, ::getBasicConstraints),
-        KeyUsageConstraint.requireKeyCertSign(::getKeyUsage),
-        ValidityPeriodConstraint.validateAtCurrentTime(::getValidityPeriod),
-    )
+): CertificateProfile =
+    certificateProfile {
+        requireCaCertificate(maxPathLen)
+        requireDigitalSignature()
+        requireValidAt(at)
+    }

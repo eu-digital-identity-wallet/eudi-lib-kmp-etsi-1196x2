@@ -50,7 +50,7 @@ object JPPoC {
                 VerificationContext.WalletRelyingPartyAccessCertificate to JP_WRPAC_PROVIDER_ISSUANCE_SVC_TYPE,
             ),
             serviceDigitalIdentityCertificateType = ServiceDigitalIdentityCertificateType.CA,
-            endEntityCertificateConstraints = null,
+            endEntityCertificateProfile = null,
 
         )
 
@@ -60,7 +60,7 @@ object JPPoC {
             VerificationContext.EAA(LC_USE_CASE) to LC_EAA_PROVIDER_SVC_TYPE,
         ),
         serviceDigitalIdentityCertificateType = ServiceDigitalIdentityCertificateType.EndEntityOrCA,
-        endEntityCertificateConstraints = null,
+        endEntityCertificateProfile = null,
     )
     val SVC_TYPE_PER_CTX: SupportedLists<LotEMeta<VerificationContext>> =
         SupportedLists(

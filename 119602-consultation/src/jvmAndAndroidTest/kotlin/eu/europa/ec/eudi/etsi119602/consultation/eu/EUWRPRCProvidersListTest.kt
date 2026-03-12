@@ -19,9 +19,12 @@ import eu.europa.ec.eudi.etsi119602.consultation.CertOps
 import eu.europa.ec.eudi.etsi119602.consultation.CertOps.toX509Certificate
 import eu.europa.ec.eudi.etsi119602.consultation.ETSI119475
 import eu.europa.ec.eudi.etsi1196x2.consultation.CertificateOperationsJvm
+import eu.europa.ec.eudi.etsi1196x2.consultation.certs.CertificateConstraintEvaluation
+import eu.europa.ec.eudi.etsi1196x2.consultation.certs.CertificateProfileValidator
 import eu.europa.ec.eudi.etsi1196x2.consultation.certs.isMet
 import kotlinx.coroutines.test.runTest
 import org.bouncycastle.asn1.x500.X500Name
+import java.security.cert.X509Certificate
 import kotlin.test.Ignore
 import kotlin.test.Test
 import kotlin.test.assertTrue
@@ -33,8 +36,11 @@ import kotlin.test.assertTrue
 class EUWRPRCProvidersListTest {
 
     private val cnWrprcProvider = X500Name("CN=WRPRC Provider Test")
-    private val evaluateCertificateConstraints =
-        checkNotNull(EUWRPRCProvidersList.endEntityCertificateConstrainsEvaluator(CertificateOperationsJvm))
+    val certificateProfileValidator = CertificateProfileValidator(CertificateOperationsJvm)
+    private suspend fun evaluateCertificateConstraints(
+        certificate: X509Certificate,
+    ): CertificateConstraintEvaluation =
+        certificateProfileValidator.validate(wrprcProviderCertificateProfile(), certificate)
 
     @Test
     fun `WRPRC Provider validator should validate CA certificate`() = runTest {

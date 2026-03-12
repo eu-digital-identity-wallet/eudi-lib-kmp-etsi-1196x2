@@ -17,8 +17,7 @@ package eu.europa.ec.eudi.etsi119602.consultation.eu
 
 import eu.europa.ec.eudi.etsi119602.*
 import eu.europa.ec.eudi.etsi119602.consultation.eu.TrustedEntityAssertions.Companion.ensureTrustedEntities
-import eu.europa.ec.eudi.etsi1196x2.consultation.certs.CertificateOperations
-import eu.europa.ec.eudi.etsi1196x2.consultation.certs.EvaluateCertificateConstraint
+import eu.europa.ec.eudi.etsi1196x2.consultation.certs.CertificateProfile
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.monthsUntil
 
@@ -43,7 +42,7 @@ public data class EUListOfTrustedEntitiesProfile(
      */
     val trustedEntities: EUTrustedEntitiesProfile,
 
-    val endEntityCertificateConstraints: CertificateConstraints?,
+    val endEntityCertificateProfile: CertificateProfile?,
 ) {
 
     /**
@@ -83,11 +82,6 @@ public data class EUListOfTrustedEntitiesProfile(
             throw IllegalStateException("Violation of ${listAndSchemeInformation.type}, trusted entities errors: ${trustedEntitiesErrors.map { "${it.key}: ${it.value}" }}")
         }
     }
-
-    public inline fun <reified CERT : Any> endEntityCertificateConstrainsEvaluator(
-        certificateOperations: CertificateOperations<CERT>,
-    ): EvaluateCertificateConstraint<CERT>? =
-        with(certificateOperations) { endEntityCertificateConstraints?.run { evaluator() } }
 }
 
 public sealed interface ValueRequirement<out T> {
@@ -150,10 +144,6 @@ public data class EUTrustedEntitiesProfile(
 
     val serviceDigitalIdentityCertificateType: ServiceDigitalIdentityCertificateType,
 )
-
-public interface CertificateConstraints {
-    public fun <CERT : Any> CertificateOperations<CERT>.evaluator(): EvaluateCertificateConstraint<CERT>
-}
 
 /**
  * Assertions about the scheme of an EU-specific LoTE

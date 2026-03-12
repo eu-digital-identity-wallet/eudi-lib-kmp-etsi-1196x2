@@ -19,9 +19,12 @@ import eu.europa.ec.eudi.etsi119602.consultation.CertOps
 import eu.europa.ec.eudi.etsi119602.consultation.CertOps.toX509Certificate
 import eu.europa.ec.eudi.etsi119602.consultation.ETSI119411
 import eu.europa.ec.eudi.etsi1196x2.consultation.CertificateOperationsJvm
+import eu.europa.ec.eudi.etsi1196x2.consultation.certs.CertificateConstraintEvaluation
+import eu.europa.ec.eudi.etsi1196x2.consultation.certs.CertificateProfileValidator
 import eu.europa.ec.eudi.etsi1196x2.consultation.certs.isMet
 import kotlinx.coroutines.test.runTest
 import org.bouncycastle.asn1.x500.X500Name
+import java.security.cert.X509Certificate
 import kotlin.test.Ignore
 import kotlin.test.Test
 import kotlin.test.assertTrue
@@ -34,8 +37,11 @@ class EUWRPACProvidersListTest {
 
     private val cnWrpacProvider = X500Name("CN=WRPAC Provider Test")
 
-    private val evaluateCertificateConstraints =
-        checkNotNull(EUWRPACProvidersList.endEntityCertificateConstrainsEvaluator(CertificateOperationsJvm))
+    val certificateProfileValidator = CertificateProfileValidator(CertificateOperationsJvm)
+    private suspend fun evaluateCertificateConstraints(
+        certificate: X509Certificate,
+    ): CertificateConstraintEvaluation =
+        certificateProfileValidator.validate(wrpacProviderCertificateProfile(), certificate)
 
     @Test
     fun `WRPAC Provider validator should validate CA certificate`() = runTest {

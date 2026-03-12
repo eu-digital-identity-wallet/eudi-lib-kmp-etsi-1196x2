@@ -15,18 +15,10 @@
  */
 package eu.europa.ec.eudi.etsi119602.consultation.eu
 
-import eu.europa.ec.eudi.etsi119602.CountryCode
-import eu.europa.ec.eudi.etsi119602.ETSI19602
-import eu.europa.ec.eudi.etsi119602.LoTEType
-import eu.europa.ec.eudi.etsi119602.MultiLanguageURI
-import eu.europa.ec.eudi.etsi119602.URIValue
+import eu.europa.ec.eudi.etsi119602.*
 import eu.europa.ec.eudi.etsi119602.consultation.ETSI119411
-import eu.europa.ec.eudi.etsi1196x2.consultation.certs.CertificateOperations
-import eu.europa.ec.eudi.etsi1196x2.consultation.certs.CertificatePolicyConstraint.Companion.requireAnyPolicy
-import eu.europa.ec.eudi.etsi1196x2.consultation.certs.EvaluateBasicConstraintsConstraint
-import eu.europa.ec.eudi.etsi1196x2.consultation.certs.EvaluateMultipleCertificateConstraints
-import eu.europa.ec.eudi.etsi1196x2.consultation.certs.KeyUsageConstraint
-import eu.europa.ec.eudi.etsi1196x2.consultation.certs.ValidityPeriodConstraint
+import eu.europa.ec.eudi.etsi1196x2.consultation.certs.*
+import kotlin.time.Instant
 
 public val EUWRPACProvidersList: EUListOfTrustedEntitiesProfile =
     EUListOfTrustedEntitiesProfile(
@@ -51,7 +43,7 @@ public val EUWRPACProvidersList: EUListOfTrustedEntitiesProfile =
             serviceStatuses = emptySet(),
             serviceDigitalIdentityCertificateType = ServiceDigitalIdentityCertificateType.CA,
         ),
-        endEntityCertificateConstraints = null,
+        endEntityCertificateProfile = null,
     )
 
 /**
@@ -86,10 +78,13 @@ public val EUWRPACProvidersList: EUListOfTrustedEntitiesProfile =
  *
  * @see [RFC 5280 Section 4.2.1.9 - Basic Constraints](https://datatracker.ietf.org/doc/html/rfc5280#section-4.2.1.9)
  */
-public fun <CERT : Any> CertificateOperations<CERT>.wrpacProviderCertificateConstraintsEvaluator(maxPathLen: Int? = null): EvaluateMultipleCertificateConstraints<CERT> =
-    EvaluateMultipleCertificateConstraints.of(
-        EvaluateBasicConstraintsConstraint.requireCa(maxPathLen, ::getBasicConstraints),
-        KeyUsageConstraint.requireKeyCertSign(::getKeyUsage),
-        ValidityPeriodConstraint.validateAtCurrentTime(::getValidityPeriod),
-        requireAnyPolicy(ETSI119411.ALL, ::getCertificatePolicies),
-    )
+public fun wrpacProviderCertificateProfile(
+    at: Instant? = null,
+    maxPathLen: Int? = null,
+): CertificateProfile =
+    certificateProfile {
+        requireCaCertificate(maxPathLen)
+        requireDigitalSignature()
+        requireValidAt(at)
+        requirePolicy(oids = ETSI119411.ALL.toTypedArray())
+    }

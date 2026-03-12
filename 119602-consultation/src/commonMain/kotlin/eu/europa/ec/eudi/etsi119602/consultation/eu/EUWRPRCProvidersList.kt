@@ -16,8 +16,8 @@
 package eu.europa.ec.eudi.etsi119602.consultation.eu
 
 import eu.europa.ec.eudi.etsi119602.*
-import eu.europa.ec.eudi.etsi119602.consultation.ETSI119475
 import eu.europa.ec.eudi.etsi1196x2.consultation.certs.*
+import kotlin.time.Instant
 
 public val EUWRPRCProvidersList: EUListOfTrustedEntitiesProfile =
     EUListOfTrustedEntitiesProfile(
@@ -42,7 +42,7 @@ public val EUWRPRCProvidersList: EUListOfTrustedEntitiesProfile =
             serviceStatuses = emptySet(),
             serviceDigitalIdentityCertificateType = ServiceDigitalIdentityCertificateType.EndEntityOrCA,
         ),
-        endEntityCertificateConstraints = null,
+        endEntityCertificateProfile = null,
     )
 
 /**
@@ -72,11 +72,13 @@ public val EUWRPRCProvidersList: EUListOfTrustedEntitiesProfile =
  *
  * @see [RFC 5280 Section 4.2.1.9 - Basic Constraints](https://datatracker.ietf.org/doc/html/rfc5280#section-4.2.1.9)
  */
-public fun <CERT : Any> CertificateOperations<CERT>.wrprcProviderCertificateConstraintsEvaluator(
+public fun wrprcProviderCertificateProfile(
+    at: Instant? = null,
     maxPathLen: Int? = null,
-): EvaluateMultipleCertificateConstraints<CERT> = EvaluateMultipleCertificateConstraints.of(
-    EvaluateBasicConstraintsConstraint.requireCa(maxPathLen, ::getBasicConstraints),
-    KeyUsageConstraint.requireKeyCertSign(::getKeyUsage),
-    ValidityPeriodConstraint.validateAtCurrentTime(::getValidityPeriod),
-    CertificatePolicyConstraint.requirePolicy(ETSI119475.WRPRC, ::getCertificatePolicies),
-)
+): CertificateProfile =
+    certificateProfile {
+        requireCaCertificate(maxPathLen)
+        requireKeyCertSign()
+        requireValidAt(at)
+        requirePolicyPresence()
+    }

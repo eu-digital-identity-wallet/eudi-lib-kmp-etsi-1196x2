@@ -27,18 +27,16 @@ class EvaluateAuthorityInformationAccessConstraintTest {
 
     private val x500Name = X500Name("CN=Foo")
 
+    private val certificateProfileValidator = CertificateProfileValidator(CertificateOperationsJvm)
+
     @Test
     fun `AIA constraint should accept self-signed certificate without AIA`() = runTest {
         // Generate a self-signed certificate (trust anchor)
         val (_, certHolder) = CertOps.genTrustAnchor("SHA256withECDSA", x500Name)
         val certificate = certHolder.toX509Certificate()
 
-        val constraint = EvaluateAuthorityInformationAccessConstraint.requireForCaIssued(
-            isSelfSigned = CertificateOperationsJvm::isSelfSigned,
-            getAiaExtension = CertificateOperationsJvm::getAiaExtension,
-        )
-
-        val evaluation = constraint(certificate)
+        val profile = certificateProfile { requireAiaForCaIssued() }
+        val evaluation = certificateProfileValidator.validate(profile, certificate)
         assertTrue(evaluation.isMet(), "Self-signed certificate should NOT require AIA")
     }
 
@@ -58,12 +56,9 @@ class EvaluateAuthorityInformationAccessConstraintTest {
         )
         val certificate = eeCertHolder.toX509Certificate()
 
-        val constraint = EvaluateAuthorityInformationAccessConstraint.requireForCaIssued(
-            isSelfSigned = CertificateOperationsJvm::isSelfSigned,
-            getAiaExtension = CertificateOperationsJvm::getAiaExtension,
-        )
+        val profile = certificateProfile { requireAiaForCaIssued() }
 
-        val evaluation = constraint(certificate)
+        val evaluation = certificateProfileValidator.validate(profile, certificate)
         assertTrue(!evaluation.isMet(), "CA-issued certificate should require AIA")
         assertTrue(evaluation.violations.any { it.reason.contains("AIA") })
     }

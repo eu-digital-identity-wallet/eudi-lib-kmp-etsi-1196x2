@@ -18,6 +18,7 @@ package eu.europa.ec.eudi.etsi119602.consultation.eu
 import eu.europa.ec.eudi.etsi119602.*
 import eu.europa.ec.eudi.etsi119602.consultation.ETSI119412
 import eu.europa.ec.eudi.etsi1196x2.consultation.certs.*
+import kotlin.time.Instant
 
 /**
  * A LoTE profile aimed at supporting the publication by the European Commission of a list of
@@ -53,10 +54,7 @@ public val EUWalletProvidersList: EUListOfTrustedEntitiesProfile =
             serviceDigitalIdentityCertificateType = ServiceDigitalIdentityCertificateType.EndEntityOrCA,
 
         ),
-        endEntityCertificateConstraints = object : CertificateConstraints {
-            override fun <CERT : Any> CertificateOperations<CERT>.evaluator(): EvaluateMultipleCertificateConstraints<CERT> =
-                walletProviderCertificateConstraintsEvaluator()
-        },
+        endEntityCertificateProfile = walletProviderCertificateProfile(at = null),
 
     )
 
@@ -82,20 +80,14 @@ public val EUWalletProvidersList: EUListOfTrustedEntitiesProfile =
  *
  * @return a validator configured for Wallet Provider end-entity certificates
  */
-public fun <CERT : Any> CertificateOperations<CERT>.walletProviderCertificateConstraintsEvaluator(): EvaluateMultipleCertificateConstraints<CERT> =
-    EvaluateMultipleCertificateConstraints.of(
-        EvaluateBasicConstraintsConstraint.requireEndEntity(::getBasicConstraints),
-        QCStatementConstraint(
-            requiredQcType = ETSI119412.ID_ETSI_QCT_WAL,
-            requireCompliance = true,
-            ::getQcStatements,
-        ),
-        KeyUsageConstraint.requireDigitalSignature(::getKeyUsage),
-        ValidityPeriodConstraint.validateAtCurrentTime(::getValidityPeriod),
-        // Per EN 319 412-2 §4.3.3: certificatePolicies extension shall be present (TSP-defined OID)
-        CertificatePolicyPresenceConstraint.requirePresence(::getCertificatePolicies),
-        EvaluateAuthorityInformationAccessConstraint.requireForCaIssued(::isSelfSigned, ::getAiaExtension),
-    )
+public fun walletProviderCertificateProfile(at: Instant? = null): CertificateProfile = certificateProfile {
+    requireEndEntityCertificate()
+    requireQcStatement(ETSI119412.ID_ETSI_QCT_WAL, true)
+    requireDigitalSignature()
+    requireValidAt(at)
+    requirePolicyPresence()
+    requireAiaForCaIssued()
+}
 
 /**
  * Creates constraints for Wallet Provider CA certificates in LoTE.
@@ -110,11 +102,9 @@ public fun <CERT : Any> CertificateOperations<CERT>.walletProviderCertificateCon
  *
  * @return a validator configured for Wallet Provider CA certificates
  */
-public fun <CERT : Any> CertificateOperations<CERT>.walletProviderCACertificateConstraintsEvaluator(
-    maxPathLen: Int? = null,
-): EvaluateMultipleCertificateConstraints<CERT> =
-    EvaluateMultipleCertificateConstraints.of(
-        EvaluateBasicConstraintsConstraint.requireCa(maxPathLen, ::getBasicConstraints),
-        KeyUsageConstraint.requireKeyCertSign(::getKeyUsage),
-        ValidityPeriodConstraint.validateAtCurrentTime(::getValidityPeriod),
-    )
+public fun walletProviderCACertificateProfile(at: Instant? = null, maxPathLen: Int? = null): CertificateProfile =
+    certificateProfile {
+        requireCaCertificate(maxPathLen)
+        requireKeyCertSign()
+        requireValidAt(at)
+    }

@@ -27,6 +27,8 @@ class EvaluateBasicConstraintsConstraintTest {
 
     private val x500Name = X500Name("CN=Foo")
 
+    private val certificateProfileValidator = CertificateProfileValidator(CertificateOperationsJvm)
+
     @Test
     fun `BasicConstraintsConstraint should reject CA when end-entity expected`() = runTest {
         // Generate a CA certificate (trust anchor)
@@ -34,16 +36,13 @@ class EvaluateBasicConstraintsConstraintTest {
         val certificate = certHolder.toX509Certificate()
 
         // Create constraint for end-entity
-        val constraint = EvaluateBasicConstraintsConstraint.requireEndEntity(
-            getBasicConstraints = CertificateOperationsJvm::getBasicConstraints,
-        )
+        val profile = certificateProfile { requireEndEntityCertificate() }
 
         // Validate
-        val constraintEvaluation = constraint(certificate)
+        val constraintEvaluation = certificateProfileValidator.validate(profile, certificate)
 
         // Should fail - CA certificate when end-entity expected
         assertTrue(!constraintEvaluation.isMet())
-
         assertTrue(constraintEvaluation.violations.any { it.reason.contains("CA") })
     }
 
@@ -54,13 +53,10 @@ class EvaluateBasicConstraintsConstraintTest {
         val certificate = certHolder.toX509Certificate()
 
         // Create constraint for CA with maxPathLen = 2
-        val constraint = EvaluateBasicConstraintsConstraint.requireCa(
-            maxPathLen = 2,
-            getBasicConstraints = CertificateOperationsJvm::getBasicConstraints,
-        )
+        val profile = certificateProfile { requireCaCertificate(2) }
 
         // Validate - should fail because CA certificate has no pathLenConstraint
-        val constraintEvaluation = constraint(certificate)
+        val constraintEvaluation = certificateProfileValidator.validate(profile, certificate)
 
         // Should fail - CA certificate missing pathLenConstraint
         assertTrue(!constraintEvaluation.isMet())

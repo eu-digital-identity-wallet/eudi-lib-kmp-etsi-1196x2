@@ -62,7 +62,7 @@ private fun <CTX : Any> EUListOfTrustedEntitiesProfile.loteMeta(
 ): LotEMeta<CTX> = LotEMeta(
     svcTypePerCtx = svcTypePerCtx(issuance, revocation),
     serviceDigitalIdentityCertificateType = trustedEntities.serviceDigitalIdentityCertificateType,
-    endEntityCertificateConstraints = endEntityCertificateConstraints,
+    endEntityCertificateProfile = endEntityCertificateProfile,
 )
 
 private fun <CTX : Any> EUListOfTrustedEntitiesProfile.svcTypePerCtx(

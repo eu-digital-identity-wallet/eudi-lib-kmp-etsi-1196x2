@@ -26,6 +26,7 @@ import kotlin.test.assertTrue
 class KeyUsageConstraintTest {
 
     private val x500Name = X500Name("CN=Foo")
+    private val certificateProfileValidator = CertificateProfileValidator(CertificateOperationsJvm)
 
     @Test
     fun `KeyUsageConstraint should reject when digitalSignature not set`() = runTest {
@@ -34,12 +35,11 @@ class KeyUsageConstraintTest {
         val certificate = certHolder.toX509Certificate()
 
         // Create constraint for digitalSignature
-        val constraint = KeyUsageConstraint.requireDigitalSignature(
-            getKeyUsage = CertificateOperationsJvm::getKeyUsage,
-        )
+
+        val profile = certificateProfile { requireDigitalSignature() }
 
         // Validate
-        val constraintEvaluation = constraint(certificate)
+        val constraintEvaluation = certificateProfileValidator.validate(profile, certificate)
 
         // Should fail - CA certificate has keyCertSign, not digitalSignature
         assertTrue(!constraintEvaluation.isMet())

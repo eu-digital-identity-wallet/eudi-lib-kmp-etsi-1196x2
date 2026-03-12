@@ -19,9 +19,12 @@ import eu.europa.ec.eudi.etsi119602.consultation.CertOps
 import eu.europa.ec.eudi.etsi119602.consultation.CertOps.toX509Certificate
 import eu.europa.ec.eudi.etsi119602.consultation.ETSI119412
 import eu.europa.ec.eudi.etsi1196x2.consultation.CertificateOperationsJvm
+import eu.europa.ec.eudi.etsi1196x2.consultation.certs.CertificateConstraintEvaluation
+import eu.europa.ec.eudi.etsi1196x2.consultation.certs.CertificateProfileValidator
 import eu.europa.ec.eudi.etsi1196x2.consultation.certs.isMet
 import kotlinx.coroutines.test.runTest
 import org.bouncycastle.asn1.x500.X500Name
+import java.security.cert.X509Certificate
 import kotlin.test.Test
 import kotlin.test.assertTrue
 
@@ -31,9 +34,11 @@ import kotlin.test.assertTrue
 class EUPIDProvidersEndEntityCertificateTests {
 
     private val cnPidProvider = X500Name("CN=PID Provider Test")
-
-    private val evaluateCertificateConstraints =
-        checkNotNull(EUPIDProvidersList.endEntityCertificateConstrainsEvaluator(CertificateOperationsJvm))
+    val certificateProfileValidator = CertificateProfileValidator(CertificateOperationsJvm)
+    private suspend fun evaluateCertificateConstraints(
+        certificate: X509Certificate,
+    ): CertificateConstraintEvaluation =
+        certificateProfileValidator.validate(pidProviderCertificateProfile(), certificate)
 
     @Test
     fun `PID Provider validator should validate end-entity certificate`() = runTest {
@@ -91,10 +96,12 @@ class EUPIDProvidersEndEntityCertificateTests {
         // Validate as PID Provider
         val constraintEvaluation = evaluateCertificateConstraints(certificate)
 
-        // Note: Current implementation doesn't check QCStatement compliance bit
-        // This test documents the current behavior - QCStatement is present but compliance not checked
-        // Future enhancement: implement compliance bit checking
-        assertTrue(constraintEvaluation.isMet(), "Current implementation doesn't check QCStatement compliance bit")
+        // Should fail - QCStatement is present but not marked as compliant
+        assertTrue(!constraintEvaluation.isMet(), "Non-compliant QCStatement should fail")
+        assertTrue(
+            constraintEvaluation.violations.any { it.reason.contains("compliant") },
+            "Expected failure for non-compliant QCStatement",
+        )
     }
 
     @Test
@@ -133,7 +140,7 @@ class EUPIDProvidersEndEntityCertificateTests {
         val certificate = eeCertHolder.toX509Certificate()
 
         // Validate as PID Provider (should pass AIA check)
-        val constraintEvaluation = CertificateOperationsJvm.pidProviderCertificateProfileEvaluator()(certificate)
+        val constraintEvaluation = evaluateCertificateConstraints(certificate)
 
         // Should pass - has AIA and QCStatement
         assertTrue(constraintEvaluation.isMet(), "CA-issued PID certificate with AIA should pass")

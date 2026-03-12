@@ -16,8 +16,6 @@
 package eu.europa.ec.eudi.etsi1196x2.consultation
 
 import eu.europa.ec.eudi.etsi1196x2.consultation.certs.*
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import org.bouncycastle.asn1.ASN1InputStream
 import org.bouncycastle.asn1.ASN1ObjectIdentifier
 import org.bouncycastle.asn1.ASN1Sequence
@@ -43,14 +41,13 @@ public object CertificateOperationsJvm : CertificateOperations<X509Certificate> 
      *
      * @return [eu.europa.ec.eudi.etsi1196x2.consultation.certs.BasicConstraintsInfo] with isCa and pathLenConstraint
      */
-    public override suspend fun getBasicConstraints(certificate: X509Certificate): BasicConstraintsInfo =
-        withContext(Dispatchers.IO) {
-            val basicConstraints = certificate.basicConstraints
-            BasicConstraintsInfo(
-                isCa = basicConstraints >= 0,
-                pathLenConstraint = basicConstraints.takeIf { it >= 0 },
-            )
-        }
+    public override fun getBasicConstraints(certificate: X509Certificate): BasicConstraintsInfo {
+        val basicConstraints = certificate.basicConstraints
+        return BasicConstraintsInfo(
+            isCa = basicConstraints >= 0,
+            pathLenConstraint = basicConstraints.takeIf { it >= 0 },
+        )
+    }
 
     /**
      * Extracts QCStatement information from an X509Certificate.
@@ -60,33 +57,30 @@ public object CertificateOperationsJvm : CertificateOperations<X509Certificate> 
      *
      * @return list of [eu.europa.ec.eudi.etsi1196x2.consultation.certs.QCStatementInfo] or empty list if no QCStatements present
      */
-    public override suspend fun getQcStatements(certificate: X509Certificate): List<QCStatementInfo> =
-        withContext(Dispatchers.IO) {
-            // OID for QCStatements extension (id-pe-qcStatements)
-            val qcStatementsExtension = certificate.getExtensionValue("1.3.6.1.5.5.7.1.3")
-            qcStatementsExtension?.parseQcStatements().orEmpty()
-        }
+    public override fun getQcStatements(certificate: X509Certificate): List<QCStatementInfo> {
+        // OID for QCStatements extension (id-pe-qcStatements)
+        val qcStatementsExtension = certificate.getExtensionValue("1.3.6.1.5.5.7.1.3")
+        return qcStatementsExtension?.parseQcStatements().orEmpty()
+    }
 
     /**
      * Extracts key usage information from an X509Certificate.
      *
      * @return [eu.europa.ec.eudi.etsi1196x2.consultation.certs.KeyUsageBits] or null if keyUsage extension is not present
      */
-    public override suspend fun getKeyUsage(certificate: X509Certificate): KeyUsageBits? =
-        withContext(Dispatchers.IO) {
-            certificate.keyUsage?.let { keyUsage ->
-                KeyUsageBits(
-                    digitalSignature = keyUsage.getOrElse(0) { false },
-                    nonRepudiation = keyUsage.getOrElse(1) { false },
-                    keyEncipherment = keyUsage.getOrElse(2) { false },
-                    dataEncipherment = keyUsage.getOrElse(3) { false },
-                    keyAgreement = keyUsage.getOrElse(4) { false },
-                    keyCertSign = keyUsage.getOrElse(5) { false },
-                    crlSign = keyUsage.getOrElse(6) { false },
-                    encipherOnly = keyUsage.getOrElse(7) { false },
-                    decipherOnly = keyUsage.getOrElse(8) { false },
-                )
-            }
+    public override fun getKeyUsage(certificate: X509Certificate): KeyUsageBits? =
+        certificate.keyUsage?.let { keyUsage ->
+            KeyUsageBits(
+                digitalSignature = keyUsage.getOrElse(0) { false },
+                nonRepudiation = keyUsage.getOrElse(1) { false },
+                keyEncipherment = keyUsage.getOrElse(2) { false },
+                dataEncipherment = keyUsage.getOrElse(3) { false },
+                keyAgreement = keyUsage.getOrElse(4) { false },
+                keyCertSign = keyUsage.getOrElse(5) { false },
+                crlSign = keyUsage.getOrElse(6) { false },
+                encipherOnly = keyUsage.getOrElse(7) { false },
+                decipherOnly = keyUsage.getOrElse(8) { false },
+            )
         }
 
     /**
@@ -94,13 +88,11 @@ public object CertificateOperationsJvm : CertificateOperations<X509Certificate> 
      *
      * @return [eu.europa.ec.eudi.etsi1196x2.consultation.certs.ValidityPeriod] with notBefore and notAfter timestamps
      */
-    public override suspend fun getValidityPeriod(certificate: X509Certificate): ValidityPeriod =
-        withContext(Dispatchers.IO) {
-            ValidityPeriod(
-                notBefore = certificate.notBefore.toInstant().toKotlinInstant(),
-                notAfter = certificate.notAfter.toInstant().toKotlinInstant(),
-            )
-        }
+    public override fun getValidityPeriod(certificate: X509Certificate): ValidityPeriod =
+        ValidityPeriod(
+            notBefore = certificate.notBefore.toInstant().toKotlinInstant(),
+            notAfter = certificate.notAfter.toInstant().toKotlinInstant(),
+        )
 
     /**
      * Extracts certificate policy OIDs from an X509Certificate.
@@ -110,12 +102,11 @@ public object CertificateOperationsJvm : CertificateOperations<X509Certificate> 
      *
      * @return list of certificate policy OIDs or empty list if no policies present
      */
-    public override suspend fun getCertificatePolicies(certificate: X509Certificate): List<String> =
-        withContext(Dispatchers.IO) {
-            // OID for Certificate Policies extension
-            val certPoliciesExtension = certificate.getExtensionValue("2.5.29.32")
-            certPoliciesExtension?.parseCertificatePolicies().orEmpty()
-        }
+    public override fun getCertificatePolicies(certificate: X509Certificate): List<String> {
+        // OID for Certificate Policies extension
+        val certPoliciesExtension = certificate.getExtensionValue("2.5.29.32")
+        return certPoliciesExtension?.parseCertificatePolicies().orEmpty()
+    }
 
     /**
      * Checks if an X509Certificate is self-signed.
@@ -124,22 +115,19 @@ public object CertificateOperationsJvm : CertificateOperations<X509Certificate> 
      *
      * @return true if self-signed, false otherwise
      */
-    public override suspend fun isSelfSigned(certificate: X509Certificate): Boolean =
-        withContext(Dispatchers.IO) {
-            certificate.subjectX500Principal == certificate.issuerX500Principal
-        }
+    public override fun isSelfSigned(certificate: X509Certificate): Boolean =
+        certificate.subjectX500Principal == certificate.issuerX500Principal
 
     /**
      * Extracts Authority Information Access (AIA) extension from an X509Certificate.
      *
      * @return [AuthorityInformationAccess] or null if extension is not present or parsing fails
      */
-    public override suspend fun getAiaExtension(certificate: X509Certificate): AuthorityInformationAccess? =
-        withContext(Dispatchers.IO) {
-            // OID for AIA extension (id-pe-authorityInfoAccess)
-            val aiaExtension = certificate.getExtensionValue("1.3.6.1.5.5.7.1.1")
-            aiaExtension?.parseAiaExtension()
-        }
+    public override fun getAiaExtension(certificate: X509Certificate): AuthorityInformationAccess? {
+        // OID for AIA extension (id-pe-authorityInfoAccess)
+        val aiaExtension = certificate.getExtensionValue("1.3.6.1.5.5.7.1.1")
+        return aiaExtension?.parseAiaExtension()
+    }
 
     /**
      * Helper function to parse AIA from DER-encoded extension value.
@@ -208,10 +196,21 @@ public object CertificateOperationsJvm : CertificateOperations<X509Certificate> 
                 val statementIdObj = qcStatement.getObjectAt(0) as? ASN1ObjectIdentifier ?: return@mapNotNull null
                 val statementId = statementIdObj.id
 
-                // Second element (optional) is statementInfo - we check for QC compliance
-                // Per ETSI EN 319 412-5, QCStatements can have a compliance bit
-                // For simplicity, we assume compliant if present
-                val qcCompliance = qcStatement.size() > 1
+                // Second element (optional) is statementInfo - check for QC compliance
+                // Per ETSI EN 319 412-5, QCStatements can have a compliance indicator
+                // We check if the second element is a UTF8String containing "compliant"
+                var qcCompliance = false
+                if (qcStatement.size() > 1) {
+                    val statementInfo = qcStatement.getObjectAt(1)
+                    // Check if it's a UTF8String with compliance indicator
+                    if (statementInfo is org.bouncycastle.asn1.DERUTF8String) {
+                        val complianceStr = statementInfo.string.lowercase()
+                        qcCompliance = complianceStr == "compliant"
+                    } else {
+                        // If there's any second element, assume compliant (backward compatibility)
+                        qcCompliance = true
+                    }
+                }
 
                 QCStatementInfo(
                     qcType = statementId,

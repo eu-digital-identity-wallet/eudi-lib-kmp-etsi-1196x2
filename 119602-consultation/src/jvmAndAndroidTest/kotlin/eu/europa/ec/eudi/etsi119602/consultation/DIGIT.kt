@@ -56,7 +56,7 @@ object DIGIT {
                             VerificationContext.EAAStatus("mdl") to EUMDLProvidersListSpec.SVC_TYPE_REVOCATION,
                         ),
                         serviceDigitalIdentityCertificateType = ServiceDigitalIdentityCertificateType.EndEntityOrCA,
-                        endEntityCertificateConstraints = null,
+                        endEntityCertificateProfile = null,
                     ),
                 ),
             )

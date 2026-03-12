@@ -18,6 +18,7 @@ package eu.europa.ec.eudi.etsi119602.consultation
 import eu.europa.ec.eudi.etsi119602.ServiceDigitalIdentity
 import eu.europa.ec.eudi.etsi119602.x509Certificate
 import eu.europa.ec.eudi.etsi1196x2.consultation.*
+import eu.europa.ec.eudi.etsi1196x2.consultation.certs.CertificateProfileValidator
 import java.security.cert.TrustAnchor
 import java.security.cert.X509Certificate
 
@@ -52,7 +53,7 @@ public fun <CTX : Any> ProvisionTrustAnchorsFromLoTEs.Companion.jvm(
         continueOnProblem = continueOnProblem,
         directTrust = directTrust,
         pkix = pkix,
-        certificateOperations = CertificateOperationsJvm,
+        certificateProfileValidator = CertificateProfileValidator(CertificateOperationsJvm),
         endEntityCertificateOf = { checkNotNull(it.firstOrNull()) { "Chain cannot be empty" } },
     )
 

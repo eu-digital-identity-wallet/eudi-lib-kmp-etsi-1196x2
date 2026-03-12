@@ -17,10 +17,10 @@ package eu.europa.ec.eudi.etsi119602.consultation
 
 import eu.europa.ec.eudi.etsi119602.ServiceDigitalIdentity
 import eu.europa.ec.eudi.etsi119602.URI
-import eu.europa.ec.eudi.etsi119602.consultation.eu.CertificateConstraints
 import eu.europa.ec.eudi.etsi119602.consultation.eu.ServiceDigitalIdentityCertificateType
 import eu.europa.ec.eudi.etsi1196x2.consultation.*
-import eu.europa.ec.eudi.etsi1196x2.consultation.certs.CertificateOperations
+import eu.europa.ec.eudi.etsi1196x2.consultation.certs.CertificateProfile
+import eu.europa.ec.eudi.etsi1196x2.consultation.certs.CertificateProfileValidator
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlin.time.Clock
@@ -37,7 +37,7 @@ import kotlin.time.Duration
  * @param svcTypePerCtx A map which correlates a verification context [CTX] to a [eu.europa.ec.eudi.etsi119602.ServiceInformation.typeIdentifier].
  * @param serviceDigitalIdentityCertificateType A hint, indicating whether the [ServiceDigitalIdentity.x509Certificates]
  * are expecting/required to be End-Entity, CA or Both. This will drive the selection of chain validation method (direct trust, PKIX, or both)
- * @param endEntityCertificateConstraints an optional set of rules for the end-entity certificate, for which this LoTE will be used to validate
+ * @param endEntityCertificateProfile an optional set of rules for the end-entity certificate, for which this LoTE will be used to validate
  * a chain. If provided, the chain validation will first evaluate that the end-entity certificate aligns with the given rules.
  *
  * @param CTX the type representing a verification context
@@ -46,7 +46,7 @@ import kotlin.time.Duration
 public data class LotEMeta<CTX>(
     val svcTypePerCtx: Map<CTX, URI>,
     val serviceDigitalIdentityCertificateType: ServiceDigitalIdentityCertificateType,
-    val endEntityCertificateConstraints: CertificateConstraints?,
+    val endEntityCertificateProfile: CertificateProfile?,
 )
 
 /**
@@ -66,7 +66,7 @@ public data class LotEMeta<CTX>(
  * @property pkix A certificate chain validator based on PKIX.
  * @property continueOnProblem Strategy indicating whether to continue on specific problems while loading a LoTE.
  * Defaults to [ContinueOnProblem.Never]
- * @property certificateOperations an abstraction for certificate operations. It will be used to thread validation
+ * @property certificateProfileValidator an abstraction for certificate operations. It will be used to thread validation
  * of end-entity certificate of a chain to the chain validation.
  * @param endEntityCertificateOf A way to obtain the end entity certificate from a chain.
  */
@@ -77,7 +77,7 @@ public class ProvisionTrustAnchorsFromLoTEs<CHAIN : Any, CTX : Any, TRUST_ANCHOR
     private val directTrust: ValidateCertificateChainUsingDirectTrust<CHAIN, TRUST_ANCHOR, *>,
     private val pkix: ValidateCertificateChainUsingPKIX<CHAIN, TRUST_ANCHOR>,
     private val continueOnProblem: ContinueOnProblem = ContinueOnProblem.Never,
-    private val certificateOperations: CertificateOperations<CERT>,
+    private val certificateProfileValidator: CertificateProfileValidator<CERT>,
     private val endEntityCertificateOf: (CHAIN) -> CERT,
 ) {
 
@@ -160,14 +160,19 @@ public class ProvisionTrustAnchorsFromLoTEs<CHAIN : Any, CTX : Any, TRUST_ANCHOR
     private fun certificateChainValidator(
         cfg: LoTECfg<CTX>,
     ): ValidateCertificateChain<CHAIN, TRUST_ANCHOR> {
-        val endEntityCertificateConstraints = cfg.metadata.endEntityCertificateConstraints?.run { with(certificateOperations) { evaluator() } }
+        val endEntityCertificateProfile =
+            cfg.metadata.endEntityCertificateProfile
         val validator = when (cfg.metadata.serviceDigitalIdentityCertificateType) {
             ServiceDigitalIdentityCertificateType.EndEntity -> directTrust
             ServiceDigitalIdentityCertificateType.CA -> pkix
             ServiceDigitalIdentityCertificateType.EndEntityOrCA -> directTrust or pkix
         }
-        return if (endEntityCertificateConstraints != null) {
-            validator.withEndEntityConstraints(endEntityCertificateConstraints, endEntityCertificateOf)
+        return if (endEntityCertificateProfile != null) {
+            validator.withEndEntityProfile(
+                certificateProfileValidator,
+                endEntityCertificateProfile,
+                endEntityCertificateOf,
+            )
         } else {
             validator
         }
@@ -203,7 +208,7 @@ public class ProvisionTrustAnchorsFromLoTEs<CHAIN : Any, CTX : Any, TRUST_ANCHOR
             directTrust: ValidateCertificateChainUsingDirectTrust<CHAIN, TRUST_ANCHOR, *>,
             pkix: ValidateCertificateChainUsingPKIX<CHAIN, TRUST_ANCHOR>,
             continueOnProblem: ContinueOnProblem = ContinueOnProblem.Never,
-            certificateOperations: CertificateOperations<CERT>,
+            certificateProfileValidator: CertificateProfileValidator<CERT>,
             endEntityCertificateOf: (CHAIN) -> CERT,
         ): ProvisionTrustAnchorsFromLoTEs<CHAIN, VerificationContext, TRUST_ANCHOR, CERT> =
             ProvisionTrustAnchorsFromLoTEs(
@@ -213,7 +218,7 @@ public class ProvisionTrustAnchorsFromLoTEs<CHAIN : Any, CTX : Any, TRUST_ANCHOR
                 directTrust,
                 pkix,
                 continueOnProblem,
-                certificateOperations,
+                certificateProfileValidator,
                 endEntityCertificateOf,
             )
     }
