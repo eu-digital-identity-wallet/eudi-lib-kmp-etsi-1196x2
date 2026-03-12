@@ -89,18 +89,47 @@ a high-level functional approach.
 
 📋 **Certificate Constraint Evaluation**
 
-- `EvaluateCertificateConstraint`: A functional interface for validating specific aspects of a certificate against ETSI
-  certificate profile requirements. Multiple constraints can be aggregated to represent the complete rules of a
-  Certificate Profile
-- **Built-in constraint implementations**:
-    - `EvaluateBasicConstraintsConstraint`: Validates certificate type (CA vs end-entity) and path length constraints
-    - `QCStatementConstraint`: Validates QCStatement extensions per ETSI EN 319 412-5 (required for PID/Wallet
-      certificates)
-    - `KeyUsageConstraint`: Validates key usage bits per RFC 5280 (digitalSignature, keyCertSign, etc.)
-    - `ValidityPeriodConstraint`: Validates certificate validity period (notBefore, notAfter)
-    - `CertificatePolicyConstraint`: Validates certificate policy OIDs (required for WRPAC/WRPRC providers)
-    - `EvaluateAuthorityInformationAccessConstraint`: Validates AIA extension per ETSI TS 119 412-6 (required for
-      CA-issued PID/Wallet certificates)
+- `CertificateOperation`: A sealed interface representing the algebra of certificate operations (the "functor" in a free
+  monad design). Each operation extracts specific information from a certificate:
+    - `GetBasicConstraints`: Extract CA/end-entity status and path length constraint
+    - `GetKeyUsage`: Extract key usage bits (digitalSignature, keyCertSign, etc.)
+    - `GetValidity`: Extract validity period (notBefore, notAfter)
+    - `GetPolicies`: Extract certificate policy OIDs
+    - `CheckSelfSigned`: Check if certificate is self-signed
+    - `GetAia`: Extract Authority Information Access (AIA) extension
+    - `GetQcStatements(qcType)`: Extract QCStatements of a specific type
+
+- `CertificateProfile`: An immutable collection of `CertificateConstraint` instances that define a complete certificate
+  profile
+
+- `CertificateProfileValidator<CERT>`: High-level validator that combines interpreter and profile validation
+
+### Example: Creating a Certificate Profile
+
+```kotlin
+import eu.europa.ec.eudi.etsi1196x2.consultation.certs.*
+
+// Create a profile for PID Provider end-entity certificates
+val pidProviderProfile = certificateProfile {
+    requireEndEntityCertificate()
+    requireQcStatement(qcType = "0.4.0.194126.1.1", requireCompliance = true)
+    requireDigitalSignature()
+    requireValidAt()
+    requirePolicyPresence()
+    requireAiaForCaIssued()
+}
+
+// Create a validator using platform-specific operations
+val validator = CertificateProfileValidator(CertificateOperationsJvm)
+
+// Validate a certificate against the profile
+val result = validator.validate(pidProviderProfile, certificate)
+if (result.isMet()) {
+    println("Certificate satisfies PID Provider profile")
+} else {
+    println("Certificate violations: ${result.violations}")
+}
+```
 
 ## Architecture Overview
 
