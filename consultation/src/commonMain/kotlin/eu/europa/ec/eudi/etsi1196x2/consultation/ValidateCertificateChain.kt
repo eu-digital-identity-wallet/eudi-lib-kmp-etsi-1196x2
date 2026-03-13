@@ -57,7 +57,6 @@ public fun interface ValidateCertificateChain<in CHAIN : Any, TRUST_ANCHOR : Any
  * @param TRUST_ANCHOR the type representing a trust anchor
  *
  * @see ValidateCertificateChain
- * @see java.security.cert.CertPathValidator
  */
 public fun interface ValidateCertificateChainUsingPKIX<in CHAIN : Any, TRUST_ANCHOR : Any> :
     ValidateCertificateChain<CHAIN, TRUST_ANCHOR>
