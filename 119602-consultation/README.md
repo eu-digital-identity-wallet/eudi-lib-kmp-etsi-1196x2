@@ -172,7 +172,7 @@ flowchart TD
 
     subgraph TrustAnchorTypes["Trust Anchor Types"]
         C1 --> D1["End-entity or CA Certificate"]
-        C2 --> D2["End-entity Certificate<br/>QCStatement: id-etsi-qct-wal"]
+        C2 --> D2["End-entity or CA Certificate"]
         C3 --> D3["CA Certificate<br/>Policy: NCP/QCP"]
         C4 --> D4["CA Certificate<br/>Policy: WRPRC"]
     end
