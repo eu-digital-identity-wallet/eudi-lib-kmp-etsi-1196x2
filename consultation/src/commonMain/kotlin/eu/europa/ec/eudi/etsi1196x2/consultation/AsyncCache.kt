@@ -15,7 +15,6 @@
  */
 package eu.europa.ec.eudi.etsi1196x2.consultation
 
-import eu.europa.ec.eudi.etsi1196x2.consultation.AsyncCache.Entry
 import kotlinx.coroutines.*
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -36,11 +35,7 @@ public class AsyncCache<A : Any, B>(
     private data class Entry<B>(val deferred: Deferred<B>, val createdAt: Long)
 
     private val mutex = Mutex()
-    private val cache =
-        object : LinkedHashMap<A, Entry<B>>(maxCacheSize, 0.75f, true) {
-            override fun removeEldestEntry(eldest: MutableMap.MutableEntry<A, Entry<B>>) =
-                size >= maxCacheSize
-        }
+    private val cache = mutableMapOf<A, Entry<B>>()
 
     init {
         if (cleanupExpired && ttl.isPositive() && ttl != Duration.INFINITE) {
@@ -56,13 +51,25 @@ public class AsyncCache<A : Any, B>(
         val entry = mutex.withLock {
             val existing = cache[key]
             if (existing != null && (now - existing.createdAt) < ttl.inWholeMilliseconds) {
+                cache.remove(key)
+                cache[key] = existing
                 existing
             } else {
                 // Launch new computation
                 val newDeferred = cacheScope.async {
                     supplier(key)
                 }
-                Entry(newDeferred, now).also { cache[key] = it }
+                val newEntry = Entry(newDeferred, now)
+
+                // Maintain LRU size
+                if (cache.size >= maxCacheSize && !cache.containsKey(key)) {
+                    val eldestKey = cache.keys.firstOrNull()
+                    if (eldestKey != null) {
+                        cache.remove(eldestKey)
+                    }
+                }
+                cache[key] = newEntry
+                newEntry
             }
         }
         return try {

@@ -145,4 +145,71 @@ class AsyncCacheTest {
             assertEquals(2, supplierCalls, "Background cleanup should have removed expired entry")
         }
     }
+
+    @Test
+    fun lruEvictionWorks() = runTest {
+        var supplierCalls = 0
+        val testDispatcher = StandardTestDispatcher(testScheduler)
+        val ttl = 1000.milliseconds
+        val clock = TestClock(testScheduler)
+        val maxSize = 2
+
+        useResources {
+            val cache = AsyncCache<Int, String>(testDispatcher, clock, ttl, maxSize) { key ->
+                supplierCalls++
+                "value-$key"
+            }.bind()
+
+            // 1. Fill cache to max size
+            cache(1)
+            cache(2)
+            assertEquals(2, supplierCalls)
+
+            // 2. Add another entry, should evict '1' (eldest)
+            cache(3)
+            assertEquals(3, supplierCalls)
+
+            // 3. Check if '1' is evicted and '2' is still there
+            cache(2)
+            assertEquals(3, supplierCalls, "Key 2 should still be in cache")
+
+            cache(1)
+            assertEquals(4, supplierCalls, "Key 1 should have been evicted")
+        }
+    }
+
+    @Test
+    fun accessOrderIsMaintained() = runTest {
+        var supplierCalls = 0
+        val testDispatcher = StandardTestDispatcher(testScheduler)
+        val ttl = 1000.milliseconds
+        val clock = TestClock(testScheduler)
+        val maxSize = 2
+
+        useResources {
+            val cache = AsyncCache<Int, String>(testDispatcher, clock, ttl, maxSize) { key ->
+                supplierCalls++
+                "value-$key"
+            }.bind()
+
+            // 1. Fill cache
+            cache(1)
+            cache(2)
+
+            // 2. Access '1', making it the most recently used
+            cache(1)
+            assertEquals(2, supplierCalls)
+
+            // 3. Add '3', should evict '2' (eldest)
+            cache(3)
+            assertEquals(3, supplierCalls)
+
+            // 4. Verify '2' is evicted and '1' is still there
+            cache(1)
+            assertEquals(3, supplierCalls, "Key 1 should still be in cache as it was recently accessed")
+
+            cache(2)
+            assertEquals(4, supplierCalls, "Key 2 should have been evicted as it was the eldest after accessing 1")
+        }
+    }
 }
