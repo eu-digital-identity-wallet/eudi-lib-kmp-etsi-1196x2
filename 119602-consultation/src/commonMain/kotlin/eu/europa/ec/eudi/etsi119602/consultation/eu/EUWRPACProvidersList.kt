@@ -84,7 +84,7 @@ public fun wrpacProviderCertificateProfile(
 ): CertificateProfile =
     certificateProfile {
         requireCaCertificate(maxPathLen)
-        requireDigitalSignature()
+        requireKeyCertSign()
         requireValidAt(at)
         requirePolicy(oids = ETSI119411.ALL.toTypedArray())
     }
