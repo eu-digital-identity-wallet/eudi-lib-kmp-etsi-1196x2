@@ -106,6 +106,6 @@ public fun pidProviderCACertificateProfile(
 ): CertificateProfile =
     certificateProfile {
         requireCaCertificate(maxPathLen)
-        requireDigitalSignature()
+        requireKeyCertSign()
         requireValidAt(at)
     }

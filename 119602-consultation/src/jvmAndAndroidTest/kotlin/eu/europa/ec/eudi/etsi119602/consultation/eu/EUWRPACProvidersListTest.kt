@@ -25,14 +25,13 @@ import eu.europa.ec.eudi.etsi1196x2.consultation.certs.isMet
 import kotlinx.coroutines.test.runTest
 import org.bouncycastle.asn1.x500.X500Name
 import java.security.cert.X509Certificate
-import kotlin.test.Ignore
 import kotlin.test.Test
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 /**
  * Tests for WRPAC Provider certificate constraints (ETSI TS 119 602 Annex F).
  */
-@Ignore("Further investigation needed")
 class EUWRPACProvidersListTest {
 
     private val cnWrpacProvider = X500Name("CN=WRPAC Provider Test")
@@ -51,12 +50,54 @@ class EUWRPACProvidersListTest {
 
         // Validate as WRPAC Provider
         val constraintEvaluation = evaluateCertificateConstraints(certificate)
-        assertTrue(!constraintEvaluation.isMet())
-        // Should pass basic constraints (CA) and key usage (keyCertSign)
-        // Will fail Certificate Policy (certificate lacks policy OID)
+
+        assertFalse(
+            actual = constraintEvaluation.isMet(),
+            message = "Expected validation failure due to missing policies",
+        )
+
+        // Verify Key Usage passed (no keyCertSign violation)
         assertTrue(
-            constraintEvaluation.violations.any { it.reason.contains("certificate policies") },
-            "Expected failure for missing Certificate Policy",
+            actual = constraintEvaluation.violations.none { it.reason.contains("keyCertSign") },
+            message = "Key Usage should pass",
+        )
+
+        // Should fail Certificate Policy (certificate lacks policy OID)
+        assertTrue(
+            actual = constraintEvaluation.violations.any { it.reason.contains("certificate policies") },
+            message = "Expected failure for missing Certificate Policy",
+        )
+    }
+
+    @Test
+    fun `WRPAC Provider validator should reject end-entity certificate`() = runTest {
+        // Generate a trust anchor (CA certificate for WRPAC Provider)
+        val (rootKp, rootCert) = CertOps.genTrustAnchor("SHA256withECDSA", X500Name("CN=Root"))
+
+        // Generate an end-entity certificate (cA=FALSE) signed by that root
+        val (_, eeCertHolder) = CertOps.genEndEntity(
+            signerCert = rootCert,
+            signerKey = rootKp.private,
+            sigAlg = "SHA256withECDSA",
+            subject = cnWrpacProvider,
+        )
+        val certificate = eeCertHolder.toX509Certificate()
+
+        // Validate as WRPAC Provider
+        val constraintEvaluation = evaluateCertificateConstraints(certificate)
+
+        assertTrue(constraintEvaluation is CertificateConstraintEvaluation.Violated)
+        val violations = (constraintEvaluation as CertificateConstraintEvaluation.Violated).violations
+
+        // Should fail basic constraints (not a CA)
+        assertTrue(
+            actual = violations.any { it.reason.contains("Certificate type mismatch") },
+            message = "Should fail basic constraints",
+        )
+        // Should fail Key Usage (lacks keyCertSign)
+        assertTrue(
+            actual = violations.any { it.reason.contains("keyCertSign") },
+            message = "Should fail keyCertSign",
         )
     }
 
@@ -143,6 +184,6 @@ class EUWRPACProvidersListTest {
         val constraintEvaluation = evaluateCertificateConstraints(certificate)
 
         // Verify rejection
-        assertTrue(!constraintEvaluation.isMet(), "Certificate with unknown policy should be rejected")
+        assertFalse(constraintEvaluation.isMet(), "Certificate with unknown policy should be rejected")
     }
 }
