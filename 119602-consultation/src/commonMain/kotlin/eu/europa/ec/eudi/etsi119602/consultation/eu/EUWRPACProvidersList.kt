@@ -47,7 +47,7 @@ public val EUWRPACProvidersList: EUListOfTrustedEntitiesProfile =
             serviceStatuses = emptySet(),
             serviceDigitalIdentityCertificateType = ServiceDigitalIdentityCertificateType.CA,
         ),
-        endEntityCertificateProfile = wrpacEndEntityCertificateProfile(at = null, policy = null),
+        endEntityCertificateProfile = wrpAccessCertificateProfile(at = null, policy = null),
     )
 
 /**
@@ -58,7 +58,6 @@ public val EUWRPACProvidersList: EUListOfTrustedEntitiesProfile =
  * - QCStatement: NOT required
  * - Key Usage: keyCertSign REQUIRED
  * - Validity: Must be valid at validation time
- * - Certificate Policy: NOT the end-entity OIDs from ETSI TS 119 411-8 Clause 5.3
  *
  * Note: WRPAC Providers are CAs that issue WRPAC (end-entity) certificates to Wallet Relying Parties.
  * The LoTE contains the WRPAC Provider's CA certificate, not the WRPAC itself.
@@ -90,7 +89,7 @@ public fun wrpacProviderCertificateProfile(
     }
 
 /**
- * Creates constraints for WRPAC end-entity certificates (issued to Wallet Relying Parties).
+ * Creates constraints for Wallet Relying Party Access Certificate (issued to Wallet Relying Parties).
  *
  * Per ETSI TS 119 411-8 Clause 6.6.1:
  * - Certificate type: End-entity (cA=FALSE)
@@ -119,7 +118,7 @@ public fun wrpacProviderCertificateProfile(
  * @see [ETSI TS 119 411-8 Clause 6.6.1 - Certificate Profile]
  * @see [ETSI119411]
  */
-public fun wrpacEndEntityCertificateProfile(
+public fun wrpAccessCertificateProfile(
     at: Instant? = null,
     policy: String? = null,
 ): CertificateProfile {

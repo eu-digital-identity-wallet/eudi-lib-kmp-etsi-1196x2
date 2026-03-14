@@ -39,7 +39,7 @@ class EUWRPAccessCertificateTest {
     private suspend fun evaluateEndEntityCertificateConstraints(
         certificate: X509Certificate,
     ): CertificateConstraintEvaluation =
-        certificateProfileValidator.validate(wrpacEndEntityCertificateProfile(), certificate)
+        certificateProfileValidator.validate(wrpAccessCertificateProfile(), certificate)
 
     private val wrpacProvider = CertOps.genTrustAnchor(
         sigAlg = "SHA256withECDSA",
