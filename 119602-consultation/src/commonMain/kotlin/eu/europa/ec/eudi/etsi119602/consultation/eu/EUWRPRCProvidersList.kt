@@ -50,7 +50,6 @@ public val EUWRPRCProvidersList: EUListOfTrustedEntitiesProfile =
  *
  * Per ETSI TS 119 602 Annex G:
  * - Certificate type: CA certificate (cA=TRUE)
- * - QCStatement: NOT required
  * - Key Usage: keyCertSign REQUIRED
  * - Validity: Must be valid at validation time
  * - Certificate Policy: ETSI TS 119 475 Clause 6.1.3 (WRPRC Policy)
