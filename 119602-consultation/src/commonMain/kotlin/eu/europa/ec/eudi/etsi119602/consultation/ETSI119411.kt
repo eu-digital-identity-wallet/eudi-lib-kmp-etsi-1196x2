@@ -82,18 +82,4 @@ public object ETSI119411 {
      * ```
      */
     public const val QCP_L_EUDIWRP: String = "0.4.0.194118.1.4"
-
-    /**
-     * All valid WRPAC certificate policy OIDs.
-     *
-     * WRPAC Providers may issue certificates under any of these four policies based on:
-     * - Natural person vs Legal person
-     * - Non-qualified (NCP) vs Qualified (QCP)
-     */
-    public val ALL: List<String> = listOf(
-        NCP_N_EUDIWRP,
-        NCP_L_EUDIWRP,
-        QCP_N_EUDIWRP,
-        QCP_L_EUDIWRP,
-    )
 }

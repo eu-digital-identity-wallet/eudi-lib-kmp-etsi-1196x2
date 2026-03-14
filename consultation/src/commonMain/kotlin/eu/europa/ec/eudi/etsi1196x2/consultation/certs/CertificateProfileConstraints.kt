@@ -174,6 +174,10 @@ public fun ProfileBuilder.requireValidAt(time: Instant? = null) {
  * Requires the certificate to contain at least one of the specified policy OIDs.
  */
 public fun ProfileBuilder.requirePolicy(vararg oids: String) {
+    requirePolicy(oids.toSet())
+}
+
+public fun ProfileBuilder.requirePolicy(oids: Set<String>) {
     policies { policies ->
         evaluation {
             when {
@@ -281,7 +285,10 @@ internal object Violations {
         "Certificate keyUsage missing required bits: $keyUsage",
     )
 
-    fun certificateDoesNotContainAnyPolicy(policies: List<String>, oids: List<String>): CertificateConstraintViolation =
+    fun certificateDoesNotContainAnyPolicy(
+        policies: Collection<String>,
+        oids: Collection<String>,
+    ): CertificateConstraintViolation =
         CertificateConstraintViolation(
             reason = buildString {
                 val policiesStr = policies.joinToString(", ")
@@ -290,7 +297,9 @@ internal object Violations {
             },
         )
 
-    fun certificateDoesNotContainPolicies(oids: List<String>? = null): CertificateConstraintViolation =
+    fun certificateDoesNotContainPolicies(
+        oids: Collection<String>? = null,
+    ): CertificateConstraintViolation =
         CertificateConstraintViolation(
             reason = buildString {
                 append("Certificate does not contain any certificate policies")

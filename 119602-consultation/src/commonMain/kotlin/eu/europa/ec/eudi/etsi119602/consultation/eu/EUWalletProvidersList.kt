@@ -82,7 +82,7 @@ public val EUWalletProvidersList: EUListOfTrustedEntitiesProfile =
  */
 public fun walletProviderCertificateProfile(at: Instant? = null): CertificateProfile = certificateProfile {
     requireEndEntityCertificate()
-    requireQcStatement(ETSI119412.ID_ETSI_QCT_WAL, true)
+    requireQcStatement(qcType = ETSI119412.ID_ETSI_QCT_WAL, requireCompliance = true)
     requireDigitalSignature()
     requireValidAt(at)
     requirePolicyPresence()
@@ -90,7 +90,7 @@ public fun walletProviderCertificateProfile(at: Instant? = null): CertificatePro
 }
 
 /**
- * Creates constraints for Wallet Provider CA certificates in LoTE.
+ * Creates a certificate profile for Wallet Provide CA certificates in LoTE.
  *
  * When the LoTE contains a CA certificate (for PKIX validation), different constraints apply:
  * - Certificate type: CA (cA=TRUE)
