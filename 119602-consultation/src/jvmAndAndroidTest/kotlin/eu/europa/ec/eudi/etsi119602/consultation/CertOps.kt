@@ -16,18 +16,9 @@
 package eu.europa.ec.eudi.etsi119602.consultation
 
 import eu.europa.ec.eudi.etsi1196x2.consultation.JvmSecurity
-import org.bouncycastle.asn1.ASN1Encodable
-import org.bouncycastle.asn1.ASN1ObjectIdentifier
-import org.bouncycastle.asn1.DERIA5String
-import org.bouncycastle.asn1.DERSequence
-import org.bouncycastle.asn1.DERUTF8String
+import org.bouncycastle.asn1.*
 import org.bouncycastle.asn1.x500.X500Name
-import org.bouncycastle.asn1.x509.AccessDescription
-import org.bouncycastle.asn1.x509.BasicConstraints
-import org.bouncycastle.asn1.x509.Extension
-import org.bouncycastle.asn1.x509.GeneralName
-import org.bouncycastle.asn1.x509.KeyUsage
-import org.bouncycastle.asn1.x509.PolicyInformation
+import org.bouncycastle.asn1.x509.*
 import org.bouncycastle.cert.X509CertificateHolder
 import org.bouncycastle.cert.jcajce.JcaX509ExtensionUtils
 import org.bouncycastle.cert.jcajce.JcaX509v3CertificateBuilder
@@ -61,49 +52,29 @@ object CertOps {
     private fun notBefore(d: Duration = Duration.ZERO): Instant =
         (clock.now() + d)
 
-    fun generateECPair(): KeyPair = Ctx.generateECPair()
-
     fun genTrustAnchor(
         sigAlg: String,
-        name: X500Name,
+        subject: X500Name,
+        keyUsage: KeyUsage = KeyUsage(KeyUsage.keyCertSign or KeyUsage.cRLSign),
+        policyOids: List<String>? = null,
+        pathLenConstraint: Int? = null,
     ): Pair<KeyPair, X509CertificateHolder> {
         val kp = Ctx.generateECPair()
-        val certHolder = createTrustAnchor(kp, sigAlg, name)
+        val certHolder = createTrustAnchor(kp, sigAlg, subject, keyUsage, policyOids, pathLenConstraint)
         return kp to certHolder
-    }
-
-    fun genIntermediateCertificate(
-        signerCert: X509CertificateHolder,
-        signerKey: PrivateKey,
-        sigAlg: String,
-        followingCACerts: Int = 0,
-        subject: X500Name,
-    ): Pair<KeyPair, X509CertificateHolder> {
-        val caKp = Ctx.generateECPair()
-        val caCertHolder =
-            createIntermediateCertificate(signerCert, signerKey, sigAlg, caKp.public, followingCACerts, subject)
-        return caKp to caCertHolder
-    }
-
-    fun genEndEntity(
-        signerCert: X509CertificateHolder,
-        signerKey: PrivateKey,
-        sigAlg: String,
-        subject: X500Name,
-    ): Pair<KeyPair, X509CertificateHolder> {
-        val eeKp = Ctx.generateECPair()
-        val eeCertHolder = createEndEntity(signerCert, signerKey, sigAlg, eeKp.public, subject)
-        return eeKp to eeCertHolder
     }
 
     /**
      * Build a sample self-signed V3 certificate to use as a trust anchor, or
      *  root certificate.
      */
-    fun createTrustAnchor(
+    private fun createTrustAnchor(
         keyPair: KeyPair,
         sigAlg: String,
         name: X500Name,
+        keyUsage: KeyUsage,
+        policyOids: List<String>? = null,
+        pathLenConstraint: Int? = null,
     ): X509CertificateHolder {
         return JcaX509v3CertificateBuilder(
             name,
@@ -114,161 +85,47 @@ object CertOps {
             keyPair.public,
         ).apply {
             subjectKeyIdentifier(keyPair.public)
-            basicConstraints(BasicConstraints(true))
-            keyUsage(KeyUsage(KeyUsage.keyCertSign or KeyUsage.cRLSign))
+            if (pathLenConstraint != null) {
+                basicConstraints(BasicConstraints(pathLenConstraint))
+            } else {
+                basicConstraints(BasicConstraints(true))
+            }
+            keyUsage(keyUsage)
+            if (policyOids != null) {
+                certificatePolicies(policyOids)
+            }
         }.build(sigAlg, keyPair.private)
     }
 
-    fun genTrustAnchorWithQCStatement(
-        sigAlg: String,
-        name: X500Name,
-        qcType: String,
-        qcCompliance: Boolean = true,
-        policyOids: List<String>? = null,
-    ): Pair<KeyPair, X509CertificateHolder> {
-        val kp = Ctx.generateECPair()
-        val certHolder = createTrustAnchorWithQCStatement(kp, sigAlg, name, qcType, qcCompliance, policyOids)
-        return kp to certHolder
-    }
-
-    /**
-     * Build a sample self-signed V3 certificate with QCStatement for PID/Wallet providers.
-     *
-     * @param keyPair the key pair for the certificate
-     * @param sigAlg signature algorithm (e.g., "SHA256withECDSA")
-     * @param name subject/issuer name
-     * @param qcType QCStatement type OID (e.g., [ETSI119412.ID_ETSI_QCT_PID] for PID, [ETSI119412.ID_ETSI_QCT_WAL] for Wallet)
-     * @param qcCompliance whether the certificate is compliant with the QC type
-     * @param policyOids optional list of certificate policy OIDs. If not provided, a default TSP-defined
-     *        policy OID is added per EN 319 412-2 §4.3.3 (certificatePolicies extension shall be present)
-     * @return the generated certificate holder
-     */
-    fun createTrustAnchorWithQCStatement(
-        keyPair: KeyPair,
-        sigAlg: String,
-        name: X500Name,
-        qcType: String,
-        qcCompliance: Boolean = true,
-        policyOids: List<String>? = null,
-    ): X509CertificateHolder {
-        // Per EN 319 412-2 §4.3.3, certificatePolicies extension shall be present
-        // If not provided, use a default TSP-defined policy OID for testing
-        val policies = policyOids ?: listOf("1.2.3.4.5") // Test TSP-defined policy OID
-        return JcaX509v3CertificateBuilder(
-            name,
-            calculateSerialNumber(),
-            Date.from(notBefore().toJavaInstant()),
-            calculateDate(24 * 31),
-            name,
-            keyPair.public,
-        ).apply {
-            subjectKeyIdentifier(keyPair.public)
-            basicConstraints(BasicConstraints(false)) // End-entity certificate
-            keyUsage(KeyUsage(KeyUsage.digitalSignature))
-            qcStatement(qcType, qcCompliance)
-            certificatePolicies(policies)
-        }.build(sigAlg, keyPair.private)
-    }
-
-    fun genEndEntityWithAIA(
+    fun genCAIssuedEndEntityCertificate(
         signerCert: X509CertificateHolder,
+        signerKey: PrivateKey,
         sigAlg: String,
         subject: X500Name,
-        qcType: String,
-        caIssuersUri: String,
-        ocspUri: String? = null,
+        keyUsage: KeyUsage = KeyUsage(KeyUsage.digitalSignature),
+        qcTypeAndCompliance: Pair<String, Boolean>? = null,
         policyOids: List<String>? = null,
+        caIssuersUri: String? = null,
+        ocspUri: String? = null,
     ): Pair<KeyPair, X509CertificateHolder> {
         val eeKp = Ctx.generateECPair()
-        val eeCertHolder = createEndEntityWithAIA(
-            eeKp,
-            sigAlg,
-            subject,
+        val eeCertHolder = createEndEntity(
             signerCert,
-            qcType,
+            signerKey,
+            sigAlg,
+            eeKp.public,
+            subject,
+            keyUsage,
+            qcTypeAndCompliance,
+            policyOids,
             caIssuersUri,
             ocspUri,
-            policyOids,
         )
         return eeKp to eeCertHolder
     }
 
-    /**
-     * Build a sample self-signed V3 certificate with AIA extension for CA-issued end-entity certificates.
-     *
-     * @param keyPair the key pair for the certificate
-     * @param sigAlg signature algorithm (e.g., "SHA256withECDSA")
-     * @param name subject name
-     * @param issuerCert issuer certificate (for authority key identifier)
-     * @param qcType QCStatement type OID (e.g., [ETSI119412.ID_ETSI_QCT_PID] for PID, [ETSI119412.ID_ETSI_QCT_WAL] for Wallet)
-     * @param caIssuersUri URI where the CA certificate can be retrieved
-     * @param ocspUri optional URI of the OCSP responder
-     * @param policyOids optional list of certificate policy OIDs. If not provided, a default TSP-defined
-     *        policy OID is added per EN 319 412-2 §4.3.3 (certificatePolicies extension shall be present)
-     * @return the generated certificate holder
-     */
-    fun createEndEntityWithAIA(
-        keyPair: KeyPair,
-        sigAlg: String,
-        name: X500Name,
-        issuerCert: X509CertificateHolder,
-        qcType: String,
-        caIssuersUri: String,
-        ocspUri: String? = null,
-        policyOids: List<String>? = null,
-    ): X509CertificateHolder {
-        // Per EN 319 412-2 §4.3.3, certificatePolicies extension shall be present
-        // If not provided, use a default TSP-defined policy OID for testing
-        val policies = policyOids ?: listOf("1.2.3.4.5") // Test TSP-defined policy OID
-        return JcaX509v3CertificateBuilder(
-            issuerCert.subject,
-            calculateSerialNumber(),
-            Date.from(notBefore().toJavaInstant()),
-            calculateDate(24 * 31),
-            name,
-            keyPair.public,
-        ).apply {
-            authorityKeyIdentifier(issuerCert)
-            subjectKeyIdentifier(keyPair.public)
-            basicConstraints(BasicConstraints(false)) // End-entity certificate
-            keyUsage(KeyUsage(KeyUsage.digitalSignature))
-            qcStatement(qcType, qcCompliance = true)
-            authorityInformationAccess(caIssuersUri, ocspUri)
-            certificatePolicies(policies)
-        }.build(sigAlg, keyPair.private)
-    }
-
-    /**
-     * Build a sample V3 intermediate certificate that can be used as a CA
-     *  certificate.
-     *  @param signerCert certificate carrying the public key that will late
-     *  be used to verify this certificate's signature
-     *  @param signerKey private key used to generate the signature in the certificate
-     *  @param certKey public key to be installed in the certificate.
-     */
-    fun createIntermediateCertificate(
-        signerCert: X509CertificateHolder,
-        signerKey: PrivateKey,
-        sigAlg: String,
-        certKey: PublicKey,
-        followingCACerts: Int = 0,
-        subject: X500Name,
-    ): X509CertificateHolder =
-        JcaX509v3CertificateBuilder(
-            signerCert.subject,
-            calculateSerialNumber(),
-            Date.from(notBefore().toJavaInstant()),
-            calculateDate(24 * 31),
-            subject,
-            certKey,
-        ).apply {
-            authorityKeyIdentifier(signerCert)
-            subjectKeyIdentifier(certKey)
-            basicConstraints(BasicConstraints(followingCACerts)) // allow this cert to sign other certs
-            keyUsage(KeyUsage(KeyUsage.digitalSignature or KeyUsage.keyCertSign or KeyUsage.cRLSign))
-        }.build(sigAlg, signerKey)
-
-    fun genCACertifiicateWithPolicy(
+    @Deprecated("Use createCACertificateWithPolicy instead")
+    fun genCACertificateWithPolicy(
         sigAlg: String,
         name: X500Name,
         policyOids: List<String>,
@@ -289,7 +146,8 @@ object CertOps {
      * @param pathLenConstraint optional path length constraint (null = no constraint)
      * @return the generated certificate holder
      */
-    fun createCACertificateWithPolicy(
+    @Deprecated("")
+    private fun createCACertificateWithPolicy(
         keyPair: KeyPair,
         sigAlg: String,
         name: X500Name,
@@ -311,95 +169,17 @@ object CertOps {
         }.build(sigAlg, keyPair.private)
     }
 
-    /**
-     * Build an end-entity certificate with policy OIDs.
-     *
-     * @param signerCert the CA certificate that will sign this certificate
-     * @param signerKey the CA's private key
-     * @param sigAlg signature algorithm
-     * @param certKey the end-entity's public key
-     * @param subject subject name
-     * @param policyOids list of certificate policy OIDs
-     * @return the generated certificate holder
-     */
-    fun createEndEntityWithPolicy(
+    private fun createEndEntity(
         signerCert: X509CertificateHolder,
         signerKey: PrivateKey,
         sigAlg: String,
         certKey: PublicKey,
         subject: X500Name,
-        policyOids: List<String>,
-    ): X509CertificateHolder =
-        JcaX509v3CertificateBuilder(
-            signerCert.subject,
-            calculateSerialNumber(),
-            Date.from(notBefore().toJavaInstant()),
-            calculateDate(24 * 31),
-            subject,
-            certKey,
-        ).apply {
-            authorityKeyIdentifier(signerCert)
-            subjectKeyIdentifier(certKey)
-            basicConstraints(BasicConstraints(false))
-            keyUsage(KeyUsage(KeyUsage.digitalSignature))
-            certificatePolicies(policyOids)
-        }.build(sigAlg, signerKey)
-
-    /**
-     * Build a full PKIX certificate chain.
-     *
-     * @param rootCA the root CA certificate (trust anchor)
-     * @param rootKey the root CA's private key
-     * @param intermediateCount number of intermediate CAs to create (default: 1)
-     * @param sigAlg signature algorithm (default: "SHA256withECDSA")
-     * @return list of certificates from root CA to end-entity (root first, EE last)
-     */
-    fun buildCertificateChain(
-        rootCA: X509CertificateHolder,
-        rootKey: PrivateKey,
-        intermediateCount: Int = 1,
-        sigAlg: String = "SHA256withECDSA",
-    ): List<X509CertificateHolder> {
-        require(intermediateCount >= 0) { "intermediateCount must be non-negative" }
-
-        val chain = mutableListOf(rootCA)
-        var currentCA = rootCA
-        var currentCAKey = rootKey
-
-        // Create intermediate CAs
-        for (i in 0 until intermediateCount) {
-            val intermediateName = X500Name("CN=Intermediate CA $i")
-            val (intermediateKeyPair, intermediateCert) = genIntermediateCertificate(
-                signerCert = currentCA,
-                signerKey = currentCAKey,
-                sigAlg = sigAlg,
-                followingCACerts = if (i == intermediateCount - 1) 0 else intermediateCount - i - 2,
-                subject = intermediateName,
-            )
-            chain.add(intermediateCert)
-            currentCA = intermediateCert
-            currentCAKey = intermediateKeyPair.private
-        }
-
-        // Create end-entity certificate
-        val eeName = X500Name("CN=End Entity")
-        val (_, eeCert) = genEndEntity(
-            signerCert = currentCA,
-            signerKey = currentCAKey,
-            sigAlg = sigAlg,
-            subject = eeName,
-        )
-        chain.add(eeCert)
-
-        return chain
-    }
-
-    fun createEndEntity(
-        signerCert: X509CertificateHolder,
-        signerKey: PrivateKey,
-        sigAlg: String,
-        certKey: PublicKey,
-        subject: X500Name,
+        keyUsage: KeyUsage,
+        qcTypeAndCompliance: Pair<String, Boolean>? = null,
+        policyOids: List<String>? = null,
+        caIssuersUri: String? = null,
+        ocspUri: String? = null,
     ): X509CertificateHolder =
         JcaX509v3CertificateBuilder(
             signerCert.subject,
@@ -412,7 +192,13 @@ object CertOps {
             authorityKeyIdentifier(signerCert)
             subjectKeyIdentifier(certKey)
             basicConstraints(BasicConstraints(false)) // do not allow this cert to sign other certs
-            keyUsage(KeyUsage(KeyUsage.digitalSignature))
+            keyUsage(keyUsage)
+            if (qcTypeAndCompliance != null) {
+                val (qcType, qcCompliance) = qcTypeAndCompliance
+                qcStatement(qcType, qcCompliance)
+            }
+            certificatePolicies(policyOids ?: listOf())
+            authorityInformationAccess(caIssuersUri, ocspUri)
         }.build(sigAlg, signerKey)
 
     /**

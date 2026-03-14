@@ -66,7 +66,7 @@ class EUWRPRCProvidersListTest {
         // Note: WRPRC Providers are CAs, so they need cA=TRUE
         val (_, certHolder) = CertOps.genTrustAnchor(
             sigAlg = "SHA256withECDSA",
-            name = cnWrprcProvider,
+            subject = cnWrprcProvider,
         )
         // Note: We can't easily add policy OIDs to existing certificates
         // This test documents that CA certificates pass basic constraints check
@@ -84,7 +84,7 @@ class EUWRPRCProvidersListTest {
     @Test
     fun `WRPRC Provider validator should accept CA certificate with WRPRC policy`() = runTest {
         // Generate CA certificate with WRPRC policy OID (ETSI TS 119 475)
-        val (_, certHolder) = CertOps.genCACertifiicateWithPolicy(
+        val (_, certHolder) = CertOps.genCACertificateWithPolicy(
             sigAlg = "SHA256withECDSA",
             name = cnWrprcProvider,
             policyOids = listOf(ETSI119475.WRPRC),
