@@ -233,6 +233,22 @@ public fun ProfileBuilder.requireAiaForCaIssued() {
     }
 }
 
+/**
+ * Requires the certificate to NOT be self-signed.
+ *
+ * This is useful for certificates that must be issued by a trusted CA
+ * (e.g., WRPAC certificates issued by authorized WRPAC Providers).
+ */
+public fun ProfileBuilder.requireNoSelfSigned() {
+    selfSigned { isSelfSigned ->
+        evaluation {
+            if (isSelfSigned) {
+                add(Violations.selfSignedCertificateNotAllowed)
+            }
+        }
+    }
+}
+
 //
 // Helpers
 //
@@ -328,5 +344,10 @@ internal object Violations {
     val aiaMissingIdAdCaIssuersAccessMethod: CertificateConstraintViolation
         get() = CertificateConstraintViolation(
             reason = "AIA extension missing id-ad-caIssuers access method (CA certificate URI)",
+        )
+
+    val selfSignedCertificateNotAllowed: CertificateConstraintViolation
+        get() = CertificateConstraintViolation(
+            reason = "Self-signed certificate not allowed. Certificate must be issued by a trusted CA.",
         )
 }

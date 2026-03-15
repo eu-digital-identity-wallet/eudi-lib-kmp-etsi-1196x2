@@ -136,5 +136,6 @@ public fun wrpAccessCertificateProfile(
         requireDigitalSignature()
         requireValidAt(at)
         requirePolicy(policies)
+        requireNoSelfSigned()
     }
 }

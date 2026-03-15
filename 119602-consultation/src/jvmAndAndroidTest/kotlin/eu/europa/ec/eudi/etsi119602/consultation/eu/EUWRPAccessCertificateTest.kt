@@ -140,5 +140,24 @@ class EUWRPAccessCertificateTest {
         )
     }
 
-    // TODO: WRPAC should not be self-signed
+    @Test
+    fun `WRPAC should not be self-signed`() = runTest {
+        // Generate a self-signed end-entity certificate with valid WRPAC policy
+        val (_, certHolder) = CertOps.genSelfSignedEndEntityCertificate(
+            sigAlg = "SHA256withECDSA",
+            subject = cnWalletRelyingParty,
+            keyUsage = org.bouncycastle.asn1.x509.KeyUsage(org.bouncycastle.asn1.x509.KeyUsage.digitalSignature),
+            policyOids = listOf(ETSI119411.NCP_N_EUDIWRP),
+        )
+        val certificate = certHolder.toX509Certificate()
+
+        // Validate as WRPAC end-entity
+        val constraintEvaluation = evaluateEndEntityCertificateConstraints(certificate)
+
+        // Should fail - WRPAC must not be self-signed
+        assertFalse(constraintEvaluation.isMet())
+        constraintEvaluation.assertSingleViolation {
+            it.contains("self-signed", ignoreCase = true)
+        }
+    }
 }
