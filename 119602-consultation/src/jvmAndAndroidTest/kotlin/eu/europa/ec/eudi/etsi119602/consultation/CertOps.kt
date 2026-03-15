@@ -131,6 +131,58 @@ object CertOps {
         return eeKp to eeCertHolder
     }
 
+    fun genSelfSignedEndEntityCertificate(
+        sigAlg: String,
+        subject: X500Name,
+        keyUsage: KeyUsage = KeyUsage(KeyUsage.digitalSignature),
+        qcTypeAndCompliance: Pair<String, Boolean>? = null,
+        policyOids: List<String>? = null,
+    ): Pair<KeyPair, X509CertificateHolder> {
+        val kp = Ctx.generateECPair()
+        val certHolder = createSelfSignedEndEntity(
+            kp,
+            sigAlg,
+            subject,
+            keyUsage,
+            qcTypeAndCompliance,
+            policyOids,
+        )
+        return kp to certHolder
+    }
+
+    /**
+     * Creates a self-signed end-entity certificate (cA=FALSE).
+     * Note: No AIA extension is added (per ETSI TS 119 412-6 PID-4.4.3-01).
+     */
+    private fun createSelfSignedEndEntity(
+        keyPair: KeyPair,
+        sigAlg: String,
+        name: X500Name,
+        keyUsage: KeyUsage,
+        qcTypeAndCompliance: Pair<String, Boolean>?,
+        policyOids: List<String>?,
+    ): X509CertificateHolder {
+        return JcaX509v3CertificateBuilder(
+            name,
+            calculateSerialNumber(),
+            Date.from(notBefore().toJavaInstant()),
+            calculateDate(24 * 31),
+            name,
+            keyPair.public,
+        ).apply {
+            subjectKeyIdentifier(keyPair.public)
+            basicConstraints(BasicConstraints(false)) // end-entity (cA=FALSE)
+            keyUsage(keyUsage)
+            if (qcTypeAndCompliance != null) {
+                val (qcType, qcCompliance) = qcTypeAndCompliance
+                qcStatement(qcType, qcCompliance)
+            }
+            if (policyOids != null) {
+                certificatePolicies(policyOids)
+            }
+        }.build(sigAlg, keyPair.private)
+    }
+
     private fun createEndEntity(
         signerCert: X509CertificateHolder,
         signerKey: PrivateKey,
