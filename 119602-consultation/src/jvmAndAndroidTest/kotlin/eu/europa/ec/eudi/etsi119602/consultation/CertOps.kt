@@ -56,11 +56,13 @@ object CertOps {
         sigAlg: String,
         subject: X500Name,
         keyUsage: KeyUsage = KeyUsage(KeyUsage.keyCertSign or KeyUsage.cRLSign),
+        qcTypeAndCompliance: Pair<String, Boolean>? = null,
         policyOids: List<String>? = null,
         pathLenConstraint: Int? = null,
     ): Pair<KeyPair, X509CertificateHolder> {
         val kp = Ctx.generateECPair()
-        val certHolder = createTrustAnchor(kp, sigAlg, subject, keyUsage, policyOids, pathLenConstraint)
+        val certHolder =
+            createTrustAnchor(kp, sigAlg, subject, keyUsage, qcTypeAndCompliance, policyOids, pathLenConstraint)
         return kp to certHolder
     }
 
@@ -73,6 +75,7 @@ object CertOps {
         sigAlg: String,
         name: X500Name,
         keyUsage: KeyUsage,
+        qcTypeAndCompliance: Pair<String, Boolean>?,
         policyOids: List<String>? = null,
         pathLenConstraint: Int? = null,
     ): X509CertificateHolder {
@@ -93,6 +96,10 @@ object CertOps {
             keyUsage(keyUsage)
             if (policyOids != null) {
                 certificatePolicies(policyOids)
+            }
+            if (qcTypeAndCompliance != null) {
+                val (qcType, qcCompliance) = qcTypeAndCompliance
+                qcStatement(qcType, qcCompliance)
             }
         }.build(sigAlg, keyPair.private)
     }

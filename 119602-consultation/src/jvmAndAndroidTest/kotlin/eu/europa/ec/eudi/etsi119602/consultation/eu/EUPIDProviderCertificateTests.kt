@@ -22,6 +22,7 @@ import eu.europa.ec.eudi.etsi1196x2.consultation.certs.CertificateConstraintEval
 import eu.europa.ec.eudi.etsi1196x2.consultation.certs.isMet
 import kotlinx.coroutines.test.runTest
 import org.bouncycastle.asn1.x500.X500Name
+import org.bouncycastle.asn1.x509.KeyUsage
 import java.security.cert.X509Certificate
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -50,6 +51,7 @@ class EUPIDProviderCertificateTests {
         policyOids: List<String>? = null,
         caIssuersUri: String? = null,
         ocspUri: String? = null,
+        keyUsage: KeyUsage,
     ): X509Certificate {
         val sigAlg = "SHA256withECDSA"
         val (caKeyPair, caCert) = ca
@@ -58,6 +60,7 @@ class EUPIDProviderCertificateTests {
             signerKey = caKeyPair.private,
             sigAlg = sigAlg,
             subject = X500Name("CN=PID Provider Test"),
+            keyUsage = keyUsage,
             qcTypeAndCompliance = qcTypeAndCompliance,
             policyOids = policyOids,
             caIssuersUri = caIssuersUri,
@@ -73,6 +76,7 @@ class EUPIDProviderCertificateTests {
             policyOids = listOf("1.2.3.4.5"),
             caIssuersUri = "http://example.com/ca.crt",
             ocspUri = "http://example.com/ocsp",
+            keyUsage = KeyUsage(KeyUsage.digitalSignature),
         )
 
         // Validate as PID Provider
@@ -93,6 +97,7 @@ class EUPIDProviderCertificateTests {
             policyOids = listOf("1.2.3.4.5"), // TSP-defined policy OID
             caIssuersUri = "http://example.com/ca.crt",
             ocspUri = "http://example.com/ocsp",
+            keyUsage = KeyUsage(KeyUsage.digitalSignature),
         )
 
         // Validate as PID Provider
@@ -112,6 +117,7 @@ class EUPIDProviderCertificateTests {
             policyOids = listOf("1.2.3.4.5"), // TSP-defined policy OID
             caIssuersUri = "http://example.com/ca.crt",
             ocspUri = "http://example.com/ocsp",
+            keyUsage = KeyUsage(KeyUsage.digitalSignature),
         )
 
         // Validate as PID Provider
@@ -127,6 +133,7 @@ class EUPIDProviderCertificateTests {
         val certificate = genCAIssuedEndEntityCertificate(
             qcTypeAndCompliance = ETSI119412.ID_ETSI_QCT_PID to true,
             policyOids = listOf("1.2.3.4.5"), // TSP-defined policy OID
+            keyUsage = KeyUsage(KeyUsage.digitalSignature),
         )
 
         // Validate as PID Provider
@@ -142,6 +149,7 @@ class EUPIDProviderCertificateTests {
             policyOids = listOf("1.2.3.4.5"), // TSP-defined policy OID
             caIssuersUri = "http://example.com/ca.crt",
             ocspUri = "http://example.com/ocsp",
+            keyUsage = KeyUsage(KeyUsage.digitalSignature),
         )
 
         // Validate as PID Provider
@@ -151,9 +159,42 @@ class EUPIDProviderCertificateTests {
         assertTrue(constraintEvaluation.isMet(), "$constraintEvaluation")
     }
 
-    // TODO: Add tests for CA-issued PID Provider Certificate
-    //  - End-entity not CA
-    //  - key usage must be digital signature
+    @Test
+    fun `CA-issued certificate should require end-entity not CA`() = runTest {
+        val (_, caCertHolder) = CertOps.genTrustAnchor(
+            sigAlg = "SHA256withECDSA",
+            subject = X500Name("CN=PID Provider CA Test"),
+            keyUsage = KeyUsage(KeyUsage.digitalSignature),
+            policyOids = listOf("1.2.3.4.5"),
+            pathLenConstraint = null,
+            qcTypeAndCompliance = ETSI119412.ID_ETSI_QCT_PID to true,
+        )
+        val certificate = caCertHolder.toX509Certificate()
+
+        // Validate as PID Provider - should fail because it's a CA certificate
+        val constraintEvaluation = evaluateCertificateConstraints(certificate)
+        println(constraintEvaluation)
+
+        assertFalse(constraintEvaluation.isMet())
+        constraintEvaluation.assertSingleViolation { it.contains("CA", ignoreCase = true) }
+    }
+
+    @Test
+    fun `CA-issued certificate should require digitalSignature key usage`() = runTest {
+        // Generate an end-entity certificate with keyCertSign instead of digitalSignature
+        val certificate = genCAIssuedEndEntityCertificate(
+            qcTypeAndCompliance = ETSI119412.ID_ETSI_QCT_PID to true,
+            policyOids = listOf("1.2.3.4.5"),
+            caIssuersUri = "http://example.com/ca.crt",
+            ocspUri = "http://example.com/ocsp",
+            keyUsage = KeyUsage(KeyUsage.keyCertSign), // wrong key usage
+        )
+
+        val constraintEvaluation = evaluateCertificateConstraints(certificate)
+
+        assertFalse(constraintEvaluation.isMet())
+        constraintEvaluation.assertSingleViolation { it.contains("keyUsage", ignoreCase = true) }
+    }
 
     // TODO: Add tests for Self-signed PID Provider Certificate
     //  - End-entity not CA
