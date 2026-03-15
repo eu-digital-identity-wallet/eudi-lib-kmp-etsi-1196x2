@@ -12,12 +12,12 @@ ktlint = "1.2.1"
 dependency-check = "12.2.0"
 kover = "0.9.7"
 dokka = "2.1.0"
-dss = "6.4.RC1"
+dss = "6.4"
 atomicfu = "0.27.0"
 bouncyCastle = "1.83"
 kotlinx-io = "0.7.0"
 slf4j = "2.0.17"
-eudiLibJvmSdjwtKt = "0.18.0"
+eudiLibJvmSdjwtKt = "0.19.0"
 
 [libraries]
 kotlinx-serialization-core = { module = "org.jetbrains.kotlinx:kotlinx-serialization-core", version.ref = "kotlinx-serialization" }
@@ -27,12 +27,10 @@ kotlinx-datetime = {module="org.jetbrains.kotlinx:kotlinx-datetime", version.ref
 atomicfu = { module = "org.jetbrains.kotlinx:atomicfu", version.ref = "atomicfu" }
 kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "kotlinx-coroutines" }
 ktor-client-core = { module = "io.ktor:ktor-client-core", version.ref = "ktor" }
-ktor-client-serialization = { module = "io.ktor:ktor-client-serialization", version.ref = "ktor" }
 ktor-client-content-negotiation = { module = "io.ktor:ktor-client-content-negotiation", version.ref = "ktor" }
 ktor-serialization-json = { module = "io.ktor:ktor-serialization-kotlinx-json", version.ref = "ktor" }
 ktor-client-okhttp = { module = "io.ktor:ktor-client-okhttp", version.ref = "ktor" }
 ktor-client-java = { module = "io.ktor:ktor-client-java", version.ref = "ktor" }
-ktor-client-mock = { module = "io.ktor:ktor-client-mock", version.ref = "ktor" }
 dss-bom = { module = "eu.europa.ec.joinup.sd-dss:dss-bom", version.ref = "dss" }
 dss-validation = { module = "eu.europa.ec.joinup.sd-dss:dss-validation" }
 dss-utils = { module = "eu.europa.ec.joinup.sd-dss:dss-utils"  }

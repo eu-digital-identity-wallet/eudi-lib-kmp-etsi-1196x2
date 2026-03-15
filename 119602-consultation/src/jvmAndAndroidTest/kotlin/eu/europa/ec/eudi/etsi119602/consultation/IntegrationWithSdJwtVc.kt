@@ -24,6 +24,7 @@ import eu.europa.ec.eudi.sdjwt.JwtAndClaims
 import eu.europa.ec.eudi.sdjwt.NimbusSdJwtOps
 import eu.europa.ec.eudi.sdjwt.SdJwtVcSpec
 import eu.europa.ec.eudi.sdjwt.SdJwtVcVerifier
+import eu.europa.ec.eudi.sdjwt.vc.CheckWithTokenStatusList
 import eu.europa.ec.eudi.sdjwt.vc.IssuerVerificationMethod
 import eu.europa.ec.eudi.sdjwt.vc.SdJwtVcVerifier
 import eu.europa.ec.eudi.sdjwt.vc.TypeMetadataPolicy
@@ -66,19 +67,23 @@ object IntegrationWithSdJwtVc {
 
     fun defaultSdJwtVcVerifier(
         isChainTrustedForAttestation: IsChainTrustedForAttestation<List<X509Certificate>, TrustAnchor>,
-        typedMetadataPolicy: TypeMetadataPolicy,
+        typeMetadataPolicy: TypeMetadataPolicy,
+        checkStatus: CheckWithTokenStatusList?,
     ): SdJwtVcVerifier<JwtAndClaims> =
         DefaultSdJwtOps.SdJwtVcVerifier(
-            sdJwtVcVerificationMethod(isChainTrustedForAttestation),
-            typedMetadataPolicy,
+            issuerVerificationMethod = sdJwtVcVerificationMethod(isChainTrustedForAttestation),
+            typeMetadataPolicy = typeMetadataPolicy,
+            checkStatus = checkStatus,
         )
 
     fun nimbusSdJwtVcVerifier(
         isChainTrustedForAttestation: IsChainTrustedForAttestation<List<X509Certificate>, TrustAnchor>,
-        typedMetadataPolicy: TypeMetadataPolicy,
+        typeMetadataPolicy: TypeMetadataPolicy,
+        checkStatus: CheckWithTokenStatusList?,
     ): SdJwtVcVerifier<SignedJWT> =
         NimbusSdJwtOps.SdJwtVcVerifier(
-            sdJwtVcVerificationMethod(isChainTrustedForAttestation),
-            typedMetadataPolicy,
+            issuerVerificationMethod = sdJwtVcVerificationMethod(isChainTrustedForAttestation),
+            typeMetadataPolicy = typeMetadataPolicy,
+            checkStatus = checkStatus,
         )
 }

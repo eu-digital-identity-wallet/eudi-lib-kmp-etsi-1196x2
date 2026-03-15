@@ -137,7 +137,7 @@ class JPLoTEDownloaderTest {
         isChainTrustedForAttestation: IsChainTrustedForAttestation<List<X509Certificate>, TrustAnchor>,
     ): SdJwtVcVerifier<SignedJWT> {
         // Define SD-JWT-VC typed metadata policy
-        val typedMetadataPolicy = TypeMetadataPolicy.RequiredFor(
+        val typeMetadataPolicy = TypeMetadataPolicy.RequiredFor(
             vcts = setOf(Vct(LC_VCT)),
             resolveTypeMetadata = ResolveTypeMetadata({ vct, _ ->
                 runCatching {
@@ -148,6 +148,10 @@ class JPLoTEDownloaderTest {
         )
 
         // Create an SD-JWT-VC verifier
-        return IntegrationWithSdJwtVc.nimbusSdJwtVcVerifier(isChainTrustedForAttestation, typedMetadataPolicy)
+        return IntegrationWithSdJwtVc.nimbusSdJwtVcVerifier(
+            isChainTrustedForAttestation,
+            typeMetadataPolicy = typeMetadataPolicy,
+            checkStatus = null,
+        )
     }
 }
