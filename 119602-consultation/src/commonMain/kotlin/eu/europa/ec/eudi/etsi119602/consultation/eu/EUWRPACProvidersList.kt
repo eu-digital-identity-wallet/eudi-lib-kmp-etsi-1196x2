@@ -64,7 +64,7 @@ public val EUWRPACProvidersList: EUListOfTrustedEntitiesProfile =
  *                   - `2+`: This CA can issue multiple levels of intermediate CA certificates
  *
  * @return The certificate profile of WRP Access Certificate Provider
- * @see [ETSI TS 119 475 - WRPRC Specification]
+ * @see [ETSI TS 119 411-8]
  */
 public fun wrpacProviderCertificateProfile(
     at: Instant? = null,
