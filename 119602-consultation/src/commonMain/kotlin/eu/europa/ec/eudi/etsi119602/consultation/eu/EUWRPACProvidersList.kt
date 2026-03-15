@@ -64,9 +64,7 @@ public val EUWRPACProvidersList: EUListOfTrustedEntitiesProfile =
  *                   - `2+`: This CA can issue multiple levels of intermediate CA certificates
  *
  * @return The certificate profile of WRP Access Certificate Provider
- *
- * @see [ETSI TS 119 602 Annex F - WRPAC Providers List Profile]
- * @see [RFC 5280 Section 4.2.1.9 - Basic Constraints](https://datatracker.ietf.org/doc/html/rfc5280#section-4.2.1.9)
+ * @see [ETSI TS 119 475 - WRPRC Specification]
  */
 public fun wrpacProviderCertificateProfile(
     at: Instant? = null,
@@ -76,6 +74,7 @@ public fun wrpacProviderCertificateProfile(
         requireCaCertificate(maxPathLen)
         requireKeyCertSign()
         requireValidAt(at)
+        requirePolicyPresence()
     }
 
 /**

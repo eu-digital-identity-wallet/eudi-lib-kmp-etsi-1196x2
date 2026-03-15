@@ -59,9 +59,6 @@ public val EUWRPRCProvidersList: EUListOfTrustedEntitiesProfile =
  *                   - `2+`: This CA can issue multiple levels of intermediate CA certificates
  *
  * @return WRPRC Provider certificates
- *
- * @see [RFC 5280 Section 4.2.1.9 - Basic Constraints](https://datatracker.ietf.org/doc/html/rfc5280#section-4.2.1.9)
- * @see [ETSI TS 119 602 Annex G - WRPRC Providers List Profile]
  * @see [ETSI TS 119 475 - WRPRC Specification]
  */
 public fun wrprcProviderCertificateProfile(
