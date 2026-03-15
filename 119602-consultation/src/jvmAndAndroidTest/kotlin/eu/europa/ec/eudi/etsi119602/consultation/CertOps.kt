@@ -124,51 +124,6 @@ object CertOps {
         return eeKp to eeCertHolder
     }
 
-    @Deprecated("Use createCACertificateWithPolicy instead")
-    fun genCACertificateWithPolicy(
-        sigAlg: String,
-        name: X500Name,
-        policyOids: List<String>,
-        pathLenConstraint: Int? = null,
-    ): Pair<KeyPair, X509CertificateHolder> {
-        val kp = Ctx.generateECPair()
-        val certHolder = createCACertificateWithPolicy(kp, sigAlg, name, policyOids, pathLenConstraint)
-        return kp to certHolder
-    }
-
-    /**
-     * Build a CA certificate with specific policy OIDs and path length constraint.
-     *
-     * @param keyPair the key pair for the CA certificate
-     * @param sigAlg signature algorithm (e.g., "SHA256withECDSA")
-     * @param name subject/issuer name (self-signed)
-     * @param policyOids list of certificate policy OIDs
-     * @param pathLenConstraint optional path length constraint (null = no constraint)
-     * @return the generated certificate holder
-     */
-    @Deprecated("")
-    private fun createCACertificateWithPolicy(
-        keyPair: KeyPair,
-        sigAlg: String,
-        name: X500Name,
-        policyOids: List<String>,
-        pathLenConstraint: Int? = null,
-    ): X509CertificateHolder {
-        return JcaX509v3CertificateBuilder(
-            name,
-            calculateSerialNumber(),
-            Date.from(notBefore().toJavaInstant()),
-            calculateDate(24 * 31),
-            name,
-            keyPair.public,
-        ).apply {
-            subjectKeyIdentifier(keyPair.public)
-            basicConstraints(BasicConstraints(pathLenConstraint ?: Int.MAX_VALUE))
-            keyUsage(KeyUsage(KeyUsage.keyCertSign or KeyUsage.cRLSign))
-            certificatePolicies(policyOids)
-        }.build(sigAlg, keyPair.private)
-    }
-
     private fun createEndEntity(
         signerCert: X509CertificateHolder,
         signerKey: PrivateKey,
