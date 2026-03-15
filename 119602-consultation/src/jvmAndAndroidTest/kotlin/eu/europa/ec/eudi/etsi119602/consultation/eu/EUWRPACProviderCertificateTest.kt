@@ -121,7 +121,4 @@ class EUWRPACProviderCertificateTest {
 
         assertTrue(constraintEvaluation.isMet())
     }
-
-    // TODO : WRPAC Provider certificate
-    //  - Check that the certificate is not self-signed
 }
