@@ -40,24 +40,15 @@ public val EUWRPRCProvidersList: EUListOfTrustedEntitiesProfile =
             ),
             serviceDigitalIdentityMustHaveCertificates = true,
             serviceStatuses = emptySet(),
-            serviceDigitalIdentityCertificateType = ServiceDigitalIdentityCertificateType.EndEntityOrCA,
+            serviceDigitalIdentityCertificateType = ServiceDigitalIdentityCertificateType.CA,
         ),
         endEntityCertificateProfile = null,
     )
 
 /**
- * Creates constraints for WRPRC Provider certificates (LoTE CA).
+ * Creates constraints for WRPRC Provider certificates
  *
- * Per ETSI TS 119 602 Annex G:
- * - Certificate type: CA certificate (cA=TRUE)
- * - Key Usage: keyCertSign REQUIRED
- * - Validity: Must be valid at validation time
- * - Certificate Policy: ETSI TS 119 475 Clause 6.1.3 (WRPRC Policy)
- *
- * Note: WRPRC Providers are CAs that sign WRPRC JWT attestations.
- * The LoTE contains the WRPRC Provider's CA certificate.
- * WRPRC validation involves both PKIX (certificate chain) and JWT signature verification.
- *
+ * @param at Instant for validity check (null = current time)
  * @param maxPathLen Optional maximum path length constraint for CA certificates.
  *                   Per RFC 5280 Section 4.2.1.9, pathLenConstraint specifies the maximum number
  *                   of non-self-issued intermediate certificates that may follow this certificate
@@ -67,9 +58,11 @@ public val EUWRPRCProvidersList: EUListOfTrustedEntitiesProfile =
  *                   - `1`: This CA can issue one intermediate CA certificate (recommended for most deployments)
  *                   - `2+`: This CA can issue multiple levels of intermediate CA certificates
  *
- * @return a validator configured for WRPRC Provider certificates
+ * @return WRPRC Provider certificates
  *
  * @see [RFC 5280 Section 4.2.1.9 - Basic Constraints](https://datatracker.ietf.org/doc/html/rfc5280#section-4.2.1.9)
+ * @see [ETSI TS 119 602 Annex G - WRPRC Providers List Profile]
+ * @see [ETSI TS 119 475 - WRPRC Specification]
  */
 public fun wrprcProviderCertificateProfile(
     at: Instant? = null,

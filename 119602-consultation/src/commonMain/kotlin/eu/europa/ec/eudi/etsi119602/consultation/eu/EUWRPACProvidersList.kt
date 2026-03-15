@@ -53,16 +53,6 @@ public val EUWRPACProvidersList: EUListOfTrustedEntitiesProfile =
 /**
  * Creates constraints for WRPAC Provider certificates (LoTE CA).
  *
- * Per ETSI TS 119 602 Annex F:
- * - Certificate type: CA certificate (cA=TRUE)
- * - QCStatement: NOT required
- * - Key Usage: keyCertSign REQUIRED
- * - Validity: Must be valid at validation time
- *
- * Note: WRPAC Providers are CAs that issue WRPAC (end-entity) certificates to Wallet Relying Parties.
- * The LoTE contains the WRPAC Provider's CA certificate, not the WRPAC itself.
- *
- *
  * @param at Instant for validity check (null = current time)
  * @param maxPathLen Optional maximum path length constraint for CA certificates.
  *                   Per RFC 5280 Section 4.2.1.9, pathLenConstraint specifies the maximum number

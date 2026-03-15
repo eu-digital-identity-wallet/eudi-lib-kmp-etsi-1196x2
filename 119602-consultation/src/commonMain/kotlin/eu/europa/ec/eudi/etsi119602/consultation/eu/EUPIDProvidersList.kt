@@ -51,9 +51,14 @@ public val EUPIDProvidersList: EUListOfTrustedEntitiesProfile =
             serviceStatuses = emptySet(),
             serviceDigitalIdentityCertificateType = ServiceDigitalIdentityCertificateType.EndEntityOrCA,
         ),
-        endEntityCertificateProfile = pidProviderCertificateProfile(),
-
+        endEntityCertificateProfile = pidProviderCertificateProfile(at = null), // only the end-entity
     )
+
+//
+// A PID provider certificate may be either:
+// - End-entity certificate (Direct Trust validation)
+// - CA certificate (PKIX validation)
+//
 
 /**
  * Creates constraints for PID Provider end-entity certificates in LoTE.
