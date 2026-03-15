@@ -18,9 +18,7 @@ package eu.europa.ec.eudi.etsi119602.consultation.eu
 import eu.europa.ec.eudi.etsi119602.consultation.CertOps
 import eu.europa.ec.eudi.etsi119602.consultation.CertOps.toX509Certificate
 import eu.europa.ec.eudi.etsi119602.consultation.ETSI119412
-import eu.europa.ec.eudi.etsi1196x2.consultation.CertificateOperationsJvm
 import eu.europa.ec.eudi.etsi1196x2.consultation.certs.CertificateConstraintEvaluation
-import eu.europa.ec.eudi.etsi1196x2.consultation.certs.CertificateProfileValidator
 import eu.europa.ec.eudi.etsi1196x2.consultation.certs.isMet
 import kotlinx.coroutines.test.runTest
 import org.bouncycastle.asn1.x500.X500Name
@@ -35,11 +33,10 @@ import kotlin.test.assertTrue
  */
 class EUPIDProviderCertificateTests {
 
-    private val certificateProfileValidator = CertificateProfileValidator(CertificateOperationsJvm)
     private suspend fun evaluateCertificateConstraints(
         certificate: X509Certificate,
     ): CertificateConstraintEvaluation =
-        certificateProfileValidator.validate(pidProviderCertificateProfile(), certificate)
+        CertificateProfileValidatorJVM.validate(pidProviderCertificateProfile(), certificate)
 
     private val ca = CertOps.genTrustAnchor(
         sigAlg = "SHA256withECDSA",
@@ -67,15 +64,6 @@ class EUPIDProviderCertificateTests {
             ocspUri = ocspUri,
         )
         return certHolder.toX509Certificate()
-    }
-
-    private fun CertificateConstraintEvaluation.Violated.assertSingleViolation(
-        message: String? = null,
-        assertTrue: (String) -> Boolean,
-    ) {
-        assertEquals(1, violations.size)
-        val violation = violations.first()
-        assertTrue(assertTrue(violation.reason), message)
     }
 
     @Test

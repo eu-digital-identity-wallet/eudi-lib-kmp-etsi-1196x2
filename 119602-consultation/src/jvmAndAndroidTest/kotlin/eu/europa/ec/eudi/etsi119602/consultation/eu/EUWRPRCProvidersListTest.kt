@@ -17,84 +17,106 @@ package eu.europa.ec.eudi.etsi119602.consultation.eu
 
 import eu.europa.ec.eudi.etsi119602.consultation.CertOps
 import eu.europa.ec.eudi.etsi119602.consultation.CertOps.toX509Certificate
-import eu.europa.ec.eudi.etsi119602.consultation.ETSI119475
-import eu.europa.ec.eudi.etsi1196x2.consultation.CertificateOperationsJvm
 import eu.europa.ec.eudi.etsi1196x2.consultation.certs.CertificateConstraintEvaluation
-import eu.europa.ec.eudi.etsi1196x2.consultation.certs.CertificateProfileValidator
 import eu.europa.ec.eudi.etsi1196x2.consultation.certs.isMet
 import kotlinx.coroutines.test.runTest
 import org.bouncycastle.asn1.x500.X500Name
+import org.bouncycastle.asn1.x509.KeyUsage
 import java.security.cert.X509Certificate
-import kotlin.test.Ignore
 import kotlin.test.Test
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 /**
  * Tests for WRPRC Provider certificate constraints (ETSI TS 119 602 Annex G).
  */
-@Ignore("Further investigation needed")
 class EUWRPRCProvidersListTest {
 
     private val cnWrprcProvider = X500Name("CN=WRPRC Provider Test")
-    val certificateProfileValidator = CertificateProfileValidator(CertificateOperationsJvm)
-    private suspend fun evaluateCertificateConstraints(
+    private suspend fun evaluateProviderCertificateConstraints(
         certificate: X509Certificate,
     ): CertificateConstraintEvaluation =
-        certificateProfileValidator.validate(wrprcProviderCertificateProfile(), certificate)
+        CertificateProfileValidatorJVM.validate(wrprcProviderCertificateProfile(), certificate)
 
     @Test
-    fun `WRPRC Provider validator should validate CA certificate`() = runTest {
-        // Generate a trust anchor (CA certificate for WRPRC Provider)
-        val (_, certHolder) = CertOps.genTrustAnchor("SHA256withECDSA", cnWrprcProvider)
-        val certificate = certHolder.toX509Certificate()
+    fun `WRPRC Provider certificate should require keyCertSign`() = runTest {
+        val (_, wrprcProviderCertHolder) = CertOps.genTrustAnchor(
+            sigAlg = "SHA256withECDSA",
+            subject = cnWrprcProvider,
+            keyUsage = KeyUsage(KeyUsage.digitalSignature),
+            policyOids = listOf("1.2.3.4.5"), // TSP defined policy OID
+            pathLenConstraint = null,
+        )
+        val certificate = wrprcProviderCertHolder.toX509Certificate()
+
+        // Validate as WRPAC Provider
+        val constraintEvaluation = evaluateProviderCertificateConstraints(certificate)
+
+        assertFalse(constraintEvaluation.isMet())
+        println(constraintEvaluation.violations)
+        constraintEvaluation.assertSingleViolation { it.contains("keyCertSign", ignoreCase = true) }
+    }
+
+    @Test
+    fun `WRPRC Provider certificate should not be an end-entity certificate`() = runTest {
+        val (rootKey, rootCertHolder) = CertOps.genTrustAnchor("SHA256withECDSA", X500Name("CN=Test CA"))
+        val (_, wrprcProviderCertHolder) = CertOps.genCAIssuedEndEntityCertificate(
+            sigAlg = "SHA256withECDSA",
+            signerKey = rootKey.private,
+            signerCert = rootCertHolder,
+            policyOids = listOf("1.2.3.4.5"), // TSP defined policy OID,
+            caIssuersUri = null,
+            ocspUri = null,
+            subject = cnWrprcProvider,
+            keyUsage = KeyUsage(KeyUsage.keyCertSign),
+        )
+        val certificate = wrprcProviderCertHolder.toX509Certificate()
+
+        // Validate as WRPAC Provider
+        val constraintEvaluation = evaluateProviderCertificateConstraints(certificate)
+        assertFalse(constraintEvaluation.isMet())
+        constraintEvaluation.violations.forEach { println(it.reason) }
+        constraintEvaluation.assertSingleViolation { it.contains("expected CA", ignoreCase = true) }
+    }
+
+    @Test
+    fun `WRPRC Provider certificate should require policy`() = runTest {
+        val (_, wrprcProviderCertHolder) = CertOps.genTrustAnchor(
+            sigAlg = "SHA256withECDSA",
+            subject = cnWrprcProvider,
+            keyUsage = KeyUsage(KeyUsage.keyCertSign or KeyUsage.cRLSign),
+            policyOids = null, // mising policy
+            pathLenConstraint = null,
+        )
+        val certificate = wrprcProviderCertHolder.toX509Certificate()
 
         // Validate as WRPRC Provider
-        val constraintEvaluation = evaluateCertificateConstraints(certificate)
-        assertTrue(!constraintEvaluation.isMet())
+        val constraintEvaluation = evaluateProviderCertificateConstraints(certificate)
+        assertFalse(constraintEvaluation.isMet())
 
         // Should pass basic constraints (CA) and key usage (keyCertSign)
         // Will fail Certificate Policy (not implemented yet)
         assertTrue(
-            constraintEvaluation.violations.any { it.reason.contains("certificate policies") },
+            constraintEvaluation.violations.any { it.reason.contains("certificatePolicies extension") },
             "Expected failure for missing Certificate Policy",
         )
     }
 
     @Test
-    fun `WRPRC Provider validator should accept CA certificate with valid policy`() = runTest {
-        // Generate CA certificate with WRPRC policy OID
-        // Note: WRPRC Providers are CAs, so they need cA=TRUE
-        val (_, certHolder) = CertOps.genTrustAnchor(
+    fun `WRPRC Provider certificate should be valid`() = runTest {
+        // Generate a trust anchor (CA certificate for WRPAC Provider)
+        val (_, wrpacProviderCertHolder) = CertOps.genTrustAnchor(
             sigAlg = "SHA256withECDSA",
             subject = cnWrprcProvider,
+            keyUsage = KeyUsage(KeyUsage.keyCertSign),
+            policyOids = listOf("1.2.3.4.5"), // TSP defined policy OID,
+            pathLenConstraint = null,
         )
-        // Note: We can't easily add policy OIDs to existing certificates
-        // This test documents that CA certificates pass basic constraints check
-        val certificate = certHolder.toX509Certificate()
+        val certificate = wrpacProviderCertHolder.toX509Certificate()
 
-        // Validate as WRPRC Provider
-        val constraintEvaluation = evaluateCertificateConstraints(certificate)
+        // Validate as WRPAC Provider
+        val constraintEvaluation = evaluateProviderCertificateConstraints(certificate)
 
-        // Should fail - missing certificate policy (can't be added with current test utilities)
-        // This test documents the current limitation
-        assertTrue(!constraintEvaluation.isMet(), "CA certificate without policy should fail")
-        assertTrue(constraintEvaluation.violations.any { it.reason.contains("certificate policies") })
-    }
-
-    @Test
-    fun `WRPRC Provider validator should accept CA certificate with WRPRC policy`() = runTest {
-        // Generate CA certificate with WRPRC policy OID (ETSI TS 119 475)
-        val (_, certHolder) = CertOps.genCACertificateWithPolicy(
-            sigAlg = "SHA256withECDSA",
-            name = cnWrprcProvider,
-            policyOids = listOf(ETSI119475.WRPRC),
-        )
-        val certificate = certHolder.toX509Certificate()
-
-        // Validate as WRPRC Provider
-        val constraintEvaluation = evaluateCertificateConstraints(certificate)
-
-        // Should pass - has valid WRPRC policy
-        assertTrue(constraintEvaluation.isMet(), "WRPRC Provider certificate with WRPRC policy should pass")
+        assertTrue(constraintEvaluation.isMet())
     }
 }

@@ -18,15 +18,12 @@ package eu.europa.ec.eudi.etsi119602.consultation.eu
 import eu.europa.ec.eudi.etsi119602.consultation.CertOps
 import eu.europa.ec.eudi.etsi119602.consultation.CertOps.toX509Certificate
 import eu.europa.ec.eudi.etsi119602.consultation.ETSI119411
-import eu.europa.ec.eudi.etsi1196x2.consultation.CertificateOperationsJvm
 import eu.europa.ec.eudi.etsi1196x2.consultation.certs.CertificateConstraintEvaluation
-import eu.europa.ec.eudi.etsi1196x2.consultation.certs.CertificateProfileValidator
 import eu.europa.ec.eudi.etsi1196x2.consultation.certs.isMet
 import kotlinx.coroutines.test.runTest
 import org.bouncycastle.asn1.x500.X500Name
 import java.security.cert.X509Certificate
 import kotlin.test.Test
-import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
@@ -34,12 +31,10 @@ class EUWRPAccessCertificateTest {
 
     private val cnWalletRelyingParty = X500Name("CN=Wallet Relying Party")
 
-    private val certificateProfileValidator = CertificateProfileValidator(CertificateOperationsJvm)
-
     private suspend fun evaluateEndEntityCertificateConstraints(
         certificate: X509Certificate,
     ): CertificateConstraintEvaluation =
-        certificateProfileValidator.validate(wrpAccessCertificateProfile(), certificate)
+        CertificateProfileValidatorJVM.validate(wrpAccessCertificateProfile(), certificate)
 
     private val wrpacProvider = CertOps.genTrustAnchor(
         sigAlg = "SHA256withECDSA",
@@ -66,15 +61,6 @@ class EUWRPAccessCertificateTest {
             ocspUri = ocspUri,
         )
         return certHolder.toX509Certificate()
-    }
-
-    private fun CertificateConstraintEvaluation.Violated.assertSingleViolation(
-        message: String? = null,
-        assertTrue: (String) -> Boolean,
-    ) {
-        assertEquals(1, violations.size)
-        val violation = violations.first()
-        assertTrue(assertTrue(violation.reason), message)
     }
 
     @Test

@@ -17,16 +17,13 @@ package eu.europa.ec.eudi.etsi119602.consultation.eu
 
 import eu.europa.ec.eudi.etsi119602.consultation.CertOps
 import eu.europa.ec.eudi.etsi119602.consultation.CertOps.toX509Certificate
-import eu.europa.ec.eudi.etsi1196x2.consultation.CertificateOperationsJvm
 import eu.europa.ec.eudi.etsi1196x2.consultation.certs.CertificateConstraintEvaluation
-import eu.europa.ec.eudi.etsi1196x2.consultation.certs.CertificateProfileValidator
 import eu.europa.ec.eudi.etsi1196x2.consultation.certs.isMet
 import kotlinx.coroutines.test.runTest
 import org.bouncycastle.asn1.x500.X500Name
 import org.bouncycastle.asn1.x509.KeyUsage
 import java.security.cert.X509Certificate
 import kotlin.test.Test
-import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
@@ -37,39 +34,10 @@ class EUWRPACProviderCertificateTest {
 
     private val cnWrpacProvider = X500Name("CN=WRPAC Provider Test")
 
-    private val certificateProfileValidator = CertificateProfileValidator(CertificateOperationsJvm)
-
     private suspend fun evaluateProviderCertificateConstraints(
         certificate: X509Certificate,
     ): CertificateConstraintEvaluation =
-        certificateProfileValidator.validate(wrpacProviderCertificateProfile(), certificate)
-
-    private fun CertificateConstraintEvaluation.Violated.assertSingleViolation(
-        message: String? = null,
-        assertTrue: (String) -> Boolean,
-    ) {
-        assertEquals(1, violations.size)
-        val violation = violations.first()
-        assertTrue(assertTrue(violation.reason), message)
-    }
-
-    @Test
-    fun `WRPAC Provider certificate should be valid`() = runTest {
-        // Generate a trust anchor (CA certificate for WRPAC Provider)
-        val (_, wrpacProviderCertHolder) = CertOps.genTrustAnchor(
-            sigAlg = "SHA256withECDSA",
-            subject = cnWrpacProvider,
-            keyUsage = KeyUsage(KeyUsage.keyCertSign),
-            policyOids = null,
-            pathLenConstraint = null,
-        )
-        val certificate = wrpacProviderCertHolder.toX509Certificate()
-
-        // Validate as WRPAC Provider
-        val constraintEvaluation = evaluateProviderCertificateConstraints(certificate)
-
-        assertTrue(constraintEvaluation.isMet())
-    }
+        CertificateProfileValidatorJVM.validate(wrpacProviderCertificateProfile(), certificate)
 
     @Test
     fun `WRPAC Provider certificate should require keyCertSign`() = runTest {
@@ -111,6 +79,24 @@ class EUWRPACProviderCertificateTest {
         assertFalse(constraintEvaluation.isMet())
         constraintEvaluation.violations.forEach { println(it.reason) }
         constraintEvaluation.assertSingleViolation { it.contains("expected CA", ignoreCase = true) }
+    }
+
+    @Test
+    fun `WRPAC Provider certificate should be valid`() = runTest {
+        // Generate a trust anchor (CA certificate for WRPAC Provider)
+        val (_, wrpacProviderCertHolder) = CertOps.genTrustAnchor(
+            sigAlg = "SHA256withECDSA",
+            subject = cnWrpacProvider,
+            keyUsage = KeyUsage(KeyUsage.keyCertSign),
+            policyOids = null,
+            pathLenConstraint = null,
+        )
+        val certificate = wrpacProviderCertHolder.toX509Certificate()
+
+        // Validate as WRPAC Provider
+        val constraintEvaluation = evaluateProviderCertificateConstraints(certificate)
+
+        assertTrue(constraintEvaluation.isMet())
     }
 
     // TODO : WRPAC Provider certificate
