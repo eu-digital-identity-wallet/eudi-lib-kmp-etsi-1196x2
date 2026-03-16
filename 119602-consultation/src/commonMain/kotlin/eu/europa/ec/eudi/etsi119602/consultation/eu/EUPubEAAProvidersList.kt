@@ -45,5 +45,4 @@ public val EUPubEAAProvidersList: EUListOfTrustedEntitiesProfile =
             ),
             serviceDigitalIdentityCertificateType = ServiceDigitalIdentityCertificateType.EndEntityOrCA,
         ),
-        endEntityCertificateProfile = null,
     )

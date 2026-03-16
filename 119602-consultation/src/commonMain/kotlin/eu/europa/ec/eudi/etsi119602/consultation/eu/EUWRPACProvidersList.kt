@@ -47,7 +47,6 @@ public val EUWRPACProvidersList: EUListOfTrustedEntitiesProfile =
             serviceStatuses = emptySet(),
             serviceDigitalIdentityCertificateType = ServiceDigitalIdentityCertificateType.CA,
         ),
-        endEntityCertificateProfile = wrpAccessCertificateProfile(at = null, policy = null),
     )
 
 /**

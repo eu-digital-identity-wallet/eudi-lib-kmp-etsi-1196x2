@@ -52,10 +52,7 @@ public val EUWalletProvidersList: EUListOfTrustedEntitiesProfile =
             serviceDigitalIdentityMustHaveCertificates = true,
             serviceStatuses = emptySet(),
             serviceDigitalIdentityCertificateType = ServiceDigitalIdentityCertificateType.EndEntityOrCA,
-
         ),
-        endEntityCertificateProfile = walletProviderCertificateProfile(at = null), // ony the end-entity
-
     )
 
 //

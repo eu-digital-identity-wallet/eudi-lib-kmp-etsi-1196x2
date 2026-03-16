@@ -20,6 +20,8 @@ import eu.europa.ec.eudi.etsi119602.URI
 import eu.europa.ec.eudi.etsi119602.consultation.eu.*
 import eu.europa.ec.eudi.etsi1196x2.consultation.SupportedLists
 import eu.europa.ec.eudi.etsi1196x2.consultation.VerificationContext
+import eu.europa.ec.eudi.etsi1196x2.consultation.certs.CertificateProfile
+import kotlin.time.Instant
 
 /**
  * Known combinations of [VerificationContext] and Service Type Identifiers (for LoTEs)
@@ -28,13 +30,11 @@ import eu.europa.ec.eudi.etsi1196x2.consultation.VerificationContext
  */
 public fun SupportedLists.Companion.eu(): SupportedLists<LotEMeta<VerificationContext>> =
     SupportedLists(
-        pidProviders =
-        EUPIDProvidersList.loteMeta(
+        pidProviders = UseCase.PID.loteMeta(
             issuance = setOf(VerificationContext.PID),
             revocation = setOf(VerificationContext.PIDStatus),
         ),
-        walletProviders =
-        EUWalletProvidersList.loteMeta(
+        walletProviders = UseCase.WalletAttestation.loteMeta(
             issuance = setOf(
                 VerificationContext.WalletInstanceAttestation,
                 VerificationContext.WalletUnitAttestation,
@@ -42,13 +42,12 @@ public fun SupportedLists.Companion.eu(): SupportedLists<LotEMeta<VerificationCo
             revocation = setOf(VerificationContext.WalletUnitAttestationStatus),
         ),
 
-        wrpacProviders =
-        EUWRPACProvidersList.loteMeta(
+        wrpacProviders = UseCase.WRPAC.loteMeta(
             issuance = setOf(VerificationContext.WalletRelyingPartyAccessCertificate),
             revocation = emptySet(),
         ),
 
-        wrprcProviders = EUWRPRCProvidersList.loteMeta(
+        wrprcProviders = UseCase.WRPC.loteMeta(
             issuance = setOf(VerificationContext.WalletRelyingPartyRegistrationCertificate),
             revocation = emptySet(),
         ),
@@ -56,12 +55,46 @@ public fun SupportedLists.Companion.eu(): SupportedLists<LotEMeta<VerificationCo
         qeaProviders = null,
     )
 
-private fun <CTX : Any> EUListOfTrustedEntitiesProfile.loteMeta(
+private data class UseCase(
+    val loteProfile: EUListOfTrustedEntitiesProfile,
+    val endEntityCertificateProfile: CertificateProfile?,
+) {
+    companion object {
+        val PID = pidUseCase()
+        val WalletAttestation = walletAttestationUseCase()
+        val WRPAC = wrpacUseCase()
+        val WRPC = wrpcUseCase()
+        val PUBEAA = pubEAAUseCase()
+        val MDL = mdlUseCase()
+
+        private fun pidUseCase(at: Instant? = null): UseCase =
+            UseCase(loteProfile = EUPIDProvidersList, endEntityCertificateProfile = pidProviderCertificateProfile(at = at))
+
+        private fun pubEAAUseCase(): UseCase =
+            UseCase(EUPubEAAProvidersList, endEntityCertificateProfile = null)
+        private fun walletAttestationUseCase(at: Instant? = null): UseCase =
+            UseCase(EUWalletProvidersList, walletProviderCertificateProfile(at = at))
+
+        private fun wrpacUseCase(at: Instant? = null, policy: String? = null): UseCase =
+            UseCase(EUWRPACProvidersList, wrpAccessCertificateProfile(at = at, policy = policy))
+
+        private fun wrpcUseCase(at: Instant? = null, maxPathLen: Int? = null): UseCase =
+            UseCase(
+                EUWRPRCProvidersList,
+                wrprcProviderCertificateProfile(at = at, maxPathLen = maxPathLen),
+            )
+
+        private fun mdlUseCase(): UseCase =
+            UseCase(EUMDLProvidersList, endEntityCertificateProfile = null)
+    }
+}
+
+private fun <CTX : Any> UseCase.loteMeta(
     issuance: Set<CTX>,
     revocation: Set<CTX>,
 ): LotEMeta<CTX> = LotEMeta(
-    svcTypePerCtx = svcTypePerCtx(issuance, revocation),
-    serviceDigitalIdentityCertificateType = trustedEntities.serviceDigitalIdentityCertificateType,
+    svcTypePerCtx = loteProfile.svcTypePerCtx(issuance, revocation),
+    serviceDigitalIdentityCertificateType = loteProfile.trustedEntities.serviceDigitalIdentityCertificateType,
     endEntityCertificateProfile = endEntityCertificateProfile,
 )
 

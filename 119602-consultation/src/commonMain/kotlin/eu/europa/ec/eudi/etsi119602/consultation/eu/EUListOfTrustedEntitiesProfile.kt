@@ -17,7 +17,6 @@ package eu.europa.ec.eudi.etsi119602.consultation.eu
 
 import eu.europa.ec.eudi.etsi119602.*
 import eu.europa.ec.eudi.etsi119602.consultation.eu.TrustedEntityAssertions.Companion.ensureTrustedEntities
-import eu.europa.ec.eudi.etsi1196x2.consultation.certs.CertificateProfile
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.monthsUntil
 
@@ -41,8 +40,6 @@ public data class EUListOfTrustedEntitiesProfile(
      * Trusted entities expectations
      */
     val trustedEntities: EUTrustedEntitiesProfile,
-
-    val endEntityCertificateProfile: CertificateProfile?,
 ) {
 
     /**

@@ -51,7 +51,6 @@ public val EUPIDProvidersList: EUListOfTrustedEntitiesProfile =
             serviceStatuses = emptySet(),
             serviceDigitalIdentityCertificateType = ServiceDigitalIdentityCertificateType.EndEntityOrCA,
         ),
-        endEntityCertificateProfile = pidProviderCertificateProfile(at = null), // only the end-entity
     )
 
 //
