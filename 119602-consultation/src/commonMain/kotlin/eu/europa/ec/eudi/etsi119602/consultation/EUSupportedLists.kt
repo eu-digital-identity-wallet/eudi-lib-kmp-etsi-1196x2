@@ -78,11 +78,8 @@ private data class UseCase(
         private fun wrpacUseCase(at: Instant? = null, policy: String? = null): UseCase =
             UseCase(EUWRPACProvidersList, wrpAccessCertificateProfile(at = at, policy = policy))
 
-        private fun wrpcUseCase(at: Instant? = null, maxPathLen: Int? = null): UseCase =
-            UseCase(
-                EUWRPRCProvidersList,
-                wrprcProviderCertificateProfile(at = at, maxPathLen = maxPathLen),
-            )
+        private fun wrpcUseCase(): UseCase =
+            UseCase(EUWRPRCProvidersList, endEntityCertificateProfile = null)
 
         private fun mdlUseCase(): UseCase =
             UseCase(EUMDLProvidersList, endEntityCertificateProfile = null)
