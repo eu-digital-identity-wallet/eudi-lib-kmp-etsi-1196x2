@@ -1,9 +1,17 @@
 # Certificate Chain Validation Using EU Provider Lists (LoTE) for EUDI Wallet Attestations
 
-**Document Version:** 4.5
-**Date:** 2026-03-09
+**Document Version:** 4.6
+**Date:** 2026-03-18
 **Purpose:** Analysis of ETSI specifications for certificate chain validation against EU Provider Lists (LoTE) serving
 as trust anchor sources for PID, Wallet, WRPAC, and WRPRC providers
+
+**Version 4.6 Changes:**
+
+- Updated to ETSI TS 119 475 v1.2.1 (March 2026)
+- Added Token Status List validation for WRPRC revocation checking
+- Restructured WRPRC validation sections to distinguish Issuance and Revocation services
+- Updated Executive Summary with WRPRC dual-service architecture
+- Updated Open Questions to reflect Token Status List mechanism
 
 **Version 4.5 Changes:**
 
@@ -31,19 +39,23 @@ TS 119 602) can be used to validate certificate chains for attestations issued i
 | **PID Providers**    | Annex D               | End-entity OR CA¹                                  | PID signing certificate    | **Direct Trust OR PKIX**¹           |
 | **Wallet Providers** | Annex E               | End-entity OR CA¹                                  | Wallet signing certificate | **Direct Trust OR PKIX**¹           |
 | **WRPAC Providers**  | Annex F               | CA (WRPAC Provider)                                | WRPAC X.509 certificate    | **PKIX**                            |
-| **WRPRC Providers**  | Annex G               | CA (WRPRC Provider)²                               | WRPRC JWT `x5c` chain      | **PKIX**                            |
+| **WRPRC Providers (Issuance)**  | Annex G               | CA (WRPRC Provider)²                               | WRPRC JWT `x5c` chain      | **PKIX**                            |
+| **WRPRC Providers (Revocation)** | Annex G          | CA (WRPRC Provider)³                               | TSL JWT/CWT `x5c` chain    | **PKIX**                            |
 
 **Footnotes:**
 
 ¹ **PID/Wallet Specification Ambiguity:** ETSI TS 119 602 Annexes D and E describe the *purpose* of certificates ("verify the signature... on the person identification data" / "authenticate and validate the components of the wallet unit") but do not explicitly specify whether the certificate must be end-entity or CA. The functional description is compatible with **both** Direct Trust (end-entity in LoTE) and PKIX (CA in LoTE) validation methods. Implementations should support both validation methods. See Section 1.7 for detailed analysis.
 
-² **WRPRC LoTE Certificate Type:** Table G.3 wording ("verify the signature... on the registration certificate it provides") is identical to Table F.3 (WRPAC), indicating the LoTE contains a **CA certificate** (WRPRC Provider), not an end-entity signing certificate. The WRPRC JWT `x5c` header contains "the whole certificate chain" (ETSI TS 119 475 Table 5), which builds via PKIX to the LoTE CA. See Section 4.2.2 for detailed analysis.
+² **WRPRC Issuance Service:** Table G.3 wording ("verify the signature... on the registration certificate it provides") is identical to Table F.3 (WRPAC), indicating the LoTE contains a **CA certificate** (WRPRC Provider), not an end-entity signing certificate. The WRPRC JWT `x5c` header contains "the whole certificate chain" (ETSI TS 119 475 Table 5), which builds via PKIX to the LoTE CA. See Section 4.2.2 for detailed analysis.
+
+³ **WRPRC Revocation Service (NEW in v1.2.1):** ETSI TS 119 475 v1.2.1 introduces Token Status List for WRPRC revocation. The Token Status List is a JWT/CWT with its own `x5c` chain. The WRPRC Providers LoTE (service type: Revocation) contains the CA certificate for validating the TSL signature. See Section 4.5 for detailed analysis.
 
 **Critical Distinction:**
 
 - **PID/Wallet Providers**: Sign data directly → End-entity OR CA certificate in LoTE → Direct Trust OR PKIX validation - *Specification allows both options*
 - **WRPAC Providers**: Issue X.509 certificates to Relying Parties → CA certificate in LoTE → PKIX validation (chain from WRPAC to LoTE CA)
-- **WRPRC Providers**: Sign JWT attestations → CA certificate in LoTE → PKIX validation (chain from WRPRC `x5c` to LoTE CA), then JWT signature verification
+- **WRPRC Providers (Issuance)**: Sign JWT attestations → CA certificate in LoTE → PKIX validation (chain from WRPRC `x5c` to LoTE CA), then JWT signature verification
+- **WRPRC Providers (Revocation)**: Sign Token Status Lists → CA certificate in LoTE → PKIX validation (chain from TSL `x5c` to LoTE CA), then TSL signature verification
 
 **Note on WRPRC:** The WRPRC itself is a JWT attestation (NOT an X.509 certificate). The certificate chain validation (
 PKIX) verifies the `x5c` certificates in the WRPRC JWT header against the LoTE. JWT signature verification is a separate
@@ -61,9 +73,17 @@ step that uses the validated certificate.
 - **WRPRC Provider** = Signs WRPRC JWT attestations (acts as CA)
 - **WRPRC** = JWT attestation declaring WRP entitlements and intended use
 - **WRPRC `x5c`** = Certificate chain to verify WRPRC signature (end-entity → intermediate → LoTE CA)
-- **LoTE** = Contains WRPRC Provider's CA certificate (trust anchor)
+- **LoTE (Issuance)** = Contains WRPRC Provider's CA certificate (trust anchor)
 - **Certificate Chain Validation** = PKIX (chain from WRPRC `x5c` end-entity to LoTE CA)
 - **JWT Signature Verification** = Uses validated end-entity certificate from `x5c` (separate step)
+
+**WRPRC Token Status List Architecture (NEW in v1.2.1):**
+
+- **Token Status List (TSL)** = JWT/CWT containing revocation status bitstring
+- **WRPRC** = Contains `status.status_list` object with TSL URI and bit index
+- **TSL `x5c`** = Certificate chain to verify TSL signature (end-entity → intermediate → LoTE CA)
+- **LoTE (Revocation)** = Contains WRPRC Provider's CA certificate (trust anchor for TSL)
+- **TSL Validation** = PKIX (chain from TSL `x5c` to LoTE CA) + signature verification + bit check
 
 **Dual-Layer Trust Framework:**
 
@@ -76,7 +96,8 @@ step that uses the validated certificate.
 - `x5c` in JWT header MUST NOT include trust anchor (per HAIP v1)
 - For PID/Wallet: `x5c` contains end-entity, LoTE contains end-entity (Direct Trust) OR CA (PKIX) → **Support both validation methods**
 - For WRPAC: `x5c` contains end-entity, LoTE contains CA → PKIX path validation required
-- For WRPRC: `x5c` in WRPRC JWT header contains cert chain (end-entity → CA), LoTE contains CA → PKIX path validation required (then JWT signature verification)
+- For WRPRC: `x5c` in WRPRC JWT header contains cert chain (end-entity → CA), LoTE (Issuance) contains CA → PKIX path validation required (then JWT signature verification)
+- For TSL: `x5c` in TSL JWT/CWT header contains cert chain (end-entity → CA), LoTE (Revocation) contains CA → PKIX path validation required (then TSL signature verification + bit check)
 
 ---
 
@@ -1114,7 +1135,11 @@ Per ETSI TS 119 475, Clause 6.2.2.2:
 
 ---
 
-## 4.4 Validation Method for EU WRPRC Providers List
+## 4.4 Validation Method for EU WRPRC Providers List - Issuance Service
+
+This section covers using the WRPRC Providers List with **service type Issuance** (`http://uri.etsi.org/19602/SvcType/WRPRC/Issuance`) to validate the WRPRC JWT signature via PKIX certificate chain validation.
+
+**Note:** For Token Status List validation (WRPRC revocation checking), see Section 4.5.
 
 #### 4.4.1 WRPRC JWT Verification Flow
 
@@ -1209,7 +1234,164 @@ attestation, not an X.509 certificate.
 
 ---
 
-## 4.5 Compliance Requirements Summary for WRPRC Providers
+## 4.5 Token Status List Validation - Revocation Service
+
+ETSI TS 119 475 v1.2.1 (March 2026) introduces a **Token Status List (TSL)** mechanism for WRPRC revocation checking. This section covers using the WRPRC Providers List with **service type Revocation** (`http://uri.etsi.org/19602/SvcType/WRPRC/Revocation`) to validate the Token Status List signature.
+
+### 4.5.1 IETF Token Status List Format
+
+Per IETF draft-ietf-oauth-status-list, the `status` claim in the JWT/CWT payload contains a `status_list` object:
+
+```json
+{
+  "status": {
+    "status_list": {
+      "uri": "https://wrprc-provider.example/status-list",
+      "index": 12345
+    }
+  }
+}
+```
+
+**Key Points:**
+- **Single claim**: `status` (not separate `status_list_uri` and `status_list_index`)
+- **Object structure**: `status_list` is an object with two properties:
+  - `uri`: URI to fetch the Token Status List
+  - `index`: Bit position in the status list bitstring
+- **Privacy**: Each WRPRC MUST have a unique, unpredictable index (per draft-ietf-oauth-status-list Section 13.2)
+
+**Reference:** IETF draft-ietf-oauth-status-list, Section 5 ("Status Claim")
+
+### 4.5.2 WRPRC Providers List - Revocation Service
+
+Per ETSI TS 119 602 Annex G Table G.3, the WRPRC Providers List supports TWO service types:
+
+| Service Type Identifier | Purpose |
+|------------------------|---------|
+| `http://uri.etsi.org/19602/SvcType/WRPRC/Issuance` | Validate WRPRC JWT signature (Section 4.4) |
+| `http://uri.etsi.org/19602/SvcType/WRPRC/Revocation` | Validate Token Status List signature (this section) |
+
+**ServiceDigitalIdentity for Revocation Service:**
+
+> "The ServiceDigitalIdentity component shall contain one or more X.509 certificates that can be used to verify the signature or seal created by the provider of wallet-relying party registration certificates **on the Token Status List**..."
+
+**Critical Finding:** The LoTE (Revocation service) contains a **CA certificate** for validating the Token Status List signature, following the same pattern as the Issuance service.
+
+### 4.5.3 Token Status List Validation Flow
+
+```
+┌─────────────────────────────────────────┐
+│  EU WRPRC Providers LoTE                │
+│  (Revocation Service)                   │
+│  - WRPRC Provider CA Certificate        │
+│  - basicConstraints: cA=TRUE            │
+│  - Trust Anchor                         │
+│  ★ PUBLISHED IN LoTE ★                  │
+└─────────────────────────────────────────┘
+         ▲
+         │ PKIX chain validation
+         │
+┌─────────────────────────────────────────┐
+│  Token Status List (TSL) x5c Chain      │
+│  - [0]: End-entity signing cert         │
+│  - [1]: Intermediate CA (opt)           │
+│  - basicConstraints: cA=TRUE            │
+└─────────────────────────────────────────┘
+         │
+         │ Signs
+         ▼
+┌─────────────────────────────────────────┐
+│  Token Status List (JWT/CWT)            │
+│  - Header: { typ: application/status+jwt, │
+│              alg: ES256,                │
+│              x5c: [...] }               │
+│  - Payload: {                           │
+│      status_list: {                     │
+│        bits: "00000000...",             │
+│        uri: "..."                       │
+│      }                                  │
+│    }                                    │
+│  - Signature                            │
+└─────────────────────────────────────────┘
+         ▲
+         │ Referenced by
+         │
+┌─────────────────────────────────────────┐
+│  WRPRC JWT Payload                      │
+│  - status: {                            │
+│      status_list: {                     │
+│        uri: "https://...",              │
+│        index: 12345                     │
+│      }                                  │
+│    }                                    │
+└─────────────────────────────────────────┘
+
+LoTE ServiceDigitalIdentity (Revocation) contains: WRPRC Provider CA certificate (X.509)
+Validation Method: PKIX (TSL x5c chain → LoTE CA), then TSL signature verification, then bit check
+```
+
+### 4.5.4 Validation Steps
+
+Token Status List validation requires three phases:
+
+**Phase 1: Extract TSL Reference from WRPRC**
+
+1. Parse WRPRC JWT payload
+2. Extract `status.status_list.uri` (TSL endpoint)
+3. Extract `status.status_list.index` (bit position)
+
+**Phase 2: Certificate Chain Validation (PKIX)**
+
+4. Fetch Token Status List (JWT/CWT) from URI
+5. Parse TSL header
+6. Extract `x5c` certificate chain from header
+7. Load trust anchors from EU WRPRC Providers LoTE (Revocation service - CA certificates)
+8. Build certification path from `x5c` end-entity certificate to LoTE CA
+9. Validate chain using PKIX (RFC 5280 Section 6.3):
+    - Verify signatures along the chain
+    - Verify validity periods
+    - Verify basicConstraints (cA=TRUE for intermediate CA)
+    - Verify keyUsage (keyCertSign for CA, digitalSignature for end-entity)
+    - Check revocation status (CRL/OCSP)
+
+**Phase 3: TSL Signature Verification and Status Check**
+
+10. Extract validated end-entity signing certificate from `x5c`
+11. Verify TSL signature using the certificate's public key
+12. Parse TSL payload to extract status bitstring
+13. Check bit at `status.status_list.index`:
+    - **0 (valid)**: WRPRC is currently trusted
+    - **1 (revoked)**: WRPRC has been revoked
+14. Return revocation status
+
+### 4.5.5 WRPRC Complete Validation Flow
+
+Complete WRPRC validation now requires **three** validation steps:
+
+```
+1. WRPRC JWT x5c Chain Validation (PKIX)
+   → Uses LoTE (Issuance service)
+   → Validates WRPRC Provider's signature capability
+
+2. WRPRC JWT Signature Verification (JWS)
+   → Uses validated certificate from step 1
+   → Validates WRPRC payload integrity
+
+3. Token Status List Validation
+   → Uses LoTE (Revocation service)
+   → Checks WRPRC revocation status
+   → Returns: VALID or REVOKED
+```
+
+**Finding 4.5.5:** The WRPRC Providers LoTE serves **dual purposes**:
+- **Issuance service**: Validates WRPRC JWT signature (proves WRPRC authenticity)
+- **Revocation service**: Validates Token Status List signature (proves WRPRC is not revoked)
+
+Both services use PKIX certificate chain validation against CA certificates in the LoTE, but they validate **different certificates** (WRPRC signing cert vs TSL signing cert).
+
+---
+
+## 4.6 Compliance Requirements Summary for WRPRC Providers
 
 | Requirement                      | Specification       | Clause             | Requirement Level        |
 |----------------------------------|---------------------|--------------------|--------------------------|
@@ -1223,7 +1405,7 @@ attestation, not an X.509 certificate.
 
 ---
 
-## 4.6 Comparison: All WRP Certificate Types
+## 4.7 Comparison: All WRP Certificate Types
 
 | Aspect                | WRPAC                               | WRPRC                           |
 |-----------------------|-------------------------------------|---------------------------------|
@@ -1239,7 +1421,7 @@ attestation, not an X.509 certificate.
 
 ---
 
-## 4.7 Open Questions for Further Investigation
+## 4.8 Open Questions for Further Investigation
 
 1. **ETSI TS 119 472-2/3 Verification:** Confirm exact placement of WRPRC in OpenID4VP Authorization Request (
    `verifier_info`) and OpenID4VCI Credential Issuer Metadata (`issuer_info`).
@@ -1249,8 +1431,12 @@ attestation, not an X.509 certificate.
    data_policies)?
     - **Status:** ETSI TS 119 475 defines the format but not the exact claim structure; may be implementation-specific.
 
-3. **WRPRC Revocation:** How are revoked WRPRCs handled? Is there a status list mechanism?
-    - **Status:** Not specified in ETSI TS 119 475; may use JWT `exp` claim or external revocation list.
+3. **WRPRC Revocation - Token Status List:** ETSI TS 119 475 v1.2.1 introduces Token Status List for WRPRC revocation.
+    - **Status:** **Answered by v1.2.1** - Token Status List per IETF draft-ietf-oauth-status-list
+    - WRPRC contains `status.status_list` object with TSL URI and bit index
+    - TSL is a JWT/CWT with its own `x5c` chain
+    - WRPRC Providers LoTE (Revocation service) contains CA certificate for TSL validation
+    - **Open:** TSL certificate architecture - does LoTE contain end-entity or CA for Revocation service?
 
 4. **Multiple WRPRCs:** Can a WRP have multiple WRPRCs for different use cases? How does Wallet select the appropriate
    one?
@@ -1273,7 +1459,8 @@ attestation, not an X.509 certificate.
 | **PID Providers**    | Direct Trust AND PKIX | Ambiguous (Annex D)         |
 | **Wallet Providers** | Direct Trust AND PKIX | Ambiguous (Annex E)         |
 | **WRPAC Providers**  | PKIX                | Clear (Annex F)                |
-| **WRPRC Providers**  | PKIX                | Clear (Annex G)                |
+| **WRPRC Providers (Issuance)**  | PKIX + JWT Signature | Clear (Annex G + TS 119 475 v1.2.1) |
+| **WRPRC Providers (Revocation)** | PKIX + TSL Signature | Clear (TS 119 475 v1.2.1) |
 
 ### IG.2 Recommended Implementation Strategy
 
@@ -1306,11 +1493,20 @@ Specification is clear - use PKIX validation:
    - Verify WRPAC is end-entity (cA=FALSE)
    - Verify LoTE certificate is CA (cA=TRUE)
 
-2. **WRPRC Validation**
+2. **WRPRC Validation (Issuance Service)**
    - Extract certificate chain from WRPRC JWT `x5c`
-   - Build path from `x5c` end-entity to LoTE trust anchor
+   - Build path from `x5c` end-entity to LoTE trust anchor (Issuance service)
    - Verify WRPRC JWT signature using validated certificate
    - Two-step process: PKIX then JWT signature verification
+
+3. **WRPRC Token Status List Validation (Revocation Service) - NEW in v1.2.1**
+   - Extract `status.status_list.uri` and `status.status_list.index` from WRPRC payload
+   - Fetch Token Status List (JWT/CWT) from URI
+   - Extract certificate chain from TSL `x5c`
+   - Build path from TSL `x5c` end-entity to LoTE trust anchor (Revocation service)
+   - Verify TSL signature using validated certificate
+   - Check bit at `status.status_list.index`: 0 = valid, 1 = revoked
+   - Three-step process: PKIX + TSL signature + bit check
 
 ### IG.3 Error Handling and Reporting
 
@@ -1397,6 +1593,7 @@ If you encounter issues or ambiguities in implementation:
 ### ETSI Specifications
 
 - **ETSI TS 119 412-6 V1.1.1**: "Certificate profile requirements for PID, Wallet, EAA, QEAA, and PSBEAA providers"
+- **ETSI TS 119 475 V1.2.1**: "Relying party attributes supporting EUDI Wallet user's authorization decisions"
 - **ETSI TS 119 602 V1.1.1**: "Lists of trusted entities; Data model"
 - **ETSI TS 119 612 V2.4.1**: "Trusted Lists" (August 2025)¹
 - **ETSI EN 319 412-2 V2.4.1**: "Certificate profile for certificates issued to natural persons"
@@ -1415,6 +1612,10 @@ analysis.
 - **RFC 5280**: "Internet X.509 Public Key Infrastructure Certificate and CRL Profile"
 - **RFC 7515**: "JSON Web Signature (JWS)"
 - **RFC 9901**: "SD-JWT (Selective Disclosure for JWT)"
+
+### IETF Internet-Drafts
+
+- **draft-ietf-oauth-status-list**: Looker, T., Bastian, P., and C. Bormann, "Token Status List (TSL)", Work in Progress, Internet-Draft, draft-ietf-oauth-status-list-18, 18 February 2026, <https://datatracker.ietf.org/doc/html/draft-ietf-oauth-status-list-18>
 
 ---
 
