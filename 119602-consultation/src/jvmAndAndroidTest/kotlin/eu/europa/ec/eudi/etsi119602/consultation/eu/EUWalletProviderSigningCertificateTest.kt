@@ -29,15 +29,12 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
-/**
- * Tests for Wallet Provider certificate constraints (ETSI TS 119 602 Annex E).
- */
-class EUWalletProviderCertificateTest {
+class EUWalletProviderSigningCertificateTest {
 
     private suspend fun evaluateCertificateConstraints(
         certificate: X509Certificate,
     ): CertificateConstraintEvaluation =
-        CertificateProfileValidatorJVM.validate(walletProviderCertificateProfile(), certificate)
+        CertificateProfileValidatorJVM.validate(walletProviderSigningCertificateProfile(), certificate)
 
     private val ca = CertOps.genTrustAnchor(
         sigAlg = "SHA256withECDSA",

@@ -29,9 +29,6 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
-/**
- * Tests for PID Provider certificate constraints (ETSI TS 119 602 Annex D).
- */
 class EUPIDSigningCertificateProfileTests {
 
     private suspend fun evaluateCertificateConstraints(

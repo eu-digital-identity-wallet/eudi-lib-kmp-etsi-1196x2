@@ -85,7 +85,7 @@ public val EUWalletProvidersList: EUListOfTrustedEntitiesProfile =
  *
  * @return a validator configured for Wallet Provider end-entity certificates
  */
-public fun walletProviderCertificateProfile(at: Instant? = null): CertificateProfile =
+public fun walletProviderSigningCertificateProfile(at: Instant? = null): CertificateProfile =
     certificateProfile {
         requireEndEntityCertificate()
         requireQcStatement(qcType = ETSI119412.ID_ETSI_QCT_WAL, requireCompliance = true)

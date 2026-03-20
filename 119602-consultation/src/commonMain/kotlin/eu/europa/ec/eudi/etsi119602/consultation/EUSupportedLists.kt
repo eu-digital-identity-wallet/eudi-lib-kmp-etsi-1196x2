@@ -80,7 +80,7 @@ private data class UseCase(
         private fun walletAttestationUseCase(at: Instant? = null): UseCase =
             UseCase(
                 EUWalletProvidersList,
-                issuanceCertificateProfile = walletProviderCertificateProfile(at = at),
+                issuanceCertificateProfile = walletProviderSigningCertificateProfile(at = at),
                 revocationCertificateProfile = null,
             )
 
