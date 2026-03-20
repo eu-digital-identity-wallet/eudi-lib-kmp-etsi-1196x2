@@ -81,7 +81,7 @@ public val EUPIDProvidersList: EUListOfTrustedEntitiesProfile =
  *
  * @return a validator configured for PID Provider end-entity certificates
  */
-public fun pidProviderCertificateProfile(at: Instant? = null): CertificateProfile = certificateProfile {
+public fun pidSigningCertificateProfile(at: Instant? = null): CertificateProfile = certificateProfile {
     requireEndEntityCertificate()
     requireQcStatement(qcType = ETSI119412.ID_ETSI_QCT_PID, requireCompliance = true)
     requireDigitalSignature()

@@ -37,17 +37,19 @@ import kotlin.time.Duration
  * @param svcTypePerCtx A map which correlates a verification context [CTX] to a [eu.europa.ec.eudi.etsi119602.ServiceInformation.typeIdentifier].
  * @param serviceDigitalIdentityCertificateType A hint, indicating whether the [ServiceDigitalIdentity.x509Certificates]
  * are expecting/required to be End-Entity, CA or Both. This will drive the selection of chain validation method (direct trust, PKIX, or both)
- * @param endEntityCertificateProfile an optional set of rules for the end-entity certificate, for which this LoTE will be used to validate
- * a chain. If provided, the chain validation will first evaluate that the end-entity certificate aligns with the given rules.
  *
  * @param CTX the type representing a verification context
  * @see ProvisionTrustAnchorsFromLoTEs
  */
 public data class LotEMeta<CTX>(
-    val svcTypePerCtx: Map<CTX, URI>,
+    val svcTypePerCtx: Map<CTX, SvcTypeIdentifierAndEndEntityCertificateProfile>,
     val serviceDigitalIdentityCertificateType: ServiceDigitalIdentityCertificateType,
-    val endEntityCertificateProfile: CertificateProfile?,
-)
+) {
+    public data class SvcTypeIdentifierAndEndEntityCertificateProfile(
+        val svcTypeIdentifier: URI,
+        val profile: CertificateProfile?,
+    )
+}
 
 /**
  * Provides functionality for provisioning trust anchors derived from Lots of Trust Entities (LoTEs) and validating
@@ -89,11 +91,12 @@ public class ProvisionTrustAnchorsFromLoTEs<CHAIN : Any, CTX : Any, TRUST_ANCHOR
      *
      * @return a [ComposeChainTrust] instance
      */
-    public fun nonCached(loteLocationsSupported: SupportedLists<String>): ComposeChainTrust<CHAIN, CTX, TRUST_ANCHOR> =
-        loteLocationsSupported.cfgs().map { cfg ->
+    public fun nonCached(loteLocationsSupported: SupportedLists<String>): ComposeChainTrust<CHAIN, CTX, TRUST_ANCHOR> {
+        return loteLocationsSupported.cfgs().flatMap { cfg ->
             val getTrustAnchors = createGetTrustAnchorsFromLoTE(cfg)
-            createValidator(cfg, getTrustAnchors)
+            createValidators(cfg.metadata, getTrustAnchors)
         }.compose()
+    }
 
     /**
      * Creates a [ComposeChainTrust] for a given LoTE configuration and trust anchor extraction function, suitable to be
@@ -119,24 +122,39 @@ public class ProvisionTrustAnchorsFromLoTEs<CHAIN : Any, CTX : Any, TRUST_ANCHOR
     ): ComposeChainTrust<CHAIN, CTX, TRUST_ANCHOR> {
         val args = CacheArguments(cacheDispatcher, clock, ttl)
         val sources =
-            loteLocationsSupported.cfgs().associateWith { cfg -> createGetTrustAnchorsFromLoTE(cfg, args) }
+            loteLocationsSupported.cfgs().associate { cfg -> cfg.metadata to createGetTrustAnchorsFromLoTE(cfg, args) }
         with(disposableScope) {
             sources.values.forEach { it.bind() }
         }
 
         val composeChainTrust =
-            sources.map { (cfg, getTrustAnchors) -> createValidator(cfg, getTrustAnchors) }
+            sources.flatMap { (metadata, getTrustAnchors) -> createValidators(metadata, getTrustAnchors) }
                 .compose()
         return composeChainTrust
     }
 
-    private fun createValidator(
-        cfg: LoTECfg<CTX>,
+    private fun createValidators(
+        metadata: LotEMeta<CTX>,
         getTrustAnchors: GetTrustAnchors<URI, TRUST_ANCHOR>,
-    ): IsChainTrustedForContext<CHAIN, CTX, TRUST_ANCHOR> {
-        val certificateChainValidator = certificateChainValidator(cfg)
-        val transformation = cfg.metadata.svcTypePerCtx
-        return getTrustAnchors.validator(transformation, certificateChainValidator)
+    ): List<IsChainTrustedForContext<CHAIN, CTX, TRUST_ANCHOR>> {
+        val baseChainValidator = baseCertificateChainValidators(metadata)
+        val transformation = metadata.svcTypePerCtx.mapValues { it.value.svcTypeIdentifier }
+        val countEndEntityCertProfiles = metadata.svcTypePerCtx.count { (_, v) -> v.profile != null }
+        return when {
+            countEndEntityCertProfiles == 0 -> {
+                val isChainTrustedForCtx = getTrustAnchors.validator(transformation, baseChainValidator)
+                listOf(isChainTrustedForCtx)
+            }
+            else -> {
+                metadata.svcTypePerCtx.map { (ctx, svcTypeAndCertProf) ->
+                    val (_, certProf) = svcTypeAndCertProf
+                    val singleTransformation = transformation.filterKeys { it == ctx }
+                    val cv = certProf?.let { baseChainValidator.withEndEntityProfile(certificateProfileValidator, it, endEntityCertificateOf) } ?: baseChainValidator
+                    val isChainTrustedForCtx = getTrustAnchors.validator(singleTransformation, cv)
+                    isChainTrustedForCtx
+                }
+            }
+        }
     }
 
     private fun createGetTrustAnchorsFromLoTE(
@@ -157,26 +175,14 @@ public class ProvisionTrustAnchorsFromLoTEs<CHAIN : Any, CTX : Any, TRUST_ANCHOR
             createTrustAnchors = createTrustAnchors,
         )
 
-    private fun certificateChainValidator(
-        cfg: LoTECfg<CTX>,
-    ): ValidateCertificateChain<CHAIN, TRUST_ANCHOR> {
-        val endEntityCertificateProfile =
-            cfg.metadata.endEntityCertificateProfile
-        val validator = when (cfg.metadata.serviceDigitalIdentityCertificateType) {
+    private fun baseCertificateChainValidators(
+        metadata: LotEMeta<CTX>,
+    ): ValidateCertificateChain<CHAIN, TRUST_ANCHOR> =
+        when (metadata.serviceDigitalIdentityCertificateType) {
             ServiceDigitalIdentityCertificateType.EndEntity -> directTrust
             ServiceDigitalIdentityCertificateType.CA -> pkix
             ServiceDigitalIdentityCertificateType.EndEntityOrCA -> directTrust or pkix
         }
-        return if (endEntityCertificateProfile != null) {
-            validator.withEndEntityProfile(
-                certificateProfileValidator,
-                endEntityCertificateProfile,
-                endEntityCertificateOf,
-            )
-        } else {
-            validator
-        }
-    }
 
     private fun GetTrustAnchors<URI, TRUST_ANCHOR>.cached(
         args: CacheArguments,

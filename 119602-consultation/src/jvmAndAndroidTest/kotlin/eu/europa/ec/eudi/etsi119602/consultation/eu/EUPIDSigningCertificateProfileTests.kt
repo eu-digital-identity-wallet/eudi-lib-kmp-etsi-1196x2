@@ -32,12 +32,12 @@ import kotlin.test.assertTrue
 /**
  * Tests for PID Provider certificate constraints (ETSI TS 119 602 Annex D).
  */
-class EUPIDProviderCertificateTests {
+class EUPIDSigningCertificateProfileTests {
 
     private suspend fun evaluateCertificateConstraints(
         certificate: X509Certificate,
     ): CertificateConstraintEvaluation =
-        CertificateProfileValidatorJVM.validate(pidProviderCertificateProfile(), certificate)
+        CertificateProfileValidatorJVM.validate(pidSigningCertificateProfile(), certificate)
 
     private val ca = CertOps.genTrustAnchor(
         sigAlg = "SHA256withECDSA",

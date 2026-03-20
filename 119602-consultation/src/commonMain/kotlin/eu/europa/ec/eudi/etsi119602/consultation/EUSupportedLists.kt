@@ -16,7 +16,6 @@
 package eu.europa.ec.eudi.etsi119602.consultation
 
 import eu.europa.ec.eudi.etsi119602.ETSI19602
-import eu.europa.ec.eudi.etsi119602.URI
 import eu.europa.ec.eudi.etsi119602.consultation.eu.*
 import eu.europa.ec.eudi.etsi1196x2.consultation.SupportedLists
 import eu.europa.ec.eudi.etsi1196x2.consultation.VerificationContext
@@ -57,7 +56,8 @@ public fun SupportedLists.Companion.eu(): SupportedLists<LotEMeta<VerificationCo
 
 private data class UseCase(
     val loteProfile: EUListOfTrustedEntitiesProfile,
-    val endEntityCertificateProfile: CertificateProfile?,
+    val issuanceCertificateProfile: CertificateProfile?,
+    val revocationCertificateProfile: CertificateProfile?,
 ) {
     companion object {
         val PID = pidUseCase()
@@ -68,21 +68,34 @@ private data class UseCase(
         val MDL = mdlUseCase()
 
         private fun pidUseCase(at: Instant? = null): UseCase =
-            UseCase(loteProfile = EUPIDProvidersList, endEntityCertificateProfile = pidProviderCertificateProfile(at = at))
+            UseCase(
+                loteProfile = EUPIDProvidersList,
+                issuanceCertificateProfile = pidSigningCertificateProfile(at = at),
+                null,
+            )
 
         private fun pubEAAUseCase(): UseCase =
-            UseCase(EUPubEAAProvidersList, endEntityCertificateProfile = null)
+            UseCase(EUPubEAAProvidersList, issuanceCertificateProfile = null, revocationCertificateProfile = null)
+
         private fun walletAttestationUseCase(at: Instant? = null): UseCase =
-            UseCase(EUWalletProvidersList, walletProviderCertificateProfile(at = at))
+            UseCase(
+                EUWalletProvidersList,
+                issuanceCertificateProfile = walletProviderCertificateProfile(at = at),
+                revocationCertificateProfile = null,
+            )
 
         private fun wrpacUseCase(at: Instant? = null, policy: String? = null): UseCase =
-            UseCase(EUWRPACProvidersList, wrpAccessCertificateProfile(at = at, policy = policy))
+            UseCase(
+                EUWRPACProvidersList,
+                issuanceCertificateProfile = wrpAccessCertificateProfile(at = at, policy = policy),
+                revocationCertificateProfile = null,
+            )
 
         private fun wrpcUseCase(): UseCase =
-            UseCase(EUWRPRCProvidersList, endEntityCertificateProfile = null)
+            UseCase(EUWRPRCProvidersList, issuanceCertificateProfile = null, revocationCertificateProfile = null)
 
         private fun mdlUseCase(): UseCase =
-            UseCase(EUMDLProvidersList, endEntityCertificateProfile = null)
+            UseCase(EUMDLProvidersList, issuanceCertificateProfile = null, revocationCertificateProfile = null)
     }
 }
 
@@ -90,21 +103,32 @@ private fun <CTX : Any> UseCase.loteMeta(
     issuance: Set<CTX>,
     revocation: Set<CTX>,
 ): LotEMeta<CTX> = LotEMeta(
-    svcTypePerCtx = loteProfile.svcTypePerCtx(issuance, revocation),
+    svcTypePerCtx = svcTypePerCtx(issuance, revocation),
     serviceDigitalIdentityCertificateType = loteProfile.trustedEntities.serviceDigitalIdentityCertificateType,
-    endEntityCertificateProfile = endEntityCertificateProfile,
 )
 
-private fun <CTX : Any> EUListOfTrustedEntitiesProfile.svcTypePerCtx(
-    issuance: Set<CTX>,
-    revocation: Set<CTX>,
-): Map<CTX, URI> =
-    when (val ss = trustedEntities.serviceTypeIdentifiers) {
+private fun <CTX : Any> UseCase.svcTypePerCtx(
+    issuanceCtxs: Set<CTX>,
+    revocationCtxs: Set<CTX>,
+): Map<CTX, LotEMeta.SvcTypeIdentifierAndEndEntityCertificateProfile> =
+    when (val serviceTypeIdentifiers = loteProfile.trustedEntities.serviceTypeIdentifiers) {
         is ServiceTypeIdentifiers.OneOrMore -> error("Not supported")
         is ServiceTypeIdentifiers.IssuanceAndRevocation -> {
             buildMap {
-                issuance.forEach { put(it, ss.issuance) }
-                revocation.forEach { put(it, ss.revocation) }
+                issuanceCtxs.forEach { ctx ->
+                    val value = LotEMeta.SvcTypeIdentifierAndEndEntityCertificateProfile(
+                        serviceTypeIdentifiers.issuance,
+                        issuanceCertificateProfile,
+                    )
+                    put(ctx, value)
+                }
+                revocationCtxs.forEach { ctx ->
+                    val value = LotEMeta.SvcTypeIdentifierAndEndEntityCertificateProfile(
+                        serviceTypeIdentifiers.revocation,
+                        revocationCertificateProfile,
+                    )
+                    put(ctx, value)
+                }
             }
         }
     }

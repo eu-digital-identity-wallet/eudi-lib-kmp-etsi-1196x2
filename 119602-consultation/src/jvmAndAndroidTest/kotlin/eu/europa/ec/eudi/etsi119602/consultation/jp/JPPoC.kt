@@ -46,21 +46,26 @@ object JPPoC {
     private const val LC_USE_CASE = "jp-learning-credential-poc"
     private val wrpacProviders: LotEMeta<VerificationContext> =
         LotEMeta(
-            svcTypePerCtx = mapOf(
-                VerificationContext.WalletRelyingPartyAccessCertificate to JP_WRPAC_PROVIDER_ISSUANCE_SVC_TYPE,
-            ),
+            svcTypePerCtx = buildMap {
+                val issuance = LotEMeta.SvcTypeIdentifierAndEndEntityCertificateProfile(
+                    JP_WRPAC_PROVIDER_ISSUANCE_SVC_TYPE,
+                    null,
+                )
+                put(VerificationContext.WalletRelyingPartyAccessCertificate, issuance)
+            },
             serviceDigitalIdentityCertificateType = ServiceDigitalIdentityCertificateType.CA,
-            endEntityCertificateProfile = null,
-
         )
 
     private val learningCredentialProviders: LotEMeta<VerificationContext> = LotEMeta(
         svcTypePerCtx =
-        mapOf(
-            VerificationContext.EAA(LC_USE_CASE) to LC_EAA_PROVIDER_SVC_TYPE,
-        ),
+        buildMap {
+            val issuance = LotEMeta.SvcTypeIdentifierAndEndEntityCertificateProfile(
+                LC_EAA_PROVIDER_SVC_TYPE,
+                null,
+            )
+            put(VerificationContext.EAA(LC_USE_CASE), issuance)
+        },
         serviceDigitalIdentityCertificateType = ServiceDigitalIdentityCertificateType.EndEntityOrCA,
-        endEntityCertificateProfile = null,
     )
     val SVC_TYPE_PER_CTX: SupportedLists<LotEMeta<VerificationContext>> =
         SupportedLists(
