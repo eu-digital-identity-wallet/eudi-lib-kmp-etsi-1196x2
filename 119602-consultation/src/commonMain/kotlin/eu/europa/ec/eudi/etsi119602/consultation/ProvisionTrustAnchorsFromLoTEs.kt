@@ -42,12 +42,12 @@ import kotlin.time.Duration
  * @see ProvisionTrustAnchorsFromLoTEs
  */
 public data class LotEMeta<CTX>(
-    val svcTypePerCtx: Map<CTX, SvcTypeIdentifierAndEndEntityCertificateProfile>,
+    val svcTypePerCtx: Map<CTX, SvcAndEEProfile>,
     val serviceDigitalIdentityCertificateType: ServiceDigitalIdentityCertificateType,
 ) {
-    public data class SvcTypeIdentifierAndEndEntityCertificateProfile(
+    public data class SvcAndEEProfile(
         val svcTypeIdentifier: URI,
-        val profile: CertificateProfile?,
+        val endEntityProfile: CertificateProfile?,
     )
 }
 
@@ -91,12 +91,11 @@ public class ProvisionTrustAnchorsFromLoTEs<CHAIN : Any, CTX : Any, TRUST_ANCHOR
      *
      * @return a [ComposeChainTrust] instance
      */
-    public fun nonCached(loteLocationsSupported: SupportedLists<String>): ComposeChainTrust<CHAIN, CTX, TRUST_ANCHOR> {
-        return loteLocationsSupported.cfgs().flatMap { cfg ->
-            val getTrustAnchors = createGetTrustAnchorsFromLoTE(cfg)
-            createValidators(cfg.metadata, getTrustAnchors)
-        }.compose()
-    }
+    public fun nonCached(loteLocationsSupported: SupportedLists<String>): ComposeChainTrust<CHAIN, CTX, TRUST_ANCHOR> =
+        loteLocationsSupported
+            .cfgs()
+            .flatMap { cfg -> createValidators(cfg.metadata, createGetTrustAnchorsFromLoTE(cfg)) }
+            .compose()
 
     /**
      * Creates a [ComposeChainTrust] for a given LoTE configuration and trust anchor extraction function, suitable to be
@@ -119,43 +118,60 @@ public class ProvisionTrustAnchorsFromLoTEs<CHAIN : Any, CTX : Any, TRUST_ANCHOR
         ttl: Duration,
         cacheDispatcher: CoroutineDispatcher = Dispatchers.Default,
         clock: Clock = Clock.System,
-    ): ComposeChainTrust<CHAIN, CTX, TRUST_ANCHOR> {
-        val args = CacheArguments(cacheDispatcher, clock, ttl)
-        val sources =
-            loteLocationsSupported.cfgs().associate { cfg -> cfg.metadata to createGetTrustAnchorsFromLoTE(cfg, args) }
+    ): ComposeChainTrust<CHAIN, CTX, TRUST_ANCHOR> =
         with(disposableScope) {
-            sources.values.forEach { it.bind() }
-        }
-
-        val composeChainTrust =
-            sources.flatMap { (metadata, getTrustAnchors) -> createValidators(metadata, getTrustAnchors) }
+            val cacheArguments = CacheArguments(cacheDispatcher, clock, ttl)
+            loteLocationsSupported
+                .cfgs()
+                .associate { cfg -> cfg.metadata to createGetTrustAnchorsFromLoTE(cfg, cacheArguments).bind() }
+                .flatMap { (metadata, getTrustAnchors) -> createValidators(metadata, getTrustAnchors) }
                 .compose()
-        return composeChainTrust
-    }
+        }
 
     private fun createValidators(
         metadata: LotEMeta<CTX>,
         getTrustAnchors: GetTrustAnchors<URI, TRUST_ANCHOR>,
     ): List<IsChainTrustedForContext<CHAIN, CTX, TRUST_ANCHOR>> {
-        val baseChainValidator = baseCertificateChainValidators(metadata)
-        val transformation = metadata.svcTypePerCtx.mapValues { it.value.svcTypeIdentifier }
-        val countEndEntityCertProfiles = metadata.svcTypePerCtx.count { (_, v) -> v.profile != null }
-        return when {
-            countEndEntityCertProfiles == 0 -> {
-                val isChainTrustedForCtx = getTrustAnchors.validator(transformation, baseChainValidator)
-                listOf(isChainTrustedForCtx)
-            }
-            else -> {
-                metadata.svcTypePerCtx.map { (ctx, svcTypeAndCertProf) ->
-                    val (_, certProf) = svcTypeAndCertProf
-                    val singleTransformation = transformation.filterKeys { it == ctx }
-                    val cv = certProf?.let { baseChainValidator.withEndEntityProfile(certificateProfileValidator, it, endEntityCertificateOf) } ?: baseChainValidator
-                    val isChainTrustedForCtx = getTrustAnchors.validator(singleTransformation, cv)
-                    isChainTrustedForCtx
-                }
-            }
+        val baseChainValidator: ValidateCertificateChain<CHAIN, TRUST_ANCHOR> = baseCertificateChainValidators(metadata)
+        return metadata.groupPerCertificateProfile().map { (certProf, svcTypePerCtx) ->
+            createValidator(svcTypePerCtx, getTrustAnchors, baseChainValidator, certProf)
         }
     }
+
+    private fun LotEMeta<CTX>.groupPerCertificateProfile(): Map<CertificateProfile?, Map<CTX, URI>> =
+        buildMap {
+            val withoutCertificateProfile = svcTypePerCtx
+                .filter { (_, v) -> v.endEntityProfile == null }
+                .mapValues { it.value.svcTypeIdentifier }
+            if (withoutCertificateProfile.isNotEmpty()) {
+                put(null, withoutCertificateProfile)
+            }
+
+            val withCertificateProfile: Map<CertificateProfile?, Map<CTX, URI>> =
+                svcTypePerCtx.filter { (_, v) -> v.endEntityProfile != null }
+                    .map { Triple(it.key, it.value.svcTypeIdentifier, it.value.endEntityProfile!!) }
+                    .groupBy({ it.third }, { it.first to it.second })
+                    .mapValues { it.value.toMap() }
+            putAll(withCertificateProfile)
+        }
+
+    private fun createValidator(
+        svcTypePerCtx: Map<CTX, URI>,
+        getTrustAnchors: GetTrustAnchors<URI, TRUST_ANCHOR>,
+        baseChainValidator: ValidateCertificateChain<CHAIN, TRUST_ANCHOR>,
+        endEntityCertificateProfile: CertificateProfile?,
+    ): IsChainTrustedForContext<CHAIN, CTX, TRUST_ANCHOR> {
+        checkNotNull(svcTypePerCtx.isNotEmpty()) { "svcTypePerCtx cannot be empty" }
+        val transformation = svcTypePerCtx.mapValues { it.value }
+        val chainValidator = endEntityCertificateProfile
+            ?.let { baseChainValidator.withEndEntityProfile(it) }
+            ?: baseChainValidator
+        val isChainTrustedForCtx = getTrustAnchors.validator(transformation, chainValidator)
+        return isChainTrustedForCtx
+    }
+
+    private fun ValidateCertificateChain<CHAIN, TRUST_ANCHOR>.withEndEntityProfile(endEntityCertificateProfile: CertificateProfile) =
+        withEndEntityProfile(certificateProfileValidator, endEntityCertificateProfile, endEntityCertificateOf)
 
     private fun createGetTrustAnchorsFromLoTE(
         cfg: LoTECfg<CTX>,

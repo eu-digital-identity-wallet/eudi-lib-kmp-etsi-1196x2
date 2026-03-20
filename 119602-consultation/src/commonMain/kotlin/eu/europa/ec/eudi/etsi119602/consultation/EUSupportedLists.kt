@@ -110,20 +110,20 @@ private fun <CTX : Any> UseCase.loteMeta(
 private fun <CTX : Any> UseCase.svcTypePerCtx(
     issuanceCtxs: Set<CTX>,
     revocationCtxs: Set<CTX>,
-): Map<CTX, LotEMeta.SvcTypeIdentifierAndEndEntityCertificateProfile> =
+): Map<CTX, LotEMeta.SvcAndEEProfile> =
     when (val serviceTypeIdentifiers = loteProfile.trustedEntities.serviceTypeIdentifiers) {
         is ServiceTypeIdentifiers.OneOrMore -> error("Not supported")
         is ServiceTypeIdentifiers.IssuanceAndRevocation -> {
             buildMap {
                 issuanceCtxs.forEach { ctx ->
-                    val value = LotEMeta.SvcTypeIdentifierAndEndEntityCertificateProfile(
+                    val value = LotEMeta.SvcAndEEProfile(
                         serviceTypeIdentifiers.issuance,
                         issuanceCertificateProfile,
                     )
                     put(ctx, value)
                 }
                 revocationCtxs.forEach { ctx ->
-                    val value = LotEMeta.SvcTypeIdentifierAndEndEntityCertificateProfile(
+                    val value = LotEMeta.SvcAndEEProfile(
                         serviceTypeIdentifiers.revocation,
                         revocationCertificateProfile,
                     )

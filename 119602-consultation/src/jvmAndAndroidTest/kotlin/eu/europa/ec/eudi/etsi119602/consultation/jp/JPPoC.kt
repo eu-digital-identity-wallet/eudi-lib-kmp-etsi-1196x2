@@ -47,7 +47,7 @@ object JPPoC {
     private val wrpacProviders: LotEMeta<VerificationContext> =
         LotEMeta(
             svcTypePerCtx = buildMap {
-                val issuance = LotEMeta.SvcTypeIdentifierAndEndEntityCertificateProfile(
+                val issuance = LotEMeta.SvcAndEEProfile(
                     JP_WRPAC_PROVIDER_ISSUANCE_SVC_TYPE,
                     null,
                 )
@@ -59,7 +59,7 @@ object JPPoC {
     private val learningCredentialProviders: LotEMeta<VerificationContext> = LotEMeta(
         svcTypePerCtx =
         buildMap {
-            val issuance = LotEMeta.SvcTypeIdentifierAndEndEntityCertificateProfile(
+            val issuance = LotEMeta.SvcAndEEProfile(
                 LC_EAA_PROVIDER_SVC_TYPE,
                 null,
             )

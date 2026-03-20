@@ -52,12 +52,12 @@ object DIGIT {
                 eaaProviders = mapOf(
                     "mdl" to LotEMeta(
                         svcTypePerCtx = buildMap {
-                            val issuance = LotEMeta.SvcTypeIdentifierAndEndEntityCertificateProfile(
+                            val issuance = LotEMeta.SvcAndEEProfile(
                                 EUMDLProvidersListSpec.SVC_TYPE_ISSUANCE,
                                 null,
                             )
                             put(VerificationContext.EAA("mdl"), issuance)
-                            val revocation = LotEMeta.SvcTypeIdentifierAndEndEntityCertificateProfile(
+                            val revocation = LotEMeta.SvcAndEEProfile(
                                 EUMDLProvidersListSpec.SVC_TYPE_REVOCATION,
                                 null,
                             )
@@ -101,7 +101,7 @@ class DIGITTest {
                 )
 
             val actualContexts = isChainTrustedForContext.supportedContexts
-            assertContentEquals(expectedContexts, actualContexts)
+            assertContentEquals(expectedContexts.sortedBy { it.toString() }, actualContexts.sortedBy { it.toString() })
             actualContexts.forEach { ctx ->
                 when (val outcome = isChainTrustedForContext.getTrustAnchors(ctx)) {
                     null -> println("$ctx : Not found")
