@@ -21,8 +21,8 @@ import eu.europa.ec.eudi.etsi119602.consultation.ETSI119411.NCP_L_EUDIWRP
 import eu.europa.ec.eudi.etsi119602.consultation.ETSI119411.NCP_N_EUDIWRP
 import eu.europa.ec.eudi.etsi119602.consultation.ETSI119411.QCP_L_EUDIWRP
 import eu.europa.ec.eudi.etsi119602.consultation.ETSI119411.QCP_N_EUDIWRP
-import eu.europa.ec.eudi.etsi119602.consultation.ETSI319412
 import eu.europa.ec.eudi.etsi1196x2.consultation.certs.*
+import eu.europa.ec.eudi.etsi1196x2.consultation.certs.ETSI319412
 import kotlin.time.Instant
 
 public val EUWRPACProvidersList: EUListOfTrustedEntitiesProfile =

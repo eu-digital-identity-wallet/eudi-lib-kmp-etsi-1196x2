@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package eu.europa.ec.eudi.etsi119602.consultation
+package eu.europa.ec.eudi.etsi1196x2.consultation.certs
 
 /**
  * QCStatement OIDs per ETSI EN 319 412-5 V2.5.1.

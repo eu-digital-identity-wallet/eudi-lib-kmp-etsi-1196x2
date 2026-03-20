@@ -18,8 +18,8 @@ package eu.europa.ec.eudi.etsi119602.consultation.eu
 import eu.europa.ec.eudi.etsi119602.consultation.CertOps
 import eu.europa.ec.eudi.etsi119602.consultation.CertOps.toX509Certificate
 import eu.europa.ec.eudi.etsi119602.consultation.ETSI119411
-import eu.europa.ec.eudi.etsi119602.consultation.ETSI319412
 import eu.europa.ec.eudi.etsi1196x2.consultation.certs.CertificateConstraintEvaluation
+import eu.europa.ec.eudi.etsi1196x2.consultation.certs.ETSI319412
 import eu.europa.ec.eudi.etsi1196x2.consultation.certs.isMet
 import kotlinx.coroutines.test.runTest
 import org.bouncycastle.asn1.x500.X500Name
