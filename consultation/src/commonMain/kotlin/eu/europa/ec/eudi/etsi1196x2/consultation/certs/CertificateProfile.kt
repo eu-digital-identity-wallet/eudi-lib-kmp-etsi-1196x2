@@ -156,7 +156,30 @@ public class ProfileBuilder {
     public fun aiaWithSelfSigned(
         check: (AiaWithSelfSigned) -> CertificateConstraintEvaluation,
     ) {
-        requirements += CertificateConstraint(CertificateOperationsAlgebra.GetAiaWithSelfSigned, check)
+        requirements += CertificateConstraint(
+            CertificateOperationsAlgebra.GetCombined(
+                CertificateOperationsAlgebra.GetAia,
+                CertificateOperationsAlgebra.CheckSelfSigned,
+            ),
+        ) { (aia, isSelfSigned) -> check(AiaWithSelfSigned(isSelfSigned = isSelfSigned, aia = aia)) }
+    }
+
+    /**
+     * Defines a constraint that has access to both certificate policies and all QC statements.
+     *
+     * Used for policy-conditional QC statement validation where the required QC statements
+     * depend on the actual policy OIDs present in the certificate.
+     */
+    public fun policiesWithQcStatements(
+        check: (Pair<List<String>, List<QCStatementInfo>>) -> CertificateConstraintEvaluation,
+    ) {
+        requirements += CertificateConstraint(
+            CertificateOperationsAlgebra.GetCombined(
+                CertificateOperationsAlgebra.GetPolicies,
+                CertificateOperationsAlgebra.GetAllQcStatements,
+            ),
+            check,
+        )
     }
 
     /**
@@ -169,6 +192,78 @@ public class ProfileBuilder {
         check: (List<QCStatementInfo>) -> CertificateConstraintEvaluation,
     ) {
         requirements += CertificateConstraint(CertificateOperationsAlgebra.GetQcStatements(qcType), check)
+    }
+
+    /**
+     * Defines a constraint on the subject Distinguished Name.
+     */
+    public fun subject(
+        check: (DistinguishedName?) -> CertificateConstraintEvaluation,
+    ) {
+        requirements += CertificateConstraint(CertificateOperationsAlgebra.GetSubject, check)
+    }
+
+    /**
+     * Defines a constraint on the issuer Distinguished Name.
+     */
+    public fun issuer(
+        check: (DistinguishedName?) -> CertificateConstraintEvaluation,
+    ) {
+        requirements += CertificateConstraint(CertificateOperationsAlgebra.GetIssuer, check)
+    }
+
+    /**
+     * Defines a constraint on Subject Alternative Names.
+     */
+    public fun subjectAltNames(
+        check: (List<SubjectAlternativeName>) -> CertificateConstraintEvaluation,
+    ) {
+        requirements += CertificateConstraint(CertificateOperationsAlgebra.GetSubjectAltNames, check)
+    }
+
+    /**
+     * Defines a constraint on CRL Distribution Points.
+     */
+    public fun crlDistributionPoints(
+        check: (List<CrlDistributionPoint>) -> CertificateConstraintEvaluation,
+    ) {
+        requirements += CertificateConstraint(CertificateOperationsAlgebra.GetCrlDistributionPoints, check)
+    }
+
+    /**
+     * Defines a constraint on the Authority Key Identifier extension.
+     */
+    public fun authorityKeyIdentifier(
+        check: (AuthorityKeyIdentifier?) -> CertificateConstraintEvaluation,
+    ) {
+        requirements += CertificateConstraint(CertificateOperationsAlgebra.GetAuthorityKeyIdentifier, check)
+    }
+
+    /**
+     * Defines a constraint on the certificate serial number.
+     */
+    public fun serialNumber(
+        check: (SerialNumber) -> CertificateConstraintEvaluation,
+    ) {
+        requirements += CertificateConstraint(CertificateOperationsAlgebra.GetSerialNumber, check)
+    }
+
+    /**
+     * Defines a constraint on the certificate version.
+     */
+    public fun version(
+        check: (Version) -> CertificateConstraintEvaluation,
+    ) {
+        requirements += CertificateConstraint(CertificateOperationsAlgebra.GetVersion, check)
+    }
+
+    /**
+     * Defines a constraint on the subject public key information.
+     */
+    public fun subjectPublicKeyInfo(
+        check: (PublicKeyInfo) -> CertificateConstraintEvaluation,
+    ) {
+        requirements += CertificateConstraint(CertificateOperationsAlgebra.GetSubjectPublicKeyInfo, check)
     }
 
     /**

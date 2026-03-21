@@ -112,6 +112,9 @@ object CertOps {
         }.build(sigAlg, keyPair.private)
     }
 
+    // TODO
+    //  - magic numbers
+    //  - defaults (should be removed)
     fun genCAIssuedEndEntityCertificate(
         signerCert: X509CertificateHolder,
         signerKey: PrivateKey,
@@ -119,11 +122,14 @@ object CertOps {
         subject: X500Name,
         keyUsage: KeyUsage = KeyUsage(KeyUsage.digitalSignature),
         qcStatements: List<Pair<String, Boolean>>? = null,
-        policyOids: List<String>? = null,
-        caIssuersUri: String? = null,
-        ocspUri: String? = null,
+        policyOids: List<String>? = listOf("0.4.0.194118.1.1"), // Default: NCP-n-eudiwrp
+        caIssuersUri: String? = "http://ca.example.com/ca.crt",
+        ocspUri: String? = "http://ocsp.example.com/",
+        subjectAltNameUri: String? = "https://wallet-relying-party.example.com",
+        subjectKeyPairAlg: String = "EC",
+        subjectKeySize: Int? = null,
     ): Pair<KeyPair, X509CertificateHolder> {
-        val eeKp = Ctx.generateECPair()
+        val eeKp = Ctx.generateKeyPair(subjectKeyPairAlg, subjectKeySize)
         val eeCertHolder = createEndEntity(
             signerCert,
             signerKey,
@@ -135,6 +141,7 @@ object CertOps {
             policyOids,
             caIssuersUri,
             ocspUri,
+            subjectAltNameUri,
         )
         return eeKp to eeCertHolder
     }
@@ -210,6 +217,7 @@ object CertOps {
         policyOids: List<String>? = null,
         caIssuersUri: String? = null,
         ocspUri: String? = null,
+        subjectAltNameUri: String? = null,
     ): X509CertificateHolder =
         JcaX509v3CertificateBuilder(
             signerCert.subject,
@@ -237,6 +245,9 @@ object CertOps {
             }
             certificatePolicies(policyOids ?: listOf())
             authorityInformationAccess(caIssuersUri, ocspUri)
+            if (subjectAltNameUri != null) {
+                subjectAlternativeName(subjectAltNameUri)
+            }
         }.build(sigAlg, signerKey)
 
     /**
@@ -330,6 +341,18 @@ private fun JcaX509v3CertificateBuilder.authorityInformationAccess(
 }
 
 /**
+ * Adds a Subject Alternative Name extension with a URI.
+ *
+ * @param uri the URI to add to the SAN extension
+ *
+ * @see [RFC 5280 Section 4.2.1.6](https://datatracker.ietf.org/doc/html/rfc5280#section-4.2.1.6)
+ */
+private fun JcaX509v3CertificateBuilder.subjectAlternativeName(uri: String) {
+    val generalName = GeneralName(GeneralName.uniformResourceIdentifier, DERIA5String(uri))
+    addExtension(Extension.subjectAlternativeName, false, DERSequence(arrayOf(generalName)))
+}
+
+/**
  * The BasicConstraints extension helps you to determine if the certificate containing it is allowed to
  * sign other certificates, and if so, what depth this can go to.
  *
@@ -357,6 +380,17 @@ private class SecCtx(val provider: Provider? = null) {
             ?: KeyPairGenerator.getInstance("EC")
 
     fun generateECPair(): KeyPair = kpGenerator().genKeyPair()
+
+    fun generateKeyPair(algorithm: String, keySize: Int? = null): KeyPair =
+        if (algorithm.uppercase() == "EC") {
+            generateECPair()
+        } else {
+            val kpg = provider
+                ?.let { KeyPairGenerator.getInstance(algorithm, it) }
+                ?: KeyPairGenerator.getInstance(algorithm)
+            if (keySize != null) kpg.initialize(keySize)
+            kpg.genKeyPair()
+        }
 
     fun jcaContentSignerBuilder(sigAlg: String) =
         JcaContentSignerBuilder(sigAlg).apply {

@@ -16,7 +16,7 @@
 package eu.europa.ec.eudi.etsi119602.consultation.eu
 
 import eu.europa.ec.eudi.etsi119602.*
-import eu.europa.ec.eudi.etsi119602.consultation.ETSI119412
+import eu.europa.ec.eudi.etsi119602.consultation.ETSI119412Part6
 import eu.europa.ec.eudi.etsi1196x2.consultation.certs.*
 import kotlin.time.Instant
 
@@ -83,7 +83,7 @@ public val EUPIDProvidersList: EUListOfTrustedEntitiesProfile =
  */
 public fun pidSigningCertificateProfile(at: Instant? = null): CertificateProfile = certificateProfile {
     requireEndEntityCertificate()
-    requireQcStatement(qcType = ETSI119412.ID_ETSI_QCT_PID, requireCompliance = true)
+    requireQcStatement(qcType = ETSI119412Part6.ID_ETSI_QCT_PID, requireCompliance = true)
     requireDigitalSignature()
     requireValidAt(at)
     // Per EN 319 412-2 §4.3.3: certificatePolicies extension shall be present (TSP-defined OID)

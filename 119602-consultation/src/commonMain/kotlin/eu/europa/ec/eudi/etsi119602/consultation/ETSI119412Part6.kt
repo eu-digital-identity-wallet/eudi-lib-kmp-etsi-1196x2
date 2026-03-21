@@ -22,7 +22,7 @@ package eu.europa.ec.eudi.etsi119602.consultation
  *
  * Source: ETSI TS 119 412-6 V1.1.1 Annex A (normative): ASN.1 declarations
  */
-public object ETSI119412 {
+public object ETSI119412Part6 {
 
     /**
      * QCStatement OID for PID Provider certificates (id-etsi-qct-pid).

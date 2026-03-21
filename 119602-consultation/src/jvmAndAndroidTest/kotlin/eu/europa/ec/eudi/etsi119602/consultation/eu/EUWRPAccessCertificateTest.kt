@@ -17,7 +17,7 @@ package eu.europa.ec.eudi.etsi119602.consultation.eu
 
 import eu.europa.ec.eudi.etsi119602.consultation.CertOps
 import eu.europa.ec.eudi.etsi119602.consultation.CertOps.toX509Certificate
-import eu.europa.ec.eudi.etsi119602.consultation.ETSI119411
+import eu.europa.ec.eudi.etsi119602.consultation.ETSI119411Part8
 import eu.europa.ec.eudi.etsi1196x2.consultation.certs.CertificateConstraintEvaluation
 import eu.europa.ec.eudi.etsi1196x2.consultation.certs.ETSI319412
 import eu.europa.ec.eudi.etsi1196x2.consultation.certs.isMet
@@ -31,33 +31,38 @@ import kotlin.test.assertTrue
 
 class EUWRPAccessCertificateTest {
 
-    private val cnWalletRelyingParty = X500Name("CN=Wallet Relying Party")
+    // Subject DN with all required attributes for a legal person (organization)
+    private val legalPersonSubject = X500Name("C=EU,O=Wallet Relying Party,CN=Wallet Relying Party")
+
+    // Subject DN with all required attributes for a natural person
+    // Using OID 2.5.4.42 for givenName and 2.5.4.4 for surname (BouncyCastle compatible)
+    private val naturalPersonSubject = X500Name("C=EU,2.5.4.42=John,2.5.4.4=Doe,CN=John Doe")
 
     private suspend fun evaluateEndEntityCertificateConstraints(
         certificate: X509Certificate,
-        policyOid: String? = null,
     ): CertificateConstraintEvaluation =
-        CertificateProfileValidatorJVM.validate(wrpAccessCertificateProfile(policy = policyOid), certificate)
+        CertificateProfileValidatorJVM.validate(wrpAccessCertificateProfile(), certificate)
 
     private val wrpacProvider = CertOps.genTrustAnchor(
         sigAlg = "SHA256withECDSA",
-        subject = X500Name("CN=Test CA"),
+        subject = X500Name("C=EU,O=Test CA,CN=Test CA"),
         policyOids = null,
         pathLenConstraint = null,
     )
 
     private fun genCAIssuedEndEntityCertificate(
+        subject: X500Name = X500Name("C=EU,O=Test,CN=Test Wallet Relying Party"),
         qcStatements: List<Pair<String, Boolean>>? = null,
-        policyOids: List<String>? = null,
-        caIssuersUri: String? = null,
-        ocspUri: String? = null,
+        policyOids: List<String>? = listOf("0.4.0.194118.1.1"), // Default: NCP-n-eudiwrp
+        caIssuersUri: String? = "http://ca.example.com/ca.crt",
+        ocspUri: String? = "http://ocsp.example.com/",
     ): X509Certificate {
         val (caKeyPair, caCert) = wrpacProvider
         val (_, certHolder) = CertOps.genCAIssuedEndEntityCertificate(
             signerCert = caCert,
             signerKey = caKeyPair.private,
             sigAlg = "SHA256withECDSA",
-            subject = X500Name("CN=Test Wallet Relying Party"),
+            subject = subject,
             qcStatements = qcStatements,
             policyOids = policyOids,
             caIssuersUri = caIssuersUri,
@@ -68,45 +73,43 @@ class EUWRPAccessCertificateTest {
 
     @Test
     fun `WRPAC should require policy`() = runTest {
-        // Generate end-entity certificate without policy
-
+        // Generate end-entity certificate WITHOUT policy (all other attributes present)
         val certificate = genCAIssuedEndEntityCertificate(
-            policyOids = null,
-            caIssuersUri = "http://test.example.com/ca.crt",
-            ocspUri = "http://test.example.com/ocsp",
+            subject = legalPersonSubject,
+            policyOids = null, // Only missing attribute
         )
 
         // Validate as WRPAC end-entity
         val constraintEvaluation = evaluateEndEntityCertificateConstraints(certificate)
 
-        // Should fail - missing policy OID
+        // Should fail - missing policy OID only
         assertFalse(constraintEvaluation.isMet())
         constraintEvaluation.assertSingleViolation { it.contains("certificate policies", ignoreCase = true) }
     }
 
     @Test
     fun `WRPAC should accept NCP-n policy`() =
-        shouldAcceptPolicy(ETSI119411.NCP_N_EUDIWRP)
+        shouldAcceptPolicy(ETSI119411Part8.NCP_N_EUDIWRP, naturalPersonSubject)
 
     @Test
     fun `WRPAC should accept NCP-l policy`() =
-        shouldAcceptPolicy(ETSI119411.NCP_L_EUDIWRP)
+        shouldAcceptPolicy(ETSI119411Part8.NCP_L_EUDIWRP, legalPersonSubject)
 
     @Test
     fun `WRPAC should accept QCP-n policy`() =
-        shouldAcceptPolicy(ETSI119411.QCP_N_EUDIWRP)
+        shouldAcceptPolicy(ETSI119411Part8.QCP_N_EUDIWRP, naturalPersonSubject)
 
     @Test
     fun `WRPAC should accept QCP-l policy`() =
-        shouldAcceptPolicy(ETSI119411.QCP_L_EUDIWRP)
+        shouldAcceptPolicy(ETSI119411Part8.QCP_L_EUDIWRP, legalPersonSubject)
 
-    fun shouldAcceptPolicy(policyOid: String) = runTest {
+    fun shouldAcceptPolicy(policyOid: String, subject: X500Name) = runTest {
         val qcStatements = when (policyOid) {
-            ETSI119411.QCP_N_EUDIWRP -> listOf(
+            ETSI119411Part8.QCP_N_EUDIWRP -> listOf(
                 ETSI319412.QC_COMPLIANCE to true,
                 ETSI319412.QC_SSCD to true,
             )
-            ETSI119411.QCP_L_EUDIWRP -> listOf(
+            ETSI119411Part8.QCP_L_EUDIWRP -> listOf(
                 ETSI319412.QC_COMPLIANCE to true,
                 ETSI319412.QC_SSCD to true,
                 ETSI319412.QC_TYPE to true,
@@ -114,23 +117,21 @@ class EUWRPAccessCertificateTest {
             else -> null
         }
         val certificate = genCAIssuedEndEntityCertificate(
+            subject = subject,
             policyOids = listOf(policyOid),
             qcStatements = qcStatements,
-            caIssuersUri = "http://test.example.com/ca.crt",
-            ocspUri = "http://test.example.com/ocsp",
         )
-        val constraintEvaluation = evaluateEndEntityCertificateConstraints(certificate, policyOid)
+        val constraintEvaluation = evaluateEndEntityCertificateConstraints(certificate)
         assertTrue(constraintEvaluation.isMet())
     }
 
     @Test
     fun `WRPAC should reject unknown policy`() = runTest {
-        // Create an end-entity certificate with unknown policy OID (not in ETSI119411.ALL)
+        // Create an end-entity certificate with unknown policy OID (all other attributes present)
         val unknownPolicyOid = "0.4.0.194118.999.999"
         val certificate = genCAIssuedEndEntityCertificate(
-            policyOids = listOf(unknownPolicyOid),
-            caIssuersUri = "http://test.example.com/ca.crt",
-            ocspUri = "http://test.example.com/ocsp",
+            subject = legalPersonSubject,
+            policyOids = listOf(unknownPolicyOid), // Only different attribute
         )
 
         val constraintEvaluation = evaluateEndEntityCertificateConstraints(certificate)
@@ -145,8 +146,8 @@ class EUWRPAccessCertificateTest {
     fun `WRPAC should not be CA certificate`() = runTest {
         val (_, certHolder) = CertOps.genTrustAnchor(
             sigAlg = "SHA256withECDSA",
-            subject = cnWalletRelyingParty,
-            policyOids = listOf(ETSI119411.NCP_N_EUDIWRP),
+            subject = legalPersonSubject,
+            policyOids = listOf(ETSI119411Part8.NCP_N_EUDIWRP),
         )
         val certificate = certHolder.toX509Certificate()
 
@@ -165,33 +166,38 @@ class EUWRPAccessCertificateTest {
     @Test
     fun `WRPAC should not be self-signed`() = runTest {
         // Generate a self-signed end-entity certificate with valid WRPAC policy
+        // Note: Self-signed certificates will fail multiple requirements (self-signed, missing AIA, etc.)
         val (_, certHolder) = CertOps.genSelfSignedEndEntityCertificate(
             sigAlg = "SHA256withECDSA",
-            subject = cnWalletRelyingParty,
+            subject = naturalPersonSubject,
             keyUsage = org.bouncycastle.asn1.x509.KeyUsage(org.bouncycastle.asn1.x509.KeyUsage.digitalSignature),
-            policyOids = listOf(ETSI119411.NCP_N_EUDIWRP),
+            policyOids = listOf(ETSI119411Part8.NCP_N_EUDIWRP),
         )
         val certificate = certHolder.toX509Certificate()
 
         // Validate as WRPAC end-entity
         val constraintEvaluation = evaluateEndEntityCertificateConstraints(certificate)
 
-        // Should fail - WRPAC must not be self-signed
+        // Should fail - WRPAC must not be self-signed (among other violations)
         assertFalse(constraintEvaluation.isMet())
-        constraintEvaluation.assertSingleViolation {
-            it.contains("self-signed", ignoreCase = true)
-        }
+        // Check that at least one violation mentions self-signed
+        assertTrue(
+            constraintEvaluation.violations.any {
+                it.reason.contains("self-signed", ignoreCase = true)
+            },
+            "Expected at least one violation about self-signed certificate",
+        )
     }
 
     @Test
     fun `WRPAC should reject CA-issued certificate without AIA`() = runTest {
         val certificate = genCAIssuedEndEntityCertificate(
-            policyOids = listOf(ETSI119411.NCP_N_EUDIWRP),
-            qcStatements = null,
-            caIssuersUri = null,
+            subject = legalPersonSubject,
+            policyOids = listOf(ETSI119411Part8.NCP_N_EUDIWRP),
+            caIssuersUri = null, // Only missing attribute
             ocspUri = null,
         )
-        val evaluation = evaluateEndEntityCertificateConstraints(certificate, ETSI119411.NCP_N_EUDIWRP)
+        val evaluation = evaluateEndEntityCertificateConstraints(certificate)
         assertFalse(evaluation.isMet())
         evaluation.assertSingleViolation { it.contains("AIA", ignoreCase = true) }
     }
@@ -199,12 +205,11 @@ class EUWRPAccessCertificateTest {
     @Test
     fun `WRPAC should reject QCP-n without QCStatements`() = runTest {
         val certificate = genCAIssuedEndEntityCertificate(
-            policyOids = listOf(ETSI119411.QCP_N_EUDIWRP),
-            qcStatements = null,
-            caIssuersUri = "http://test.example.com/ca.crt",
-            ocspUri = "http://test.example.com/ocsp",
+            subject = naturalPersonSubject,
+            policyOids = listOf(ETSI119411Part8.QCP_N_EUDIWRP),
+            qcStatements = null, // Only missing attribute
         )
-        val evaluation = evaluateEndEntityCertificateConstraints(certificate, ETSI119411.QCP_N_EUDIWRP)
+        val evaluation = evaluateEndEntityCertificateConstraints(certificate)
         assertFalse(evaluation.isMet())
         // QCP-n requires two QCStatements: QcCompliance and QcSSCD; both will be missing → 2 violations
         assertEquals(2, evaluation.violations.size)
@@ -216,28 +221,48 @@ class EUWRPAccessCertificateTest {
     @Test
     fun `WRPAC should reject QCP-n missing QcSSCD`() = runTest {
         val certificate = genCAIssuedEndEntityCertificate(
-            policyOids = listOf(ETSI119411.QCP_N_EUDIWRP),
-            qcStatements = listOf(ETSI319412.QC_COMPLIANCE to true),
-            caIssuersUri = "http://test.example.com/ca.crt",
-            ocspUri = "http://test.example.com/ocsp",
+            subject = naturalPersonSubject,
+            policyOids = listOf(ETSI119411Part8.QCP_N_EUDIWRP),
+            qcStatements = listOf(ETSI319412.QC_COMPLIANCE to true), // Missing QcSSCD
         )
-        val evaluation = evaluateEndEntityCertificateConstraints(certificate, ETSI119411.QCP_N_EUDIWRP)
+        val evaluation = evaluateEndEntityCertificateConstraints(certificate)
         assertFalse(evaluation.isMet())
         evaluation.assertSingleViolation { it.contains("qcstatement", ignoreCase = true) }
     }
 
     @Test
+    fun `WRPAC should reject certificate with disallowed public key algorithm`() = runTest {
+        // DSA is not an allowed algorithm for WRPAC
+        val (caKeyPair, caCert) = wrpacProvider
+        val (_, certHolder) = CertOps.genCAIssuedEndEntityCertificate(
+            signerCert = caCert,
+            signerKey = caKeyPair.private,
+            sigAlg = "SHA256withECDSA",
+            subject = legalPersonSubject,
+            qcStatements = null,
+            policyOids = listOf(ETSI119411Part8.NCP_L_EUDIWRP),
+            caIssuersUri = "http://ca.example.com/ca.crt",
+            ocspUri = "http://ocsp.example.com/",
+            subjectKeyPairAlg = "RSA",
+            subjectKeySize = 1024, // Too small for RSA (< 2048)
+        )
+        val certificate = certHolder.toX509Certificate()
+        val evaluation = evaluateEndEntityCertificateConstraints(certificate)
+        assertFalse(evaluation.isMet())
+        evaluation.assertSingleViolation { it.contains("does not satisfy any of the required options", ignoreCase = true) }
+    }
+
+    @Test
     fun `WRPAC should reject QCP-l missing QcPurpose`() = runTest {
         val certificate = genCAIssuedEndEntityCertificate(
-            policyOids = listOf(ETSI119411.QCP_L_EUDIWRP),
+            subject = legalPersonSubject,
+            policyOids = listOf(ETSI119411Part8.QCP_L_EUDIWRP),
             qcStatements = listOf(
                 ETSI319412.QC_COMPLIANCE to true,
                 ETSI319412.QC_SSCD to true,
-            ),
-            caIssuersUri = "http://test.example.com/ca.crt",
-            ocspUri = "http://test.example.com/ocsp",
+            ), // Missing QcType
         )
-        val evaluation = evaluateEndEntityCertificateConstraints(certificate, ETSI119411.QCP_L_EUDIWRP)
+        val evaluation = evaluateEndEntityCertificateConstraints(certificate)
         assertFalse(evaluation.isMet())
         evaluation.assertSingleViolation { it.contains("qcstatement", ignoreCase = true) }
     }

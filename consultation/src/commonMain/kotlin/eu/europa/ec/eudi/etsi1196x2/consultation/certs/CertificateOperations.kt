@@ -25,6 +25,14 @@ public interface CertificateOperations<CERT : Any> {
     public fun getCertificatePolicies(certificate: CERT): List<String>
     public fun isSelfSigned(certificate: CERT): Boolean
     public fun getAiaExtension(certificate: CERT): AuthorityInformationAccess?
+    public fun getSubject(certificate: CERT): DistinguishedName?
+    public fun getIssuer(certificate: CERT): DistinguishedName?
+    public fun getSubjectAltNames(certificate: CERT): List<SubjectAlternativeName>
+    public fun getCrlDistributionPoints(certificate: CERT): List<CrlDistributionPoint>
+    public fun getAuthorityKeyIdentifier(certificate: CERT): AuthorityKeyIdentifier?
+    public fun getSerialNumber(certificate: CERT): SerialNumber
+    public fun getVersion(certificate: CERT): Version
+    public fun getSubjectPublicKeyInfo(certificate: CERT): PublicKeyInfo
 }
 
 /**
@@ -83,6 +91,69 @@ public sealed interface CertificateOperationsAlgebra<out T> {
      * @param qcType the OID identifying the QC type (e.g., "0.4.0.194126.1.1" for id-etsi-qct-pid)
      */
     public data class GetQcStatements(val qcType: String) : CertificateOperationsAlgebra<List<QCStatementInfo>>
+
+    /**
+     * Extract the subject Distinguished Name.
+     */
+    public data object GetSubject : CertificateOperationsAlgebra<DistinguishedName?>
+
+    /**
+     * Extract the issuer Distinguished Name.
+     */
+    public data object GetIssuer : CertificateOperationsAlgebra<DistinguishedName?>
+
+    /**
+     * Extract Subject Alternative Names.
+     */
+    public data object GetSubjectAltNames : CertificateOperationsAlgebra<List<SubjectAlternativeName>>
+
+    /**
+     * Extract CRL Distribution Points.
+     */
+    public data object GetCrlDistributionPoints : CertificateOperationsAlgebra<List<CrlDistributionPoint>>
+
+    /**
+     * Extract the Authority Key Identifier extension.
+     */
+    public data object GetAuthorityKeyIdentifier : CertificateOperationsAlgebra<AuthorityKeyIdentifier?>
+
+    /**
+     * Extract the certificate serial number.
+     */
+    public data object GetSerialNumber : CertificateOperationsAlgebra<SerialNumber>
+
+    /**
+     * Extract the certificate version.
+     */
+    public data object GetVersion : CertificateOperationsAlgebra<Version>
+
+    /**
+     * Extract the subject public key information.
+     */
+    public data object GetSubjectPublicKeyInfo : CertificateOperationsAlgebra<PublicKeyInfo>
+
+    /**
+     * Extract all QCStatements from the certificate (ETSI EN 319 412-5).
+     *
+     * Unlike [GetQcStatements], this returns all QC statements regardless of type.
+     */
+    public data object GetAllQcStatements : CertificateOperationsAlgebra<List<QCStatementInfo>>
+
+    /**
+     * Combine two algebra operations into a single operation returning a [Pair] of their results.
+     *
+     * This is a product type in the algebra, allowing any two existing operations to be composed
+     * without adding new dedicated algebra types or interpreter branches.
+     *
+     * @param A the result type of the first operation
+     * @param B the result type of the second operation
+     * @param first the first operation
+     * @param second the second operation
+     */
+    public data class GetCombined<A, B>(
+        val first: CertificateOperationsAlgebra<A>,
+        val second: CertificateOperationsAlgebra<B>,
+    ) : CertificateOperationsAlgebra<Pair<A, B>>
 }
 
 /**
@@ -170,4 +241,404 @@ public data class AuthorityInformationAccess(
 public data class AiaWithSelfSigned(
     val isSelfSigned: Boolean,
     val aia: AuthorityInformationAccess?,
+)
+
+// TODO Remove "magic" values
+/**
+ * Represents a Distinguished Name (DN) from a certificate subject or issuer.
+ *
+ * A Distinguished Name is a sequence of Relative Distinguished Name (RDN) components,
+ * each containing attribute type-value pairs.
+ *
+ * @param attributes Map of attribute OID or short name to attribute value.
+ *                   Common attributes include:
+ *                   - "2.5.4.6" or "CN" -> countryName (e.g., "US", "DE")
+ *                   - "2.5.4.3" or "CN" -> commonName
+ *                   - "2.5.4.7" or "O" -> organizationName
+ *                   - "2.5.4.97" or "organizationIdentifier" -> organizationIdentifier
+ *                   - "2.5.4.4" or "SN" -> surname
+ *                   - "2.5.4.42" or "G" -> givenName
+ *
+ * @see [RFC 5280 Section 4.1.2.4 - Issuer](https://datatracker.ietf.org/doc/html/rfc5280#section-4.1.2.4)
+ * @see [RFC 5280 Section 4.1.2.6 - Subject](https://datatracker.ietf.org/doc/html/rfc5280#section-4.1.2.6)
+ */
+public data class DistinguishedName(
+    val attributes: Map<String, String>,
+) {
+    /**
+     * Gets the countryName attribute (OID 2.5.4.6).
+     * Returns a two-letter ISO 3166-1 alpha-2 country code.
+     */
+    public val countryName: String? get() = attributes["2.5.4.6"] ?: attributes["C"]
+
+    /**
+     * Gets the commonName attribute (OID 2.5.4.3).
+     */
+    public val commonName: String? get() = attributes["2.5.4.3"] ?: attributes["CN"]
+
+    /**
+     * Gets the organizationName attribute (OID 2.5.4.7).
+     */
+    public val organizationName: String? get() = attributes["2.5.4.7"] ?: attributes["O"]
+
+    /**
+     * Gets the organizationIdentifier attribute (OID 2.5.4.97).
+     * Per EN 319 412-3, this contains the legal entity identifier.
+     */
+    public val organizationIdentifier: String? get() = attributes["2.5.4.97"] ?: attributes["organizationIdentifier"]
+
+    /**
+     * Gets the surname attribute (OID 2.5.4.4).
+     */
+    public val surname: String? get() = attributes["2.5.4.4"] ?: attributes["SN"]
+
+    /**
+     * Gets the givenName attribute (OID 2.5.4.42).
+     */
+    public val givenName: String? get() = attributes["2.5.4.42"] ?: attributes["G"]
+
+    /**
+     * Gets the serialNumber attribute (OID 2.5.4.5).
+     * For natural persons, this is a unique identifier assigned by the CA.
+     */
+    public val serialNumber: String? get() = attributes["2.5.4.5"] ?: attributes["serialNumber"]
+
+    /**
+     * Gets the pseudonym attribute (OID 2.5.4.65).
+     */
+    public val pseudonym: String? get() = attributes["2.5.4.65"] ?: attributes["pseudonym"]
+
+    /**
+     * Checks if the DN contains a specific attribute.
+     *
+     * @param oid the OID or short name of the attribute to check
+     */
+    public fun hasAttribute(oid: String): Boolean = attributes.containsKey(oid)
+
+    /**
+     * Gets an attribute value by OID or short name.
+     *
+     * @param oid the OID or short name of the attribute
+     */
+    public operator fun get(oid: String): String? = attributes[oid]
+}
+
+/**
+ * Wrapper for a certificate serial number.
+ *
+ * Per RFC 5280 Section 4.1.2.2, the serial number MUST be a positive integer.
+ *
+ * @param value the serial number as a byte array (must represent a positive integer)
+ *
+ * @see [RFC 5280 Section 4.1.2.2 - Serial Number](https://datatracker.ietf.org/doc/html/rfc5280#section-4.1.2.2)
+ */
+public data class SerialNumber(val value: ByteArray) {
+    init {
+        require(value.isNotEmpty()) { "Serial number must not be empty" }
+        // Check that the number is positive (most significant bit must be 0)
+        require(value[0].toInt() and 0x80 == 0) { "Serial number must be positive (MSB must be 0)" }
+    }
+
+    /**
+     * Converts the serial number to a hexadecimal string representation.
+     */
+    public fun toHexString(): String = value.joinToString("") { "%02x".format(it) }
+
+    /**
+     * Checks if this serial number equals another.
+     */
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is SerialNumber) return false
+        return value.contentEquals(other.value)
+    }
+
+    override fun hashCode(): Int = value.contentHashCode()
+    override fun toString(): String = toHexString().uppercase()
+}
+
+/**
+ * Represents the X.509 certificate version.
+ *
+ * X.509 versions:
+ * - v1: version = 0 (no extensions)
+ * - v2: version = 1 (issuerUniqueID, subjectUniqueID)
+ * - v3: version = 2 (extensions)
+ *
+ * Note: The version field in X.509 is zero-based, so v3 is represented as 2.
+ *
+ * @param value the version number (0=v1, 1=v2, 2=v3)
+ *
+ * @see [RFC 5280 Section 4.1.2.1 - Version](https://datatracker.ietf.org/doc/html/rfc5280#section-4.1.2.1)
+ */
+public data class Version(val value: Int) {
+    init {
+        require(value >= 0) { "Version must be non-negative" }
+    }
+
+    /**
+     * Returns the X.509 version name (v1, v2, or v3).
+     */
+    public val versionName: String
+        get() = when (value) {
+            0 -> "v1"
+            1 -> "v2"
+            2 -> "v3"
+            else -> "v${value + 1}"
+        }
+
+    /**
+     * Checks if this is X.509 version 3 (required for extensions).
+     */
+    public fun isV3(): Boolean = value == 2
+
+    override fun toString(): String = versionName
+}
+
+/**
+ * A set of acceptable public key options.
+ *
+ * A certificate's public key is compliant if it satisfies AT LEAST ONE of the requirements
+ * (i.e., its algorithm matches and its key size is >= the required minimum).
+ *
+ * @param algorithmOptions the list of acceptable algorithm/key-size combinations
+ */
+public data class PublicKeyAlgorithmOptions(
+    val algorithmOptions: List<AlgorithmRequirement>,
+) {
+    /**
+     * A specific public key algorithm and minimum key size requirement.
+     *
+     * @param algorithm the algorithm name (e.g., "RSA", "EC", "ECDSA")
+     * @param minimumKeySize the minimum acceptable key size in bits
+     */
+    public data class AlgorithmRequirement(
+        val algorithm: String,
+        val minimumKeySize: Int,
+
+    ) {
+        public companion object {
+            public val RSA_2048: AlgorithmRequirement get() = AlgorithmRequirement("RSA", 2048)
+            public val EC_256: AlgorithmRequirement get() = AlgorithmRequirement("EC", 256)
+            public val ECDSA_256: AlgorithmRequirement get() = AlgorithmRequirement("ECDSA", 256)
+        }
+    }
+
+    public companion object {
+        /** Convenience factory accepting vararg requirements. */
+        public fun of(vararg algorithmOptions: AlgorithmRequirement): PublicKeyAlgorithmOptions =
+            PublicKeyAlgorithmOptions(algorithmOptions.toList())
+    }
+}
+
+/**
+ * Information about a certificate's public key.
+ *
+ * @param algorithm the public key algorithm (e.g., "RSA", "EC", "ECDSA")
+ * @param keySize the key size in bits (e.g., 2048 for RSA, 256 for EC P-256)
+ * @param parameters algorithm-specific parameters (e.g., EC curve OID)
+ *
+ * @see [RFC 5280 Section 4.1.2.7 - Subject Public Key Info](https://datatracker.ietf.org/doc/html/rfc5280#section-4.1.2.7)
+ */
+public data class PublicKeyInfo(
+    val algorithm: String,
+    val keySize: Int?,
+    val parameters: ByteArray? = null,
+) {
+    /**
+     * Checks if the algorithm is one of the specified algorithms.
+     *
+     * @param algorithms list of algorithm names to check against
+     */
+    public fun isAlgorithm(vararg algorithms: String): Boolean =
+        algorithm.uppercase() in algorithms.map { it.uppercase() }
+
+    /**
+     * Checks if the key size meets a minimum requirement.
+     *
+     * @param minSize the minimum key size in bits
+     */
+    public fun hasMinimumKeySize(minSize: Int): Boolean =
+        keySize != null && keySize >= minSize
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is PublicKeyInfo) return false
+        if (algorithm != other.algorithm) return false
+        if (keySize != other.keySize) return false
+        if (parameters != null) {
+            if (other.parameters == null) return false
+            if (!parameters.contentEquals(other.parameters)) return false
+        } else if (other.parameters != null) {
+            return false
+        }
+        return true
+    }
+
+    override fun hashCode(): Int {
+        var result = algorithm.hashCode()
+        result = 31 * result + (keySize ?: 0)
+        result = 31 * result + (parameters?.contentHashCode() ?: 0)
+        return result
+    }
+}
+
+/**
+ * Sealed interface representing Subject Alternative Name types.
+ *
+ * Per RFC 5280 Section 4.2.1.6, the subjectAltName extension can contain
+ * various types of names bound to the subject.
+ *
+ * @see [RFC 5280 Section 4.2.1.6 - Subject Alternative Name](https://datatracker.ietf.org/doc/html/rfc5280#section-4.2.1.6)
+ */
+public sealed interface SubjectAlternativeName {
+    /**
+     * Uniform Resource Identifier (URI).
+     *
+     * @param uri the URI value (e.g., "https://example.com")
+     */
+    public data class Uri(val uri: String) : SubjectAlternativeName
+
+    /**
+     * Email address (RFC 822 name).
+     *
+     * @param email the email address (e.g., "user@example.com")
+     */
+    public data class Email(val email: String) : SubjectAlternativeName
+
+    /**
+     * Telephone number.
+     *
+     * @param number the telephone number (e.g., "+1-555-555-5555")
+     */
+    public data class Telephone(val number: String) : SubjectAlternativeName
+
+    /**
+     * DNS name.
+     *
+     * @param dnsName the DNS name (e.g., "www.example.com")
+     */
+    public data class DNSName(val dnsName: String) : SubjectAlternativeName
+
+    /**
+     * IP address (IPv4 or IPv6).
+     *
+     * @param address the IP address as a byte array (4 bytes for IPv4, 16 bytes for IPv6)
+     */
+    public data class IPAddress(val address: ByteArray) : SubjectAlternativeName {
+        override fun equals(other: Any?): Boolean {
+            if (this === other) return true
+            if (other !is IPAddress) return false
+            return address.contentEquals(other.address)
+        }
+
+        override fun hashCode(): Int = address.contentHashCode()
+
+        override fun toString(): String =
+            address.joinToString(".") { it.toUByte().toString() }
+    }
+
+    /**
+     * Registered ID (OID).
+     *
+     * @param oid the registered ID (e.g., "1.2.3.4")
+     */
+    public data class RegisteredId(val oid: String) : SubjectAlternativeName
+
+    /**
+     * Other name (application-defined).
+     *
+     * @param oid the OID identifying the other name type
+     * @param value the other name value
+     */
+    public data class OtherName(val oid: String, val value: String) : SubjectAlternativeName
+}
+
+/**
+ * Information about the Authority Key Identifier extension.
+ *
+ * Per RFC 5280 Section 4.2.1.1, the authorityKeyIdentifier extension provides
+ * a means of identifying the public key corresponding to the private key used
+ * to sign this certificate.
+ *
+ * @param keyIdentifier the key identifier (hash of the public key)
+ * @param authorityCertIssuer the issuer of the CA certificate (if present)
+ * @param authorityCertSerialNumber the serial number of the CA certificate (if present)
+ *
+ * @see [RFC 5280 Section 4.2.1.1 - Authority Key Identifier](https://datatracker.ietf.org/doc/html/rfc5280#section-4.2.1.1)
+ */
+public data class AuthorityKeyIdentifier(
+    val keyIdentifier: ByteArray?,
+    val authorityCertIssuer: List<String>? = null,
+    val authorityCertSerialNumber: ByteArray? = null,
+) {
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is AuthorityKeyIdentifier) return false
+        if (keyIdentifier != null) {
+            if (other.keyIdentifier == null) return false
+            if (!keyIdentifier.contentEquals(other.keyIdentifier)) return false
+        } else if (other.keyIdentifier != null) {
+            return false
+        }
+        if (authorityCertIssuer != other.authorityCertIssuer) return false
+        if (authorityCertSerialNumber != null) {
+            if (other.authorityCertSerialNumber == null) return false
+            if (!authorityCertSerialNumber.contentEquals(other.authorityCertSerialNumber)) return false
+        } else if (other.authorityCertSerialNumber != null) {
+            return false
+        }
+        return true
+    }
+
+    override fun hashCode(): Int {
+        var result = keyIdentifier?.contentHashCode() ?: 0
+        result = 31 * result + (authorityCertIssuer ?: emptyList()).hashCode()
+        result = 31 * result + (authorityCertSerialNumber?.contentHashCode() ?: 0)
+        return result
+    }
+
+    override fun toString(): String = buildString {
+        append("AuthorityKeyIdentifier(")
+        if (keyIdentifier != null) {
+            append("keyIdentifier=${keyIdentifier.joinToString("") { "%02x".format(it) }}")
+        }
+        if (authorityCertSerialNumber != null) {
+            append(", authorityCertSerialNumber=${authorityCertSerialNumber.joinToString("") { "%02x".format(it) }}")
+        }
+        append(")")
+    }
+}
+
+/**
+ * Information about a CRL Distribution Point.
+ *
+ * Per RFC 5280 Section 4.2.1.13, the cRLDistributionPoints extension identifies
+ * how CRL information is obtained.
+ *
+ * @param distributionPointUri URI where the CRL can be retrieved
+ * @param crlIssuer list of issuer names (if different from certificate issuer)
+ *
+ * @see [RFC 5280 Section 4.2.1.13 - CRL Distribution Points](https://datatracker.ietf.org/doc/html/rfc5280#section-4.2.1.13)
+ */
+public data class CrlDistributionPoint(
+    val distributionPointUri: String?,
+    val crlIssuer: List<String>? = null,
+)
+
+/**
+ * Wrapper for extension data with criticality flag.
+ *
+ * Per RFC 5280 Section 4.2, each extension has a criticality flag indicating
+ * whether the extension must be processed by conforming implementations.
+ *
+ * @param T the type of the extension data
+ * @param value the extension data
+ * @param isCritical true if the extension is marked critical
+ *
+ * @see [RFC 5280 Section 4.2 - Certificate Extensions](https://datatracker.ietf.org/doc/html/rfc5280#section-4.2)
+ */
+public data class ExtensionInfo<T>(
+    val value: T,
+    val isCritical: Boolean,
 )

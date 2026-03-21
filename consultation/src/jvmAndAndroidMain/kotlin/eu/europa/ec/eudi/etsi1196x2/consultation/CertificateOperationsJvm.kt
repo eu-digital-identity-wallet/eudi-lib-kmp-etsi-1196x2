@@ -21,10 +21,15 @@ import org.bouncycastle.asn1.ASN1ObjectIdentifier
 import org.bouncycastle.asn1.ASN1Sequence
 import org.bouncycastle.asn1.DEROctetString
 import org.bouncycastle.asn1.x509.AccessDescription
+import org.bouncycastle.asn1.x509.CRLDistPoint
 import org.bouncycastle.asn1.x509.GeneralName
+import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo
 import org.slf4j.LoggerFactory
 import java.security.cert.X509Certificate
+import java.security.interfaces.ECPublicKey
+import java.security.interfaces.RSAPublicKey
 import kotlin.time.toKotlinInstant
+import org.bouncycastle.asn1.x509.AuthorityKeyIdentifier as BcAuthorityKeyIdentifier
 
 /**
  * JVM/Android implementations of certificate constraint extractors for [X509Certificate].
@@ -262,5 +267,262 @@ public object CertificateOperationsJvm : CertificateOperations<X509Certificate> 
     } catch (e: Exception) {
         logger.warn("Failed to parse CertificatePolicies from certificate: ${e.message}", e)
         emptyList()
+    }
+
+    // TODO
+    //  Remove magic values
+    //  Check if X500Name can be used
+    /**
+     * Extracts the subject Distinguished Name from an X509Certificate.
+     *
+     * @return [DistinguishedName] or null if parsing fails
+     */
+    public override fun getSubject(certificate: X509Certificate): DistinguishedName? = try {
+        val attributes = mutableMapOf<String, String>()
+        certificate.subjectX500Principal.name.split(",").forEach { rdn ->
+            val parts = rdn.trim().split("=", limit = 2)
+            if (parts.size == 2) {
+                val key = parts[0].trim().uppercase()
+                val value = parts[1].trim()
+                attributes[key] = value
+                // Also store by OID if it's a standard attribute
+                when (key) {
+                    "CN" -> attributes["2.5.4.3"] = value
+                    "O" -> attributes["2.5.4.7"] = value
+                    "OU" -> attributes["2.5.4.11"] = value
+                    "C" -> attributes["2.5.4.6"] = value
+                    "SN" -> attributes["2.5.4.4"] = value
+                    "G" -> attributes["2.5.4.42"] = value
+                    "SERIALNUMBER" -> attributes["2.5.4.5"] = value
+                    "L" -> attributes["2.5.4.7"] = value
+                    "ST" -> attributes["2.5.4.8"] = value
+                    "ORGANIZATIONIDENTIFIER" -> attributes["2.5.4.97"] = value
+                }
+            }
+        }
+        DistinguishedName(attributes)
+    } catch (e: Exception) {
+        logger.warn("Failed to parse subject DN from certificate: ${e.message}", e)
+        null
+    }
+
+    /**
+     * Extracts the issuer Distinguished Name from an X509Certificate.
+     *
+     * @return [DistinguishedName] or null if parsing fails
+     */
+    public override fun getIssuer(certificate: X509Certificate): DistinguishedName? = try {
+        val attributes = mutableMapOf<String, String>()
+        certificate.issuerX500Principal.name.split(",").forEach { rdn ->
+            val parts = rdn.trim().split("=", limit = 2)
+            if (parts.size == 2) {
+                val key = parts[0].trim().uppercase()
+                val value = parts[1].trim()
+                attributes[key] = value
+                // Also store by OID if it's a standard attribute
+                when (key) {
+                    "CN" -> attributes["2.5.4.3"] = value
+                    "O" -> attributes["2.5.4.7"] = value
+                    "OU" -> attributes["2.5.4.11"] = value
+                    "C" -> attributes["2.5.4.6"] = value
+                    "SN" -> attributes["2.5.4.4"] = value
+                    "G" -> attributes["2.5.4.42"] = value
+                    "SERIALNUMBER" -> attributes["2.5.4.5"] = value
+                    "L" -> attributes["2.5.4.7"] = value
+                    "ST" -> attributes["2.5.4.8"] = value
+                    "ORGANIZATIONIDENTIFIER" -> attributes["2.5.4.97"] = value
+                }
+            }
+        }
+        DistinguishedName(attributes)
+    } catch (e: Exception) {
+        logger.warn("Failed to parse issuer DN from certificate: ${e.message}", e)
+        null
+    }
+
+    /**
+     * Extracts Subject Alternative Names from an X509Certificate.
+     *
+     * @return list of [SubjectAlternativeName] or empty list if extension is not present
+     */
+    public override fun getSubjectAltNames(certificate: X509Certificate): List<SubjectAlternativeName> = try {
+        // Use the standard Java API which returns a Collection<List<?>>
+        // Each entry is a list where [0] is the type (Int) and [1] is the value
+        certificate.subjectAlternativeNames?.mapNotNull { entry ->
+            @Suppress("UNCHECKED_CAST")
+            val sanEntry = entry ?: return@mapNotNull null
+            if (sanEntry.size < 2) return@mapNotNull null
+
+            val type = sanEntry[0] as? Int ?: return@mapNotNull null
+            val value = sanEntry[1]?.toString() ?: return@mapNotNull null
+
+            // TODO
+            //  check warning that type is always zerp
+            when (type) {
+                0 -> SubjectAlternativeName.OtherName(type.toString(), value)
+                1 -> SubjectAlternativeName.Email(value)
+                2 -> SubjectAlternativeName.DNSName(value)
+                3 -> SubjectAlternativeName.OtherName(type.toString(), value)
+                4 -> SubjectAlternativeName.OtherName(type.toString(), value)
+                5 -> SubjectAlternativeName.OtherName(type.toString(), value)
+                6 -> SubjectAlternativeName.Uri(value)
+                7 -> {
+                    // IP address - try to parse as bytes or string
+                    when (val ipValue = sanEntry[1]) {
+                        is ByteArray -> SubjectAlternativeName.IPAddress(ipValue)
+                        is String -> SubjectAlternativeName.IPAddress(ipValue.encodeToByteArray())
+                        else -> SubjectAlternativeName.OtherName("7", value)
+                    }
+                }
+
+                8 -> SubjectAlternativeName.RegisteredId(value)
+                else -> SubjectAlternativeName.OtherName(type.toString(), value)
+            }
+        }.orEmpty()
+    } catch (e: Exception) {
+        logger.warn("Failed to parse SubjectAltNames from certificate: ${e.message}", e)
+        emptyList()
+    }
+
+    /**
+     * Extracts CRL Distribution Points from an X509Certificate.
+     *
+     * @return list of [CrlDistributionPoint] or empty list if extension is not present
+     */
+    public override fun getCrlDistributionPoints(certificate: X509Certificate): List<CrlDistributionPoint> = try {
+        val crldpExtension = certificate.getExtensionValue("2.5.29.31")
+        crldpExtension?.parseCrlDistributionPoints().orEmpty()
+    } catch (e: Exception) {
+        logger.warn("Failed to parse CRLDistributionPoints from certificate: ${e.message}", e)
+        emptyList()
+    }
+
+    /**
+     * Helper function to parse CRL Distribution Points from DER-encoded extension value.
+     * Note: Full URI extraction requires detailed BouncyCastle ASN.1 parsing.
+     * This implementation confirms CRLDP presence but may not extract URIs correctly.
+     */
+    private fun ByteArray.parseCrlDistributionPoints(): List<CrlDistributionPoint> = try {
+        ASN1InputStream(this).use { asn1InputStream ->
+            val obj = asn1InputStream.readObject()
+            val octetString = obj as? DEROctetString ?: return emptyList()
+            val crlDistPoint = CRLDistPoint.getInstance(octetString.octets)
+
+            val dps = crlDistPoint.distributionPoints ?: return emptyList()
+
+            // Simplified: just confirm CRLDP is present
+            // Full implementation would iterate through DistributionPoints and extract URIs
+            dps.mapNotNull { dp ->
+                if (dp != null) {
+                    CrlDistributionPoint(null, null)
+                } else {
+                    null
+                }
+            }
+        }
+    } catch (e: Exception) {
+        logger.warn("Failed to parse CRLDistributionPoints: ${e.message}", e)
+        emptyList()
+    }
+
+    /**
+     * Extracts Authority Key Identifier from an X509Certificate.
+     *
+     * @return [AuthorityKeyIdentifier] or null if extension is not present
+     */
+    public override fun getAuthorityKeyIdentifier(certificate: X509Certificate): AuthorityKeyIdentifier? = try {
+        val akiExtension = certificate.getExtensionValue("2.5.29.35")
+        akiExtension?.parseAuthorityKeyIdentifier()
+    } catch (e: Exception) {
+        logger.warn("Failed to parse AuthorityKeyIdentifier from certificate: ${e.message}", e)
+        null
+    }
+
+    /**
+     * Helper function to parse Authority Key Identifier from DER-encoded extension value.
+     */
+    private fun ByteArray.parseAuthorityKeyIdentifier(): AuthorityKeyIdentifier? = try {
+        ASN1InputStream(this).use { asn1InputStream ->
+            val obj = asn1InputStream.readObject()
+            val octetString = obj as? DEROctetString ?: return null
+            val aki = BcAuthorityKeyIdentifier.getInstance(octetString.octets)
+
+            val keyIdentifier = aki.getKeyIdentifierOctets()?.copyOf()
+            val authorityCertSerialNumber = aki.authorityCertSerialNumber?.toByteArray()
+
+            var authorityCertIssuer: List<String>? = null
+            aki.authorityCertIssuer?.let { generalNames ->
+                authorityCertIssuer = generalNames.names.map { it.name.toString() }
+            }
+
+            AuthorityKeyIdentifier(keyIdentifier, authorityCertIssuer, authorityCertSerialNumber)
+        }
+    } catch (e: Exception) {
+        logger.warn("Failed to parse AuthorityKeyIdentifier: ${e.message}", e)
+        null
+    }
+
+    /**
+     * Extracts the certificate serial number.
+     *
+     * @return [SerialNumber] as a byte array (always positive per RFC 5280)
+     */
+    public override fun getSerialNumber(certificate: X509Certificate): SerialNumber =
+        SerialNumber(certificate.serialNumber.toByteArray())
+
+    /**
+     * Extracts the certificate version.
+     *
+     * @return [Version] (X509Certificate.version returns 1=v1, 2=v2, 3=v3; we convert to 0=v1, 1=v2, 2=v3)
+     */
+    public override fun getVersion(certificate: X509Certificate): Version =
+        Version(certificate.version - 1) // Java returns 1-based, we use 0-based
+
+    /**
+     * Extracts subject public key information.
+     *
+     * @return [PublicKeyInfo] with algorithm, key size, and parameters
+     */
+    public override fun getSubjectPublicKeyInfo(certificate: X509Certificate): PublicKeyInfo = try {
+        val publicKey = certificate.publicKey
+        val algorithm = publicKey.algorithm
+        val encodedBytes = publicKey.encoded
+
+        // Determine key size based on algorithm type
+        val keySize = when (publicKey) {
+            is RSAPublicKey -> publicKey.modulus.bitLength()
+            is ECPublicKey -> {
+                // Try to get key size from params, otherwise use encoded length as fallback
+                val paramsSize = publicKey.params?.order?.bitLength()
+                if (paramsSize != null) {
+                    paramsSize
+                } else {
+                    // Fallback: estimate from encoded key length
+                    // EC keys: ~32 bytes = 256 bits, ~48 bytes = 384 bits, ~66 bytes = 521 bits
+                    val encodedLen = encodedBytes.size
+                    when {
+                        encodedLen >= 100 -> 521
+                        encodedLen >= 60 -> 384
+                        else -> 256
+                    }
+                }
+            }
+
+            else -> null
+        }
+
+        // Get algorithm parameters (e.g., EC curve OID)
+        val parameters = try {
+            val spki = SubjectPublicKeyInfo.getInstance(encodedBytes)
+            val algParams = spki.algorithm?.parameters
+            algParams?.toASN1Primitive()?.encoded
+        } catch (e: Exception) {
+            null
+        }
+
+        PublicKeyInfo(algorithm, keySize, parameters)
+    } catch (e: Exception) {
+        logger.warn("Failed to parse SubjectPublicKeyInfo: ${e.message}", e)
+        PublicKeyInfo(certificate.publicKey.algorithm, null, null)
     }
 }

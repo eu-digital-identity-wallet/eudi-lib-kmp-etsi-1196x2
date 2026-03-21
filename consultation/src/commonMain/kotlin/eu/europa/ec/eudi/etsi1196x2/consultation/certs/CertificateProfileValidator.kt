@@ -149,6 +149,40 @@ public interface CertificateProfileInterpreter<CERT : Any> {
                         is CertificateOperationsAlgebra.GetQcStatements ->
                             operations.getQcStatements(certificate)
                                 .filter { it.qcType == op.qcType } as T
+
+                        // New algebra type handlers
+                        is CertificateOperationsAlgebra.GetSubject ->
+                            operations.getSubject(certificate) as T
+
+                        is CertificateOperationsAlgebra.GetIssuer ->
+                            operations.getIssuer(certificate) as T
+
+                        is CertificateOperationsAlgebra.GetSubjectAltNames ->
+                            operations.getSubjectAltNames(certificate) as T
+
+                        is CertificateOperationsAlgebra.GetCrlDistributionPoints ->
+                            operations.getCrlDistributionPoints(certificate) as T
+
+                        is CertificateOperationsAlgebra.GetAuthorityKeyIdentifier ->
+                            operations.getAuthorityKeyIdentifier(certificate) as T
+
+                        is CertificateOperationsAlgebra.GetSerialNumber ->
+                            operations.getSerialNumber(certificate) as T
+
+                        is CertificateOperationsAlgebra.GetVersion ->
+                            operations.getVersion(certificate) as T
+
+                        is CertificateOperationsAlgebra.GetSubjectPublicKeyInfo ->
+                            operations.getSubjectPublicKeyInfo(certificate) as T
+
+                        is CertificateOperationsAlgebra.GetAllQcStatements ->
+                            operations.getQcStatements(certificate) as T
+
+                        is CertificateOperationsAlgebra.GetCombined<*, *> -> {
+                            val a = interpret(op.first, certificate)
+                            val b = interpret(op.second, certificate)
+                            (a to b) as T
+                        }
                     }
                 }
             }

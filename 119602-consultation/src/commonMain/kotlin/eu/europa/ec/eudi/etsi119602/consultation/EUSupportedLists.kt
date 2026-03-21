@@ -84,10 +84,10 @@ private data class UseCase(
                 revocationCertificateProfile = null,
             )
 
-        private fun wrpacUseCase(at: Instant? = null, policy: String? = null): UseCase =
+        private fun wrpacUseCase(at: Instant? = null): UseCase =
             UseCase(
                 EUWRPACProvidersList,
-                issuanceCertificateProfile = wrpAccessCertificateProfile(at = at, policy = policy),
+                issuanceCertificateProfile = wrpAccessCertificateProfile(at = at),
                 revocationCertificateProfile = null,
             )
 

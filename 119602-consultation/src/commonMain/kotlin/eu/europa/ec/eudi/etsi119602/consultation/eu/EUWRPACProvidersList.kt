@@ -16,13 +16,11 @@
 package eu.europa.ec.eudi.etsi119602.consultation.eu
 
 import eu.europa.ec.eudi.etsi119602.*
-import eu.europa.ec.eudi.etsi119602.consultation.ETSI119411
-import eu.europa.ec.eudi.etsi119602.consultation.ETSI119411.NCP_L_EUDIWRP
-import eu.europa.ec.eudi.etsi119602.consultation.ETSI119411.NCP_N_EUDIWRP
-import eu.europa.ec.eudi.etsi119602.consultation.ETSI119411.QCP_L_EUDIWRP
-import eu.europa.ec.eudi.etsi119602.consultation.ETSI119411.QCP_N_EUDIWRP
+import eu.europa.ec.eudi.etsi119602.consultation.ETSI119411Part8.NCP_L_EUDIWRP
+import eu.europa.ec.eudi.etsi119602.consultation.ETSI119411Part8.NCP_N_EUDIWRP
+import eu.europa.ec.eudi.etsi119602.consultation.ETSI119411Part8.QCP_L_EUDIWRP
+import eu.europa.ec.eudi.etsi119602.consultation.ETSI119411Part8.QCP_N_EUDIWRP
 import eu.europa.ec.eudi.etsi1196x2.consultation.certs.*
-import eu.europa.ec.eudi.etsi1196x2.consultation.certs.ETSI319412
 import kotlin.time.Instant
 
 public val EUWRPACProvidersList: EUListOfTrustedEntitiesProfile =
@@ -77,76 +75,90 @@ public fun wrpacProviderCertificateProfile(
         requirePolicyPresence()
     }
 
-/**
- * Creates constraints for Wallet Relying Party Access Certificate (issued to Wallet Relying Parties).
- *
- * Per ETSI TS 119 411-8 Clause 6.6.1:
- * - Certificate type: End-entity (cA=FALSE)
- * - Key Usage: digitalSignature REQUIRED (for electronic signatures/seals)
- * - Validity: Must be valid at validation time
- * - Certificate Policy: MUST include one of the four policy OIDs from Clause 5.3
- *
- * Note: ETSI TS 119 411-8 does NOT specify a WRPAC-specific QCStatement.
- * For qualified certificates (QCP-n-eudiwrp, QCP-l-eudiwrp), the general
- * QCStatement requirements from ETSI EN 319 412-5 apply (e.g., QcCompliance, QcType),
- * but these are not WRPAC-specific and are not validated by this profile.
- *
- * Certificate Policy OIDs (ETSI TS 119 411-8 Clause 5.3):
- * - NCP-n-eudiwrp (0.4.0.194118.1.1): Natural persons, non-qualified, for electronic signature
- * - NCP-l-eudiwrp (0.4.0.194118.1.2): Legal persons, non-qualified, for electronic seal
- * - QCP-n-eudiwrp (0.4.0.194118.1.3): Natural persons, qualified, for electronic signature
- * - QCP-l-eudiwrp (0.4.0.194118.1.4): Legal persons, qualified, for electronic seal
- *
- * @param at Instant for validity check (null = current time)
- * @param policy Optional specific policy OID requirement. If provided, MUST be one of the four
- *               WRPAC policy OIDs. If null, any of the four policies is accepted.
- *
- * @return a WRP Access Certificate Profile
- *
- * @see [ETSI TS 119 411-8 Clause 5.3 - Certificate Policy OIDs]
- * @see [ETSI TS 119 411-8 Clause 6.6.1 - Certificate Profile]
- * @see [ETSI119411]
- */
+// TODO Add KDOC pointing to ETSI 119 411-8
 public fun wrpAccessCertificateProfile(
     at: Instant? = null,
-    policy: String? = null,
-): CertificateProfile {
-    val allowedPolicies = setOf(
-        NCP_N_EUDIWRP,
-        NCP_L_EUDIWRP,
-        QCP_N_EUDIWRP,
-        QCP_L_EUDIWRP,
+): CertificateProfile = certificateProfile {
+    // Basic certificate requirements
+    requireEndEntityCertificate()
+    requireDigitalSignature()
+    requireValidAt(at)
+    requirePolicy(NCP_N_EUDIWRP, NCP_L_EUDIWRP, QCP_N_EUDIWRP, QCP_L_EUDIWRP)
+    requireNoSelfSigned()
+
+    // X.509 v3 required (for extensions)
+    requireV3()
+
+    // Serial number must be positive (RFC 5280)
+    requirePositiveSerialNumber()
+
+    // AIA required for CA-issued certificates
+    requireAiaForCaIssued()
+
+    // Authority Key Identifier required (EN 319 412-2)
+    requireAuthorityKeyIdentifier()
+
+    // Subject Alternative Name with contact info required (TS 119 411-8)
+    requireSubjectAltNameForWRPAC()
+
+    // CRL Distribution Points required if no OCSP (EN 319 412-2)
+    requireCrlDistributionPointsIfNoOcspAndNotValAssured()
+
+    // Public key requirements (TS 119 312)
+    requirePublicKey(
+        options = PublicKeyAlgorithmOptions.of(
+            PublicKeyAlgorithmOptions.AlgorithmRequirement.RSA_2048,
+            PublicKeyAlgorithmOptions.AlgorithmRequirement.EC_256,
+            PublicKeyAlgorithmOptions.AlgorithmRequirement.ECDSA_256,
+        ),
     )
 
-    val policies =
-        if (policy != null) {
-            require(policy in allowedPolicies) {
-                buildString {
-                    append("Certificate policy OID '$policy' is not a valid WRPAC policy OID. ")
-                    append("Must be one of: ${allowedPolicies.joinToString(", ")}")
-                }
-            }
-            setOf(policy)
-        } else {
-            allowedPolicies
+    // QCStatements required based on the certificate's ACTUAL policy (EN 319 412-5).
+    // NCP_N and NCP_L do not require QC statements; QCP_N and QCP_L do.
+    requireQcStatementsForPolicy { policyOid ->
+        when (policyOid) {
+            QCP_N_EUDIWRP -> listOf(ETSI319412.QC_COMPLIANCE, ETSI319412.QC_SSCD)
+            QCP_L_EUDIWRP -> listOf(ETSI319412.QC_COMPLIANCE, ETSI319412.QC_SSCD, ETSI319412.QC_TYPE)
+            else -> emptyList()
         }
+    }
+}
 
-    // Determine if we are requiring a QCP policy (only when a specific policy is set)
-    val isQcp = policy != null && (policy == QCP_N_EUDIWRP || policy == QCP_L_EUDIWRP)
+/**
+ * Requires the certificate to contain a Subject Alternative Name with contact information.
+ *
+ * Per ETSI TS 119 411-8 clause 6.6.1, WRPAC certificates MUST contain contact information
+ * in the subjectAltName extension (URI, email, or telephone).
+ */
+public fun ProfileBuilder.requireSubjectAltNameForWRPAC() {
+    val missingSubjectAltName =
+        CertificateConstraintViolation("Certificate missing subjectAltName extension")
 
-    return certificateProfile {
-        requireEndEntityCertificate()
-        requireDigitalSignature()
-        requireValidAt(at)
-        requirePolicy(policies)
-        requireNoSelfSigned()
-        requireAiaForCaIssued()
-        if (isQcp) {
-            requireQcStatement(ETSI319412.QC_COMPLIANCE) // QcCompliance
-            requireQcStatement(ETSI319412.QC_SSCD) // QcSSCD
-            if (policy == QCP_L_EUDIWRP) {
-                requireQcStatement(ETSI319412.QC_TYPE) // QcType
+    val subjectAltNameMissingContactInfo =
+        CertificateConstraintViolation(
+            "subjectAltName extension missing required contact information (URI, email, or telephone per ETSI TS 119 411-8)",
+        )
+    subjectAltNames { sanList ->
+        evaluation {
+            if (sanList.isEmpty()) {
+                add(missingSubjectAltName)
+                return@evaluation
+            }
+
+            val hasContactInfo = sanList.any { san ->
+                san is SubjectAlternativeName.Uri ||
+                    san is SubjectAlternativeName.Email ||
+                    san is SubjectAlternativeName.Telephone
+            }
+
+            if (!hasContactInfo) {
+                add(subjectAltNameMissingContactInfo)
             }
         }
     }
+}
+
+internal fun evaluation(builder: MutableList<CertificateConstraintViolation>.() -> Unit): CertificateConstraintEvaluation {
+    val violations = buildList(builder)
+    return CertificateConstraintEvaluation(violations)
 }

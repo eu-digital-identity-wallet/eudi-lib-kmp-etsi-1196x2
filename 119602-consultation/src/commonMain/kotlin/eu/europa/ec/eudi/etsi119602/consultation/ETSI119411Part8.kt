@@ -16,16 +16,9 @@
 package eu.europa.ec.eudi.etsi119602.consultation
 
 /**
- * Certificate Policy OIDs per ETSI TS 119 411-8 Clause 5.3.
- *
- * These OIDs identify certificate policies for Wallet Relying Party Access Certificates (WRPAC).
- * Four policies are defined based on:
- * - Certificate subject type: Natural person vs Legal person
- * - Certificate policy type: Non-qualified (NCP) vs Qualified (QCP)
- *
- * Source: ETSI TS 119 411-8 V1.1.1 Clause 5.3 - Certificate Policy name and identification
+ * Source: ETSI TS 119 411-8 V1.1.1
  */
-public object ETSI119411 {
+public object ETSI119411Part8 {
 
     /**
      * Certificate Policy OID for WRPAC issued to natural persons (NCP).
