@@ -12,6 +12,8 @@
 |         |            |                  | Score improved from 5/10 to 7/10. Infrastructure now supports all major extraction operations.    |
 | 4.0     | 2026-03-21 | Assessment Agent | Updated after Subject DN rules implementation: Natural person and legal person subject attribute  |
 |         |            |                  | validation now fully implemented. Score improved from 7/10 to 8/10.                               |
+| 5.0     | 2026-03-21 | Assessment Agent | File reorganization: wrpAccessCertificateProfile moved to EUWRPAccessCertificate.kt.              |
+|         |            |                  | No functional changes, code reorganization only.                                                  |
 
 ---
 
@@ -45,7 +47,7 @@ structural alignment** with most critical infrastructure components in place.
 ## Assessment Scope
 
 - **File**:
-  `/home/babis/work/eudiw/src/eudi-lib-kmp-etsi-1196x2/119602-consultation/src/commonMain/kotlin/eu/europa/ec/eudi/etsi119602/consultation/eu/EUWRPACProvidersList.kt`
+  `/home/babis/work/eudiw/src/eudi-lib-kmp-etsi-1196x2/119602-consultation/src/commonMain/kotlin/eu/europa/ec/eudi/etsi119602/consultation/eu/EUWRPAccessCertificate.kt`
 - **Function**: `wrpAccessCertificateProfile()`
 - **Standard**: ETSI TS 119 411-8 (Wallet Relying Party Access Certificate specifications)
 - **Related Standards**: ETSI EN 319 412-1, ETSI EN 319 412-2, ETSI EN 319 412-3, ETSI EN 319 412-5, RFC 5280, RFC 9608
@@ -55,7 +57,7 @@ structural alignment** with most critical infrastructure components in place.
 
 ## Current Implementation Analysis
 
-### Function Definition (lines 110-165)
+### Function Definition (lines 28-87)
 
 ```kotlin
 public fun wrpAccessCertificateProfile(
@@ -104,6 +106,9 @@ public fun wrpAccessCertificateProfile(
             else -> emptyList()
         }
     }
+
+    // Subject DN attributes required based on certificate policy (natural person vs legal person)
+    requireSubjectNameForWRPAC()
 }
 ```
 
@@ -203,7 +208,7 @@ existing methods to include criticality flags.
 
 ### Issue 1: Missing Subject/Issuer Attribute Validation [CRITICAL] ✅ RESOLVED
 
-**Location**: `EUWRPACProvidersList.kt:167-186`
+**Location**: `EUWRPAccessCertificate.kt:83-94`
 **Description**: ✅ **RESOLVED** - ETSI TS 119 411-8 references ETSI EN 319 412-2 (natural persons) and ETSI
 EN 319 412-3 (legal persons) for subject naming. The infrastructure now supports `getSubject()` and `getIssuer()`
 extraction, and policy-specific constraints have been fully implemented.
@@ -220,18 +225,24 @@ extraction, and policy-specific constraints have been fully implemented.
 **Implementation**:
 
 ```kotlin
-internal fun ProfileBuilder.requireSubjectNameForWRPAC() {
+internal fun ProfileBuilder.requireSubjectNameForWRPAC() =
     combine(
         CertificateOperationsAlgebra.GetPolicies,
         CertificateOperationsAlgebra.GetSubject,
     ) { (policies, subject) ->
-        val isNaturalPerson = policies.any { it in listOf(NCP_N_EUDIWRP, QCP_N_EUDIWRP) }
-        val isLegalPerson = policies.any { it in listOf(NCP_L_EUDIWRP, QCP_L_EUDIWRP) }
-        when {
-            isNaturalPerson -> evaluateSubjectNaturalPersonAttributes(subject)
-            isLegalPerson -> evaluateSubjectLegalPersonAttributes(subject)
-            else -> CertificateConstraintEvaluation.Met
-        }
+        validateSubjectNameForWRPAC(policies, subject)
+    }
+
+internal fun validateSubjectNameForWRPAC(
+    policies: List<String>,
+    subject: DistinguishedName?,
+): CertificateConstraintEvaluation {
+    val isNaturalPerson = policies.any { it in listOf(NCP_N_EUDIWRP, QCP_N_EUDIWRP) }
+    val isLegalPerson = policies.any { it in listOf(NCP_L_EUDIWRP, QCP_L_EUDIWRP) }
+    return when {
+        isNaturalPerson && !isLegalPerson -> evaluateSubjectNaturalPersonAttributes(subject)
+        isLegalPerson && !isNaturalPerson -> evaluateSubjectLegalPersonAttributes(subject)
+        else -> CertificateConstraintEvaluation.Met
     }
 }
 ```
@@ -495,8 +506,8 @@ covers ~18% of requirements vs. the spec's ~40% (from earlier assessment).
 
 ### Code Files
 
-- EUWRPACProvidersList.kt:
-  `/119602-consultation/src/commonMain/kotlin/eu/europa/ec/eudi/etsi119602/consultation/eu/EUWRPACProvidersList.kt`
+- EUWRPAccessCertificate.kt:
+  `/119602-consultation/src/commonMain/kotlin/eu/europa/ec/eudi/etsi119602/consultation/eu/EUWRPAccessCertificate.kt`
 - CertificateProfile.kt:
   `/consultation/src/commonMain/kotlin/eu/europa/ec/eudi/etsi1196x2/consultation/certs/CertificateProfile.kt`
 - CertificateProfileConstraints.kt:
