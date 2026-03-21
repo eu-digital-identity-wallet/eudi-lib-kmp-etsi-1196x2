@@ -517,7 +517,7 @@ public object CertificateOperationsJvm : CertificateOperations<X509Certificate> 
             val spki = SubjectPublicKeyInfo.getInstance(encodedBytes)
             val algParams = spki.algorithm?.parameters
             algParams?.toASN1Primitive()?.encoded
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             null
         }
 
