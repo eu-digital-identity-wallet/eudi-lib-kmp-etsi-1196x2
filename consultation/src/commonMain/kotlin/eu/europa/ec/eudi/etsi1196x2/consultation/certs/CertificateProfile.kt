@@ -114,6 +114,11 @@ public sealed interface CertificateConstraintEvaluation {
     public companion object {
         public operator fun invoke(violations: List<CertificateConstraintViolation>): CertificateConstraintEvaluation =
             if (violations.isEmpty()) Met else Violated(violations)
+
+        public operator fun invoke(builder: MutableList<CertificateConstraintViolation>.() -> Unit): CertificateConstraintEvaluation {
+            val violations = buildList(builder)
+            return CertificateConstraintEvaluation(violations)
+        }
     }
 }
 

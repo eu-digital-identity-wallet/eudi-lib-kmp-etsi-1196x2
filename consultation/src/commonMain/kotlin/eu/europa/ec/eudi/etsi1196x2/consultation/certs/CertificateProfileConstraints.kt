@@ -27,7 +27,7 @@ import kotlin.time.Instant
  */
 public fun ProfileBuilder.requireEndEntityCertificate() {
     basicConstraints { constraints ->
-        evaluation {
+        CertificateConstraintEvaluation {
             if (constraints.isCa) {
                 add(Violations.certificateTypeMismatch("end-entity", "CA"))
             }
@@ -42,7 +42,7 @@ public fun ProfileBuilder.requireEndEntityCertificate() {
  */
 public fun ProfileBuilder.requireCaCertificate(maxPathLen: Int? = null) {
     basicConstraints { constraints ->
-        evaluation {
+        CertificateConstraintEvaluation {
             if (!constraints.isCa) {
                 add(Violations.certificateTypeMismatch("CA", "end-entity"))
             }
@@ -75,7 +75,7 @@ public fun ProfileBuilder.requireQcStatement(
     requireCompliance: Boolean = false,
 ) {
     qcStatements(qcType) { statements ->
-        evaluation {
+        CertificateConstraintEvaluation {
             when {
                 statements.isEmpty() -> {
                     add(Violations.certificateDoesNotContainAnyQCStatement)
@@ -102,7 +102,7 @@ public fun ProfileBuilder.requireQcStatement(
  */
 public fun ProfileBuilder.requireDigitalSignature() {
     keyUsage { keyUsage ->
-        evaluation {
+        CertificateConstraintEvaluation {
             when {
                 keyUsage == null ->
                     add(Violations.certificateDoesNotContainKeyUsage)
@@ -120,7 +120,7 @@ public fun ProfileBuilder.requireDigitalSignature() {
  */
 public fun ProfileBuilder.requireKeyCertSign() {
     keyUsage { keyUsage ->
-        evaluation {
+        CertificateConstraintEvaluation {
             when {
                 keyUsage == null ->
                     add(Violations.certificateDoesNotContainKeyUsage)
@@ -144,7 +144,7 @@ public fun ProfileBuilder.requireKeyCertSign() {
 public fun ProfileBuilder.requireValidAt(time: Instant? = null) {
     validity { period ->
         val validationTime = time ?: Clock.System.now()
-        evaluation {
+        CertificateConstraintEvaluation {
             when {
                 validationTime < period.notBefore -> {
                     add(
@@ -179,7 +179,7 @@ public fun ProfileBuilder.requirePolicy(vararg oids: String) {
 
 public fun ProfileBuilder.requirePolicy(oids: Set<String>) {
     policies { policies ->
-        evaluation {
+        CertificateConstraintEvaluation {
             when {
                 policies.isEmpty() -> {
                     add(Violations.certificateDoesNotContainPolicies(oids.toList()))
@@ -198,7 +198,7 @@ public fun ProfileBuilder.requirePolicy(oids: Set<String>) {
  */
 public fun ProfileBuilder.requirePolicyPresence() {
     policies { policies ->
-        evaluation {
+        CertificateConstraintEvaluation {
             if (policies.isEmpty()) {
                 add(Violations.missingCertificatePoliciesExtension)
             }
@@ -221,7 +221,7 @@ public fun ProfileBuilder.requireAiaForCaIssued() {
         CertificateOperationsAlgebra.GetAia,
         CertificateOperationsAlgebra.CheckSelfSigned,
     ) { (aia, isSelfSigned) ->
-        evaluation {
+        CertificateConstraintEvaluation {
             // Only check AIA for non-self-signed certificates
             if (!isSelfSigned) {
                 if (aia == null) {
@@ -243,7 +243,7 @@ public fun ProfileBuilder.requireAiaForCaIssued() {
  */
 public fun ProfileBuilder.requireNoSelfSigned() {
     selfSigned { isSelfSigned ->
-        evaluation {
+        CertificateConstraintEvaluation {
             if (isSelfSigned) {
                 add(Violations.selfSignedCertificateNotAllowed)
             }
@@ -262,7 +262,7 @@ public fun ProfileBuilder.requireNoSelfSigned() {
  */
 public fun ProfileBuilder.requireVersion(expectedVersion: Int) {
     version { version ->
-        evaluation {
+        CertificateConstraintEvaluation {
             if (version.value != expectedVersion) {
                 add(Violations.certificateVersionMismatch(expectedVersion, version.value))
             }
@@ -289,7 +289,7 @@ public fun ProfileBuilder.requireV3() {
  */
 public fun ProfileBuilder.requirePositiveSerialNumber() {
     serialNumber { serialNumber ->
-        evaluation {
+        CertificateConstraintEvaluation {
             // Serial number is already validated to be positive in the SerialNumber constructor
             // This check is redundant but kept for explicit validation
             if (serialNumber.value.isEmpty()) {
@@ -324,10 +324,10 @@ public fun ProfileBuilder.requireSubjectNaturalPersonAttributes() {
 public fun evaluateSubjectNaturalPersonAttributes(
     subject: DistinguishedName?,
 ): CertificateConstraintEvaluation =
-    evaluation {
+    CertificateConstraintEvaluation {
         if (subject == null) {
             add(Violations.missingSubjectDistinguishedName)
-            return@evaluation
+            return@CertificateConstraintEvaluation
         }
 
         // countryName is mandatory
@@ -357,10 +357,10 @@ public fun evaluateSubjectNaturalPersonAttributes(
 public fun evaluateSubjectLegalPersonAttributes(
     subject: DistinguishedName?,
 ): CertificateConstraintEvaluation =
-    evaluation {
+    CertificateConstraintEvaluation {
         if (subject == null) {
             add(Violations.missingSubjectDistinguishedName)
-            return@evaluation
+            return@CertificateConstraintEvaluation
         }
 
         // countryName is mandatory
@@ -411,10 +411,10 @@ public fun ProfileBuilder.requireIssuerAttributes(
     requireCommonName: Boolean = true,
 ) {
     issuer { issuer ->
-        evaluation {
+        CertificateConstraintEvaluation {
             if (issuer == null) {
                 add(Violations.missingIssuerDistinguishedName)
-                return@evaluation
+                return@CertificateConstraintEvaluation
             }
 
             if (requireCountryName && issuer.countryName.isNullOrBlank()) {
@@ -441,7 +441,7 @@ public fun ProfileBuilder.requireIssuerAttributes(
  */
 public fun ProfileBuilder.requireSubjectAltName() {
     subjectAltNames { sanList ->
-        evaluation {
+        CertificateConstraintEvaluation {
             if (sanList.isEmpty()) {
                 add(Violations.missingSubjectAltName)
             }
@@ -460,7 +460,7 @@ public fun ProfileBuilder.requireSubjectAltName() {
  */
 public fun ProfileBuilder.requireAuthorityKeyIdentifier() {
     authorityKeyIdentifier { aki ->
-        evaluation {
+        CertificateConstraintEvaluation {
             if (aki == null) {
                 add(Violations.missingAuthorityKeyIdentifier)
             }
@@ -480,16 +480,16 @@ public fun ProfileBuilder.requireCrlDistributionPointsIfNoOcspAndNotValAssured()
         CertificateOperationsAlgebra.GetAia,
         CertificateOperationsAlgebra.GetAllQcStatements,
     ) { (crldp, aia, qcStatements) ->
-        evaluation {
+        CertificateConstraintEvaluation {
             // Exempt if OCSP responder is present in AIA
             val hasOcsp = aia?.ocspUri != null
-            if (hasOcsp) return@evaluation
+            if (hasOcsp) return@CertificateConstraintEvaluation
 
             // Exempt if validity-assured short-term certificate QC statement is present
             val isValAssured = qcStatements.any {
                 it.qcType == ETSI319412Part1.EXT_ETSI_VAL_ASSURED_ST_CERTS
             }
-            if (isValAssured) return@evaluation
+            if (isValAssured) return@CertificateConstraintEvaluation
 
             // Otherwise, CRLDP must be present with at least one valid URI
             if (crldp.isEmpty() || crldp.all { it.distributionPointUri.isNullOrBlank() }) {
@@ -504,7 +504,7 @@ public fun ProfileBuilder.requireCrlDistributionPointsIfNoOcspAndNotValAssured()
  */
 public fun ProfileBuilder.requireCrlDistributionPoints() {
     crlDistributionPoints { crldp ->
-        evaluation {
+        CertificateConstraintEvaluation {
             if (crldp.isEmpty() || crldp.all { it.distributionPointUri.isNullOrBlank() }) {
                 add(Violations.missingCrlDistributionPoints)
             }
@@ -541,7 +541,7 @@ public fun ProfileBuilder.requireQcStatementsForPolicy(rules: (String) -> List<S
         CertificateOperationsAlgebra.GetPolicies,
         CertificateOperationsAlgebra.GetAllQcStatements,
     ) { (policies, qcStatements) ->
-        evaluation {
+        CertificateConstraintEvaluation {
             val requiredQcTypes = policies
                 .flatMap { rules(it) }
                 .toSet()
@@ -575,7 +575,7 @@ public fun ProfileBuilder.requireQcStatementsForPolicy(rules: (String) -> List<S
  */
 public fun ProfileBuilder.requirePublicKey(options: PublicKeyAlgorithmOptions) {
     subjectPublicKeyInfo { pkInfo ->
-        evaluation {
+        CertificateConstraintEvaluation {
             val compliant = options.algorithmOptions.any { req ->
                 pkInfo.isAlgorithm(req.algorithm) &&
                     (pkInfo.keySize == null || pkInfo.keySize >= req.minimumKeySize)
@@ -590,11 +590,6 @@ public fun ProfileBuilder.requirePublicKey(options: PublicKeyAlgorithmOptions) {
 //
 // Helpers
 //
-
-private fun evaluation(builder: MutableList<CertificateConstraintViolation>.() -> Unit): CertificateConstraintEvaluation {
-    val violations = buildList(builder)
-    return CertificateConstraintEvaluation(violations)
-}
 
 internal object Violations {
     fun certificateTypeMismatch(expected: String, actual: String): CertificateConstraintViolation =
