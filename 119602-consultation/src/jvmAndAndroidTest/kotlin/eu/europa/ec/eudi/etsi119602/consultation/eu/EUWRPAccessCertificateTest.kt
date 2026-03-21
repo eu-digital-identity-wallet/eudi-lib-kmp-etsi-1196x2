@@ -23,6 +23,8 @@ import eu.europa.ec.eudi.etsi1196x2.consultation.certs.ETSI319412
 import eu.europa.ec.eudi.etsi1196x2.consultation.certs.isMet
 import kotlinx.coroutines.test.runTest
 import org.bouncycastle.asn1.x500.X500Name
+import org.bouncycastle.asn1.x500.X500NameBuilder
+import org.bouncycastle.asn1.x500.style.BCStyle
 import java.security.cert.X509Certificate
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -32,11 +34,33 @@ import kotlin.test.assertTrue
 class EUWRPAccessCertificateTest {
 
     // Subject DN with all required attributes for a legal person (organization)
-    private val legalPersonSubject = X500Name("C=EU,O=Wallet Relying Party,CN=Wallet Relying Party")
+    // Per ETSI EN 319 412-3: countryName, organizationName, organizationIdentifier, commonName
+    private val legalPersonSubject =
+        X500NameBuilder(BCStyle.INSTANCE).apply {
+            addRDN(BCStyle.C, "EU")
+            addRDN(BCStyle.O, "Wallet Relying Party")
+            addRDN(BCStyle.ORGANIZATION_IDENTIFIER, "1234567890")
+            addRDN(BCStyle.CN, "Wallet Relying Party")
+        }.build()
 
     // Subject DN with all required attributes for a natural person
-    // Using OID 2.5.4.42 for givenName and 2.5.4.4 for surname (BouncyCastle compatible)
-    private val naturalPersonSubject = X500Name("C=EU,2.5.4.42=John,2.5.4.4=Doe,CN=John Doe")
+    // Per ETSI EN 319 412-2: countryName, givenName/surname/pseudonym, commonName, serialNumber
+    private val naturalPersonSubject = X500NameBuilder(BCStyle.INSTANCE).apply {
+        addRDN(BCStyle.C, "EU")
+        addRDN(BCStyle.GIVENNAME, "John") // givenName
+        addRDN(BCStyle.SURNAME, "Doe") // surname
+        addRDN(BCStyle.CN, "John Doe")
+        addRDN(BCStyle.SERIALNUMBER, "839201")
+    }.build()
+
+    // Subject DN missing serialNumber (for testing serialNumber requirement)
+    private val naturalPersonSubjectMissingSerialNumber = X500NameBuilder(BCStyle.INSTANCE).apply {
+        addRDN(BCStyle.C, "EU")
+        addRDN(BCStyle.GIVENNAME, "John") // givenName
+        addRDN(BCStyle.SURNAME, "Doe") // surname
+        addRDN(BCStyle.CN, "John Doe")
+        // Missing SERIALNUMBER
+    }.build()
 
     private suspend fun evaluateEndEntityCertificateConstraints(
         certificate: X509Certificate,
@@ -111,11 +135,13 @@ class EUWRPAccessCertificateTest {
                 ETSI319412.QC_COMPLIANCE to true,
                 ETSI319412.QC_SSCD to true,
             )
+
             ETSI119411Part8.QCP_L_EUDIWRP -> listOf(
                 ETSI319412.QC_COMPLIANCE to true,
                 ETSI319412.QC_SSCD to true,
                 ETSI319412.QC_TYPE to true,
             )
+
             else -> null
         }
         val certificate = genCAIssuedEndEntityCertificate(
@@ -154,12 +180,12 @@ class EUWRPAccessCertificateTest {
         val certificate = certHolder.toX509Certificate()
 
         // Validate as WRPAC end-entity
-        val constraintEvaluation = evaluateEndEntityCertificateConstraints(certificate)
+        val evaluation = evaluateEndEntityCertificateConstraints(certificate)
 
         // Should fail - CA certificate, not end-entity
-        assertFalse(constraintEvaluation.isMet())
+        assertFalse(evaluation.isMet())
         assertTrue(
-            constraintEvaluation.violations.any {
+            evaluation.violations.any {
                 it.reason.contains("Certificate type mismatch", ignoreCase = true)
             },
         )
@@ -195,7 +221,7 @@ class EUWRPAccessCertificateTest {
     fun `WRPAC should reject CA-issued certificate without AIA`() = runTest {
         val certificate = genCAIssuedEndEntityCertificate(
             subject = legalPersonSubject,
-            policyOids = listOf(ETSI119411Part8.NCP_N_EUDIWRP),
+            policyOids = listOf(ETSI119411Part8.NCP_L_EUDIWRP),
             caIssuersUri = null,
             ocspUri = null,
             crlDistributionPointUri = "http://crl.example.com/crl.crl", // present so only AIA violation fires
@@ -252,7 +278,12 @@ class EUWRPAccessCertificateTest {
         val certificate = certHolder.toX509Certificate()
         val evaluation = evaluateEndEntityCertificateConstraints(certificate)
         assertFalse(evaluation.isMet())
-        evaluation.assertSingleViolation { it.contains("does not satisfy any of the required options", ignoreCase = true) }
+        evaluation.assertSingleViolation {
+            it.contains(
+                "does not satisfy any of the required options",
+                ignoreCase = true,
+            )
+        }
     }
 
     @Test
@@ -268,5 +299,17 @@ class EUWRPAccessCertificateTest {
         val evaluation = evaluateEndEntityCertificateConstraints(certificate)
         assertFalse(evaluation.isMet())
         evaluation.assertSingleViolation { it.contains("qcstatement", ignoreCase = true) }
+    }
+
+    @Test
+    fun `WRPAC should reject natural person certificate missing serialNumber`() = runTest {
+        val certificate = genCAIssuedEndEntityCertificate(
+            subject = naturalPersonSubjectMissingSerialNumber,
+            policyOids = listOf(ETSI119411Part8.NCP_N_EUDIWRP),
+        )
+        val evaluation = evaluateEndEntityCertificateConstraints(certificate)
+
+        assertFalse(evaluation.isMet())
+        evaluation.assertSingleViolation { it.contains("serialNumber", ignoreCase = true) }
     }
 }

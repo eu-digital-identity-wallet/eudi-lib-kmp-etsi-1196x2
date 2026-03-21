@@ -35,7 +35,6 @@ public fun ProfileBuilder.requireEndEntityCertificate() {
     }
 }
 
-
 /**
  * Requires the certificate to be a CA certificate (cA=TRUE) with the optional path length constraint.
  *
@@ -347,6 +346,11 @@ public fun evaluateSubjectNaturalPersonAttributes(
         // commonName is mandatory
         if (subject.commonName.isNullOrBlank()) {
             add(Violations.subjectMissingCommonName)
+        }
+
+        // serialNumber is mandatory for natural persons
+        if (subject.serialNumber.isNullOrBlank()) {
+            add(Violations.subjectMissingSerialNumber)
         }
     }
 
@@ -727,6 +731,11 @@ internal object Violations {
     val subjectMissingOrganizationIdentifier: CertificateConstraintViolation
         get() = CertificateConstraintViolation(
             reason = "Subject DN missing required organizationIdentifier attribute (per ETSI EN 319 412-3)",
+        )
+
+    val subjectMissingSerialNumber: CertificateConstraintViolation
+        get() = CertificateConstraintViolation(
+            reason = "Subject DN missing required serialNumber attribute (per ETSI EN 319 412-2)",
         )
 
     val issuerMissingCountryName: CertificateConstraintViolation

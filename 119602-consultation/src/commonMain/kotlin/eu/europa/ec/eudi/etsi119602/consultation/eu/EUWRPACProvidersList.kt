@@ -177,12 +177,14 @@ internal fun ProfileBuilder.requireSubjectNameForWRPAC() {
         CertificateOperationsAlgebra.GetPolicies,
         CertificateOperationsAlgebra.GetSubject,
     ) { (policies, subject) ->
-        evaluation {
-            val isNaturalPerson = policies.any { it in listOf(NCP_N_EUDIWRP, QCP_N_EUDIWRP) }
-            val isLegalPerson = policies.any { it in listOf(NCP_L_EUDIWRP, QCP_L_EUDIWRP) }
-            when {
-                isNaturalPerson -> evaluateSubjectNaturalPersonAttributes(subject)
-                isLegalPerson -> evaluateSubjectLegalPersonAttributes(subject)
+        val isNaturalPerson = policies.any { it in listOf(NCP_N_EUDIWRP, QCP_N_EUDIWRP) }
+        val isLegalPerson = policies.any { it in listOf(NCP_L_EUDIWRP, QCP_L_EUDIWRP) }
+        when {
+            isNaturalPerson -> evaluateSubjectNaturalPersonAttributes(subject)
+            isLegalPerson -> evaluateSubjectLegalPersonAttributes(subject)
+            else -> {
+                // Not a concern of this rule to enforce policy OIDs
+                CertificateConstraintEvaluation.Met
             }
         }
     }
