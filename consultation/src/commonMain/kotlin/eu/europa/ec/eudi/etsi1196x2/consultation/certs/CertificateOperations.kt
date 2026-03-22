@@ -20,7 +20,7 @@ import kotlin.time.Instant
 public interface CertificateOperations<CERT : Any> {
     public fun getBasicConstraints(certificate: CERT): BasicConstraintsInfo
     public fun getQcStatements(certificate: CERT): List<QCStatementInfo>
-    public fun getKeyUsage(certificate: CERT): Pair<KeyUsageBits, Boolean>?
+    public fun getKeyUsage(certificate: CERT): ExtensionInfo<KeyUsageBits>?
     public fun getValidityPeriod(certificate: CERT): ValidityPeriod
     public fun getCertificatePolicies(certificate: CERT): List<String>
     public fun isSelfSigned(certificate: CERT): Boolean
@@ -54,7 +54,7 @@ public sealed interface CertificateOperationsAlgebra<out T> {
      * Extract the key usage extension bits.
      * Returns null if the extension is not present.
      */
-    public data object GetKeyUsage : CertificateOperationsAlgebra<Pair<KeyUsageBits, Boolean>?>
+    public data object GetKeyUsage : CertificateOperationsAlgebra<ExtensionInfo<KeyUsageBits>?>
 
     /**
      * Extract the validity period (notBefore and notAfter dates).
@@ -581,7 +581,7 @@ public data class CrlDistributionPoint(
  *
  * @see [RFC 5280 Section 4.2 - Certificate Extensions](https://datatracker.ietf.org/doc/html/rfc5280#section-4.2)
  */
-public data class ExtensionInfo<T>(
+public data class ExtensionInfo<out T>(
     val value: T,
     val isCritical: Boolean,
 )

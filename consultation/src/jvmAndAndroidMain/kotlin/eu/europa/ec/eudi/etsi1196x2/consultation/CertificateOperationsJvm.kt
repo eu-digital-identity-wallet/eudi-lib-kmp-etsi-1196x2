@@ -77,7 +77,7 @@ public object CertificateOperationsJvm : CertificateOperations<X509Certificate> 
      *
      * @return [eu.europa.ec.eudi.etsi1196x2.consultation.certs.KeyUsageBits] or null if keyUsage extension is not present
      */
-    public override fun getKeyUsage(certificate: X509Certificate): Pair<KeyUsageBits, Boolean>? =
+    public override fun getKeyUsage(certificate: X509Certificate): ExtensionInfo<KeyUsageBits>? =
         certificate.keyUsage?.let { keyUsage ->
             val bits = KeyUsageBits(
                 digitalSignature = keyUsage.getOrElse(0) { false },
@@ -91,7 +91,7 @@ public object CertificateOperationsJvm : CertificateOperations<X509Certificate> 
                 decipherOnly = keyUsage.getOrElse(8) { false },
             )
             val critical = certificate.isCritical(Extension.keyUsage.id)
-            bits to critical
+            ExtensionInfo(bits, critical)
         }
 
     private fun X509Certificate.isCritical(p: String): Boolean {

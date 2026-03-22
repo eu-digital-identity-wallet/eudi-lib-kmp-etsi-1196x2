@@ -163,7 +163,7 @@ public class ProfileBuilder {
      * Defines a constraint on the key usage extension.
      */
     public fun keyUsage(
-        evaluate: (Pair<KeyUsageBits, Boolean>?) -> CertificateConstraintEvaluation,
+        evaluate: (ExtensionInfo<KeyUsageBits>?) -> CertificateConstraintEvaluation,
     ) {
         requirements += CertificateConstraint(CertificateOperationsAlgebra.GetKeyUsage, evaluate)
     }
