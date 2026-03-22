@@ -35,7 +35,7 @@ class EvaluateAuthorityInformationAccessConstraintTest {
         val (_, certHolder) = CertOps.genTrustAnchor("SHA256withECDSA", x500Name)
         val certificate = certHolder.toX509Certificate()
 
-        val profile = certificateProfile { requireAiaForCaIssued() }
+        val profile = certificateProfile { authorityInformationAccessIfCAIssued() }
         val evaluation = certificateProfileValidator.validate(profile, certificate)
         assertTrue(evaluation.isMet(), "Self-signed certificate should NOT require AIA")
     }
@@ -56,7 +56,7 @@ class EvaluateAuthorityInformationAccessConstraintTest {
         )
         val certificate = eeCertHolder.toX509Certificate()
 
-        val profile = certificateProfile { requireAiaForCaIssued() }
+        val profile = certificateProfile { authorityInformationAccessIfCAIssued() }
 
         val evaluation = certificateProfileValidator.validate(profile, certificate)
         assertTrue(!evaluation.isMet(), "CA-issued certificate should require AIA")

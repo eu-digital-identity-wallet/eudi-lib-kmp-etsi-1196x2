@@ -23,7 +23,7 @@ import kotlin.time.Instant
 
 public object CertificateConstraintsEvaluations {
 
-    public fun evaluateEndEntityCertificate(
+    public fun isEndEntity(
         constraints: BasicConstraintsInfo,
     ): CertificateConstraintEvaluation = CertificateConstraintEvaluation {
         if (constraints.isCa) {
@@ -31,7 +31,7 @@ public object CertificateConstraintsEvaluations {
         }
     }
 
-    public fun evaluateCaCertificate(
+    public fun isCA(
         constraints: BasicConstraintsInfo,
         maxPathLen: Int? = null,
     ): CertificateConstraintEvaluation = CertificateConstraintEvaluation {
@@ -50,7 +50,7 @@ public object CertificateConstraintsEvaluations {
         }
     }
 
-    public fun evaluateQcStatement(
+    public fun mandatoryQcStatement(
         statements: List<QCStatementInfo>,
         qcType: String,
         requireCompliance: Boolean = false,
@@ -70,7 +70,7 @@ public object CertificateConstraintsEvaluations {
         }
     }
 
-    public fun evaluateKeyUsage(
+    public fun mandatoryKeyUsage(
         keyUsageAndCritical: ExtensionInfo<KeyUsageBits>?,
         requiredKeyUsage: String,
     ): CertificateConstraintEvaluation = CertificateConstraintEvaluation {
@@ -100,7 +100,7 @@ public object CertificateConstraintsEvaluations {
         else -> error("Invalid key usage bit: $s")
     }
 
-    public fun evaluateValidAt(
+    public fun validAt(
         period: ValidityPeriod,
         time: Instant? = null,
     ): CertificateConstraintEvaluation = CertificateConstraintEvaluation {
@@ -124,7 +124,7 @@ public object CertificateConstraintsEvaluations {
         }
     }
 
-    public fun evaluatePolicy(
+    public fun policyOneOf(
         policiesInfo: ExtensionInfo<List<String>>?,
         oids: Set<String>,
     ): CertificateConstraintEvaluation = CertificateConstraintEvaluation {
@@ -144,7 +144,7 @@ public object CertificateConstraintsEvaluations {
         }
     }
 
-    public fun evaluatePolicyPresence(
+    public fun policyIsPresent(
         policiesInfo: ExtensionInfo<List<String>>?,
     ): CertificateConstraintEvaluation = CertificateConstraintEvaluation {
         if (policiesInfo == null || policiesInfo.value.isEmpty()) {
@@ -152,7 +152,7 @@ public object CertificateConstraintsEvaluations {
         }
     }
 
-    public fun evaluateAiaForCaIssued(
+    public fun aiaForCaIssued(
         aiaInfo: ExtensionInfo<AuthorityInformationAccess>?,
         isSelfSigned: Boolean,
     ): CertificateConstraintEvaluation = CertificateConstraintEvaluation {
@@ -167,14 +167,14 @@ public object CertificateConstraintsEvaluations {
         // Self-signed certificates: no AIA check needed (pass silently)
     }
 
-    public fun evaluateNoSelfSigned(isSelfSigned: Boolean): CertificateConstraintEvaluation =
+    public fun notSelfSigned(isSelfSigned: Boolean): CertificateConstraintEvaluation =
         CertificateConstraintEvaluation {
             if (isSelfSigned) {
                 add(selfSignedCertificateNotAllowed)
             }
         }
 
-    public fun evaluateVersion(
+    public fun isVersion(
         version: Version,
         expectedVersion: Int,
     ): CertificateConstraintEvaluation = CertificateConstraintEvaluation {
@@ -183,7 +183,7 @@ public object CertificateConstraintsEvaluations {
         }
     }
 
-    public fun evaluatePositiveSerialNumber(serialNumber: SerialNumber): CertificateConstraintEvaluation =
+    public fun positiveSerialNumber(serialNumber: SerialNumber): CertificateConstraintEvaluation =
         CertificateConstraintEvaluation {
             // Serial number is already validated to be positive in the SerialNumber constructor
             // This check is redundant but kept for explicit validation
@@ -196,7 +196,7 @@ public object CertificateConstraintsEvaluations {
             }
         }
 
-    public fun evaluateSubjectNaturalPersonAttributes(
+    public fun subjectNaturalPersonAttributes(
         subject: DistinguishedName?,
     ): CertificateConstraintEvaluation = CertificateConstraintEvaluation {
         if (subject == null) {
@@ -234,7 +234,7 @@ public object CertificateConstraintsEvaluations {
         }
     }
 
-    public fun evaluateSubjectLegalPersonAttributes(
+    public fun validSubjectLegalPersonAttributes(
         subject: DistinguishedName?,
     ): CertificateConstraintEvaluation = CertificateConstraintEvaluation {
         if (subject == null) {
@@ -269,7 +269,7 @@ public object CertificateConstraintsEvaluations {
         }
     }
 
-    public fun evaluateIssuerLegalPersonAttributes(
+    public fun validIssuerLegalPersonAttributes(
         issuer: DistinguishedName?,
     ): CertificateConstraintEvaluation = CertificateConstraintEvaluation {
         if (issuer == null) {
@@ -328,7 +328,7 @@ public object CertificateConstraintsEvaluations {
         return identityType in VALID_NAT_ID_TYPES
     }
 
-    public fun evaluateIssuerAttributes(
+    public fun validIssuerAttributes(
         issuer: DistinguishedName?,
         requireCountryName: Boolean = true,
         requireOrganizationName: Boolean = true,
@@ -352,7 +352,7 @@ public object CertificateConstraintsEvaluations {
         }
     }
 
-    public fun evaluateSubjectAltName(
+    public fun subjectAltName(
         sanInfo: ExtensionInfo<List<SubjectAlternativeName>>?,
     ): CertificateConstraintEvaluation = CertificateConstraintEvaluation {
         if (sanInfo == null || sanInfo.value.isEmpty()) {
@@ -360,7 +360,7 @@ public object CertificateConstraintsEvaluations {
         }
     }
 
-    public fun evaluateAuthorityKeyIdentifier(
+    public fun authorityKeyIdentifier(
         aki: AuthorityKeyIdentifier?,
     ): CertificateConstraintEvaluation = CertificateConstraintEvaluation {
         if (aki == null) {

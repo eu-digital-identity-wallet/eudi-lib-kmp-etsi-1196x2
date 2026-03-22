@@ -31,32 +31,32 @@ public fun wrpAccessCertificateProfile(
     at: Instant? = null,
 ): CertificateProfile = certificateProfile {
     // Basic certificate requirements
-    requireEndEntityCertificate()
-    requireDigitalSignatureCritical()
-    requireValidAt(at)
-    requirePolicy(NCP_N_EUDIWRP, NCP_L_EUDIWRP, QCP_N_EUDIWRP, QCP_L_EUDIWRP)
-    requireNoSelfSigned()
+    endEntity()
+    keyUsageDigitalSignature()
+    validAt(at)
+    policyOneOf(NCP_N_EUDIWRP, NCP_L_EUDIWRP, QCP_N_EUDIWRP, QCP_L_EUDIWRP)
+    notSelfSigned()
 
     // X.509 v3 required (for extensions)
-    requireV3()
+    version3()
 
     // Serial number must be positive (RFC 5280)
-    requirePositiveSerialNumber()
+    positiveSerialNumber()
 
     // AIA required for CA-issued certificates
-    requireAiaForCaIssued()
+    authorityInformationAccessIfCAIssued()
 
     // Authority Key Identifier required (EN 319 412-2)
-    requireAuthorityKeyIdentifier()
+    authorityKeyIdentifier()
 
     // Subject Alternative Name with contact info required (TS 119 411-8)
-    requireSubjectAltNameForWRPAC()
+    subjectAltNameForWRPAC()
 
     // CRL Distribution Points required if no OCSP (EN 319 412-2)
-    requireCrlDistributionPointsIfNoOcspAndNotValAssured()
+    crlDistributionPointsIfNoOcspAndNotValAssured()
 
     // Public key requirements (TS 119 312)
-    requirePublicKey(
+    publicKey(
         options = PublicKeyAlgorithmOptions.of(
             PublicKeyAlgorithmOptions.AlgorithmRequirement.RSA_2048,
             PublicKeyAlgorithmOptions.AlgorithmRequirement.EC_256,
@@ -75,18 +75,18 @@ public fun wrpAccessCertificateProfile(
     }
 
     // Subject DN attributes required based on certificate policy (natural person vs legal person)
-    requireSubjectNameForWRPAC()
+    subjectNameForWRPAC()
 
     // Issuer DN attributes required (WRPAC Provider CA is always a legal person)
-    requireIssuerLegalPersonAttributes()
+    issuerLegalPersonAttributes()
 }
 
-internal fun ProfileBuilder.requireSubjectAltNameForWRPAC() =
+internal fun ProfileBuilder.subjectAltNameForWRPAC() =
     subjectAltNames { subjectAltNames ->
         validateSubjectAltNameForWRPAC(subjectAltNames)
     }
 
-internal fun ProfileBuilder.requireSubjectNameForWRPAC() =
+internal fun ProfileBuilder.subjectNameForWRPAC() =
     combine(
         CertificateOperationsAlgebra.GetPolicies,
         CertificateOperationsAlgebra.GetSubject,
@@ -147,9 +147,9 @@ internal fun validateSubjectNameForWRPAC(
     val isLegalPerson = policies.value.any { it in listOf(NCP_L_EUDIWRP, QCP_L_EUDIWRP) }
     return when {
         isNaturalPerson && !isLegalPerson ->
-            CertificateConstraintsEvaluations.evaluateSubjectNaturalPersonAttributes(subject)
+            CertificateConstraintsEvaluations.subjectNaturalPersonAttributes(subject)
         isLegalPerson && !isNaturalPerson ->
-            CertificateConstraintsEvaluations.evaluateSubjectLegalPersonAttributes(subject)
+            CertificateConstraintsEvaluations.validSubjectLegalPersonAttributes(subject)
         else -> {
             // Not a concern of this rule to enforce policy OIDs
             CertificateConstraintEvaluation.Met

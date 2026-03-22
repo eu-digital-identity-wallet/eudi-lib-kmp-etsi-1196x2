@@ -21,8 +21,8 @@ import kotlin.time.Instant
 // Basic Constraints
 //
 
-public fun ProfileBuilder.requireEndEntityCertificate() {
-    basicConstraints { constraints -> CertificateConstraintsEvaluations.evaluateEndEntityCertificate(constraints) }
+public fun ProfileBuilder.endEntity() {
+    basicConstraints { constraints -> CertificateConstraintsEvaluations.isEndEntity(constraints) }
 }
 
 /**
@@ -30,45 +30,45 @@ public fun ProfileBuilder.requireEndEntityCertificate() {
  *
  * @param maxPathLen the maximum allowed pathLenConstraint (null means no limit)
  */
-public fun ProfileBuilder.requireCaCertificate(maxPathLen: Int? = null) {
-    basicConstraints { constraints -> CertificateConstraintsEvaluations.evaluateCaCertificate(constraints, maxPathLen) }
+public fun ProfileBuilder.ca(maxPathLen: Int? = null) {
+    basicConstraints { constraints -> CertificateConstraintsEvaluations.isCA(constraints, maxPathLen) }
 }
 
 //
 // QCStatements
 //
 
-public fun ProfileBuilder.requireQcStatement(
+public fun ProfileBuilder.mandatoryQcStatement(
     qcType: String,
     requireCompliance: Boolean = false,
 ) {
-    qcStatements(qcType) { statements -> CertificateConstraintsEvaluations.evaluateQcStatement(statements, qcType, requireCompliance) }
+    qcStatements(qcType) { statements -> CertificateConstraintsEvaluations.mandatoryQcStatement(statements, qcType, requireCompliance) }
 }
 
 //
 // Key Usage
 //
 
-public fun ProfileBuilder.requireDigitalSignatureCritical() {
-    requireKeyUsage("digitalSignature")
+public fun ProfileBuilder.keyUsageDigitalSignature() {
+    mandatoryKeyUsage("digitalSignature")
 }
 
-public fun ProfileBuilder.requireKeyCertSignCritical() {
-    requireKeyUsage("keyCertSign")
+public fun ProfileBuilder.keyUsageCertSign() {
+    mandatoryKeyUsage("keyCertSign")
 }
 
-public fun ProfileBuilder.requireKeyUsage(
+public fun ProfileBuilder.mandatoryKeyUsage(
     requiredKeyUsage: String,
 ) {
-    keyUsage { keyUsageAndCritical -> CertificateConstraintsEvaluations.evaluateKeyUsage(keyUsageAndCritical, requiredKeyUsage) }
+    keyUsage { keyUsageAndCritical -> CertificateConstraintsEvaluations.mandatoryKeyUsage(keyUsageAndCritical, requiredKeyUsage) }
 }
 
 //
 // Validity Period
 //
 
-public fun ProfileBuilder.requireValidAt(time: Instant? = null) {
-    validity { period -> CertificateConstraintsEvaluations.evaluateValidAt(period, time) }
+public fun ProfileBuilder.validAt(time: Instant? = null) {
+    validity { period -> CertificateConstraintsEvaluations.validAt(period, time) }
 }
 
 //
@@ -78,30 +78,30 @@ public fun ProfileBuilder.requireValidAt(time: Instant? = null) {
 /**
  * Requires the certificate to contain at least one of the specified policy OIDs.
  */
-public fun ProfileBuilder.requirePolicy(vararg oids: String) {
-    requirePolicy(oids.toSet())
+public fun ProfileBuilder.policyOneOf(vararg oids: String) {
+    policyOneOf(oids.toSet())
 }
 
-public fun ProfileBuilder.requirePolicy(oids: Set<String>) {
-    policies { policiesInfo -> CertificateConstraintsEvaluations.evaluatePolicy(policiesInfo, oids) }
+public fun ProfileBuilder.policyOneOf(oids: Set<String>) {
+    policies { policiesInfo -> CertificateConstraintsEvaluations.policyOneOf(policiesInfo, oids) }
 }
 
 /**
  * Requires the certificate to contain the certificatePolicies extension (at least one policy).
  */
-public fun ProfileBuilder.requirePolicyPresence() {
-    policies { policiesInfo -> CertificateConstraintsEvaluations.evaluatePolicyPresence(policiesInfo) }
+public fun ProfileBuilder.policyIsPresent() {
+    policies { policiesInfo -> CertificateConstraintsEvaluations.policyIsPresent(policiesInfo) }
 }
 
 //
 // Authority Information Access (AIA)
 //
 
-public fun ProfileBuilder.requireAiaForCaIssued() {
+public fun ProfileBuilder.authorityInformationAccessIfCAIssued() {
     combine(
         CertificateOperationsAlgebra.GetAia,
         CertificateOperationsAlgebra.CheckSelfSigned,
-    ) { (aiaInfo, isSelfSigned) -> CertificateConstraintsEvaluations.evaluateAiaForCaIssued(aiaInfo, isSelfSigned) }
+    ) { (aiaInfo, isSelfSigned) -> CertificateConstraintsEvaluations.aiaForCaIssued(aiaInfo, isSelfSigned) }
 }
 
 /**
@@ -110,43 +110,43 @@ public fun ProfileBuilder.requireAiaForCaIssued() {
  * This is useful for certificates that must be issued by a trusted CA
  * (e.g., WRPAC certificates issued by authorized WRPAC Providers).
  */
-public fun ProfileBuilder.requireNoSelfSigned() {
-    selfSigned { isSelfSigned -> CertificateConstraintsEvaluations.evaluateNoSelfSigned(isSelfSigned) }
+public fun ProfileBuilder.notSelfSigned() {
+    selfSigned { isSelfSigned -> CertificateConstraintsEvaluations.notSelfSigned(isSelfSigned) }
 }
 
 //
 // Version Constraints
 //
 
-public fun ProfileBuilder.requireVersion(expectedVersion: Int) {
-    version { version -> CertificateConstraintsEvaluations.evaluateVersion(version, expectedVersion) }
+public fun ProfileBuilder.isVersion(expectedVersion: Int) {
+    version { version -> CertificateConstraintsEvaluations.isVersion(version, expectedVersion) }
 }
 
 /**
  * Requires the certificate to be X.509 version 3 (required for extensions).
  */
-public fun ProfileBuilder.requireV3() {
-    requireVersion(2)
+public fun ProfileBuilder.version3() {
+    isVersion(2)
 }
 
 //
 // Serial Number Constraints
 //
 
-public fun ProfileBuilder.requirePositiveSerialNumber() {
-    serialNumber { serialNumber -> CertificateConstraintsEvaluations.evaluatePositiveSerialNumber(serialNumber) }
+public fun ProfileBuilder.positiveSerialNumber() {
+    serialNumber { serialNumber -> CertificateConstraintsEvaluations.positiveSerialNumber(serialNumber) }
 }
 
 //
 // Subject/Issuer DN Constraints
 //
 
-public fun ProfileBuilder.requireSubjectNaturalPersonAttributes() {
-    subject { subject -> CertificateConstraintsEvaluations.evaluateSubjectNaturalPersonAttributes(subject) }
+public fun ProfileBuilder.subjectNaturalPersonAttributes() {
+    subject { subject -> CertificateConstraintsEvaluations.subjectNaturalPersonAttributes(subject) }
 }
 
-public fun ProfileBuilder.requireSubjectLegalPersonAttributes() {
-    subject { subject -> CertificateConstraintsEvaluations.evaluateSubjectLegalPersonAttributes(subject) }
+public fun ProfileBuilder.validSubjectLegalPersonAttributes() {
+    subject { subject -> CertificateConstraintsEvaluations.validSubjectLegalPersonAttributes(subject) }
 }
 
 /**
@@ -162,8 +162,8 @@ public fun ProfileBuilder.requireSubjectLegalPersonAttributes() {
  * This is used for WRPAC Provider CA certificates, which are always
  * operated by legal persons under eIDAS regulation.
  */
-public fun ProfileBuilder.requireIssuerLegalPersonAttributes() {
-    issuer { issuer -> CertificateConstraintsEvaluations.evaluateIssuerLegalPersonAttributes(issuer) }
+public fun ProfileBuilder.issuerLegalPersonAttributes() {
+    issuer { issuer -> CertificateConstraintsEvaluations.validIssuerLegalPersonAttributes(issuer) }
 }
 
 /**
@@ -173,13 +173,13 @@ public fun ProfileBuilder.requireIssuerLegalPersonAttributes() {
  * @param requireOrganizationName whether organizationName is required (default: true)
  * @param requireCommonName whether commonName is required (default: true)
  */
-public fun ProfileBuilder.requireIssuerAttributes(
+public fun ProfileBuilder.validIssuerAttributes(
     requireCountryName: Boolean = true,
     requireOrganizationName: Boolean = true,
     requireCommonName: Boolean = true,
 ) {
     issuer { issuer ->
-        CertificateConstraintsEvaluations.evaluateIssuerAttributes(
+        CertificateConstraintsEvaluations.validIssuerAttributes(
             issuer,
             requireCountryName,
             requireOrganizationName,
@@ -192,19 +192,19 @@ public fun ProfileBuilder.requireIssuerAttributes(
 // Subject Alternative Name Constraints
 //
 
-public fun ProfileBuilder.requireSubjectAltName() {
-    subjectAltNames { sanInfo -> CertificateConstraintsEvaluations.evaluateSubjectAltName(sanInfo) }
+public fun ProfileBuilder.subjectAltName() {
+    subjectAltNames { sanInfo -> CertificateConstraintsEvaluations.subjectAltName(sanInfo) }
 }
 
 //
 // Authority Key Identifier Constraints
 //
 
-public fun ProfileBuilder.requireAuthorityKeyIdentifier() {
-    authorityKeyIdentifier { aki -> CertificateConstraintsEvaluations.evaluateAuthorityKeyIdentifier(aki) }
+public fun ProfileBuilder.authorityKeyIdentifier() {
+    authorityKeyIdentifier { aki -> CertificateConstraintsEvaluations.authorityKeyIdentifier(aki) }
 }
 
-public fun ProfileBuilder.requireCrlDistributionPointsIfNoOcspAndNotValAssured() {
+public fun ProfileBuilder.crlDistributionPointsIfNoOcspAndNotValAssured() {
     combine(
         CertificateOperationsAlgebra.GetCrlDistributionPoints,
         CertificateOperationsAlgebra.GetAia,
@@ -240,6 +240,6 @@ public fun ProfileBuilder.requireQcStatementsForPolicy(rules: (String) -> List<S
 // Public Key Constraints
 //
 
-public fun ProfileBuilder.requirePublicKey(options: PublicKeyAlgorithmOptions) {
+public fun ProfileBuilder.publicKey(options: PublicKeyAlgorithmOptions) {
     subjectPublicKeyInfo { pkInfo -> CertificateConstraintsEvaluations.evaluatePublicKey(pkInfo, options) }
 }

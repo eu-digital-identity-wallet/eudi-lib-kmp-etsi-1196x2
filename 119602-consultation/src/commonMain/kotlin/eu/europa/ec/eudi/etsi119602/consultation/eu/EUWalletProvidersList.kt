@@ -87,12 +87,12 @@ public val EUWalletProvidersList: EUListOfTrustedEntitiesProfile =
  */
 public fun walletProviderSigningCertificateProfile(at: Instant? = null): CertificateProfile =
     certificateProfile {
-        requireEndEntityCertificate()
-        requireQcStatement(qcType = ETSI119412Part6.ID_ETSI_QCT_WAL, requireCompliance = true)
-        requireDigitalSignatureCritical()
-        requireValidAt(at)
-        requirePolicyPresence()
-        requireAiaForCaIssued()
+        endEntity()
+        mandatoryQcStatement(qcType = ETSI119412Part6.ID_ETSI_QCT_WAL, requireCompliance = true)
+        keyUsageDigitalSignature()
+        validAt(at)
+        policyIsPresent()
+        authorityInformationAccessIfCAIssued()
     }
 
 /**
@@ -119,7 +119,7 @@ public fun walletProviderSigningCertificateProfile(at: Instant? = null): Certifi
  */
 public fun walletProviderCACertificateProfile(at: Instant? = null, maxPathLen: Int? = null): CertificateProfile =
     certificateProfile {
-        requireCaCertificate(maxPathLen)
-        requireKeyCertSignCritical()
-        requireValidAt(at)
+        ca(maxPathLen)
+        keyUsageCertSign()
+        validAt(at)
     }

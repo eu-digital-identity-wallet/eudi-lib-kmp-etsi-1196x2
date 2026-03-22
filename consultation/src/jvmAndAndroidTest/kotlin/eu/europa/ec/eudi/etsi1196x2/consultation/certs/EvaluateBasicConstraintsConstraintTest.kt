@@ -36,7 +36,7 @@ class EvaluateBasicConstraintsConstraintTest {
         val certificate = certHolder.toX509Certificate()
 
         // Create constraint for end-entity
-        val profile = certificateProfile { requireEndEntityCertificate() }
+        val profile = certificateProfile { endEntity() }
 
         // Validate
         val constraintEvaluation = certificateProfileValidator.validate(profile, certificate)
@@ -53,7 +53,7 @@ class EvaluateBasicConstraintsConstraintTest {
         val certificate = certHolder.toX509Certificate()
 
         // Create constraint for CA with maxPathLen = 2
-        val profile = certificateProfile { requireCaCertificate(2) }
+        val profile = certificateProfile { ca(2) }
 
         // Validate - should fail because CA certificate has no pathLenConstraint
         val constraintEvaluation = certificateProfileValidator.validate(profile, certificate)
