@@ -19,6 +19,8 @@ import eu.europa.ec.eudi.etsi1196x2.consultation.certs.ETSI319412Part1.ORG_ID_PA
 import eu.europa.ec.eudi.etsi1196x2.consultation.certs.ETSI319412Part1.VALID_NAT_ID_TYPES
 import eu.europa.ec.eudi.etsi1196x2.consultation.certs.ETSI319412Part1.VALID_ORG_ID_TYPES
 import kotlin.time.Clock
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.days
 import kotlin.time.Instant
 
 public object CertificateConstraintsEvaluations {
@@ -228,7 +230,7 @@ public object CertificateConstraintsEvaluations {
             add(subjectMissingSerialNumber)
         } else {
             // natural person identity type reference validation (EN 319 412-1 clause 5.1.3)
-            if (!isValidNatId(serialNumber)) {
+            if (!isValidNaturalPersonId(serialNumber)) {
                 add(subjectSerialNumberInvalidFormat)
             }
         }
@@ -322,7 +324,7 @@ public object CertificateConstraintsEvaluations {
      * @param serialNumber the serial number to validate
      * @return true if valid, false otherwise
      */
-    public fun isValidNatId(serialNumber: String): Boolean {
+    public fun isValidNaturalPersonId(serialNumber: String): Boolean {
         val matchResult = ORG_ID_PATTERN.matchEntire(serialNumber) ?: return false
         val identityType = matchResult.groupValues[1]
         return identityType in VALID_NAT_ID_TYPES
@@ -426,6 +428,39 @@ public object CertificateConstraintsEvaluations {
             add(publicKeyNotCompliant(pkInfo, options))
         }
     }
+
+    public fun evaluateValidityAssuredShortTerm(
+        maxShortTermDuration: Duration = 7.days,
+        validity: ValidityPeriod,
+        qcStatements: List<QCStatementInfo>,
+        hasNoRevAvail: Boolean,
+    ): CertificateConstraintEvaluation = CertificateConstraintEvaluation {
+        val isValAssured = qcStatements.any {
+            it.qcType == ETSI319412Part1.EXT_ETSI_VAL_ASSURED_ST_CERTS
+        }
+        if (!isValAssured) return@CertificateConstraintEvaluation
+
+        // Check validity period (must be <= 7 days)
+        val duration = validity.notAfter - validity.notBefore
+        if (duration > maxShortTermDuration) {
+            add(invalidValidityPeriodForValidityAssured(duration))
+        }
+
+        // Check noRevocationAvail (must be present)
+        if (!hasNoRevAvail) {
+            add(missingNoRevocationAvailForValidityAssured)
+        }
+    }
+
+    public fun invalidValidityPeriodForValidityAssured(duration: kotlin.time.Duration): CertificateConstraintViolation =
+        CertificateConstraintViolation(
+            "Validity-assured certificate must be short-term (<= 7 days). Actual: $duration",
+        )
+
+    public val missingNoRevocationAvailForValidityAssured: CertificateConstraintViolation
+        get() = CertificateConstraintViolation(
+            "Validity-assured certificate must include noRevocationAvail extension (RFC 9608)",
+        )
 
     public fun certificateTypeMismatch(expected: String, actual: String): CertificateConstraintViolation =
         CertificateConstraintViolation(

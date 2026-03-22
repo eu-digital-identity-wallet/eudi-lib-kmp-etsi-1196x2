@@ -18,18 +18,15 @@ package eu.europa.ec.eudi.etsi119602.consultation.eu
 import eu.europa.ec.eudi.etsi119602.consultation.CertOps
 import eu.europa.ec.eudi.etsi119602.consultation.CertOps.toX509Certificate
 import eu.europa.ec.eudi.etsi119602.consultation.ETSI119411Part8
-import eu.europa.ec.eudi.etsi1196x2.consultation.certs.CertificateConstraintEvaluation
-import eu.europa.ec.eudi.etsi1196x2.consultation.certs.ETSI319412
-import eu.europa.ec.eudi.etsi1196x2.consultation.certs.isMet
+import eu.europa.ec.eudi.etsi1196x2.consultation.certs.*
 import kotlinx.coroutines.test.runTest
+import org.bouncycastle.asn1.DERNull
 import org.bouncycastle.asn1.x500.X500Name
 import org.bouncycastle.asn1.x500.X500NameBuilder
 import org.bouncycastle.asn1.x500.style.BCStyle
 import java.security.cert.X509Certificate
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertFalse
-import kotlin.test.assertTrue
+import java.util.*
+import kotlin.test.*
 
 class EUWRPAccessCertificateTest {
 
@@ -319,5 +316,80 @@ class EUWRPAccessCertificateTest {
 
         assertFalse(evaluation.isMet())
         evaluation.assertSingleViolation { it.contains("serialNumber", ignoreCase = true) }
+    }
+
+    @Test
+    fun `WRPAC should reject validity-assured certificate with long validity period`() = runTest {
+        val (caKeyPair, caCert) = wrpacProvider()
+        val notBefore = Date()
+        val notAfter = Date(notBefore.time + 8 * 24 * 60 * 60 * 1000L) // 8 days (> 7 days)
+
+        val (_, certHolder) = CertOps.genCAIssuedEndEntityCertificate(
+            signerCert = caCert,
+            signerKey = caKeyPair.private,
+            sigAlg = "SHA256withECDSA",
+            subject = legalPersonSubject,
+            policyOids = listOf(ETSI119411Part8.NCP_L_EUDIWRP),
+            qcStatements = listOf(ETSI319412Part1.EXT_ETSI_VAL_ASSURED_ST_CERTS to true),
+            notAfter = notAfter,
+            customExtensions = listOf(
+                Triple(ETSI319412Part1.EXT_NO_REVOCATION_AVAIL, false, DERNull.INSTANCE),
+            ),
+        )
+
+        val certificate = certHolder.toX509Certificate()
+        val evaluation = evaluateEndEntityCertificateConstraints(certificate)
+
+        assertFalse(evaluation.isMet(), "Should be rejected because validity period is > 7 days")
+        assertTrue(evaluation.violations.any { it.reason.contains("short-term", ignoreCase = true) })
+    }
+
+    @Test
+    fun `WRPAC should reject validity-assured certificate missing noRevocationAvail extension`() = runTest {
+        val (caKeyPair, caCert) = wrpacProvider()
+        val notBefore = Date()
+        val notAfter = Date(notBefore.time + 6 * 24 * 60 * 60 * 1000L) // 6 days (<= 7 days)
+
+        val (_, certHolder) = CertOps.genCAIssuedEndEntityCertificate(
+            signerCert = caCert,
+            signerKey = caKeyPair.private,
+            sigAlg = "SHA256withECDSA",
+            subject = legalPersonSubject,
+            policyOids = listOf(ETSI119411Part8.NCP_L_EUDIWRP),
+            qcStatements = listOf(ETSI319412Part1.EXT_ETSI_VAL_ASSURED_ST_CERTS to true),
+            notAfter = notAfter,
+            customExtensions = emptyList(), // missing noRevocationAvail
+        )
+
+        val certificate = certHolder.toX509Certificate()
+        val evaluation = evaluateEndEntityCertificateConstraints(certificate)
+
+        assertFalse(evaluation.isMet(), "Should be rejected because noRevocationAvail is missing")
+        assertTrue(evaluation.violations.any { it.reason.contains("noRevocationAvail", ignoreCase = true) })
+    }
+
+    @Test
+    fun `WRPAC should accept valid short-term validity-assured certificate`() = runTest {
+        val (caKeyPair, caCert) = wrpacProvider()
+        val notBefore = Date()
+        val notAfter = Date(notBefore.time + 6 * 24 * 60 * 60 * 1000L) // 6 days (<= 7 days)
+
+        val (_, certHolder) = CertOps.genCAIssuedEndEntityCertificate(
+            signerCert = caCert,
+            signerKey = caKeyPair.private,
+            sigAlg = "SHA256withECDSA",
+            subject = legalPersonSubject,
+            policyOids = listOf(ETSI119411Part8.NCP_L_EUDIWRP),
+            qcStatements = listOf(ETSI319412Part1.EXT_ETSI_VAL_ASSURED_ST_CERTS to true),
+            notAfter = notAfter,
+            customExtensions = listOf(
+                Triple(ETSI319412Part1.EXT_NO_REVOCATION_AVAIL, false, DERNull.INSTANCE),
+            ),
+        )
+
+        val certificate = certHolder.toX509Certificate()
+        val evaluation = evaluateEndEntityCertificateConstraints(certificate)
+
+        assertTrue(evaluation.isMet(), "Should be accepted: valid short-term cert with noRevocationAvail")
     }
 }

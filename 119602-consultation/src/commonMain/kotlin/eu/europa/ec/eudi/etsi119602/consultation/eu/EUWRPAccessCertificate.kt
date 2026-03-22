@@ -20,6 +20,8 @@ import eu.europa.ec.eudi.etsi119602.consultation.ETSI119411Part8.NCP_N_EUDIWRP
 import eu.europa.ec.eudi.etsi119602.consultation.ETSI119411Part8.QCP_L_EUDIWRP
 import eu.europa.ec.eudi.etsi119602.consultation.ETSI119411Part8.QCP_N_EUDIWRP
 import eu.europa.ec.eudi.etsi1196x2.consultation.certs.*
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.days
 import kotlin.time.Instant
 
 /**
@@ -29,6 +31,7 @@ import kotlin.time.Instant
  */
 public fun wrpAccessCertificateProfile(
     at: Instant? = null,
+    maxShortTermDuration: Duration = 7.days,
 ): CertificateProfile = certificateProfile {
     // Basic certificate requirements
     endEntity()
@@ -48,6 +51,9 @@ public fun wrpAccessCertificateProfile(
 
     // Authority Key Identifier required (EN 319 412-2)
     authorityKeyIdentifier()
+
+    // Validity-assured short-term certificate requirements
+    validityAssuredShortTerm(maxShortTermDuration)
 
     // Subject Alternative Name with contact info required (TS 119 411-8)
     subjectAltNameForWRPAC()

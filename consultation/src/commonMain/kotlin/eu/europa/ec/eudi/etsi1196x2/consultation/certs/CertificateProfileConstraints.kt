@@ -15,6 +15,8 @@
  */
 package eu.europa.ec.eudi.etsi1196x2.consultation.certs
 
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.days
 import kotlin.time.Instant
 
 //
@@ -242,4 +244,28 @@ public fun ProfileBuilder.requireQcStatementsForPolicy(rules: (String) -> List<S
 
 public fun ProfileBuilder.publicKey(options: PublicKeyAlgorithmOptions) {
     subjectPublicKeyInfo { pkInfo -> CertificateConstraintsEvaluations.evaluatePublicKey(pkInfo, options) }
+}
+
+/**
+ * Requires the certificate to follow short-term certificate requirements
+ * if it contains the validity-assured extension.
+ *
+ * Requirements (ETSI EN 319 412-1 and RFC 9608):
+ * - Validity period must be <= 7 days.
+ * - Must contain noRevocationAvail extension (OID 2.5.29.56).
+ */
+public fun ProfileBuilder.validityAssuredShortTerm(maxShortTermDuration: Duration = 7.days) {
+    combine(
+        CertificateOperationsAlgebra.GetValidity,
+        CertificateOperationsAlgebra.GetAllQcStatements,
+        CertificateOperationsAlgebra.HasExtension(ETSI319412Part1.EXT_NO_REVOCATION_AVAIL),
+        ::Triple,
+    ) { (validity, qcStatements, hasNoRevAvail) ->
+        CertificateConstraintsEvaluations.evaluateValidityAssuredShortTerm(
+            maxShortTermDuration,
+            validity,
+            qcStatements,
+            hasNoRevAvail,
+        )
+    }
 }

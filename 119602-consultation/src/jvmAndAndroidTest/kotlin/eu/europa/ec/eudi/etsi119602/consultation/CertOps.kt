@@ -129,6 +129,8 @@ object CertOps {
         subjectAltNameUri: String? = "https://wallet-relying-party.example.com",
         subjectKeyPairAlg: String = "EC",
         subjectKeySize: Int? = null,
+        notAfter: Date? = null,
+        customExtensions: List<Triple<String, Boolean, ASN1Encodable>> = emptyList(),
     ): Pair<KeyPair, X509CertificateHolder> {
         val eeKp = Ctx.generateKeyPair(subjectKeyPairAlg, subjectKeySize)
         val eeCertHolder = createEndEntity(
@@ -144,6 +146,8 @@ object CertOps {
             ocspUri,
             crlDistributionPointUri,
             subjectAltNameUri,
+            notAfter,
+            customExtensions,
         )
         return eeKp to eeCertHolder
     }
@@ -221,12 +225,14 @@ object CertOps {
         ocspUri: String? = null,
         crlDistributionPointUri: String? = null,
         subjectAltNameUri: String? = null,
+        notAfter: Date? = null,
+        customExtensions: List<Triple<String, Boolean, ASN1Encodable>> = emptyList(),
     ): X509CertificateHolder =
         JcaX509v3CertificateBuilder(
             signerCert.subject,
             calculateSerialNumber(),
             Date.from(notBefore().toJavaInstant()),
-            calculateDate(24 * 31),
+            notAfter ?: calculateDate(24 * 31),
             subject,
             certKey,
         ).apply {
@@ -253,6 +259,9 @@ object CertOps {
             }
             if (subjectAltNameUri != null) {
                 subjectAlternativeName(subjectAltNameUri)
+            }
+            customExtensions.forEach { (oid, critical, value) ->
+                addExtension(ASN1ObjectIdentifier(oid), critical, value)
             }
         }.build(sigAlg, signerKey)
 

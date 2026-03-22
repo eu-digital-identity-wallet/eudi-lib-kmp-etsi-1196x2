@@ -33,6 +33,7 @@ public interface CertificateOperations<CERT : Any> {
     public fun getSerialNumber(certificate: CERT): SerialNumber
     public fun getVersion(certificate: CERT): Version
     public fun getSubjectPublicKeyInfo(certificate: CERT): PublicKeyInfo
+    public fun hasExtension(certificate: CERT, oid: String): Boolean
 }
 
 /**
@@ -132,6 +133,11 @@ public sealed interface CertificateOperationsAlgebra<out T> {
      * Unlike [GetQcStatements], this returns all QC statements regardless of type.
      */
     public data object GetAllQcStatements : CertificateOperationsAlgebra<List<QCStatementInfo>>
+
+    /**
+     * Check if the certificate contains a specific extension.
+     */
+    public data class HasExtension(val oid: String) : CertificateOperationsAlgebra<Boolean>
 
     public data class GetCombined<A, B, out C>(
         val first: CertificateOperationsAlgebra<A>,

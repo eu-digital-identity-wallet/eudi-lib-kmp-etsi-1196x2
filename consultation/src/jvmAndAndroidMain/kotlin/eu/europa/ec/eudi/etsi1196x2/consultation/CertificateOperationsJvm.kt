@@ -470,6 +470,9 @@ public object CertificateOperationsJvm : CertificateOperations<X509Certificate> 
         logger.warn("Failed to parse SubjectPublicKeyInfo: ${e.message}", e)
         PublicKeyInfo(certificate.publicKey.algorithm, null, null)
     }
+
+    public override fun hasExtension(certificate: X509Certificate, oid: String): Boolean =
+        certificate.getExtensionValue(oid) != null
 }
 
 internal fun X500Principal.asDistinguishedName(): DistinguishedName {

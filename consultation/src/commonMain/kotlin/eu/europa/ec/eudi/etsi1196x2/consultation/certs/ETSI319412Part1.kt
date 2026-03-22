@@ -60,6 +60,12 @@ public object ETSI319412Part1 {
      */
     public const val EXT_ETSI_VAL_ASSURED_ST_CERTS: String = "0.4.0.194121.2.1"
 
+    /**
+     * id-ce-noRevAvail - No revocation information available.
+     * Per RFC 9608.
+     */
+    public const val EXT_NO_REVOCATION_AVAIL: String = "2.5.29.56"
+
     /** Base OID for ETSI Qualified Certificate Policy identifiers */
     public const val OID_ETSI_QCP_BASE: String = "0.4.0.194121.1"
 
