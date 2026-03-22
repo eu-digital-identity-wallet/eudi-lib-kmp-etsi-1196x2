@@ -452,7 +452,7 @@ public object CertificateConstraintsEvaluations {
         }
     }
 
-    public fun invalidValidityPeriodForValidityAssured(duration: kotlin.time.Duration): CertificateConstraintViolation =
+    public fun invalidValidityPeriodForValidityAssured(duration: Duration): CertificateConstraintViolation =
         CertificateConstraintViolation(
             "Validity-assured certificate must be short-term (<= 7 days). Actual: $duration",
         )
