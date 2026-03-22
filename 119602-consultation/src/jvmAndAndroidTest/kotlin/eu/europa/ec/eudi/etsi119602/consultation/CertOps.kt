@@ -16,6 +16,7 @@
 package eu.europa.ec.eudi.etsi119602.consultation
 
 import eu.europa.ec.eudi.etsi1196x2.consultation.JvmSecurity
+import eu.europa.ec.eudi.etsi1196x2.consultation.certs.RFC3739
 import org.bouncycastle.asn1.*
 import org.bouncycastle.asn1.x500.X500Name
 import org.bouncycastle.asn1.x509.*
@@ -107,13 +108,12 @@ object CertOps {
                     )
                 }
                 val qcStatementsSeq = DERSequence(qcStatementSequences.toTypedArray())
-                addExtension(ASN1ObjectIdentifier("1.3.6.1.5.5.7.1.3"), false, qcStatementsSeq)
+                addExtension(ASN1ObjectIdentifier(RFC3739.ID_PE_QCSTATEMENTS), false, qcStatementsSeq)
             }
         }.build(sigAlg, keyPair.private)
     }
 
     // TODO
-    //  - magic numbers
     //  - defaults (should be removed)
     fun genCAIssuedEndEntityCertificate(
         signerCert: X509CertificateHolder,
@@ -122,11 +122,11 @@ object CertOps {
         subject: X500Name,
         keyUsage: KeyUsage = KeyUsage(KeyUsage.digitalSignature),
         qcStatements: List<Pair<String, Boolean>>? = null,
-        policyOids: List<String>? = listOf("0.4.0.194118.1.1"), // Default: NCP-n-eudiwrp
-        caIssuersUri: String? = "http://ca.example.com/ca.crt",
-        ocspUri: String? = "http://ocsp.example.com/",
+        policyOids: List<String>? = null,
+        caIssuersUri: String? = null,
+        ocspUri: String? = null,
         crlDistributionPointUri: String? = null,
-        subjectAltNameUri: String? = "https://wallet-relying-party.example.com",
+        subjectAltNameUri: String? = null,
         subjectKeyPairAlg: String = "EC",
         subjectKeySize: Int? = null,
         notAfter: Date? = null,
@@ -204,7 +204,7 @@ object CertOps {
                     )
                 }
                 val qcStatementsSeq = DERSequence(qcStatementSequences.toTypedArray())
-                addExtension(ASN1ObjectIdentifier("1.3.6.1.5.5.7.1.3"), false, qcStatementsSeq)
+                addExtension(ASN1ObjectIdentifier(RFC3739.ID_PE_QCSTATEMENTS), false, qcStatementsSeq)
             }
             if (policyOids != null) {
                 certificatePolicies(policyOids)
@@ -250,7 +250,7 @@ object CertOps {
                     )
                 }
                 val qcStatementsSeq = DERSequence(qcStatementSequences.toTypedArray())
-                addExtension(ASN1ObjectIdentifier("1.3.6.1.5.5.7.1.3"), false, qcStatementsSeq)
+                addExtension(ASN1ObjectIdentifier(RFC3739.ID_PE_QCSTATEMENTS), false, qcStatementsSeq)
             }
             certificatePolicies(policyOids ?: listOf())
             authorityInformationAccess(caIssuersUri, ocspUri)

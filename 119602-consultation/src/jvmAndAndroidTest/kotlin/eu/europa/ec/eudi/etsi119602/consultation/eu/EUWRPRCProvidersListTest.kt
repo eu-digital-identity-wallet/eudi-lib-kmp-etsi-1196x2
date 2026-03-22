@@ -65,8 +65,9 @@ class EUWRPRCProvidersListTest {
             signerKey = rootKey.private,
             signerCert = rootCertHolder,
             policyOids = listOf("1.2.3.4.5"), // TSP defined policy OID,
-            caIssuersUri = null,
-            ocspUri = null,
+            caIssuersUri = "http://ca.example.com/ca.crt",
+            ocspUri = "http://ocsp.example.com/",
+            subjectAltNameUri = "https://wallet-relying-party.example.com",
             subject = cnWrprcProvider,
             keyUsage = KeyUsage(KeyUsage.keyCertSign),
         )

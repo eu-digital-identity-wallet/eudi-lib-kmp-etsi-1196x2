@@ -85,6 +85,7 @@ class EUWRPAccessCertificateTest {
         caIssuersUri: String? = "http://ca.example.com/ca.crt",
         ocspUri: String? = "http://ocsp.example.com/",
         crlDistributionPointUri: String? = null,
+        subjectAltNameUri: String? = "https://wallet-relying-party.example.com",
     ): X509Certificate {
         val (caKeyPair, caCert) = wrpacProvider()
         val (_, certHolder) = CertOps.genCAIssuedEndEntityCertificate(
@@ -97,6 +98,7 @@ class EUWRPAccessCertificateTest {
             caIssuersUri = caIssuersUri,
             ocspUri = ocspUri,
             crlDistributionPointUri = crlDistributionPointUri,
+            subjectAltNameUri = subjectAltNameUri,
         )
         return certHolder.toX509Certificate()
     }
@@ -277,6 +279,7 @@ class EUWRPAccessCertificateTest {
             policyOids = listOf(ETSI119411Part8.NCP_L_EUDIWRP),
             caIssuersUri = "http://ca.example.com/ca.crt",
             ocspUri = "http://ocsp.example.com/",
+            subjectAltNameUri = "https://wallet-relying-party.example.com",
             subjectKeyPairAlg = "RSA",
             subjectKeySize = 1024, // Too small for RSA (< 2048)
         )
@@ -332,6 +335,9 @@ class EUWRPAccessCertificateTest {
             policyOids = listOf(ETSI119411Part8.NCP_L_EUDIWRP),
             qcStatements = listOf(ETSI319412Part1.EXT_ETSI_VAL_ASSURED_ST_CERTS to true),
             notAfter = notAfter,
+            caIssuersUri = "http://ca.example.com/ca.crt",
+            ocspUri = "http://ocsp.example.com/",
+            subjectAltNameUri = "https://wallet-relying-party.example.com",
             customExtensions = listOf(
                 Triple(ETSI319412Part1.EXT_NO_REVOCATION_AVAIL, false, DERNull.INSTANCE),
             ),
@@ -358,6 +364,9 @@ class EUWRPAccessCertificateTest {
             policyOids = listOf(ETSI119411Part8.NCP_L_EUDIWRP),
             qcStatements = listOf(ETSI319412Part1.EXT_ETSI_VAL_ASSURED_ST_CERTS to true),
             notAfter = notAfter,
+            caIssuersUri = "http://ca.example.com/ca.crt",
+            ocspUri = "http://ocsp.example.com/",
+            subjectAltNameUri = "https://wallet-relying-party.example.com",
             customExtensions = emptyList(), // missing noRevocationAvail
         )
 
@@ -382,6 +391,9 @@ class EUWRPAccessCertificateTest {
             policyOids = listOf(ETSI119411Part8.NCP_L_EUDIWRP),
             qcStatements = listOf(ETSI319412Part1.EXT_ETSI_VAL_ASSURED_ST_CERTS to true),
             notAfter = notAfter,
+            caIssuersUri = "http://ca.example.com/ca.crt",
+            ocspUri = "http://ocsp.example.com/",
+            subjectAltNameUri = "https://wallet-relying-party.example.com",
             customExtensions = listOf(
                 Triple(ETSI319412Part1.EXT_NO_REVOCATION_AVAIL, false, DERNull.INSTANCE),
             ),

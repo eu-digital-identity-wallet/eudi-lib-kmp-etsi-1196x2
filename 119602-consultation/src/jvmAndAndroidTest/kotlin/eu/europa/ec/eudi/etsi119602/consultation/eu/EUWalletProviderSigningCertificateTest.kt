@@ -48,6 +48,7 @@ class EUWalletProviderSigningCertificateTest {
         policyOids: List<String>? = null,
         caIssuersUri: String? = null,
         ocspUri: String? = null,
+        subjectAltNameUri: String? = null,
     ): X509Certificate {
         val (caKeyPair, caCert) = ca
         val (_, certHolder) = CertOps.genCAIssuedEndEntityCertificate(
@@ -59,6 +60,7 @@ class EUWalletProviderSigningCertificateTest {
             policyOids = policyOids,
             caIssuersUri = caIssuersUri,
             ocspUri = ocspUri,
+            subjectAltNameUri = subjectAltNameUri,
         )
         return certHolder.toX509Certificate()
     }

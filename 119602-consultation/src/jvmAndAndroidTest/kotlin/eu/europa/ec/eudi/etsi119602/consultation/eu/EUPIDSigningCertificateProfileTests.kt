@@ -48,6 +48,7 @@ class EUPIDSigningCertificateProfileTests {
         policyOids: List<String>? = null,
         caIssuersUri: String? = null,
         ocspUri: String? = null,
+        subjectAltNameUri: String? = null,
         keyUsage: KeyUsage,
     ): X509Certificate {
         val sigAlg = "SHA256withECDSA"
@@ -62,6 +63,7 @@ class EUPIDSigningCertificateProfileTests {
             policyOids = policyOids,
             caIssuersUri = caIssuersUri,
             ocspUri = ocspUri,
+            subjectAltNameUri = subjectAltNameUri,
         )
         return certHolder.toX509Certificate()
     }
