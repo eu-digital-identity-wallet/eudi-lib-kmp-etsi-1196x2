@@ -113,8 +113,6 @@ object CertOps {
         }.build(sigAlg, keyPair.private)
     }
 
-    // TODO
-    //  - defaults (should be removed)
     fun genCAIssuedEndEntityCertificate(
         signerCert: X509CertificateHolder,
         signerKey: PrivateKey,
