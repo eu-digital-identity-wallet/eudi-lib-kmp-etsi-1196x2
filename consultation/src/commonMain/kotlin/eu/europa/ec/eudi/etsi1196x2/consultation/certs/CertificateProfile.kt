@@ -26,12 +26,64 @@ import kotlin.contracts.contract
  *
  * @param T the type of data extracted by the operation
  * @property op the operation to perform on the certificate
- * @property validate the validation function applied to the extracted data
+ * @property evaluate the validation function applied to the extracted data
  */
 public data class CertificateConstraint<T>(
     val op: CertificateOperationsAlgebra<T>,
-    val validate: (T) -> CertificateConstraintEvaluation,
-)
+    val evaluate: (T) -> CertificateConstraintEvaluation,
+) {
+    public companion object {
+
+        public fun <A, B> combine(
+            first: CertificateOperationsAlgebra<A>,
+            second: CertificateOperationsAlgebra<B>,
+            evaluate: (Pair<A, B>) -> CertificateConstraintEvaluation,
+        ): CertificateConstraint<Pair<A, B>> =
+            combine(first, second, ::Pair, evaluate)
+
+        public fun <A, B, C> combine(
+            first: CertificateOperationsAlgebra<A>,
+            second: CertificateOperationsAlgebra<B>,
+            third: CertificateOperationsAlgebra<C>,
+            evaluate: (Triple<A, B, C>) -> CertificateConstraintEvaluation,
+        ): CertificateConstraint<Triple<A, B, C>> =
+            combine(first, second, third, ::Triple, evaluate)
+
+        public fun <A, B, C> combine(
+            first: CertificateOperationsAlgebra<A>,
+            second: CertificateOperationsAlgebra<B>,
+            combine: (A, B) -> C,
+            evaluate: (C) -> CertificateConstraintEvaluation,
+        ): CertificateConstraint<C> {
+            val op = CertificateOperationsAlgebra.GetCombined(
+                first,
+                second,
+                combine,
+            )
+            return CertificateConstraint(op, evaluate)
+        }
+
+        public fun <A, B, C, D> combine(
+            first: CertificateOperationsAlgebra<A>,
+            second: CertificateOperationsAlgebra<B>,
+            third: CertificateOperationsAlgebra<C>,
+            combine: (A, B, C) -> D,
+            evaluate: (D) -> CertificateConstraintEvaluation,
+        ): CertificateConstraint<D> {
+            val op1 = CertificateOperationsAlgebra.GetCombined(
+                first,
+                second,
+                ::Pair,
+            )
+            return combine(
+                op1,
+                third,
+                { (a, b), c -> combine(a, b, c) },
+                evaluate,
+            )
+        }
+    }
+}
 
 /**
  * The constraint is not satisfied.
@@ -62,6 +114,11 @@ public sealed interface CertificateConstraintEvaluation {
     public companion object {
         public operator fun invoke(violations: List<CertificateConstraintViolation>): CertificateConstraintEvaluation =
             if (violations.isEmpty()) Met else Violated(violations)
+
+        public operator fun invoke(builder: MutableList<CertificateConstraintViolation>.() -> Unit): CertificateConstraintEvaluation {
+            val violations = buildList(builder)
+            return CertificateConstraintEvaluation(violations)
+        }
     }
 }
 
@@ -97,66 +154,54 @@ public class ProfileBuilder {
      * Defines a constraint on the basic constraints extension.
      */
     public fun basicConstraints(
-        check: (BasicConstraintsInfo) -> CertificateConstraintEvaluation,
+        evaluate: (BasicConstraintsInfo) -> CertificateConstraintEvaluation,
     ) {
-        requirements += CertificateConstraint(CertificateOperationsAlgebra.GetBasicConstraints, check)
+        requirements += CertificateConstraint(CertificateOperationsAlgebra.GetBasicConstraints, evaluate)
     }
 
     /**
      * Defines a constraint on the key usage extension.
      */
     public fun keyUsage(
-        check: (KeyUsageBits?) -> CertificateConstraintEvaluation,
+        evaluate: (ExtensionInfo<KeyUsageBits>?) -> CertificateConstraintEvaluation,
     ) {
-        requirements += CertificateConstraint(CertificateOperationsAlgebra.GetKeyUsage, check)
+        requirements += CertificateConstraint(CertificateOperationsAlgebra.GetKeyUsage, evaluate)
     }
 
     /**
      * Defines a constraint on the validity period.
      */
     public fun validity(
-        check: (ValidityPeriod) -> CertificateConstraintEvaluation,
+        evaluate: (ValidityPeriod) -> CertificateConstraintEvaluation,
     ) {
-        requirements += CertificateConstraint(CertificateOperationsAlgebra.GetValidity, check)
+        requirements += CertificateConstraint(CertificateOperationsAlgebra.GetValidity, evaluate)
     }
 
     /**
      * Defines a constraint on the certificate policies.
      */
     public fun policies(
-        check: (List<String>) -> CertificateConstraintEvaluation,
+        evaluate: (ExtensionInfo<List<String>>?) -> CertificateConstraintEvaluation,
     ) {
-        requirements += CertificateConstraint(CertificateOperationsAlgebra.GetPolicies, check)
+        requirements += CertificateConstraint(CertificateOperationsAlgebra.GetPolicies, evaluate)
     }
 
     /**
      * Defines a constraint on whether the certificate is self-signed.
      */
     public fun selfSigned(
-        check: (Boolean) -> CertificateConstraintEvaluation,
+        evaluate: (Boolean) -> CertificateConstraintEvaluation,
     ) {
-        requirements += CertificateConstraint(CertificateOperationsAlgebra.CheckSelfSigned, check)
+        requirements += CertificateConstraint(CertificateOperationsAlgebra.CheckSelfSigned, evaluate)
     }
 
     /**
      * Defines a constraint on the AIA extension.
      */
     public fun aia(
-        check: (AuthorityInformationAccess?) -> CertificateConstraintEvaluation,
+        evaluate: (ExtensionInfo<AuthorityInformationAccess>?) -> CertificateConstraintEvaluation,
     ) {
-        requirements += CertificateConstraint(CertificateOperationsAlgebra.GetAia, check)
-    }
-
-    /**
-     * Defines a constraint on the AIA extension combined with self-signed status.
-     *
-     * This is useful for validating AIA requirements that only apply to CA-issued
-     * (non-self-signed) certificates.
-     */
-    public fun aiaWithSelfSigned(
-        check: (AiaWithSelfSigned) -> CertificateConstraintEvaluation,
-    ) {
-        requirements += CertificateConstraint(CertificateOperationsAlgebra.GetAiaWithSelfSigned, check)
+        requirements += CertificateConstraint(CertificateOperationsAlgebra.GetAia, evaluate)
     }
 
     /**
@@ -166,9 +211,121 @@ public class ProfileBuilder {
      */
     public fun qcStatements(
         qcType: String,
-        check: (List<QCStatementInfo>) -> CertificateConstraintEvaluation,
+        evaluate: (List<QCStatementInfo>) -> CertificateConstraintEvaluation,
     ) {
-        requirements += CertificateConstraint(CertificateOperationsAlgebra.GetQcStatements(qcType), check)
+        requirements += CertificateConstraint(CertificateOperationsAlgebra.GetQcStatements(qcType), evaluate)
+    }
+
+    /**
+     * Defines a constraint on the subject Distinguished Name.
+     */
+    public fun subject(
+        evaluate: (DistinguishedName?) -> CertificateConstraintEvaluation,
+    ) {
+        requirements += CertificateConstraint(CertificateOperationsAlgebra.GetSubject, evaluate)
+    }
+
+    /**
+     * Defines a constraint on the issuer Distinguished Name.
+     */
+    public fun issuer(
+        evaluate: (DistinguishedName?) -> CertificateConstraintEvaluation,
+    ) {
+        requirements += CertificateConstraint(CertificateOperationsAlgebra.GetIssuer, evaluate)
+    }
+
+    /**
+     * Defines a constraint on Subject Alternative Names.
+     */
+    public fun subjectAltNames(
+        evaluate: (ExtensionInfo<List<SubjectAlternativeName>>?) -> CertificateConstraintEvaluation,
+    ) {
+        requirements += CertificateConstraint(CertificateOperationsAlgebra.GetSubjectAltNames, evaluate)
+    }
+
+    /**
+     * Defines a constraint on CRL Distribution Points.
+     */
+    public fun crlDistributionPoints(
+        evaluate: (List<CrlDistributionPoint>) -> CertificateConstraintEvaluation,
+    ) {
+        requirements += CertificateConstraint(CertificateOperationsAlgebra.GetCrlDistributionPoints, evaluate)
+    }
+
+    /**
+     * Defines a constraint on the Authority Key Identifier extension.
+     */
+    public fun authorityKeyIdentifier(
+        evaluate: (AuthorityKeyIdentifier?) -> CertificateConstraintEvaluation,
+    ) {
+        requirements += CertificateConstraint(CertificateOperationsAlgebra.GetAuthorityKeyIdentifier, evaluate)
+    }
+
+    /**
+     * Defines a constraint on the certificate serial number.
+     */
+    public fun serialNumber(
+        evaluate: (SerialNumber) -> CertificateConstraintEvaluation,
+    ) {
+        requirements += CertificateConstraint(CertificateOperationsAlgebra.GetSerialNumber, evaluate)
+    }
+
+    /**
+     * Defines a constraint on the certificate version.
+     */
+    public fun version(
+        evaluate: (Version) -> CertificateConstraintEvaluation,
+    ) {
+        requirements += CertificateConstraint(CertificateOperationsAlgebra.GetVersion, evaluate)
+    }
+
+    /**
+     * Defines a constraint on the subject public key information.
+     */
+    public fun subjectPublicKeyInfo(
+        check: (PublicKeyInfo) -> CertificateConstraintEvaluation,
+    ) {
+        requirements += CertificateConstraint(CertificateOperationsAlgebra.GetSubjectPublicKeyInfo, check)
+    }
+
+    public fun <A, B> combine(
+        first: CertificateOperationsAlgebra<A>,
+        second: CertificateOperationsAlgebra<B>,
+        evaluate: (Pair<A, B>) -> CertificateConstraintEvaluation,
+    ) {
+        requirements +=
+            CertificateConstraint.combine(first, second, evaluate)
+    }
+
+    public fun <A, B, C> combine(
+        first: CertificateOperationsAlgebra<A>,
+        second: CertificateOperationsAlgebra<B>,
+        third: CertificateOperationsAlgebra<C>,
+        evaluate: (Triple<A, B, C>) -> CertificateConstraintEvaluation,
+    ) {
+        requirements +=
+            CertificateConstraint.combine(first, second, third, evaluate)
+    }
+
+    public fun <A, B, C> combine(
+        first: CertificateOperationsAlgebra<A>,
+        second: CertificateOperationsAlgebra<B>,
+        combine: (A, B) -> C,
+        evaluate: (C) -> CertificateConstraintEvaluation,
+    ) {
+        requirements +=
+            CertificateConstraint.combine(first, second, combine, evaluate)
+    }
+
+    public fun <A, B, C, D> combine(
+        first: CertificateOperationsAlgebra<A>,
+        second: CertificateOperationsAlgebra<B>,
+        third: CertificateOperationsAlgebra<C>,
+        combine: (A, B, C) -> D,
+        evaluate: (D) -> CertificateConstraintEvaluation,
+    ) {
+        requirements +=
+            CertificateConstraint.combine(first, second, third, combine, evaluate)
     }
 
     /**

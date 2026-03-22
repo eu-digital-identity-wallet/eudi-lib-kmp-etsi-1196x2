@@ -16,7 +16,7 @@
 package eu.europa.ec.eudi.etsi119602.consultation.eu
 
 import eu.europa.ec.eudi.etsi119602.*
-import eu.europa.ec.eudi.etsi119602.consultation.ETSI119412
+import eu.europa.ec.eudi.etsi119602.consultation.ETSI119412Part6
 import eu.europa.ec.eudi.etsi1196x2.consultation.certs.*
 import kotlin.time.Instant
 
@@ -81,14 +81,14 @@ public val EUPIDProvidersList: EUListOfTrustedEntitiesProfile =
  *
  * @return a validator configured for PID Provider end-entity certificates
  */
-public fun pidProviderCertificateProfile(at: Instant? = null): CertificateProfile = certificateProfile {
-    requireEndEntityCertificate()
-    requireQcStatement(qcType = ETSI119412.ID_ETSI_QCT_PID, requireCompliance = true)
-    requireDigitalSignature()
-    requireValidAt(at)
+public fun pidSigningCertificateProfile(at: Instant? = null): CertificateProfile = certificateProfile {
+    endEntity()
+    mandatoryQcStatement(qcType = ETSI119412Part6.ID_ETSI_QCT_PID, requireCompliance = true)
+    keyUsageDigitalSignature()
+    validAt(at)
     // Per EN 319 412-2 §4.3.3: certificatePolicies extension shall be present (TSP-defined OID)
-    requirePolicyPresence()
-    requireAiaForCaIssued()
+    policyIsPresent()
+    authorityInformationAccessIfCAIssued()
 }
 
 /**
@@ -109,7 +109,7 @@ public fun pidProviderCACertificateProfile(
     maxPathLen: Int? = null,
 ): CertificateProfile =
     certificateProfile {
-        requireCaCertificate(maxPathLen)
-        requireKeyCertSign()
-        requireValidAt(at)
+        ca(maxPathLen)
+        keyUsageCertSign()
+        validAt(at)
     }

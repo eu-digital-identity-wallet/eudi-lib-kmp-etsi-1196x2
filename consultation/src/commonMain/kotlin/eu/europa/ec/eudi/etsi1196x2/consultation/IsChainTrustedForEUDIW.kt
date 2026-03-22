@@ -116,6 +116,14 @@ public sealed interface VerificationContext {
     public data object WalletRelyingPartyRegistrationCertificate : VerificationContext
 
     /**
+     * Check the signature of a Status Lists that keeps the status of a registration certificate of an Issuer or Verifier
+     *
+     * Can be used by Wallets to verify the signature of the Token Status List that keeps the status of a registration
+     * certificate of an Issuer or Verifier, during issuance and presentation respectively.
+     */
+    public data object WalletRelyingPartyRegistrationCertificateStatus : VerificationContext
+
+    /**
      * Check the access certificate of an Issuer or Verifier
      *
      * Can be used by Wallets to verify the signature of the registration certificate of an Issuer or Verifier, during

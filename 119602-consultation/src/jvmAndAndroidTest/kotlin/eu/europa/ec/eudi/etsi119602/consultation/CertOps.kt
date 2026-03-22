@@ -16,6 +16,7 @@
 package eu.europa.ec.eudi.etsi119602.consultation
 
 import eu.europa.ec.eudi.etsi1196x2.consultation.JvmSecurity
+import eu.europa.ec.eudi.etsi1196x2.consultation.certs.RFC3739
 import org.bouncycastle.asn1.*
 import org.bouncycastle.asn1.x500.X500Name
 import org.bouncycastle.asn1.x509.*
@@ -56,13 +57,13 @@ object CertOps {
         sigAlg: String,
         subject: X500Name,
         keyUsage: KeyUsage = KeyUsage(KeyUsage.keyCertSign or KeyUsage.cRLSign),
-        qcTypeAndCompliance: Pair<String, Boolean>? = null,
+        qcStatements: List<Pair<String, Boolean>>? = null,
         policyOids: List<String>? = null,
         pathLenConstraint: Int? = null,
     ): Pair<KeyPair, X509CertificateHolder> {
         val kp = Ctx.generateECPair()
         val certHolder =
-            createTrustAnchor(kp, sigAlg, subject, keyUsage, qcTypeAndCompliance, policyOids, pathLenConstraint)
+            createTrustAnchor(kp, sigAlg, subject, keyUsage, qcStatements, policyOids, pathLenConstraint)
         return kp to certHolder
     }
 
@@ -75,7 +76,7 @@ object CertOps {
         sigAlg: String,
         name: X500Name,
         keyUsage: KeyUsage,
-        qcTypeAndCompliance: Pair<String, Boolean>?,
+        qcStatements: List<Pair<String, Boolean>>?,
         policyOids: List<String>? = null,
         pathLenConstraint: Int? = null,
     ): X509CertificateHolder {
@@ -97,9 +98,17 @@ object CertOps {
             if (policyOids != null) {
                 certificatePolicies(policyOids)
             }
-            if (qcTypeAndCompliance != null) {
-                val (qcType, qcCompliance) = qcTypeAndCompliance
-                qcStatement(qcType, qcCompliance)
+            if (!qcStatements.isNullOrEmpty()) {
+                val qcStatementSequences = qcStatements.map { (qcType, qcCompliance) ->
+                    DERSequence(
+                        arrayOf(
+                            ASN1ObjectIdentifier(qcType),
+                            DERUTF8String(if (qcCompliance) "compliant" else "non-compliant"),
+                        ),
+                    )
+                }
+                val qcStatementsSeq = DERSequence(qcStatementSequences.toTypedArray())
+                addExtension(ASN1ObjectIdentifier(RFC3739.ID_PE_QCSTATEMENTS), false, qcStatementsSeq)
             }
         }.build(sigAlg, keyPair.private)
     }
@@ -110,12 +119,18 @@ object CertOps {
         sigAlg: String,
         subject: X500Name,
         keyUsage: KeyUsage = KeyUsage(KeyUsage.digitalSignature),
-        qcTypeAndCompliance: Pair<String, Boolean>? = null,
+        qcStatements: List<Pair<String, Boolean>>? = null,
         policyOids: List<String>? = null,
         caIssuersUri: String? = null,
         ocspUri: String? = null,
+        crlDistributionPointUri: String? = null,
+        subjectAltNameUri: String? = null,
+        subjectKeyPairAlg: String = "EC",
+        subjectKeySize: Int? = null,
+        notAfter: Date? = null,
+        customExtensions: List<Triple<String, Boolean, ASN1Encodable>> = emptyList(),
     ): Pair<KeyPair, X509CertificateHolder> {
-        val eeKp = Ctx.generateECPair()
+        val eeKp = Ctx.generateKeyPair(subjectKeyPairAlg, subjectKeySize)
         val eeCertHolder = createEndEntity(
             signerCert,
             signerKey,
@@ -123,10 +138,14 @@ object CertOps {
             eeKp.public,
             subject,
             keyUsage,
-            qcTypeAndCompliance,
+            qcStatements,
             policyOids,
             caIssuersUri,
             ocspUri,
+            crlDistributionPointUri,
+            subjectAltNameUri,
+            notAfter,
+            customExtensions,
         )
         return eeKp to eeCertHolder
     }
@@ -135,7 +154,7 @@ object CertOps {
         sigAlg: String,
         subject: X500Name,
         keyUsage: KeyUsage = KeyUsage(KeyUsage.digitalSignature),
-        qcTypeAndCompliance: Pair<String, Boolean>? = null,
+        qcStatements: List<Pair<String, Boolean>>? = null,
         policyOids: List<String>? = null,
     ): Pair<KeyPair, X509CertificateHolder> {
         val kp = Ctx.generateECPair()
@@ -144,7 +163,7 @@ object CertOps {
             sigAlg,
             subject,
             keyUsage,
-            qcTypeAndCompliance,
+            qcStatements,
             policyOids,
         )
         return kp to certHolder
@@ -159,7 +178,7 @@ object CertOps {
         sigAlg: String,
         name: X500Name,
         keyUsage: KeyUsage,
-        qcTypeAndCompliance: Pair<String, Boolean>?,
+        qcStatements: List<Pair<String, Boolean>>?,
         policyOids: List<String>?,
     ): X509CertificateHolder {
         return JcaX509v3CertificateBuilder(
@@ -173,9 +192,17 @@ object CertOps {
             subjectKeyIdentifier(keyPair.public)
             basicConstraints(BasicConstraints(false)) // end-entity (cA=FALSE)
             keyUsage(keyUsage)
-            if (qcTypeAndCompliance != null) {
-                val (qcType, qcCompliance) = qcTypeAndCompliance
-                qcStatement(qcType, qcCompliance)
+            if (!qcStatements.isNullOrEmpty()) {
+                val qcStatementSequences = qcStatements.map { (qcType, qcCompliance) ->
+                    DERSequence(
+                        arrayOf(
+                            ASN1ObjectIdentifier(qcType),
+                            DERUTF8String(if (qcCompliance) "compliant" else "non-compliant"),
+                        ),
+                    )
+                }
+                val qcStatementsSeq = DERSequence(qcStatementSequences.toTypedArray())
+                addExtension(ASN1ObjectIdentifier(RFC3739.ID_PE_QCSTATEMENTS), false, qcStatementsSeq)
             }
             if (policyOids != null) {
                 certificatePolicies(policyOids)
@@ -190,16 +217,20 @@ object CertOps {
         certKey: PublicKey,
         subject: X500Name,
         keyUsage: KeyUsage,
-        qcTypeAndCompliance: Pair<String, Boolean>? = null,
+        qcStatements: List<Pair<String, Boolean>>? = null,
         policyOids: List<String>? = null,
         caIssuersUri: String? = null,
         ocspUri: String? = null,
+        crlDistributionPointUri: String? = null,
+        subjectAltNameUri: String? = null,
+        notAfter: Date? = null,
+        customExtensions: List<Triple<String, Boolean, ASN1Encodable>> = emptyList(),
     ): X509CertificateHolder =
         JcaX509v3CertificateBuilder(
             signerCert.subject,
             calculateSerialNumber(),
             Date.from(notBefore().toJavaInstant()),
-            calculateDate(24 * 31),
+            notAfter ?: calculateDate(24 * 31),
             subject,
             certKey,
         ).apply {
@@ -207,12 +238,29 @@ object CertOps {
             subjectKeyIdentifier(certKey)
             basicConstraints(BasicConstraints(false)) // do not allow this cert to sign other certs
             keyUsage(keyUsage)
-            if (qcTypeAndCompliance != null) {
-                val (qcType, qcCompliance) = qcTypeAndCompliance
-                qcStatement(qcType, qcCompliance)
+            if (!qcStatements.isNullOrEmpty()) {
+                val qcStatementSequences = qcStatements.map { (qcType, qcCompliance) ->
+                    DERSequence(
+                        arrayOf(
+                            ASN1ObjectIdentifier(qcType),
+                            DERUTF8String(if (qcCompliance) "compliant" else "non-compliant"),
+                        ),
+                    )
+                }
+                val qcStatementsSeq = DERSequence(qcStatementSequences.toTypedArray())
+                addExtension(ASN1ObjectIdentifier(RFC3739.ID_PE_QCSTATEMENTS), false, qcStatementsSeq)
             }
             certificatePolicies(policyOids ?: listOf())
             authorityInformationAccess(caIssuersUri, ocspUri)
+            if (crlDistributionPointUri != null) {
+                crlDistributionPoints(crlDistributionPointUri)
+            }
+            if (subjectAltNameUri != null) {
+                subjectAlternativeName(subjectAltNameUri)
+            }
+            customExtensions.forEach { (oid, critical, value) ->
+                addExtension(ASN1ObjectIdentifier(oid), critical, value)
+            }
         }.build(sigAlg, signerKey)
 
     /**
@@ -246,33 +294,6 @@ private fun JcaX509v3CertificateBuilder.subjectKeyIdentifier(certKey: PublicKey)
 
 private fun JcaX509v3CertificateBuilder.keyUsage(keyUsage: KeyUsage) {
     addExtension(Extension.keyUsage, true, keyUsage)
-}
-
-/**
- * Adds a QCStatement extension to the certificate.
- *
- * @param qcType OID identifying the QC type (e.g., id-etsi-qct-pid, id-etsi-qct-wal)
- * @param qcCompliance whether the certificate is compliant with the QC type
- *
- * @see [ETSI EN 319 412-5 - QCStatements](https://www.etsi.org/deliver/etsi_en/319400_319499/31941205/)
- */
-private fun JcaX509v3CertificateBuilder.qcStatement(qcType: String, qcCompliance: Boolean = true) {
-    // QCStatement ASN.1 structure:
-    // QCStatements ::= SEQUENCE OF QCStatement
-    // QCStatement ::= SEQUENCE {
-    //   statementId   OBJECT IDENTIFIER,
-    //   statementInfo ANY DEFINED BY statementId OPTIONAL
-    // }
-    val qcStatementSequence = DERSequence(
-        arrayOf<ASN1Encodable>(
-            ASN1ObjectIdentifier(qcType),
-            DERUTF8String(if (qcCompliance) "compliant" else "non-compliant"),
-        ),
-    )
-    val qcStatementsSequence = DERSequence(qcStatementSequence)
-
-    // OID for QCStatements extension (id-pe-qcStatements = 1.3.6.1.5.5.7.1.3)
-    addExtension(ASN1ObjectIdentifier("1.3.6.1.5.5.7.1.3"), false, qcStatementsSequence)
 }
 
 /**
@@ -333,6 +354,27 @@ private fun JcaX509v3CertificateBuilder.authorityInformationAccess(
 }
 
 /**
+ * Adds a CRL Distribution Points extension to the certificate.
+ *
+ * @param uri the URI of the CRL distribution point
+ *
+ * @see [RFC 5280 Section 4.2.1.13](https://datatracker.ietf.org/doc/html/rfc5280#section-4.2.1.13)
+ */
+private fun JcaX509v3CertificateBuilder.crlDistributionPoints(uri: String) {
+    val dpName = DistributionPointName(
+        DistributionPointName.FULL_NAME,
+        GeneralNames(GeneralName(GeneralName.uniformResourceIdentifier, DERIA5String(uri))),
+    )
+    val dp = DistributionPoint(dpName, null, null)
+    addExtension(Extension.cRLDistributionPoints, false, CRLDistPoint(arrayOf(dp)))
+}
+
+private fun JcaX509v3CertificateBuilder.subjectAlternativeName(uri: String) {
+    val generalName = GeneralName(GeneralName.uniformResourceIdentifier, DERIA5String(uri))
+    addExtension(Extension.subjectAlternativeName, false, DERSequence(arrayOf(generalName)))
+}
+
+/**
  * The BasicConstraints extension helps you to determine if the certificate containing it is allowed to
  * sign other certificates, and if so, what depth this can go to.
  *
@@ -360,6 +402,17 @@ private class SecCtx(val provider: Provider? = null) {
             ?: KeyPairGenerator.getInstance("EC")
 
     fun generateECPair(): KeyPair = kpGenerator().genKeyPair()
+
+    fun generateKeyPair(algorithm: String, keySize: Int? = null): KeyPair =
+        if (algorithm.uppercase() == "EC") {
+            generateECPair()
+        } else {
+            val kpg = provider
+                ?.let { KeyPairGenerator.getInstance(algorithm, it) }
+                ?: KeyPairGenerator.getInstance(algorithm)
+            if (keySize != null) kpg.initialize(keySize)
+            kpg.genKeyPair()
+        }
 
     fun jcaContentSignerBuilder(sigAlg: String) =
         JcaContentSignerBuilder(sigAlg).apply {

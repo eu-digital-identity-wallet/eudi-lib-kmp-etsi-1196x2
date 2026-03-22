@@ -16,11 +16,6 @@
 package eu.europa.ec.eudi.etsi119602.consultation.eu
 
 import eu.europa.ec.eudi.etsi119602.*
-import eu.europa.ec.eudi.etsi119602.consultation.ETSI119411
-import eu.europa.ec.eudi.etsi119602.consultation.ETSI119411.NCP_L_EUDIWRP
-import eu.europa.ec.eudi.etsi119602.consultation.ETSI119411.NCP_N_EUDIWRP
-import eu.europa.ec.eudi.etsi119602.consultation.ETSI119411.QCP_L_EUDIWRP
-import eu.europa.ec.eudi.etsi119602.consultation.ETSI119411.QCP_N_EUDIWRP
 import eu.europa.ec.eudi.etsi1196x2.consultation.certs.*
 import kotlin.time.Instant
 
@@ -70,71 +65,8 @@ public fun wrpacProviderCertificateProfile(
     maxPathLen: Int? = null,
 ): CertificateProfile =
     certificateProfile {
-        requireCaCertificate(maxPathLen)
-        requireKeyCertSign()
-        requireValidAt(at)
-        requirePolicyPresence()
+        ca(maxPathLen)
+        keyUsageCertSign()
+        validAt(at)
+        policyIsPresent()
     }
-
-/**
- * Creates constraints for Wallet Relying Party Access Certificate (issued to Wallet Relying Parties).
- *
- * Per ETSI TS 119 411-8 Clause 6.6.1:
- * - Certificate type: End-entity (cA=FALSE)
- * - Key Usage: digitalSignature REQUIRED (for electronic signatures/seals)
- * - Validity: Must be valid at validation time
- * - Certificate Policy: MUST include one of the four policy OIDs from Clause 5.3
- *
- * Note: ETSI TS 119 411-8 does NOT specify a WRPAC-specific QCStatement.
- * For qualified certificates (QCP-n-eudiwrp, QCP-l-eudiwrp), the general
- * QCStatement requirements from ETSI EN 319 412-5 apply (e.g., QcCompliance, QcType),
- * but these are not WRPAC-specific and are not validated by this profile.
- *
- * Certificate Policy OIDs (ETSI TS 119 411-8 Clause 5.3):
- * - NCP-n-eudiwrp (0.4.0.194118.1.1): Natural persons, non-qualified, for electronic signature
- * - NCP-l-eudiwrp (0.4.0.194118.1.2): Legal persons, non-qualified, for electronic seal
- * - QCP-n-eudiwrp (0.4.0.194118.1.3): Natural persons, qualified, for electronic signature
- * - QCP-l-eudiwrp (0.4.0.194118.1.4): Legal persons, qualified, for electronic seal
- *
- * @param at Instant for validity check (null = current time)
- * @param policy Optional specific policy OID requirement. If provided, MUST be one of the four
- *               WRPAC policy OIDs. If null, any of the four policies is accepted.
- *
- * @return a WRP Access Certificate Profile
- *
- * @see [ETSI TS 119 411-8 Clause 5.3 - Certificate Policy OIDs]
- * @see [ETSI TS 119 411-8 Clause 6.6.1 - Certificate Profile]
- * @see [ETSI119411]
- */
-public fun wrpAccessCertificateProfile(
-    at: Instant? = null,
-    policy: String? = null,
-): CertificateProfile {
-    val allowedPolicies = setOf(
-        NCP_N_EUDIWRP,
-        NCP_L_EUDIWRP,
-        QCP_N_EUDIWRP,
-        QCP_L_EUDIWRP,
-    )
-
-    val policies =
-        if (policy != null) {
-            require(policy in allowedPolicies) {
-                buildString {
-                    append("Certificate policy OID '$policy' is not a valid WRPAC policy OID. ")
-                    append("Must be one of: ${allowedPolicies.joinToString(", ")}")
-                }
-            }
-            setOf(policy)
-        } else {
-            allowedPolicies
-        }
-
-    return certificateProfile {
-        requireEndEntityCertificate()
-        requireDigitalSignature()
-        requireValidAt(at)
-        requirePolicy(policies)
-        requireNoSelfSigned()
-    }
-}

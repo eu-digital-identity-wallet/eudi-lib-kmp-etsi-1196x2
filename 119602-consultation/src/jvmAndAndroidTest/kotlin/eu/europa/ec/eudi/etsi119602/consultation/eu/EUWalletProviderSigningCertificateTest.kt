@@ -17,7 +17,7 @@ package eu.europa.ec.eudi.etsi119602.consultation.eu
 
 import eu.europa.ec.eudi.etsi119602.consultation.CertOps
 import eu.europa.ec.eudi.etsi119602.consultation.CertOps.toX509Certificate
-import eu.europa.ec.eudi.etsi119602.consultation.ETSI119412
+import eu.europa.ec.eudi.etsi119602.consultation.ETSI119412Part6
 import eu.europa.ec.eudi.etsi1196x2.consultation.certs.CertificateConstraintEvaluation
 import eu.europa.ec.eudi.etsi1196x2.consultation.certs.isMet
 import kotlinx.coroutines.test.runTest
@@ -29,15 +29,12 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
-/**
- * Tests for Wallet Provider certificate constraints (ETSI TS 119 602 Annex E).
- */
-class EUWalletProviderCertificateTest {
+class EUWalletProviderSigningCertificateTest {
 
     private suspend fun evaluateCertificateConstraints(
         certificate: X509Certificate,
     ): CertificateConstraintEvaluation =
-        CertificateProfileValidatorJVM.validate(walletProviderCertificateProfile(), certificate)
+        CertificateProfileValidatorJVM.validate(walletProviderSigningCertificateProfile(), certificate)
 
     private val ca = CertOps.genTrustAnchor(
         sigAlg = "SHA256withECDSA",
@@ -47,10 +44,11 @@ class EUWalletProviderCertificateTest {
     )
 
     private fun genCAIssuedEndEntityCertificate(
-        qcTypeAndCompliance: Pair<String, Boolean>? = null,
+        qcStatements: List<Pair<String, Boolean>>? = null,
         policyOids: List<String>? = null,
         caIssuersUri: String? = null,
         ocspUri: String? = null,
+        subjectAltNameUri: String? = null,
     ): X509Certificate {
         val (caKeyPair, caCert) = ca
         val (_, certHolder) = CertOps.genCAIssuedEndEntityCertificate(
@@ -58,10 +56,11 @@ class EUWalletProviderCertificateTest {
             signerKey = caKeyPair.private,
             sigAlg = "SHA256withECDSA",
             subject = X500Name("CN=Test Wallet Provider"),
-            qcTypeAndCompliance = qcTypeAndCompliance,
+            qcStatements = qcStatements,
             policyOids = policyOids,
             caIssuersUri = caIssuersUri,
             ocspUri = ocspUri,
+            subjectAltNameUri = subjectAltNameUri,
         )
         return certHolder.toX509Certificate()
     }
@@ -69,7 +68,7 @@ class EUWalletProviderCertificateTest {
     @Test
     fun `CA-issued certificate should require QCStatement`() = runTest {
         val certificate = genCAIssuedEndEntityCertificate(
-            qcTypeAndCompliance = null, // No QCStatement
+            qcStatements = null,
             policyOids = listOf("1.2.3.4.5"),
             caIssuersUri = "http://example.com/ca.crt",
             ocspUri = "http://example.com/ocsp",
@@ -89,7 +88,7 @@ class EUWalletProviderCertificateTest {
     fun `CA-issued certificate should require QCStatement ID_ETSI_QCT_WAL`() = runTest {
         // Generate a certificate with the wrong QCStatement type (Wallet instead of PID)
         val certificate = genCAIssuedEndEntityCertificate(
-            qcTypeAndCompliance = ETSI119412.ID_ETSI_QCT_PID to true, // Wrong type
+            qcStatements = listOf(ETSI119412Part6.ID_ETSI_QCT_PID to true), // Wrong type
             policyOids = listOf("1.2.3.4.5"), // TSP-defined policy OID
             caIssuersUri = "http://example.com/ca.crt",
             ocspUri = "http://example.com/ocsp",
@@ -108,7 +107,7 @@ class EUWalletProviderCertificateTest {
     fun `CA-issued certificate should require QCStatement ID_ETSI_QCT_WAL compliance`() = runTest {
         // Generate certificate with non-compliant QCStatement
         val certificate = genCAIssuedEndEntityCertificate(
-            qcTypeAndCompliance = ETSI119412.ID_ETSI_QCT_WAL to false, // Non-compliant
+            qcStatements = listOf(ETSI119412Part6.ID_ETSI_QCT_WAL to false), // Non-compliant
             policyOids = listOf("1.2.3.4.5"), // TSP-defined policy OID
             caIssuersUri = "http://example.com/ca.crt",
             ocspUri = "http://example.com/ocsp",
@@ -125,7 +124,7 @@ class EUWalletProviderCertificateTest {
     @Test
     fun `CA-issued certificate should require AIA`() = runTest {
         val certificate = genCAIssuedEndEntityCertificate(
-            qcTypeAndCompliance = ETSI119412.ID_ETSI_QCT_WAL to true,
+            qcStatements = listOf(ETSI119412Part6.ID_ETSI_QCT_WAL to true),
             policyOids = listOf("1.2.3.4.5"), // TSP-defined policy OID
         )
 
@@ -138,7 +137,7 @@ class EUWalletProviderCertificateTest {
     @Test
     fun `CA Issued certificate should be valid`() = runTest {
         val certificate = genCAIssuedEndEntityCertificate(
-            qcTypeAndCompliance = ETSI119412.ID_ETSI_QCT_WAL to true,
+            qcStatements = listOf(ETSI119412Part6.ID_ETSI_QCT_WAL to true),
             policyOids = listOf("1.2.3.4.5"), // TSP-defined policy OID
             caIssuersUri = "http://example.com/ca.crt",
             ocspUri = "http://example.com/ocsp",
@@ -159,7 +158,7 @@ class EUWalletProviderCertificateTest {
             keyUsage = KeyUsage(KeyUsage.digitalSignature),
             policyOids = listOf("1.2.3.4.5"),
             pathLenConstraint = null,
-            qcTypeAndCompliance = ETSI119412.ID_ETSI_QCT_WAL to true,
+            qcStatements = listOf(ETSI119412Part6.ID_ETSI_QCT_WAL to true),
         )
         val certificate = caCertHolder.toX509Certificate()
 
@@ -179,7 +178,7 @@ class EUWalletProviderCertificateTest {
             sigAlg = "SHA256withECDSA",
             subject = X500Name("CN=Wallet Provider Test"),
             keyUsage = KeyUsage(KeyUsage.keyCertSign), // wrong key usage
-            qcTypeAndCompliance = ETSI119412.ID_ETSI_QCT_WAL to true,
+            qcStatements = listOf(ETSI119412Part6.ID_ETSI_QCT_WAL to true),
             policyOids = listOf("1.2.3.4.5"),
             caIssuersUri = "http://example.com/ca.crt",
             ocspUri = "http://example.com/ocsp",
@@ -197,7 +196,7 @@ class EUWalletProviderCertificateTest {
     //
 
     private fun genSelfSignedEndEntityCertificate(
-        qcTypeAndCompliance: Pair<String, Boolean>? = null,
+        qcStatements: List<Pair<String, Boolean>>? = null,
         policyOids: List<String>? = null,
         keyUsage: KeyUsage = KeyUsage(KeyUsage.digitalSignature),
     ): X509Certificate {
@@ -206,7 +205,7 @@ class EUWalletProviderCertificateTest {
             sigAlg = sigAlg,
             subject = X500Name("CN=Self-Signed Wallet Provider Test"),
             keyUsage = keyUsage,
-            qcTypeAndCompliance = qcTypeAndCompliance,
+            qcStatements = qcStatements,
             policyOids = policyOids,
         )
         return certHolder.toX509Certificate()
@@ -220,7 +219,7 @@ class EUWalletProviderCertificateTest {
             subject = X500Name("CN=Self-Signed Wallet Provider CA Test"),
             keyUsage = KeyUsage(KeyUsage.digitalSignature),
             policyOids = listOf("1.2.3.4.5"),
-            qcTypeAndCompliance = ETSI119412.ID_ETSI_QCT_WAL to true,
+            qcStatements = listOf(ETSI119412Part6.ID_ETSI_QCT_WAL to true),
             pathLenConstraint = null,
         )
         val certificate = caCertHolder.toX509Certificate()
@@ -236,7 +235,7 @@ class EUWalletProviderCertificateTest {
     fun `Self-signed certificate should require digitalSignature key usage`() = runTest {
         // Generate a self-signed certificate with keyCertSign instead of digitalSignature
         val certificate = genSelfSignedEndEntityCertificate(
-            qcTypeAndCompliance = ETSI119412.ID_ETSI_QCT_WAL to true,
+            qcStatements = listOf(ETSI119412Part6.ID_ETSI_QCT_WAL to true),
             policyOids = listOf("1.2.3.4.5"),
             keyUsage = KeyUsage(KeyUsage.keyCertSign), // wrong key usage
         )
@@ -251,7 +250,7 @@ class EUWalletProviderCertificateTest {
     fun `Self-signed certificate should require QCStatement`() = runTest {
         // Generate a self-signed certificate without QCStatement
         val certificate = genSelfSignedEndEntityCertificate(
-            qcTypeAndCompliance = null, // No QCStatement
+            qcStatements = null, // No QCStatement
             policyOids = listOf("1.2.3.4.5"),
         )
 
@@ -265,7 +264,7 @@ class EUWalletProviderCertificateTest {
     fun `Self-signed certificate should require QCStatement ID_ETSI_QCT_WAL`() = runTest {
         // Generate a self-signed certificate with wrong QCStatement type (PID instead of WAL)
         val certificate = genSelfSignedEndEntityCertificate(
-            qcTypeAndCompliance = ETSI119412.ID_ETSI_QCT_PID to true, // Wrong type
+            qcStatements = listOf(ETSI119412Part6.ID_ETSI_QCT_PID to true), // Wrong type
             policyOids = listOf("1.2.3.4.5"),
         )
 
@@ -279,7 +278,7 @@ class EUWalletProviderCertificateTest {
     fun `Self-signed certificate should be valid`() = runTest {
         // Generate a valid self-signed certificate with all requirements
         val certificate = genSelfSignedEndEntityCertificate(
-            qcTypeAndCompliance = ETSI119412.ID_ETSI_QCT_WAL to true,
+            qcStatements = listOf(ETSI119412Part6.ID_ETSI_QCT_WAL to true),
             policyOids = listOf("1.2.3.4.5"),
             keyUsage = KeyUsage(KeyUsage.digitalSignature),
         )

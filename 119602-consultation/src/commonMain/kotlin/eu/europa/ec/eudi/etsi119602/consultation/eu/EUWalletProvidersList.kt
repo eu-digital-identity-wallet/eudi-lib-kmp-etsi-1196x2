@@ -16,7 +16,7 @@
 package eu.europa.ec.eudi.etsi119602.consultation.eu
 
 import eu.europa.ec.eudi.etsi119602.*
-import eu.europa.ec.eudi.etsi119602.consultation.ETSI119412
+import eu.europa.ec.eudi.etsi119602.consultation.ETSI119412Part6
 import eu.europa.ec.eudi.etsi1196x2.consultation.certs.*
 import kotlin.time.Instant
 
@@ -85,14 +85,14 @@ public val EUWalletProvidersList: EUListOfTrustedEntitiesProfile =
  *
  * @return a validator configured for Wallet Provider end-entity certificates
  */
-public fun walletProviderCertificateProfile(at: Instant? = null): CertificateProfile =
+public fun walletProviderSigningCertificateProfile(at: Instant? = null): CertificateProfile =
     certificateProfile {
-        requireEndEntityCertificate()
-        requireQcStatement(qcType = ETSI119412.ID_ETSI_QCT_WAL, requireCompliance = true)
-        requireDigitalSignature()
-        requireValidAt(at)
-        requirePolicyPresence()
-        requireAiaForCaIssued()
+        endEntity()
+        mandatoryQcStatement(qcType = ETSI119412Part6.ID_ETSI_QCT_WAL, requireCompliance = true)
+        keyUsageDigitalSignature()
+        validAt(at)
+        policyIsPresent()
+        authorityInformationAccessIfCAIssued()
     }
 
 /**
@@ -119,7 +119,7 @@ public fun walletProviderCertificateProfile(at: Instant? = null): CertificatePro
  */
 public fun walletProviderCACertificateProfile(at: Instant? = null, maxPathLen: Int? = null): CertificateProfile =
     certificateProfile {
-        requireCaCertificate(maxPathLen)
-        requireKeyCertSign()
-        requireValidAt(at)
+        ca(maxPathLen)
+        keyUsageCertSign()
+        validAt(at)
     }

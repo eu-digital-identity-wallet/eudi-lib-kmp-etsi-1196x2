@@ -15,24 +15,16 @@
  */
 package eu.europa.ec.eudi.etsi1196x2.consultation.certs
 
-import kotlin.time.Clock
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.days
 import kotlin.time.Instant
 
 //
 // Basic Constraints
 //
 
-/**
- * Requires the certificate to be an end-entity certificate (cA=FALSE).
- */
-public fun ProfileBuilder.requireEndEntityCertificate() {
-    basicConstraints { constraints ->
-        evaluation {
-            if (constraints.isCa) {
-                add(Violations.certificateTypeMismatch("end-entity", "CA"))
-            }
-        }
-    }
+public fun ProfileBuilder.endEntity() {
+    basicConstraints { constraints -> CertificateConstraintsEvaluations.isEndEntity(constraints) }
 }
 
 /**
@@ -40,130 +32,45 @@ public fun ProfileBuilder.requireEndEntityCertificate() {
  *
  * @param maxPathLen the maximum allowed pathLenConstraint (null means no limit)
  */
-public fun ProfileBuilder.requireCaCertificate(maxPathLen: Int? = null) {
-    basicConstraints { constraints ->
-        evaluation {
-            if (!constraints.isCa) {
-                add(Violations.certificateTypeMismatch("CA", "end-entity"))
-            }
-            if (constraints.isCa && maxPathLen != null) {
-                val actualPathLen = constraints.pathLenConstraint
-                when {
-                    actualPathLen == null ->
-                        add(Violations.caCertificateMissingPathLenConstraint)
-
-                    actualPathLen > maxPathLen ->
-                        add(Violations.certificatePathLenExceedsMaximum(maxPathLen, actualPathLen))
-                }
-            }
-        }
-    }
+public fun ProfileBuilder.ca(maxPathLen: Int? = null) {
+    basicConstraints { constraints -> CertificateConstraintsEvaluations.isCA(constraints, maxPathLen) }
 }
 
 //
 // QCStatements
 //
 
-/**
- * Requires the certificate to contain a specific QCStatement type.
- *
- * @param qcType the OID of the required QC type
- * @param requireCompliance whether to require the QCStatement to be marked as compliant
- */
-public fun ProfileBuilder.requireQcStatement(
+public fun ProfileBuilder.mandatoryQcStatement(
     qcType: String,
     requireCompliance: Boolean = false,
 ) {
-    qcStatements(qcType) { statements ->
-        evaluation {
-            when {
-                statements.isEmpty() -> {
-                    add(Violations.certificateDoesNotContainAnyQCStatement)
-                }
-
-                statements.none { it.qcType == qcType } -> {
-                    add(Violations.certificateDoesNotContainRequiredQCStatement(qcType, statements))
-                }
-
-                requireCompliance && statements.none { it.qcType == qcType && it.qcCompliance } -> {
-                    add(Violations.certificateNotMarkedCompliantForQCStatement(qcType))
-                }
-            }
-        }
-    }
+    qcStatements(qcType) { statements -> CertificateConstraintsEvaluations.mandatoryQcStatement(statements, qcType, requireCompliance) }
 }
 
 //
 // Key Usage
 //
 
-/**
- * Requires the certificate to have the digitalSignature key usage bit set.
- */
-public fun ProfileBuilder.requireDigitalSignature() {
-    keyUsage { keyUsage ->
-        evaluation {
-            when {
-                keyUsage == null ->
-                    add(Violations.certificateDoesNotContainKeyUsage)
-
-                !keyUsage.digitalSignature -> {
-                    add(Violations.certificateMissingKeyUsage("digitalSignature"))
-                }
-            }
-        }
-    }
+public fun ProfileBuilder.keyUsageDigitalSignature() {
+    mandatoryKeyUsage("digitalSignature")
 }
 
-/**
- * Requires the certificate to have the keyCertSign key usage bit set.
- */
-public fun ProfileBuilder.requireKeyCertSign() {
-    keyUsage { keyUsage ->
-        evaluation {
-            when {
-                keyUsage == null ->
-                    add(Violations.certificateDoesNotContainKeyUsage)
+public fun ProfileBuilder.keyUsageCertSign() {
+    mandatoryKeyUsage("keyCertSign")
+}
 
-                !keyUsage.keyCertSign ->
-                    add(Violations.certificateMissingKeyUsage("keyCertSign"))
-            }
-        }
-    }
+public fun ProfileBuilder.mandatoryKeyUsage(
+    requiredKeyUsage: String,
+) {
+    keyUsage { keyUsageAndCritical -> CertificateConstraintsEvaluations.mandatoryKeyUsage(keyUsageAndCritical, requiredKeyUsage) }
 }
 
 //
 // Validity Period
 //
 
-/**
- * Requires the certificate to be valid at a specific time.
- *
- * @param time the time at which to validate (null means current time)
- */
-public fun ProfileBuilder.requireValidAt(time: Instant? = null) {
-    validity { period ->
-        val validationTime = time ?: Clock.System.now()
-        evaluation {
-            when {
-                validationTime < period.notBefore -> {
-                    add(
-                        CertificateConstraintViolation(
-                            "Certificate is not yet valid. Valid from: ${period.notBefore}, current time: $validationTime",
-                        ),
-                    )
-                }
-
-                validationTime > period.notAfter -> {
-                    add(
-                        CertificateConstraintViolation(
-                            "Certificate has expired. Valid until: ${period.notAfter}, current time: $validationTime",
-                        ),
-                    )
-                }
-            }
-        }
-    }
+public fun ProfileBuilder.validAt(time: Instant? = null) {
+    validity { period -> CertificateConstraintsEvaluations.validAt(period, time) }
 }
 
 //
@@ -173,64 +80,30 @@ public fun ProfileBuilder.requireValidAt(time: Instant? = null) {
 /**
  * Requires the certificate to contain at least one of the specified policy OIDs.
  */
-public fun ProfileBuilder.requirePolicy(vararg oids: String) {
-    requirePolicy(oids.toSet())
+public fun ProfileBuilder.policyOneOf(vararg oids: String) {
+    policyOneOf(oids.toSet())
 }
 
-public fun ProfileBuilder.requirePolicy(oids: Set<String>) {
-    policies { policies ->
-        evaluation {
-            when {
-                policies.isEmpty() -> {
-                    add(Violations.certificateDoesNotContainPolicies(oids.toList()))
-                }
-
-                policies.none { it in oids } -> {
-                    add(Violations.certificateDoesNotContainAnyPolicy(policies, oids.toList()))
-                }
-            }
-        }
-    }
+public fun ProfileBuilder.policyOneOf(oids: Set<String>) {
+    policies { policiesInfo -> CertificateConstraintsEvaluations.policyOneOf(policiesInfo, oids) }
 }
 
 /**
  * Requires the certificate to contain the certificatePolicies extension (at least one policy).
  */
-public fun ProfileBuilder.requirePolicyPresence() {
-    policies { policies ->
-        evaluation {
-            if (policies.isEmpty()) {
-                add(Violations.missingCertificatePoliciesExtension)
-            }
-        }
-    }
+public fun ProfileBuilder.policyIsPresent() {
+    policies { policiesInfo -> CertificateConstraintsEvaluations.policyIsPresent(policiesInfo) }
 }
 
 //
 // Authority Information Access (AIA)
 //
 
-/**
- * Requires CA-issued certificates (non-self-signed) to have an AIA extension
- * with the id-ad-caIssuers access method.
- *
- * Self-signed certificates (trust anchors) are exempt from this requirement.
- */
-public fun ProfileBuilder.requireAiaForCaIssued() {
-    aiaWithSelfSigned { aiaWithSelfSigned ->
-        evaluation {
-            // Only check AIA for non-self-signed certificates
-            if (!aiaWithSelfSigned.isSelfSigned) {
-                val aia = aiaWithSelfSigned.aia
-                if (aia == null) {
-                    add(Violations.caIssuedCertificateMissingAiaExtension)
-                } else if (aia.caIssuersUri == null) {
-                    add(Violations.aiaMissingIdAdCaIssuersAccessMethod)
-                }
-            }
-            // Self-signed certificates: no AIA check needed (pass silently)
-        }
-    }
+public fun ProfileBuilder.authorityInformationAccessIfCAIssued() {
+    combine(
+        CertificateOperationsAlgebra.GetAia,
+        CertificateOperationsAlgebra.CheckSelfSigned,
+    ) { (aiaInfo, isSelfSigned) -> CertificateConstraintsEvaluations.aiaForCaIssued(aiaInfo, isSelfSigned) }
 }
 
 /**
@@ -239,115 +112,160 @@ public fun ProfileBuilder.requireAiaForCaIssued() {
  * This is useful for certificates that must be issued by a trusted CA
  * (e.g., WRPAC certificates issued by authorized WRPAC Providers).
  */
-public fun ProfileBuilder.requireNoSelfSigned() {
-    selfSigned { isSelfSigned ->
-        evaluation {
-            if (isSelfSigned) {
-                add(Violations.selfSignedCertificateNotAllowed)
-            }
-        }
+public fun ProfileBuilder.notSelfSigned() {
+    selfSigned { isSelfSigned -> CertificateConstraintsEvaluations.notSelfSigned(isSelfSigned) }
+}
+
+//
+// Version Constraints
+//
+
+public fun ProfileBuilder.isVersion(expectedVersion: Int) {
+    version { version -> CertificateConstraintsEvaluations.isVersion(version, expectedVersion) }
+}
+
+/**
+ * Requires the certificate to be X.509 version 3 (required for extensions).
+ */
+public fun ProfileBuilder.version3() {
+    isVersion(2)
+}
+
+//
+// Serial Number Constraints
+//
+
+public fun ProfileBuilder.positiveSerialNumber() {
+    serialNumber { serialNumber -> CertificateConstraintsEvaluations.positiveSerialNumber(serialNumber) }
+}
+
+//
+// Subject/Issuer DN Constraints
+//
+
+public fun ProfileBuilder.subjectNaturalPersonAttributes() {
+    subject { subject -> CertificateConstraintsEvaluations.subjectNaturalPersonAttributes(subject) }
+}
+
+public fun ProfileBuilder.validSubjectLegalPersonAttributes() {
+    subject { subject -> CertificateConstraintsEvaluations.validSubjectLegalPersonAttributes(subject) }
+}
+
+/**
+ * Requires the issuer DN to contain attributes for a legal person
+ * per ETSI EN 319 412-3.
+ *
+ * Required attributes:
+ * - countryName (C)
+ * - organizationName (O)
+ * - organizationIdentifier
+ * - commonName (CN)
+ *
+ * This is used for WRPAC Provider CA certificates, which are always
+ * operated by legal persons under eIDAS regulation.
+ */
+public fun ProfileBuilder.issuerLegalPersonAttributes() {
+    issuer { issuer -> CertificateConstraintsEvaluations.validIssuerLegalPersonAttributes(issuer) }
+}
+
+/**
+ * Requires the issuer DN to contain appropriate attributes.
+ *
+ * @param requireCountryName whether countryName is required (default: true)
+ * @param requireOrganizationName whether organizationName is required (default: true)
+ * @param requireCommonName whether commonName is required (default: true)
+ */
+public fun ProfileBuilder.validIssuerAttributes(
+    requireCountryName: Boolean = true,
+    requireOrganizationName: Boolean = true,
+    requireCommonName: Boolean = true,
+) {
+    issuer { issuer ->
+        CertificateConstraintsEvaluations.validIssuerAttributes(
+            issuer,
+            requireCountryName,
+            requireOrganizationName,
+            requireCommonName,
+        )
     }
 }
 
 //
-// Helpers
+// Subject Alternative Name Constraints
 //
 
-private fun evaluation(builder: MutableList<CertificateConstraintViolation>.() -> Unit): CertificateConstraintEvaluation {
-    val violations = buildList(builder)
-    return CertificateConstraintEvaluation(violations)
+public fun ProfileBuilder.subjectAltName() {
+    subjectAltNames { sanInfo -> CertificateConstraintsEvaluations.subjectAltName(sanInfo) }
 }
 
-internal object Violations {
-    fun certificateTypeMismatch(expected: String, actual: String): CertificateConstraintViolation =
-        CertificateConstraintViolation(
-            reason = "Certificate type mismatch: expected $expected but was $actual",
+//
+// Authority Key Identifier Constraints
+//
+
+public fun ProfileBuilder.authorityKeyIdentifier() {
+    authorityKeyIdentifier { aki -> CertificateConstraintsEvaluations.authorityKeyIdentifier(aki) }
+}
+
+public fun ProfileBuilder.crlDistributionPointsIfNoOcspAndNotValAssured() {
+    combine(
+        CertificateOperationsAlgebra.GetCrlDistributionPoints,
+        CertificateOperationsAlgebra.GetAia,
+        CertificateOperationsAlgebra.GetAllQcStatements,
+    ) { (crldp, aiaInfo, qcStatements) ->
+        CertificateConstraintsEvaluations.evaluateCrlDistributionPointsIfNoOcspAndNotValAssured(
+            crldp,
+            aiaInfo,
+            qcStatements,
         )
+    }
+}
 
-    fun certificatePathLenExceedsMaximum(maxPathLen: Int, actualPathLen: Int): CertificateConstraintViolation =
-        CertificateConstraintViolation(
-            reason = "CA certificate pathLenConstraint ($actualPathLen) exceeds maximum allowed ($maxPathLen)",
+/**
+ * Requires the certificate to contain CRL Distribution Points.
+ */
+public fun ProfileBuilder.requireCrlDistributionPoints() {
+    crlDistributionPoints { crldp -> CertificateConstraintsEvaluations.evaluateCrlDistributionPoints(crldp) }
+}
+
+//
+// QC Statement Policy Constraints
+//
+
+public fun ProfileBuilder.requireQcStatementsForPolicy(rules: (String) -> List<String>) {
+    combine(
+        CertificateOperationsAlgebra.GetPolicies,
+        CertificateOperationsAlgebra.GetAllQcStatements,
+    ) { (policiesInfo, qcStatements) -> CertificateConstraintsEvaluations.evaluateQcStatementsForPolicy(policiesInfo, qcStatements, rules) }
+}
+
+//
+// Public Key Constraints
+//
+
+public fun ProfileBuilder.publicKey(options: PublicKeyAlgorithmOptions) {
+    subjectPublicKeyInfo { pkInfo -> CertificateConstraintsEvaluations.evaluatePublicKey(pkInfo, options) }
+}
+
+/**
+ * Requires the certificate to follow short-term certificate requirements
+ * if it contains the validity-assured extension.
+ *
+ * Requirements (ETSI EN 319 412-1 and RFC 9608):
+ * - Validity period must be <= 7 days.
+ * - Must contain noRevocationAvail extension (OID 2.5.29.56).
+ */
+public fun ProfileBuilder.validityAssuredShortTerm(maxShortTermDuration: Duration = 7.days) {
+    combine(
+        CertificateOperationsAlgebra.GetValidity,
+        CertificateOperationsAlgebra.GetAllQcStatements,
+        CertificateOperationsAlgebra.HasExtension(ETSI319412Part1.EXT_NO_REVOCATION_AVAIL),
+        ::Triple,
+    ) { (validity, qcStatements, hasNoRevAvail) ->
+        CertificateConstraintsEvaluations.evaluateValidityAssuredShortTerm(
+            maxShortTermDuration,
+            validity,
+            qcStatements,
+            hasNoRevAvail,
         )
-
-    val certificateDoesNotContainAnyQCStatement: CertificateConstraintViolation
-        get() = CertificateConstraintViolation(reason = "Certificate does not contain any QCStatement")
-
-    fun certificateDoesNotContainRequiredQCStatement(
-        qcType: String,
-        statements: List<QCStatementInfo>,
-    ): CertificateConstraintViolation =
-        CertificateConstraintViolation(
-            reason = buildString {
-                val statementsStr = statements.joinToString { it.qcType }
-                append("Certificate does not contain required QCStatement type '$qcType'.")
-                append("Available: $statementsStr")
-            },
-        )
-
-    fun certificateNotMarkedCompliantForQCStatement(qcType: String): CertificateConstraintViolation =
-        CertificateConstraintViolation(
-            reason = "Certificate contains QCStatement type '$qcType' but it is not marked as compliant",
-        )
-
-    val certificateDoesNotContainKeyUsage: CertificateConstraintViolation
-        get() = CertificateConstraintViolation(reason = "Certificate does not contain keyUsage extension")
-
-    val caCertificateMissingPathLenConstraint: CertificateConstraintViolation
-        get() = CertificateConstraintViolation(
-            "CA certificate missing pathLenConstraint",
-        )
-
-    fun certificateMissingKeyUsage(keyUsage: String) = CertificateConstraintViolation(
-        "Certificate keyUsage missing required bits: $keyUsage",
-    )
-
-    fun certificateDoesNotContainAnyPolicy(
-        policies: Collection<String>,
-        oids: Collection<String>,
-    ): CertificateConstraintViolation =
-        CertificateConstraintViolation(
-            reason = buildString {
-                val policiesStr = policies.joinToString(", ")
-                val oidsStr = oids.joinToString(", ")
-                append("Certificate policies [$policiesStr] do not match any of the required policies: $oidsStr")
-            },
-        )
-
-    fun certificateDoesNotContainPolicies(
-        oids: Collection<String>? = null,
-    ): CertificateConstraintViolation =
-        CertificateConstraintViolation(
-            reason = buildString {
-                append("Certificate does not contain any certificate policies")
-                if (!oids.isNullOrEmpty()) {
-                    val oidsStr = oids.joinToString(", ")
-                    append("Required one of: $oidsStr")
-                }
-            },
-
-        )
-
-    val missingCertificatePoliciesExtension: CertificateConstraintViolation
-        get() = CertificateConstraintViolation(
-            reason = buildString {
-                append("Certificate does not contain certificatePolicies extension. ")
-                append("Per EN 319 412-2 §4.3.3, the certificatePolicies extension shall be present ")
-                append("with at least one TSP-defined policy OID.")
-            },
-        )
-
-    val caIssuedCertificateMissingAiaExtension: CertificateConstraintViolation
-        get() = CertificateConstraintViolation(
-            reason = "CA-issued certificate missing Authority Information Access (AIA) extension",
-        )
-
-    val aiaMissingIdAdCaIssuersAccessMethod: CertificateConstraintViolation
-        get() = CertificateConstraintViolation(
-            reason = "AIA extension missing id-ad-caIssuers access method (CA certificate URI)",
-        )
-
-    val selfSignedCertificateNotAllowed: CertificateConstraintViolation
-        get() = CertificateConstraintViolation(
-            reason = "Self-signed certificate not allowed. Certificate must be issued by a trusted CA.",
-        )
+    }
 }

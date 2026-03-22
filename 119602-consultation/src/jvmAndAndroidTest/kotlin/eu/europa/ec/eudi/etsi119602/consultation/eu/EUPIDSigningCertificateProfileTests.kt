@@ -17,7 +17,7 @@ package eu.europa.ec.eudi.etsi119602.consultation.eu
 
 import eu.europa.ec.eudi.etsi119602.consultation.CertOps
 import eu.europa.ec.eudi.etsi119602.consultation.CertOps.toX509Certificate
-import eu.europa.ec.eudi.etsi119602.consultation.ETSI119412
+import eu.europa.ec.eudi.etsi119602.consultation.ETSI119412Part6
 import eu.europa.ec.eudi.etsi1196x2.consultation.certs.CertificateConstraintEvaluation
 import eu.europa.ec.eudi.etsi1196x2.consultation.certs.isMet
 import kotlinx.coroutines.test.runTest
@@ -29,15 +29,12 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
-/**
- * Tests for PID Provider certificate constraints (ETSI TS 119 602 Annex D).
- */
-class EUPIDProviderCertificateTests {
+class EUPIDSigningCertificateProfileTests {
 
     private suspend fun evaluateCertificateConstraints(
         certificate: X509Certificate,
     ): CertificateConstraintEvaluation =
-        CertificateProfileValidatorJVM.validate(pidProviderCertificateProfile(), certificate)
+        CertificateProfileValidatorJVM.validate(pidSigningCertificateProfile(), certificate)
 
     private val ca = CertOps.genTrustAnchor(
         sigAlg = "SHA256withECDSA",
@@ -47,10 +44,11 @@ class EUPIDProviderCertificateTests {
     )
 
     private fun genCAIssuedEndEntityCertificate(
-        qcTypeAndCompliance: Pair<String, Boolean>? = null,
+        qcStatements: List<Pair<String, Boolean>>? = null,
         policyOids: List<String>? = null,
         caIssuersUri: String? = null,
         ocspUri: String? = null,
+        subjectAltNameUri: String? = null,
         keyUsage: KeyUsage,
     ): X509Certificate {
         val sigAlg = "SHA256withECDSA"
@@ -61,10 +59,11 @@ class EUPIDProviderCertificateTests {
             sigAlg = sigAlg,
             subject = X500Name("CN=PID Provider Test"),
             keyUsage = keyUsage,
-            qcTypeAndCompliance = qcTypeAndCompliance,
+            qcStatements = qcStatements,
             policyOids = policyOids,
             caIssuersUri = caIssuersUri,
             ocspUri = ocspUri,
+            subjectAltNameUri = subjectAltNameUri,
         )
         return certHolder.toX509Certificate()
     }
@@ -72,7 +71,7 @@ class EUPIDProviderCertificateTests {
     @Test
     fun `CA-issued certificate should require QCStatement`() = runTest {
         val certificate = genCAIssuedEndEntityCertificate(
-            qcTypeAndCompliance = null, // No QCStatement
+            qcStatements = null,
             policyOids = listOf("1.2.3.4.5"),
             caIssuersUri = "http://example.com/ca.crt",
             ocspUri = "http://example.com/ocsp",
@@ -93,7 +92,7 @@ class EUPIDProviderCertificateTests {
     fun `CA-issued certificate should require QCStatement ID_ETSI_QCT_PID`() = runTest {
         // Generate a certificate with the wrong QCStatement type (Wallet instead of PID)
         val certificate = genCAIssuedEndEntityCertificate(
-            qcTypeAndCompliance = ETSI119412.ID_ETSI_QCT_WAL to true, // Wrong type
+            qcStatements = listOf(ETSI119412Part6.ID_ETSI_QCT_WAL to true), // Wrong type
             policyOids = listOf("1.2.3.4.5"), // TSP-defined policy OID
             caIssuersUri = "http://example.com/ca.crt",
             ocspUri = "http://example.com/ocsp",
@@ -113,7 +112,7 @@ class EUPIDProviderCertificateTests {
     fun `CA-issued certificate should require QCStatement ID_ETSI_QCT_PID compliance`() = runTest {
         // Generate certificate with non-compliant QCStatement
         val certificate = genCAIssuedEndEntityCertificate(
-            qcTypeAndCompliance = ETSI119412.ID_ETSI_QCT_PID to false, // Non-compliant
+            qcStatements = listOf(ETSI119412Part6.ID_ETSI_QCT_PID to false), // Non-compliant
             policyOids = listOf("1.2.3.4.5"), // TSP-defined policy OID
             caIssuersUri = "http://example.com/ca.crt",
             ocspUri = "http://example.com/ocsp",
@@ -131,7 +130,7 @@ class EUPIDProviderCertificateTests {
     @Test
     fun `CA-issued certificate should require AIA`() = runTest {
         val certificate = genCAIssuedEndEntityCertificate(
-            qcTypeAndCompliance = ETSI119412.ID_ETSI_QCT_PID to true,
+            qcStatements = listOf(ETSI119412Part6.ID_ETSI_QCT_PID to true),
             policyOids = listOf("1.2.3.4.5"), // TSP-defined policy OID
             keyUsage = KeyUsage(KeyUsage.digitalSignature),
         )
@@ -145,7 +144,7 @@ class EUPIDProviderCertificateTests {
     @Test
     fun `CA Issued certificate should be valid`() = runTest {
         val certificate = genCAIssuedEndEntityCertificate(
-            qcTypeAndCompliance = ETSI119412.ID_ETSI_QCT_PID to true,
+            qcStatements = listOf(ETSI119412Part6.ID_ETSI_QCT_PID to true),
             policyOids = listOf("1.2.3.4.5"), // TSP-defined policy OID
             caIssuersUri = "http://example.com/ca.crt",
             ocspUri = "http://example.com/ocsp",
@@ -163,11 +162,11 @@ class EUPIDProviderCertificateTests {
     fun `CA-issued certificate should require end-entity not CA`() = runTest {
         val (_, caCertHolder) = CertOps.genTrustAnchor(
             sigAlg = "SHA256withECDSA",
-            subject = X500Name("CN=PID Provider CA Test"),
+            subject = X500Name("CN=Self-Signed PID Provider CA Test"),
             keyUsage = KeyUsage(KeyUsage.digitalSignature),
             policyOids = listOf("1.2.3.4.5"),
             pathLenConstraint = null,
-            qcTypeAndCompliance = ETSI119412.ID_ETSI_QCT_PID to true,
+            qcStatements = listOf(ETSI119412Part6.ID_ETSI_QCT_PID to true),
         )
         val certificate = caCertHolder.toX509Certificate()
 
@@ -183,7 +182,7 @@ class EUPIDProviderCertificateTests {
     fun `CA-issued certificate should require digitalSignature key usage`() = runTest {
         // Generate an end-entity certificate with keyCertSign instead of digitalSignature
         val certificate = genCAIssuedEndEntityCertificate(
-            qcTypeAndCompliance = ETSI119412.ID_ETSI_QCT_PID to true,
+            qcStatements = listOf(ETSI119412Part6.ID_ETSI_QCT_PID to true),
             policyOids = listOf("1.2.3.4.5"),
             caIssuersUri = "http://example.com/ca.crt",
             ocspUri = "http://example.com/ocsp",
@@ -201,7 +200,7 @@ class EUPIDProviderCertificateTests {
     //
 
     private fun genSelfSignedEndEntityCertificate(
-        qcTypeAndCompliance: Pair<String, Boolean>? = null,
+        qcStatements: List<Pair<String, Boolean>>? = null,
         policyOids: List<String>? = null,
         keyUsage: KeyUsage = KeyUsage(KeyUsage.digitalSignature),
     ): X509Certificate {
@@ -210,7 +209,7 @@ class EUPIDProviderCertificateTests {
             sigAlg = sigAlg,
             subject = X500Name("CN=Self-Signed PID Provider Test"),
             keyUsage = keyUsage,
-            qcTypeAndCompliance = qcTypeAndCompliance,
+            qcStatements = qcStatements,
             policyOids = policyOids,
         )
         return certHolder.toX509Certificate()
@@ -224,7 +223,7 @@ class EUPIDProviderCertificateTests {
             subject = X500Name("CN=Self-Signed PID Provider CA Test"),
             keyUsage = KeyUsage(KeyUsage.digitalSignature),
             policyOids = listOf("1.2.3.4.5"),
-            qcTypeAndCompliance = ETSI119412.ID_ETSI_QCT_PID to true,
+            qcStatements = listOf(ETSI119412Part6.ID_ETSI_QCT_PID to true),
             pathLenConstraint = null,
         )
         val certificate = caCertHolder.toX509Certificate()
@@ -240,7 +239,7 @@ class EUPIDProviderCertificateTests {
     fun `Self-signed certificate should require digitalSignature key usage`() = runTest {
         // Generate a self-signed certificate with keyCertSign instead of digitalSignature
         val certificate = genSelfSignedEndEntityCertificate(
-            qcTypeAndCompliance = ETSI119412.ID_ETSI_QCT_PID to true,
+            qcStatements = listOf(ETSI119412Part6.ID_ETSI_QCT_PID to true),
             policyOids = listOf("1.2.3.4.5"),
             keyUsage = KeyUsage(KeyUsage.keyCertSign), // wrong key usage
         )
@@ -255,7 +254,7 @@ class EUPIDProviderCertificateTests {
     fun `Self-signed certificate should require QCStatement`() = runTest {
         // Generate a self-signed certificate without QCStatement
         val certificate = genSelfSignedEndEntityCertificate(
-            qcTypeAndCompliance = null, // No QCStatement
+            qcStatements = null, // No QCStatement
             policyOids = listOf("1.2.3.4.5"),
         )
 
@@ -269,7 +268,7 @@ class EUPIDProviderCertificateTests {
     fun `Self-signed certificate should require QCStatement ID_ETSI_QCT_PID`() = runTest {
         // Generate a self-signed certificate with wrong QCStatement type (Wallet instead of PID)
         val certificate = genSelfSignedEndEntityCertificate(
-            qcTypeAndCompliance = ETSI119412.ID_ETSI_QCT_WAL to true, // Wrong type
+            qcStatements = listOf(ETSI119412Part6.ID_ETSI_QCT_WAL to true), // Wrong type
             policyOids = listOf("1.2.3.4.5"),
         )
 
@@ -283,7 +282,7 @@ class EUPIDProviderCertificateTests {
     fun `Self-signed certificate should be valid`() = runTest {
         // Generate a valid self-signed certificate with all requirements
         val certificate = genSelfSignedEndEntityCertificate(
-            qcTypeAndCompliance = ETSI119412.ID_ETSI_QCT_PID to true,
+            qcStatements = listOf(ETSI119412Part6.ID_ETSI_QCT_PID to true),
             policyOids = listOf("1.2.3.4.5"),
             keyUsage = KeyUsage(KeyUsage.digitalSignature),
         )
