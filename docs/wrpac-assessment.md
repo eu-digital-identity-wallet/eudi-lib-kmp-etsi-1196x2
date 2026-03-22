@@ -28,7 +28,8 @@ structural alignment** with all critical infrastructure components in place.
 - ✅ "Signing vs Sealing" is **not a certificate-level validation requirement** - WRPACs support both electronic
   signature and electronic seal per ETSI TS 119 475 clause 4.1, this is a policy-level distinction about the
   issuing provider type, not a certificate extension or key usage requirement
-- ⚠️ **Still missing ~5%** of ETSI mandatory requirements (noRevocationAvail for short-term certs without CRLDP/OCSP)
+- ✅ Validity-assured short-term certificates validated (≤ 7 days validity, noRevocationAvail extension)
+- ✅ **100% of ETSI mandatory requirements** for WRPAC now implemented and validated
 
 ---
 
@@ -39,7 +40,7 @@ structural alignment** with all critical infrastructure components in place.
 - **Function**: `wrpAccessCertificateProfile()`
 - **Standard**: ETSI TS 119 411-8 (Wallet Relying Party Access Certificate specifications)
 - **Related Standards**: ETSI EN 319 412-1, ETSI EN 319 412-2, ETSI EN 319 412-3, ETSI EN 319 412-5, RFC 5280, RFC 9608
-- **Assessment Date**: 2026-03-20
+- **Assessment Date**: 2026-03-22
 
 ---
 
@@ -146,8 +147,8 @@ public fun wrpAccessCertificateProfile(
 | CRLDistributionPoints             | EN 319 412-2 4.3.11                   | ✅      |                                                       |
 | CertificatePolicies criticality   | EN 319 412-1 4.2.1.4                  | ✅      | Not required by ETSI (GEN-4.1-2)                      |
 | SubjectAltName                    | RFC 5280 4.2.1.6 + TS 119 411-8 6.6.1 | ✅      |                                                       |
-| ext-etsi-valassured-ST-certs      | EN 319 412-1 5.2                      | ⚠️     | Partially validated (used in CRLDP conditional logic) |
-| noRevocationAvail                 | RFC 9608 2                            | ❌      | Not validated                                         |
+| ext-etsi-valassured-ST-certs      | EN 319 412-1 5.2                      | ✅      | Fully validated (≤ 7 days validity period)           |
+| noRevocationAvail                 | RFC 9608 2                            | ✅      | Fully validated for validity-assured certificates    |
 | **Subject Naming**                |
 | Natural person attributes         | EN 319 412-2 4.2.2                    | ✅      |                                                       |
 | Legal person attributes           | EN 319 412-3 4.2.1                    | ✅      |                                                       |
@@ -156,33 +157,8 @@ public fun wrpAccessCertificateProfile(
 | OCSP responder in AIA             | EN 319 412-2 4.4.1                    | ✅      | AIA enforced (includes caIssuers)                     |
 | QCStatements for QCP policies     | EN 319 412-5                          | ✅      |                                                       |
 | CRLDP if no OCSP/val-assured      | EN 319 412-1 4.3.11                   | ✅      |                                                       |
-| Validity assurance for short-term | EN 319 412-1 5.2                      | ⚠️     | Partially validated (QCStatement check)               |
+| Validity assurance for short-term | EN 319 412-1 5.2                      | ✅      | Fully validated (including duration and noRevAvail)   |
 | Signature vs seal purpose         | TS 119 411-8 6.2                      | ✅      | **NOT APPLICABLE** - Policy-level distinction, not certificate validation |
-
----
-
-## Detailed Issue Log
-
-### Issue 1: Validity-Assured Short-Term Certificate Handling [LOW] ⚠️ PARTIALLY RESOLVED
-
-**Location**: `EUWRPACProvidersList.kt:133-139`
-**Description**: ⚠️ **PARTIALLY FIXED** - For short-term certificates (validity ≤ 7 days per ETSI), the validity-assured
-extension (0.4.0.194121.2.1) is now checked as part of the CRLDP conditional logic. However, explicit validation of the
-short-term certificate validity period is not implemented.
-
-**ETSI Reference**:
-
-- ETSI EN 319 412-1 clause 5.2: ext-etsi-valassured-ST-certs
-- RFC 9608 clause 2: id-ce-noRevAvail
-
-**Implementation**: The `requireCrlDistributionPointsIfNoOcspAndNotValAssured()` constraint checks for the presence of
-`EXT_ETSI_VAL_ASSURED_ST_CERTS` QCStatement to exempt short-term certificates from CRLDP requirements.
-
-**Status**: Partially compliant - validity-assured extension is recognized in conditional logic, but explicit validation
-of short-term certificate validity period (≤ 7 days) is not implemented.
-
-**Recommendation**: Add explicit check for certificate validity period ≤ 7 days when validity-assured QCStatement is
-present.
 
 ---
 
@@ -210,8 +186,8 @@ present.
 | AuthorityInfoAccess               | M              | NC          | ✅          | Enforced (caIssuers)                           |
 | CertificatePolicies               | M              | NC          | ✅          | OIDs validated (NOT required critical)         |
 | SubjectAltName                    | M              | NC          | ✅          | Contact info required (URI, email, telephone)  |
-| ext-etsi-valassured-ST-certs      | R(C)           | NC          | ⚠️         | Partially validated (in CRLDP logic)           |
-| noRevocationAvail                 | M(C)           | NC          | ❌          | Not validated                                  |
+| ext-etsi-valassured-ST-certs      | R(C)           | NC          | ✅          | Fully validated (duration check)               |
+| noRevocationAvail                 | M(C)           | NC          | ✅          | Validated for validity-assured certs           |
 | qcStatements (esi4-qcStatement-1) | M(C) for QCP   | NC          | ✅          | Validated for qualified (QcCompliance)         |
 | qcStatements (esi4-qcStatement-4) | M(C) for QCP   | NC          | ✅          | Validated for qualified (QcSSCD)               |
 | qcStatements (esi4-qcStatement-6) | M(C) for QCP-l | NC          | ✅          | Validated for qualified legal (QcType)         |
@@ -244,21 +220,19 @@ present.
 | Category             | # Requirements | # Compliant | % Compliance |
 |----------------------|----------------|-------------|--------------|
 | Certificate Fields   | 7              | 7           | 100%         |
-| Extensions           | 11             | 10          | 91%          |
+| Extensions           | 11             | 11          | 100%         |
 | Certificate Policies | 4              | 4           | 100%         |
 | Subject Naming       | 7              | 7           | 100%         |
-| Conditional Logic    | 6              | 5           | 83%          |
-| **TOTAL**            | **35**         | **33**      | **94%**      |
+| Conditional Logic    | 6              | 6           | 100%         |
+| **TOTAL**            | **35**         | **35**      | **100%**     |
 
 **Overall Compliance Score: 10/10**
 
 **Breakdown by Implementation Status:**
 
-- ✅ **Fully Implemented (33 requirements)**: All core certificate validation, extensions (AIA, AKI, SAN, CRLDP), public key,
-  QCStatements, subject DN attributes (natural person & legal person), issuer DN attributes (legal person),
-  KeyUsage criticality, organizationIdentifier format
-- ⚠️ **Partially Implemented (1 requirement)**: validity-assured short-term certs
-- ❌ **Not Implemented (1 requirement)**: noRevocationAvail (only for short-term certs without CRLDP/OCSP)
+- ✅ **Fully Implemented (35 requirements)**: All core certificate validation, extensions (AIA, AKI, SAN, CRLDP, noRevocationAvail), 
+  public key, QCStatements, subject DN attributes (natural person & legal person), issuer DN attributes (legal person),
+  KeyUsage criticality, organizationIdentifier format, validity-assured short-term certs logic.
 
 ---
 
@@ -266,8 +240,7 @@ present.
 
 ### Testing & Validation
 
-1. ⏳ Negative test cases for remaining requirements - **IN PROGRESS**
-2. ⏳ Validate against ETSI test specifications if available - **PENDING**
+1. ⏳ Validate against ETSI test specifications if available - **PENDING**
 
 ---
 
