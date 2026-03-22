@@ -20,6 +20,8 @@ import org.bouncycastle.asn1.ASN1InputStream
 import org.bouncycastle.asn1.ASN1ObjectIdentifier
 import org.bouncycastle.asn1.ASN1Sequence
 import org.bouncycastle.asn1.DEROctetString
+import org.bouncycastle.asn1.x500.X500Name
+import org.bouncycastle.asn1.x500.style.IETFUtils
 import org.bouncycastle.asn1.x509.AccessDescription
 import org.bouncycastle.asn1.x509.CRLDistPoint
 import org.bouncycastle.asn1.x509.GeneralName
@@ -28,6 +30,7 @@ import org.slf4j.LoggerFactory
 import java.security.cert.X509Certificate
 import java.security.interfaces.ECPublicKey
 import java.security.interfaces.RSAPublicKey
+import javax.security.auth.x500.X500Principal
 import kotlin.time.toKotlinInstant
 import org.bouncycastle.asn1.x509.AuthorityKeyIdentifier as BcAuthorityKeyIdentifier
 
@@ -48,9 +51,10 @@ public object CertificateOperationsJvm : CertificateOperations<X509Certificate> 
      */
     public override fun getBasicConstraints(certificate: X509Certificate): BasicConstraintsInfo {
         val basicConstraints = certificate.basicConstraints
+        val isCa = basicConstraints >= 0
         return BasicConstraintsInfo(
-            isCa = basicConstraints >= 0,
-            pathLenConstraint = basicConstraints.takeIf { it >= 0 },
+            isCa = isCa,
+            pathLenConstraint = basicConstraints.takeIf { isCa },
         )
     }
 
@@ -64,7 +68,7 @@ public object CertificateOperationsJvm : CertificateOperations<X509Certificate> 
      */
     public override fun getQcStatements(certificate: X509Certificate): List<QCStatementInfo> {
         // OID for QCStatements extension (id-pe-qcStatements)
-        val qcStatementsExtension = certificate.getExtensionValue("1.3.6.1.5.5.7.1.3")
+        val qcStatementsExtension = certificate.getExtensionValue(RFC3739.ID_PE_QCSTATEMENTS)
         return qcStatementsExtension?.parseQcStatements().orEmpty()
     }
 
@@ -73,9 +77,9 @@ public object CertificateOperationsJvm : CertificateOperations<X509Certificate> 
      *
      * @return [eu.europa.ec.eudi.etsi1196x2.consultation.certs.KeyUsageBits] or null if keyUsage extension is not present
      */
-    public override fun getKeyUsage(certificate: X509Certificate): KeyUsageBits? =
+    public override fun getKeyUsage(certificate: X509Certificate): Pair<KeyUsageBits, Boolean>? =
         certificate.keyUsage?.let { keyUsage ->
-            KeyUsageBits(
+            val bits = KeyUsageBits(
                 digitalSignature = keyUsage.getOrElse(0) { false },
                 nonRepudiation = keyUsage.getOrElse(1) { false },
                 keyEncipherment = keyUsage.getOrElse(2) { false },
@@ -86,7 +90,13 @@ public object CertificateOperationsJvm : CertificateOperations<X509Certificate> 
                 encipherOnly = keyUsage.getOrElse(7) { false },
                 decipherOnly = keyUsage.getOrElse(8) { false },
             )
+            val critical = certificate.isCritical(RFC5280.EXT_KEY_USAGE)
+            bits to critical
         }
+
+    private fun X509Certificate.isCritical(p: String): Boolean {
+        return p in criticalExtensionOIDs.orEmpty()
+    }
 
     /**
      * Extracts validity period information from an X509Certificate.
@@ -109,7 +119,8 @@ public object CertificateOperationsJvm : CertificateOperations<X509Certificate> 
      */
     public override fun getCertificatePolicies(certificate: X509Certificate): List<String> {
         // OID for Certificate Policies extension
-        val certPoliciesExtension = certificate.getExtensionValue("2.5.29.32")
+        val certPoliciesExtension =
+            certificate.getExtensionValue(RFC5280.CERTIFICATE_POLICIES)
         return certPoliciesExtension?.parseCertificatePolicies().orEmpty()
     }
 
@@ -130,7 +141,7 @@ public object CertificateOperationsJvm : CertificateOperations<X509Certificate> 
      */
     public override fun getAiaExtension(certificate: X509Certificate): AuthorityInformationAccess? {
         // OID for AIA extension (id-pe-authorityInfoAccess)
-        val aiaExtension = certificate.getExtensionValue("1.3.6.1.5.5.7.1.1")
+        val aiaExtension = certificate.getExtensionValue(RFC5280.EXT_AUTHORITY_INFO_ACCESS)
         return aiaExtension?.parseAiaExtension()
     }
 
@@ -278,29 +289,7 @@ public object CertificateOperationsJvm : CertificateOperations<X509Certificate> 
      * @return [DistinguishedName] or null if parsing fails
      */
     public override fun getSubject(certificate: X509Certificate): DistinguishedName? = try {
-        val attributes = mutableMapOf<String, String>()
-        certificate.subjectX500Principal.name.split(",").forEach { rdn ->
-            val parts = rdn.trim().split("=", limit = 2)
-            if (parts.size == 2) {
-                val key = parts[0].trim().uppercase()
-                val value = parts[1].trim()
-                attributes[key] = value
-                // Also store by OID if it's a standard attribute
-                when (key) {
-                    "CN" -> attributes["2.5.4.3"] = value
-                    "O" -> attributes["2.5.4.7"] = value
-                    "OU" -> attributes["2.5.4.11"] = value
-                    "C" -> attributes["2.5.4.6"] = value
-                    "SN" -> attributes["2.5.4.4"] = value
-                    "G" -> attributes["2.5.4.42"] = value
-                    "SERIALNUMBER" -> attributes["2.5.4.5"] = value
-                    "L" -> attributes["2.5.4.7"] = value
-                    "ST" -> attributes["2.5.4.8"] = value
-                    "ORGANIZATIONIDENTIFIER" -> attributes["2.5.4.97"] = value
-                }
-            }
-        }
-        DistinguishedName(attributes)
+        certificate.subjectX500Principal.asDistinguishedName()
     } catch (e: Exception) {
         logger.warn("Failed to parse subject DN from certificate: ${e.message}", e)
         null
@@ -312,29 +301,7 @@ public object CertificateOperationsJvm : CertificateOperations<X509Certificate> 
      * @return [DistinguishedName] or null if parsing fails
      */
     public override fun getIssuer(certificate: X509Certificate): DistinguishedName? = try {
-        val attributes = mutableMapOf<String, String>()
-        certificate.issuerX500Principal.name.split(",").forEach { rdn ->
-            val parts = rdn.trim().split("=", limit = 2)
-            if (parts.size == 2) {
-                val key = parts[0].trim().uppercase()
-                val value = parts[1].trim()
-                attributes[key] = value
-                // Also store by OID if it's a standard attribute
-                when (key) {
-                    "CN" -> attributes["2.5.4.3"] = value
-                    "O" -> attributes["2.5.4.7"] = value
-                    "OU" -> attributes["2.5.4.11"] = value
-                    "C" -> attributes["2.5.4.6"] = value
-                    "SN" -> attributes["2.5.4.4"] = value
-                    "G" -> attributes["2.5.4.42"] = value
-                    "SERIALNUMBER" -> attributes["2.5.4.5"] = value
-                    "L" -> attributes["2.5.4.7"] = value
-                    "ST" -> attributes["2.5.4.8"] = value
-                    "ORGANIZATIONIDENTIFIER" -> attributes["2.5.4.97"] = value
-                }
-            }
-        }
-        DistinguishedName(attributes)
+        certificate.issuerX500Principal.asDistinguishedName()
     } catch (e: Exception) {
         logger.warn("Failed to parse issuer DN from certificate: ${e.message}", e)
         null
@@ -526,4 +493,19 @@ public object CertificateOperationsJvm : CertificateOperations<X509Certificate> 
         logger.warn("Failed to parse SubjectPublicKeyInfo: ${e.message}", e)
         PublicKeyInfo(certificate.publicKey.algorithm, null, null)
     }
+}
+
+internal fun X500Principal.asDistinguishedName(): DistinguishedName {
+    val x500Name = X500Name(this.name)
+    val attributes = mutableMapOf<String, String>()
+
+    x500Name.rdNs.forEach { rdn ->
+        rdn.typesAndValues.forEach { tv ->
+            val oid = tv.type.id
+            val value = IETFUtils.valueToString(tv.value)
+            attributes[oid] = value
+        }
+    }
+
+    return DistinguishedName(attributes)
 }

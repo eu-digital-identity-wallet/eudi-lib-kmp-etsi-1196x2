@@ -32,7 +32,7 @@ public fun wrpAccessCertificateProfile(
 ): CertificateProfile = certificateProfile {
     // Basic certificate requirements
     requireEndEntityCertificate()
-    requireDigitalSignature()
+    requireDigitalSignatureCritical()
     requireValidAt(at)
     requirePolicy(NCP_N_EUDIWRP, NCP_L_EUDIWRP, QCP_N_EUDIWRP, QCP_L_EUDIWRP)
     requireNoSelfSigned()

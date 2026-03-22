@@ -20,7 +20,7 @@ import kotlin.time.Instant
 public interface CertificateOperations<CERT : Any> {
     public fun getBasicConstraints(certificate: CERT): BasicConstraintsInfo
     public fun getQcStatements(certificate: CERT): List<QCStatementInfo>
-    public fun getKeyUsage(certificate: CERT): KeyUsageBits?
+    public fun getKeyUsage(certificate: CERT): Pair<KeyUsageBits, Boolean>?
     public fun getValidityPeriod(certificate: CERT): ValidityPeriod
     public fun getCertificatePolicies(certificate: CERT): List<String>
     public fun isSelfSigned(certificate: CERT): Boolean
@@ -54,7 +54,7 @@ public sealed interface CertificateOperationsAlgebra<out T> {
      * Extract the key usage extension bits.
      * Returns null if the extension is not present.
      */
-    public data object GetKeyUsage : CertificateOperationsAlgebra<KeyUsageBits?>
+    public data object GetKeyUsage : CertificateOperationsAlgebra<Pair<KeyUsageBits, Boolean>?>
 
     /**
      * Extract the validity period (notBefore and notAfter dates).
@@ -212,7 +212,6 @@ public data class AuthorityInformationAccess(
     val ocspUri: String?,
 )
 
-// TODO Remove "magic" values
 /**
  * Represents a Distinguished Name (DN) from a certificate subject or issuer.
  *
@@ -234,62 +233,37 @@ public data class AuthorityInformationAccess(
 public data class DistinguishedName(
     val attributes: Map<String, String>,
 ) {
-    /**
-     * Gets the countryName attribute (OID 2.5.4.6).
-     * Returns a two-letter ISO 3166-1 alpha-2 country code.
-     */
-    public val countryName: String? get() = attributes["2.5.4.6"] ?: attributes["C"]
+    public val commonName: String? get() = attributes[X500OIDs.COMMON_NAME]
+    public val serialNumber: String? get() = attributes[X500OIDs.SERIAL_NUMBER]
+    public val country: String? get() = attributes[X500OIDs.COUNTRY]
+    public val locality: String? get() = attributes[X500OIDs.LOCALITY]
+    public val state: String? get() = attributes[X500OIDs.STATE]
+    public val street: String? get() = attributes[X500OIDs.STREET]
+    public val organization: String? get() = attributes[X500OIDs.ORGANIZATION]
+    public val organizationUnit: String? get() = attributes[X500OIDs.ORG_UNIT]
+    public val surname: String? get() = attributes[X500OIDs.SURNAME]
+    public val givenName: String? get() = attributes[X500OIDs.GIVEN_NAME]
+    public val pseudonym: String? get() = attributes[X500OIDs.PSEUDONYM]
+    public val organizationIdentifier: String? get() = attributes[X500OIDs.ORG_IDENTIFIER]
 
-    /**
-     * Gets the commonName attribute (OID 2.5.4.3).
-     */
-    public val commonName: String? get() = attributes["2.5.4.3"] ?: attributes["CN"]
-
-    /**
-     * Gets the organizationName attribute (OID 2.5.4.7).
-     */
-    public val organizationName: String? get() = attributes["2.5.4.7"] ?: attributes["O"]
-
-    /**
-     * Gets the organizationIdentifier attribute (OID 2.5.4.97).
-     * Per EN 319 412-3, this contains the legal entity identifier.
-     */
-    public val organizationIdentifier: String? get() = attributes["2.5.4.97"] ?: attributes["organizationIdentifier"]
-
-    /**
-     * Gets the surname attribute (OID 2.5.4.4).
-     */
-    public val surname: String? get() = attributes["2.5.4.4"] ?: attributes["SN"]
-
-    /**
-     * Gets the givenName attribute (OID 2.5.4.42).
-     */
-    public val givenName: String? get() = attributes["2.5.4.42"] ?: attributes["G"]
-
-    /**
-     * Gets the serialNumber attribute (OID 2.5.4.5).
-     * For natural persons, this is a unique identifier assigned by the CA.
-     */
-    public val serialNumber: String? get() = attributes["2.5.4.5"] ?: attributes["serialNumber"]
-
-    /**
-     * Gets the pseudonym attribute (OID 2.5.4.65).
-     */
-    public val pseudonym: String? get() = attributes["2.5.4.65"] ?: attributes["pseudonym"]
-
-    /**
-     * Checks if the DN contains a specific attribute.
-     *
-     * @param oid the OID or short name of the attribute to check
-     */
     public fun hasAttribute(oid: String): Boolean = attributes.containsKey(oid)
 
-    /**
-     * Gets an attribute value by OID or short name.
-     *
-     * @param oid the OID or short name of the attribute
-     */
     public operator fun get(oid: String): String? = attributes[oid]
+
+    public object X500OIDs {
+        public const val COMMON_NAME: String = "2.5.4.3"
+        public const val SERIAL_NUMBER: String = "2.5.4.5"
+        public const val COUNTRY: String = "2.5.4.6"
+        public const val LOCALITY: String = "2.5.4.7"
+        public const val STATE: String = "2.5.4.8"
+        public const val STREET: String = "2.5.4.9"
+        public const val ORGANIZATION: String = "2.5.4.10"
+        public const val ORG_UNIT: String = "2.5.4.11"
+        public const val SURNAME: String = "2.5.4.4"
+        public const val GIVEN_NAME: String = "2.5.4.42"
+        public const val PSEUDONYM: String = "2.5.4.65"
+        public const val ORG_IDENTIFIER: String = "2.5.4.97"
+    }
 }
 
 /**

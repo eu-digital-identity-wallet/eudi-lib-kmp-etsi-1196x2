@@ -97,39 +97,48 @@ public fun ProfileBuilder.requireQcStatement(
 // Key Usage
 //
 
+public fun ProfileBuilder.requireDigitalSignatureCritical() {
+    requireKeyUsage("digitalSignature")
+}
+
+public fun ProfileBuilder.requireKeyCertSignCritical() {
+    requireKeyUsage("keyCertSign")
+}
+
 /**
  * Requires the certificate to have the digitalSignature key usage bit set.
+ * Per RFC 5280 section 4.2.1.3, the KeyUsage extension MUST be marked critical
  */
-public fun ProfileBuilder.requireDigitalSignature() {
-    keyUsage { keyUsage ->
+public fun ProfileBuilder.requireKeyUsage(
+    requiredKeyUsage: String,
+) {
+    keyUsage { keyUsageAndCritical ->
         CertificateConstraintEvaluation {
-            when {
-                keyUsage == null ->
-                    add(Violations.certificateDoesNotContainKeyUsage)
-
-                !keyUsage.digitalSignature -> {
-                    add(Violations.certificateMissingKeyUsage("digitalSignature"))
+            if (keyUsageAndCritical == null) {
+                add(Violations.certificateDoesNotContainKeyUsage)
+            } else {
+                val (keyUsage, critical) = keyUsageAndCritical
+                if (!critical) {
+                    add(Violations.keyUsageNotMarkedCritical)
+                }
+                if (!keyUsage[requiredKeyUsage]) {
+                    add(Violations.certificateMissingKeyUsage(requiredKeyUsage))
                 }
             }
         }
     }
 }
-
-/**
- * Requires the certificate to have the keyCertSign key usage bit set.
- */
-public fun ProfileBuilder.requireKeyCertSign() {
-    keyUsage { keyUsage ->
-        CertificateConstraintEvaluation {
-            when {
-                keyUsage == null ->
-                    add(Violations.certificateDoesNotContainKeyUsage)
-
-                !keyUsage.keyCertSign ->
-                    add(Violations.certificateMissingKeyUsage("keyCertSign"))
-            }
-        }
-    }
+private operator fun KeyUsageBits.get(s: String): Boolean = when (s) {
+    "digitalSignature" -> digitalSignature
+    "nonRepudiation" -> nonRepudiation
+    "keyEncipherment" -> keyEncipherment
+    "dataEncipherment" -> dataEncipherment
+    "keyAgreement" -> keyAgreement
+    "keyCertSign" -> keyCertSign
+    "crlSign" -> crlSign
+    "encipherOnly" -> encipherOnly
+    "decipherOnly" -> decipherOnly
+    else -> error("Invalid key usage bit: $s")
 }
 
 //
@@ -331,7 +340,7 @@ public fun evaluateSubjectNaturalPersonAttributes(
         }
 
         // countryName is mandatory
-        if (subject.countryName.isNullOrBlank()) {
+        if (subject.country.isNullOrBlank()) {
             add(Violations.subjectMissingCountryName)
         }
 
@@ -364,18 +373,26 @@ public fun evaluateSubjectLegalPersonAttributes(
         }
 
         // countryName is mandatory
-        if (subject.countryName.isNullOrBlank()) {
+        if (subject.country.isNullOrBlank()) {
             add(Violations.subjectMissingCountryName)
         }
 
         // organizationName is mandatory
-        if (subject.organizationName.isNullOrBlank()) {
+        if (subject.organization.isNullOrBlank()) {
             add(Violations.subjectMissingOrganizationName)
         }
 
         // organizationIdentifier is mandatory
-        if (subject.organizationIdentifier.isNullOrBlank()) {
+        val organizationIdentifier = subject.organizationIdentifier
+        println("DEBUG: organizationIdentifier from property = '$organizationIdentifier'")
+        println("DEBUG: all attributes = ${subject?.attributes}")
+        if (organizationIdentifier.isNullOrBlank()) {
             add(Violations.subjectMissingOrganizationIdentifier)
+        } else {
+            // organizationIdentifier format validation (EN 319 412-1 clause 5.1.4)
+            if (!ETSI319412Part1.ORG_ID_PATTERN.matches(organizationIdentifier)) {
+                add(Violations.organizationIdentifierInvalidFormat)
+            }
         }
 
         // commonName is mandatory
@@ -407,18 +424,24 @@ public fun evaluateIssuerLegalPersonAttributes(
         }
 
         // countryName is mandatory
-        if (issuer.countryName.isNullOrBlank()) {
+        if (issuer.country.isNullOrBlank()) {
             add(Violations.issuerMissingCountryName)
         }
 
         // organizationName is mandatory
-        if (issuer.organizationName.isNullOrBlank()) {
+        if (issuer.organization.isNullOrBlank()) {
             add(Violations.issuerMissingOrganizationName)
         }
 
         // organizationIdentifier is mandatory
-        if (issuer.organizationIdentifier.isNullOrBlank()) {
+        val organizationIdentifier = issuer.organizationIdentifier
+        if (organizationIdentifier.isNullOrBlank()) {
             add(Violations.issuerMissingOrganizationIdentifier)
+        } else {
+            // organizationIdentifier format validation (EN 319 412-1 clause 5.1.4)
+            if (!ETSI319412Part1.ORG_ID_PATTERN.matches(organizationIdentifier)) {
+                add(Violations.organizationIdentifierInvalidFormat)
+            }
         }
 
         // commonName is mandatory
@@ -477,11 +500,11 @@ public fun ProfileBuilder.requireIssuerAttributes(
                 return@CertificateConstraintEvaluation
             }
 
-            if (requireCountryName && issuer.countryName.isNullOrBlank()) {
+            if (requireCountryName && issuer.country.isNullOrBlank()) {
                 add(Violations.issuerMissingCountryName)
             }
 
-            if (requireOrganizationName && issuer.organizationName.isNullOrBlank()) {
+            if (requireOrganizationName && issuer.organization.isNullOrBlank()) {
                 add(Violations.issuerMissingOrganizationName)
             }
 
@@ -694,6 +717,11 @@ internal object Violations {
         "Certificate keyUsage missing required bits: $keyUsage",
     )
 
+    val keyUsageNotMarkedCritical: CertificateConstraintViolation
+        get() = CertificateConstraintViolation(
+            reason = "KeyUsage extension must be marked critical per RFC 5280 clause 4.2",
+        )
+
     fun certificateDoesNotContainAnyPolicy(
         policies: Collection<String>,
         oids: Collection<String>,
@@ -805,6 +833,11 @@ internal object Violations {
     val issuerMissingOrganizationIdentifier: CertificateConstraintViolation
         get() = CertificateConstraintViolation(
             reason = "Issuer DN missing required organizationIdentifier attribute (per ETSI EN 319 412-3)",
+        )
+
+    val organizationIdentifierInvalidFormat: CertificateConstraintViolation
+        get() = CertificateConstraintViolation(
+            reason = "organizationIdentifier has invalid format. Expected: XXXCC-identifier (per EN 319 412-1 clause 5.1.4)",
         )
 
     // Subject Alternative Name violations

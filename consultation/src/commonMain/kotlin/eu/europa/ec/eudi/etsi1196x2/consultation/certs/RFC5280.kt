@@ -24,9 +24,11 @@ package eu.europa.ec.eudi.etsi1196x2.consultation.certs
  * @see [RFC 5280 - Internet X.509 Public Key Infrastructure Certificate and CRL Profile](https://datatracker.ietf.org/doc/html/rfc5280)
  */
 public object RFC5280 {
-    //
-    // Extension OIDs (id-ce prefix: 2.5.29)
-    //
+
+    /**
+     * id-at-countryName OBJECT IDENTIFIER ::= { id-at 6 }
+     */
+    public const val ATTR_COUNTRY_NAME: String = "2.5.4.6"
 
     /**
      * id-ce-authorityKeyIdentifier OBJECT IDENTIFIER ::= { id-ce 35 }
@@ -122,61 +124,7 @@ public object RFC5280 {
     public const val EXT_AUTHORITY_INFO_ACCESS: String = "1.3.6.1.5.5.7.1.1"
 
     /**
-     * id-ce-subjectInfoAccess OBJECT IDENTIFIER ::= { id-pkix 1 11 }
-     *
-     * Indicates how to access information and services for the subject.
-     *
-     * @see [RFC 5280 Section 4.2.2.2](https://datatracker.ietf.org/doc/html/rfc5280#section-4.2.2.2)
+     * id-ce-certificatePolicies OBJECT IDENTIFIER ::= { id-ce 32 }
      */
-    public const val EXT_SUBJECT_INFO_ACCESS: String = "1.3.6.1.5.5.7.1.11"
-
-    /**
-     * id-ce-noRevAvail OBJECT IDENTIFIER ::= { id-ce 56 }
-     *
-     * Indicates that no revocation information is available for this certificate.
-     *
-     * @see [RFC 9608 Section 2](https://datatracker.ietf.org/doc/html/rfc9608#section-2)
-     */
-    public const val EXT_NO_REVOCATION_AVAILABLE: String = "2.5.29.56"
-
-    //
-    // Access Method OIDs (id-ad prefix: 1.3.6.1.5.5.7.48)
-    // Used in AuthorityInfoAccess and SubjectInfoAccess extensions
-    //
-
-    /**
-     * id-ad-caIssuers OBJECT IDENTIFIER ::= { id-ad 2 }
-     *
-     * Access method for obtaining the CA certificate that issued this certificate.
-     *
-     * @see [RFC 5280 Section 4.2.2.1](https://datatracker.ietf.org/doc/html/rfc5280#section-4.2.2.1)
-     */
-    public const val AD_CA_ISSUERS: String = "1.3.6.1.5.5.7.48.2"
-
-    /**
-     * id-ad-ocsp OBJECT IDENTIFIER ::= { id-ad 1 }
-     *
-     * Access method for obtaining OCSP responder services.
-     *
-     * @see [RFC 5280 Section 4.2.2.1](https://datatracker.ietf.org/doc/html/rfc5280#section-4.2.2.1)
-     */
-    public const val AD_OCSP: String = "1.3.6.1.5.5.7.48.1"
-
-    /**
-     * id-ad-timeStamping OBJECT IDENTIFIER ::= { id-ad 3 }
-     *
-     * Access method for obtaining time stamping services.
-     *
-     * @see [RFC 5280 Section 4.2.2.1](https://datatracker.ietf.org/doc/html/rfc5280#section-4.2.2.1)
-     */
-    public const val AD_TIME_STAMPING: String = "1.3.6.1.5.5.7.48.3"
-
-    /**
-     * id-ad-caRepository OBJECT IDENTIFIER ::= { id-ad 5 }
-     *
-     * Access method for obtaining CA certificates and CRLs from a repository.
-     *
-     * @see [RFC 5280 Section 4.2.2.1](https://datatracker.ietf.org/doc/html/rfc5280#section-4.2.2.1)
-     */
-    public const val AD_CA_REPOSITORY: String = "1.3.6.1.5.5.7.48.5"
+    public const val CERTIFICATE_POLICIES: String = "2.5.29.32"
 }

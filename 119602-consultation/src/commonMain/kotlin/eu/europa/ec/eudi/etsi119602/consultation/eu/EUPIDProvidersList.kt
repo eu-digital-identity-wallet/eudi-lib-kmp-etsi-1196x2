@@ -84,7 +84,7 @@ public val EUPIDProvidersList: EUListOfTrustedEntitiesProfile =
 public fun pidSigningCertificateProfile(at: Instant? = null): CertificateProfile = certificateProfile {
     requireEndEntityCertificate()
     requireQcStatement(qcType = ETSI119412Part6.ID_ETSI_QCT_PID, requireCompliance = true)
-    requireDigitalSignature()
+    requireDigitalSignatureCritical()
     requireValidAt(at)
     // Per EN 319 412-2 §4.3.3: certificatePolicies extension shall be present (TSP-defined OID)
     requirePolicyPresence()
@@ -110,6 +110,6 @@ public fun pidProviderCACertificateProfile(
 ): CertificateProfile =
     certificateProfile {
         requireCaCertificate(maxPathLen)
-        requireKeyCertSign()
+        requireKeyCertSignCritical()
         requireValidAt(at)
     }

@@ -36,7 +36,7 @@ class KeyUsageConstraintTest {
 
         // Create constraint for digitalSignature
 
-        val profile = certificateProfile { requireDigitalSignature() }
+        val profile = certificateProfile { requireDigitalSignatureCritical() }
 
         // Validate
         val constraintEvaluation = certificateProfileValidator.validate(profile, certificate)

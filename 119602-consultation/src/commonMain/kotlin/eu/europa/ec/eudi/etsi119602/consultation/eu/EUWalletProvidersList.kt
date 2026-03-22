@@ -89,7 +89,7 @@ public fun walletProviderSigningCertificateProfile(at: Instant? = null): Certifi
     certificateProfile {
         requireEndEntityCertificate()
         requireQcStatement(qcType = ETSI119412Part6.ID_ETSI_QCT_WAL, requireCompliance = true)
-        requireDigitalSignature()
+        requireDigitalSignatureCritical()
         requireValidAt(at)
         requirePolicyPresence()
         requireAiaForCaIssued()
@@ -120,6 +120,6 @@ public fun walletProviderSigningCertificateProfile(at: Instant? = null): Certifi
 public fun walletProviderCACertificateProfile(at: Instant? = null, maxPathLen: Int? = null): CertificateProfile =
     certificateProfile {
         requireCaCertificate(maxPathLen)
-        requireKeyCertSign()
+        requireKeyCertSignCritical()
         requireValidAt(at)
     }

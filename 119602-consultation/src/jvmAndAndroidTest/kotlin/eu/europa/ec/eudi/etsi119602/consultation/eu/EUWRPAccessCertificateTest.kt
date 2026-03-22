@@ -36,7 +36,7 @@ class EUWRPAccessCertificateTest {
     private val wrpacProviderName = X500NameBuilder(BCStyle.INSTANCE).apply {
         addRDN(BCStyle.C, "EU")
         addRDN(BCStyle.O, "Wallet Relying Party Authority")
-        addRDN(BCStyle.ORGANIZATION_IDENTIFIER, "XXX123")
+        addRDN(BCStyle.ORGANIZATION_IDENTIFIER, "LEIEU-5493001KJTIIGC8Y1R12")
         addRDN(BCStyle.CN, "Wallet Relying Party Authority")
     }.build()
 
@@ -46,7 +46,7 @@ class EUWRPAccessCertificateTest {
         X500NameBuilder(BCStyle.INSTANCE).apply {
             addRDN(BCStyle.C, "EU")
             addRDN(BCStyle.O, "WRPAC Provider")
-            addRDN(BCStyle.ORGANIZATION_IDENTIFIER, "1234567890")
+            addRDN(BCStyle.ORGANIZATION_IDENTIFIER, "VATEU-1KJTIIGC8Y12222")
             addRDN(BCStyle.CN, "Wallet Relying Party Registry")
         }.build()
 

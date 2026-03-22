@@ -66,7 +66,7 @@ public fun wrpacProviderCertificateProfile(
 ): CertificateProfile =
     certificateProfile {
         requireCaCertificate(maxPathLen)
-        requireKeyCertSign()
+        requireKeyCertSignCritical()
         requireValidAt(at)
         requirePolicyPresence()
     }
