@@ -113,16 +113,4 @@ public object ETSI319412Part1 {
         "PNO", // Personal number (if applicable)
         "TAX", // Tax reference number
     )
-
-    /**
-     * Validates an organization identifier against the ETSI EN 319 412-1 format.
-     *
-     * @param orgId the organization identifier to validate
-     * @return true if valid, false otherwise
-     */
-    public fun isValidOrgId(orgId: String): Boolean {
-        val matchResult = ORG_ID_PATTERN.matchEntire(orgId) ?: return false
-        val identityType = matchResult.groupValues[1]
-        return identityType in VALID_ORG_ID_TYPES
-    }
 }
