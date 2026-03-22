@@ -16,6 +16,7 @@
 package eu.europa.ec.eudi.etsi1196x2.consultation.certs
 
 import eu.europa.ec.eudi.etsi1196x2.consultation.certs.ETSI319412Part1.ORG_ID_PATTERN
+import eu.europa.ec.eudi.etsi1196x2.consultation.certs.ETSI319412Part1.VALID_NAT_ID_TYPES
 import eu.europa.ec.eudi.etsi1196x2.consultation.certs.ETSI319412Part1.VALID_ORG_ID_TYPES
 import kotlin.time.Clock
 import kotlin.time.Instant
@@ -222,8 +223,14 @@ public object CertificateConstraintsEvaluations {
         }
 
         // serialNumber is mandatory for natural persons
-        if (subject.serialNumber.isNullOrBlank()) {
+        val serialNumber = subject.serialNumber
+        if (serialNumber.isNullOrBlank()) {
             add(subjectMissingSerialNumber)
+        } else {
+            // natural person identity type reference validation (EN 319 412-1 clause 5.1.3)
+            if (!isValidNatId(serialNumber)) {
+                add(subjectSerialNumberInvalidFormat)
+            }
         }
     }
 
@@ -307,6 +314,18 @@ public object CertificateConstraintsEvaluations {
         val matchResult = ORG_ID_PATTERN.matchEntire(orgId) ?: return false
         val identityType = matchResult.groupValues[1]
         return identityType in VALID_ORG_ID_TYPES
+    }
+
+    /**
+     * Validates a natural person serial number against the ETSI EN 319 412-1 format.
+     *
+     * @param serialNumber the serial number to validate
+     * @return true if valid, false otherwise
+     */
+    public fun isValidNatId(serialNumber: String): Boolean {
+        val matchResult = ORG_ID_PATTERN.matchEntire(serialNumber) ?: return false
+        val identityType = matchResult.groupValues[1]
+        return identityType in VALID_NAT_ID_TYPES
     }
 
     public fun evaluateIssuerAttributes(
@@ -552,6 +571,11 @@ public object CertificateConstraintsEvaluations {
     public val subjectMissingSerialNumber: CertificateConstraintViolation
         get() = CertificateConstraintViolation(
             reason = "Subject DN missing required serialNumber attribute (per ETSI EN 319 412-2)",
+        )
+
+    public val subjectSerialNumberInvalidFormat: CertificateConstraintViolation
+        get() = CertificateConstraintViolation(
+            reason = "Subject DN serialNumber has invalid format. Expected: XXXCC-identifier (per EN 319 412-1 clause 5.1.3)",
         )
 
     public val issuerMissingCountryName: CertificateConstraintViolation

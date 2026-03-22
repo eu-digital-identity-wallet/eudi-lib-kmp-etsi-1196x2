@@ -53,11 +53,11 @@ class EUWRPAccessCertificateTest {
     // Subject DN with all required attributes for a natural person
     // Per ETSI EN 319 412-2: countryName, givenName/surname/pseudonym, commonName, serialNumber
     private val naturalPersonSubject = X500NameBuilder(BCStyle.INSTANCE).apply {
-        addRDN(BCStyle.C, "EU")
+        addRDN(BCStyle.C, "GR")
         addRDN(BCStyle.GIVENNAME, "John") // givenName
         addRDN(BCStyle.SURNAME, "Doe") // surname
         addRDN(BCStyle.CN, "John Doe")
-        addRDN(BCStyle.SERIALNUMBER, "839201")
+        addRDN(BCStyle.SERIALNUMBER, "PASGR-839201")
     }.build()
 
     // Subject DN missing serialNumber (for testing serialNumber requirement)

@@ -88,6 +88,21 @@ public object ETSI319412Part1 {
     /** Legal person identity type reference: Excise Number */
     public const val ORG_ID_TYPE_EXC: String = "EXC"
 
+    /** Natural person identity type reference: Passport number */
+    public const val NAT_ID_TYPE_PAS: String = "PAS"
+
+    /** Natural person identity type reference: National identity card number */
+    public const val NAT_ID_TYPE_IDC: String = "IDC"
+
+    /** Natural person identity type reference: National personal number (civic registration number) */
+    public const val NAT_ID_TYPE_PNO: String = "PNO"
+
+    /** Natural person identity type reference: Personal tax reference number */
+    public const val NAT_ID_TYPE_TAX: String = "TAX"
+
+    /** Natural person identity type reference: Tax Identification Number (European Commission) */
+    public const val NAT_ID_TYPE_TIN: String = "TIN"
+
     /** Separator character: hyphen-minus (ASCII 0x2D, UTF-8 U+002D) */
     public const val ORG_ID_SEPARATOR: Char = '-'
 
@@ -100,7 +115,7 @@ public object ETSI319412Part1 {
     /** Regex pattern for organizationIdentifier format validation */
     public val ORG_ID_PATTERN: Regex = Regex("^([A-Z]{3})[A-Z]{2}-.+$")
 
-    /** Valid legal person identity type references */
+    /** Valid legal person identity type references (EN 319 412-1 clause 5.1.4) */
     public val VALID_ORG_ID_TYPES: Set<String> = setOf(
         ORG_ID_TYPE_VAT,
         ORG_ID_TYPE_NTR,
@@ -108,9 +123,14 @@ public object ETSI319412Part1 {
         ORG_ID_TYPE_LEI,
         ORG_ID_TYPE_EOR,
         ORG_ID_TYPE_EXC,
-        "PAS", // Passport identifier (if applicable)
-        "IDC", // Identity card identifier (if applicable)
-        "PNO", // Personal number (if applicable)
-        "TAX", // Tax reference number
+    )
+
+    /** Valid natural person identity type references (EN 319 412-1 clause 5.1.3) */
+    public val VALID_NAT_ID_TYPES: Set<String> = setOf(
+        NAT_ID_TYPE_PAS,
+        NAT_ID_TYPE_IDC,
+        NAT_ID_TYPE_PNO,
+        NAT_ID_TYPE_TAX,
+        NAT_ID_TYPE_TIN,
     )
 }
