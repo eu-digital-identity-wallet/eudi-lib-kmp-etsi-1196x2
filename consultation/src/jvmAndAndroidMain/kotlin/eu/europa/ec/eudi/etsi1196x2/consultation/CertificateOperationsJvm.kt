@@ -16,23 +16,24 @@
 package eu.europa.ec.eudi.etsi1196x2.consultation
 
 import eu.europa.ec.eudi.etsi1196x2.consultation.certs.*
-import org.bouncycastle.asn1.ASN1InputStream
-import org.bouncycastle.asn1.ASN1ObjectIdentifier
+import eu.europa.ec.eudi.etsi1196x2.consultation.certs.AuthorityInformationAccess
+import eu.europa.ec.eudi.etsi1196x2.consultation.certs.AuthorityKeyIdentifier
 import org.bouncycastle.asn1.ASN1Sequence
 import org.bouncycastle.asn1.DEROctetString
+import org.bouncycastle.asn1.DERUTF8String
 import org.bouncycastle.asn1.x500.X500Name
 import org.bouncycastle.asn1.x500.style.IETFUtils
-import org.bouncycastle.asn1.x509.AccessDescription
-import org.bouncycastle.asn1.x509.CRLDistPoint
-import org.bouncycastle.asn1.x509.GeneralName
-import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo
+import org.bouncycastle.asn1.x509.*
+import org.bouncycastle.asn1.x509.qualified.QCStatement
 import org.slf4j.LoggerFactory
 import java.security.cert.X509Certificate
 import java.security.interfaces.ECPublicKey
 import java.security.interfaces.RSAPublicKey
 import javax.security.auth.x500.X500Principal
 import kotlin.time.toKotlinInstant
+import org.bouncycastle.asn1.x509.AuthorityInformationAccess as BcAuthorityInformationAccess
 import org.bouncycastle.asn1.x509.AuthorityKeyIdentifier as BcAuthorityKeyIdentifier
+import org.bouncycastle.asn1.x509.CertificatePolicies as BcCertificatePolicies
 
 /**
  * JVM/Android implementations of certificate constraint extractors for [X509Certificate].
@@ -67,8 +68,7 @@ public object CertificateOperationsJvm : CertificateOperations<X509Certificate> 
      * @return list of [eu.europa.ec.eudi.etsi1196x2.consultation.certs.QCStatementInfo] or empty list if no QCStatements present
      */
     public override fun getQcStatements(certificate: X509Certificate): List<QCStatementInfo> {
-        // OID for QCStatements extension (id-pe-qcStatements)
-        val qcStatementsExtension = certificate.getExtensionValue(RFC3739.ID_PE_QCSTATEMENTS)
+        val qcStatementsExtension = certificate.getExtensionValue(Extension.qCStatements.id)
         return qcStatementsExtension?.parseQcStatements().orEmpty()
     }
 
@@ -90,7 +90,7 @@ public object CertificateOperationsJvm : CertificateOperations<X509Certificate> 
                 encipherOnly = keyUsage.getOrElse(7) { false },
                 decipherOnly = keyUsage.getOrElse(8) { false },
             )
-            val critical = certificate.isCritical(RFC5280.EXT_KEY_USAGE)
+            val critical = certificate.isCritical(Extension.keyUsage.id)
             bits to critical
         }
 
@@ -118,9 +118,8 @@ public object CertificateOperationsJvm : CertificateOperations<X509Certificate> 
      * @return list of certificate policy OIDs or empty list if no policies present
      */
     public override fun getCertificatePolicies(certificate: X509Certificate): List<String> {
-        // OID for Certificate Policies extension
         val certPoliciesExtension =
-            certificate.getExtensionValue(RFC5280.CERTIFICATE_POLICIES)
+            certificate.getExtensionValue(Extension.certificatePolicies.id)
         return certPoliciesExtension?.parseCertificatePolicies().orEmpty()
     }
 
@@ -140,8 +139,7 @@ public object CertificateOperationsJvm : CertificateOperations<X509Certificate> 
      * @return [AuthorityInformationAccess] or null if extension is not present or parsing fails
      */
     public override fun getAiaExtension(certificate: X509Certificate): AuthorityInformationAccess? {
-        // OID for AIA extension (id-pe-authorityInfoAccess)
-        val aiaExtension = certificate.getExtensionValue(RFC5280.EXT_AUTHORITY_INFO_ACCESS)
+        val aiaExtension = certificate.getExtensionValue(Extension.authorityInfoAccess.id)
         return aiaExtension?.parseAiaExtension()
     }
 
@@ -149,30 +147,27 @@ public object CertificateOperationsJvm : CertificateOperations<X509Certificate> 
      * Helper function to parse AIA from DER-encoded extension value.
      */
     private fun ByteArray.parseAiaExtension(): AuthorityInformationAccess? = try {
-        ASN1InputStream(this).use { asn1InputStream ->
-            val obj = asn1InputStream.readObject()
-            val octetString = obj as? DEROctetString ?: return null
-            val aiaSequence = ASN1Sequence.getInstance(octetString.octets)
+        val octetString = DEROctetString.getInstance(this)
+        val aia = BcAuthorityInformationAccess.getInstance(octetString.octets)
 
-            var caIssuersUri: String? = null
-            var ocspUri: String? = null
+        var caIssuersUri: String? = null
+        var ocspUri: String? = null
 
-            for (i in 0 until aiaSequence.size()) {
-                val accessDescription = AccessDescription.getInstance(aiaSequence.getObjectAt(i))
-                val accessMethod = accessDescription.accessMethod
-                val accessLocation = accessDescription.accessLocation
+        val accessDescriptions = aia.accessDescriptions
+        for (accessDescription in accessDescriptions) {
+            val accessMethod = accessDescription.accessMethod
+            val accessLocation = accessDescription.accessLocation
 
-                if (accessLocation.tagNo == GeneralName.uniformResourceIdentifier) {
-                    val uri = accessLocation.name.toString()
+            if (accessLocation.tagNo == GeneralName.uniformResourceIdentifier) {
+                val uri = accessLocation.name.toString()
 
-                    when (accessMethod) {
-                        AccessDescription.id_ad_caIssuers -> caIssuersUri = uri
-                        AccessDescription.id_ad_ocsp -> ocspUri = uri
-                    }
+                when (accessMethod) {
+                    AccessDescription.id_ad_caIssuers -> caIssuersUri = uri
+                    AccessDescription.id_ad_ocsp -> ocspUri = uri
                 }
             }
-            AuthorityInformationAccess(caIssuersUri, ocspUri)
         }
+        AuthorityInformationAccess(caIssuersUri, ocspUri)
     } catch (e: Exception) {
         logger.warn("Failed to parse AIA extension from certificate: ${e.message}", e)
         null
@@ -198,41 +193,34 @@ public object CertificateOperationsJvm : CertificateOperations<X509Certificate> 
      * @see [ETSI EN 319 412-5](https://www.etsi.org/deliver/etsi_en/319400_319499/31941205/)
      */
     private fun ByteArray.parseQcStatements(): List<QCStatementInfo> = try {
-        ASN1InputStream(this).use { asn1InputStream ->
-            val obj = asn1InputStream.readObject()
-            // The extension value is wrapped in an OCTET STRING
-            val octetString = obj as? DEROctetString ?: return emptyList()
-            val qcStatements = ASN1Sequence.getInstance(octetString.octets)
+        val octetString = DEROctetString.getInstance(this)
+        val qcStatements = ASN1Sequence.getInstance(octetString.octets)
 
-            qcStatements.mapNotNull { qcStatementObj ->
-                val qcStatement = qcStatementObj as? ASN1Sequence ?: return@mapNotNull null
-                if (qcStatement.size() < 1) return@mapNotNull null
+        qcStatements.mapNotNull { qcStatementObj ->
+            val qcStatement = QCStatement.getInstance(qcStatementObj) ?: return@mapNotNull null
 
-                // First element is the statementId (OID)
-                val statementIdObj = qcStatement.getObjectAt(0) as? ASN1ObjectIdentifier ?: return@mapNotNull null
-                val statementId = statementIdObj.id
+            // First element is the statementId (OID)
+            val statementId = qcStatement.statementId.id
 
-                // Second element (optional) is statementInfo - check for QC compliance
-                // Per ETSI EN 319 412-5, QCStatements can have a compliance indicator
-                // We check if the second element is a UTF8String containing "compliant"
-                var qcCompliance = false
-                if (qcStatement.size() > 1) {
-                    val statementInfo = qcStatement.getObjectAt(1)
-                    // Check if it's a UTF8String with compliance indicator
-                    if (statementInfo is org.bouncycastle.asn1.DERUTF8String) {
-                        val complianceStr = statementInfo.string.lowercase()
-                        qcCompliance = complianceStr == "compliant"
-                    } else {
-                        // If there's any second element, assume compliant (backward compatibility)
-                        qcCompliance = true
-                    }
+            // Second element (optional) is statementInfo - check for QC compliance
+            // Per ETSI EN 319 412-5, QCStatements can have a compliance indicator
+            // We check if the second element is a UTF8String containing "compliant"
+            var qcCompliance = false
+            qcStatement.statementInfo?.let { statementInfo ->
+                // Check if it's a UTF8String with compliance indicator
+                if (statementInfo is DERUTF8String) {
+                    val complianceStr = statementInfo.string.lowercase()
+                    qcCompliance = complianceStr == "compliant"
+                } else {
+                    // If there's any second element, assume compliant (backward compatibility)
+                    qcCompliance = true
                 }
-
-                QCStatementInfo(
-                    qcType = statementId,
-                    qcCompliance = qcCompliance,
-                )
             }
+
+            QCStatementInfo(
+                qcType = statementId,
+                qcCompliance = qcCompliance,
+            )
         }
     } catch (e: Exception) {
         logger.warn("Failed to parse QCStatements from certificate: ${e.message}", e)
@@ -260,29 +248,17 @@ public object CertificateOperationsJvm : CertificateOperations<X509Certificate> 
      * @see [RFC 5280 Section 4.2.1.4](https://datatracker.ietf.org/doc/html/rfc5280#section-4.2.1.4)
      */
     private fun ByteArray.parseCertificatePolicies(): List<String> = try {
-        ASN1InputStream(this).use { asn1InputStream ->
-            val obj = asn1InputStream.readObject()
-            // The extension value is wrapped in an OCTET STRING
-            val octetString = obj as? DEROctetString ?: return emptyList()
-            val certPolicies = ASN1Sequence.getInstance(octetString.octets)
+        val octetString = DEROctetString.getInstance(this)
+        val certPolicies = BcCertificatePolicies.getInstance(octetString.octets)
 
-            certPolicies.mapNotNull { policyInfoObj ->
-                val policyInfo = policyInfoObj as? ASN1Sequence ?: return@mapNotNull null
-                if (policyInfo.size() < 1) return@mapNotNull null
-
-                // First element is the policyIdentifier (OID)
-                val policyIdObj = policyInfo.getObjectAt(0) as? ASN1ObjectIdentifier ?: return@mapNotNull null
-                policyIdObj.id
-            }
+        certPolicies.policyInformation.map { policyInfo ->
+            policyInfo.policyIdentifier.id
         }
     } catch (e: Exception) {
         logger.warn("Failed to parse CertificatePolicies from certificate: ${e.message}", e)
         emptyList()
     }
 
-    // TODO
-    //  Remove magic values
-    //  Check if X500Name can be used
     /**
      * Extracts the subject Distinguished Name from an X509Certificate.
      *
@@ -313,39 +289,35 @@ public object CertificateOperationsJvm : CertificateOperations<X509Certificate> 
      * @return list of [SubjectAlternativeName] or empty list if extension is not present
      */
     public override fun getSubjectAltNames(certificate: X509Certificate): List<SubjectAlternativeName> = try {
-        // Use the standard Java API which returns a Collection<List<?>>
-        // Each entry is a list where [0] is the type (Int) and [1] is the value
-        certificate.subjectAlternativeNames?.mapNotNull { entry ->
-            @Suppress("UNCHECKED_CAST")
-            val sanEntry = entry ?: return@mapNotNull null
-            if (sanEntry.size < 2) return@mapNotNull null
+        val sanExtension = certificate.getExtensionValue(Extension.subjectAlternativeName.id)
+        if (sanExtension == null) {
+            emptyList()
+        } else {
+            val octetString = DEROctetString.getInstance(sanExtension)
+            val names = GeneralNames.getInstance(octetString.octets)
+            names.names.mapNotNull { generalName ->
+                val type = generalName.tagNo
+                val name = generalName.name
+                val value = name.toString()
 
-            val type = sanEntry[0] as? Int ?: return@mapNotNull null
-            val value = sanEntry[1]?.toString() ?: return@mapNotNull null
-
-            // TODO
-            //  check warning that type is always zerp
-            when (type) {
-                0 -> SubjectAlternativeName.OtherName(type.toString(), value)
-                1 -> SubjectAlternativeName.Email(value)
-                2 -> SubjectAlternativeName.DNSName(value)
-                3 -> SubjectAlternativeName.OtherName(type.toString(), value)
-                4 -> SubjectAlternativeName.OtherName(type.toString(), value)
-                5 -> SubjectAlternativeName.OtherName(type.toString(), value)
-                6 -> SubjectAlternativeName.Uri(value)
-                7 -> {
-                    // IP address - try to parse as bytes or string
-                    when (val ipValue = sanEntry[1]) {
-                        is ByteArray -> SubjectAlternativeName.IPAddress(ipValue)
-                        is String -> SubjectAlternativeName.IPAddress(ipValue.encodeToByteArray())
-                        else -> SubjectAlternativeName.OtherName("7", value)
+                when (type) {
+                    GeneralName.otherName -> SubjectAlternativeName.OtherName(type.toString(), value)
+                    GeneralName.rfc822Name -> SubjectAlternativeName.Email(value)
+                    GeneralName.dNSName -> SubjectAlternativeName.DNSName(value)
+                    GeneralName.x400Address -> SubjectAlternativeName.OtherName(type.toString(), value)
+                    GeneralName.directoryName -> SubjectAlternativeName.OtherName(type.toString(), value)
+                    GeneralName.ediPartyName -> SubjectAlternativeName.OtherName(type.toString(), value)
+                    GeneralName.uniformResourceIdentifier -> SubjectAlternativeName.Uri(value)
+                    GeneralName.iPAddress -> {
+                        val ipValue = DEROctetString.getInstance(name).octets
+                        SubjectAlternativeName.IPAddress(ipValue)
                     }
-                }
 
-                8 -> SubjectAlternativeName.RegisteredId(value)
-                else -> SubjectAlternativeName.OtherName(type.toString(), value)
+                    GeneralName.registeredID -> SubjectAlternativeName.RegisteredId(value)
+                    else -> SubjectAlternativeName.OtherName(type.toString(), value)
+                }
             }
-        }.orEmpty()
+        }
     } catch (e: Exception) {
         logger.warn("Failed to parse SubjectAltNames from certificate: ${e.message}", e)
         emptyList()
@@ -357,7 +329,7 @@ public object CertificateOperationsJvm : CertificateOperations<X509Certificate> 
      * @return list of [CrlDistributionPoint] or empty list if extension is not present
      */
     public override fun getCrlDistributionPoints(certificate: X509Certificate): List<CrlDistributionPoint> = try {
-        val crldpExtension = certificate.getExtensionValue("2.5.29.31")
+        val crldpExtension = certificate.getExtensionValue(Extension.cRLDistributionPoints.id)
         crldpExtension?.parseCrlDistributionPoints().orEmpty()
     } catch (e: Exception) {
         logger.warn("Failed to parse CRLDistributionPoints from certificate: ${e.message}", e)
@@ -368,25 +340,22 @@ public object CertificateOperationsJvm : CertificateOperations<X509Certificate> 
      * Helper function to parse CRL Distribution Points from DER-encoded extension value.
      */
     private fun ByteArray.parseCrlDistributionPoints(): List<CrlDistributionPoint> = try {
-        ASN1InputStream(this).use { asn1InputStream ->
-            val obj = asn1InputStream.readObject()
-            val octetString = obj as? DEROctetString ?: return emptyList()
-            val crlDistPoint = CRLDistPoint.getInstance(octetString.octets)
+        val octetString = DEROctetString.getInstance(this)
+        val crlDistPoint = CRLDistPoint.getInstance(octetString.octets)
 
-            val dps = crlDistPoint.distributionPoints ?: return emptyList()
+        val dps = crlDistPoint.distributionPoints ?: return emptyList()
 
-            dps.mapNotNull { dp ->
-                if (dp == null) return@mapNotNull null
-                val dpName = dp.distributionPoint
-                var uri: String? = null
-                if (dpName != null && dpName.type == org.bouncycastle.asn1.x509.DistributionPointName.FULL_NAME) {
-                    val generalNames = org.bouncycastle.asn1.x509.GeneralNames.getInstance(dpName.name)
-                    uri = generalNames.names
-                        .firstOrNull { it.tagNo == GeneralName.uniformResourceIdentifier }
-                        ?.name?.toString()
-                }
-                CrlDistributionPoint(uri, null)
+        dps.mapNotNull { dp ->
+            if (dp == null) return@mapNotNull null
+            val dpName = dp.distributionPoint
+            var uri: String? = null
+            if (dpName != null && dpName.type == DistributionPointName.FULL_NAME) {
+                val generalNames = GeneralNames.getInstance(dpName.name)
+                uri = generalNames.names
+                    .firstOrNull { it.tagNo == GeneralName.uniformResourceIdentifier }
+                    ?.name?.toString()
             }
+            CrlDistributionPoint(uri, null)
         }
     } catch (e: Exception) {
         logger.warn("Failed to parse CRLDistributionPoints: ${e.message}", e)
@@ -399,7 +368,7 @@ public object CertificateOperationsJvm : CertificateOperations<X509Certificate> 
      * @return [AuthorityKeyIdentifier] or null if extension is not present
      */
     public override fun getAuthorityKeyIdentifier(certificate: X509Certificate): AuthorityKeyIdentifier? = try {
-        val akiExtension = certificate.getExtensionValue("2.5.29.35")
+        val akiExtension = certificate.getExtensionValue(Extension.authorityKeyIdentifier.id)
         akiExtension?.parseAuthorityKeyIdentifier()
     } catch (e: Exception) {
         logger.warn("Failed to parse AuthorityKeyIdentifier from certificate: ${e.message}", e)
@@ -410,21 +379,18 @@ public object CertificateOperationsJvm : CertificateOperations<X509Certificate> 
      * Helper function to parse Authority Key Identifier from DER-encoded extension value.
      */
     private fun ByteArray.parseAuthorityKeyIdentifier(): AuthorityKeyIdentifier? = try {
-        ASN1InputStream(this).use { asn1InputStream ->
-            val obj = asn1InputStream.readObject()
-            val octetString = obj as? DEROctetString ?: return null
-            val aki = BcAuthorityKeyIdentifier.getInstance(octetString.octets)
+        val octetString = DEROctetString.getInstance(this)
+        val aki = BcAuthorityKeyIdentifier.getInstance(octetString.octets)
 
-            val keyIdentifier = aki.getKeyIdentifierOctets()?.copyOf()
-            val authorityCertSerialNumber = aki.authorityCertSerialNumber?.toByteArray()
+        val keyIdentifier = aki.keyIdentifierOctets?.copyOf()
+        val authorityCertSerialNumber = aki.authorityCertSerialNumber?.toByteArray()
 
-            var authorityCertIssuer: List<String>? = null
-            aki.authorityCertIssuer?.let { generalNames ->
-                authorityCertIssuer = generalNames.names.map { it.name.toString() }
-            }
-
-            AuthorityKeyIdentifier(keyIdentifier, authorityCertIssuer, authorityCertSerialNumber)
+        var authorityCertIssuer: List<String>? = null
+        aki.authorityCertIssuer?.let { generalNames ->
+            authorityCertIssuer = generalNames.names.map { it.name.toString() }
         }
+
+        AuthorityKeyIdentifier(keyIdentifier, authorityCertIssuer, authorityCertSerialNumber)
     } catch (e: Exception) {
         logger.warn("Failed to parse AuthorityKeyIdentifier: ${e.message}", e)
         null
