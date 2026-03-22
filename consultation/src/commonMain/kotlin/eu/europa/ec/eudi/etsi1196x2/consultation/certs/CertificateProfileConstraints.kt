@@ -187,15 +187,20 @@ public fun ProfileBuilder.requirePolicy(vararg oids: String) {
 }
 
 public fun ProfileBuilder.requirePolicy(oids: Set<String>) {
-    policies { policies ->
+    policies { policiesInfo ->
         CertificateConstraintEvaluation {
-            when {
-                policies.isEmpty() -> {
-                    add(Violations.certificateDoesNotContainPolicies(oids.toList()))
-                }
+            if (policiesInfo == null) {
+                add(Violations.certificateDoesNotContainPolicies(oids.toList()))
+            } else {
+                val policies = policiesInfo.value
+                when {
+                    policies.isEmpty() -> {
+                        add(Violations.certificateDoesNotContainPolicies(oids.toList()))
+                    }
 
-                policies.none { it in oids } -> {
-                    add(Violations.certificateDoesNotContainAnyPolicy(policies, oids.toList()))
+                    policies.none { it in oids } -> {
+                        add(Violations.certificateDoesNotContainAnyPolicy(policies, oids.toList()))
+                    }
                 }
             }
         }
@@ -206,9 +211,9 @@ public fun ProfileBuilder.requirePolicy(oids: Set<String>) {
  * Requires the certificate to contain the certificatePolicies extension (at least one policy).
  */
 public fun ProfileBuilder.requirePolicyPresence() {
-    policies { policies ->
+    policies { policiesInfo ->
         CertificateConstraintEvaluation {
-            if (policies.isEmpty()) {
+            if (policiesInfo == null || policiesInfo.value.isEmpty()) {
                 add(Violations.missingCertificatePoliciesExtension)
             }
         }
@@ -229,13 +234,13 @@ public fun ProfileBuilder.requireAiaForCaIssued() {
     combine(
         CertificateOperationsAlgebra.GetAia,
         CertificateOperationsAlgebra.CheckSelfSigned,
-    ) { (aia, isSelfSigned) ->
+    ) { (aiaInfo, isSelfSigned) ->
         CertificateConstraintEvaluation {
             // Only check AIA for non-self-signed certificates
             if (!isSelfSigned) {
-                if (aia == null) {
+                if (aiaInfo == null) {
                     add(Violations.caIssuedCertificateMissingAiaExtension)
-                } else if (aia.caIssuersUri == null) {
+                } else if (aiaInfo.value.caIssuersUri == null) {
                     add(Violations.aiaMissingIdAdCaIssuersAccessMethod)
                 }
             }
@@ -390,7 +395,7 @@ public fun evaluateSubjectLegalPersonAttributes(
             add(Violations.subjectMissingOrganizationIdentifier)
         } else {
             // organizationIdentifier format validation (EN 319 412-1 clause 5.1.4)
-            if (!ETSI319412Part1.ORG_ID_PATTERN.matches(organizationIdentifier)) {
+            if (!ETSI319412Part1.isValidOrgId(organizationIdentifier)) {
                 add(Violations.organizationIdentifierInvalidFormat)
             }
         }
@@ -439,7 +444,7 @@ public fun evaluateIssuerLegalPersonAttributes(
             add(Violations.issuerMissingOrganizationIdentifier)
         } else {
             // organizationIdentifier format validation (EN 319 412-1 clause 5.1.4)
-            if (!ETSI319412Part1.ORG_ID_PATTERN.matches(organizationIdentifier)) {
+            if (!ETSI319412Part1.isValidOrgId(organizationIdentifier)) {
                 add(Violations.organizationIdentifierInvalidFormat)
             }
         }
@@ -523,9 +528,9 @@ public fun ProfileBuilder.requireIssuerAttributes(
  * Requires the certificate to contain at least one Subject Alternative Name.
  */
 public fun ProfileBuilder.requireSubjectAltName() {
-    subjectAltNames { sanList ->
+    subjectAltNames { sanInfo ->
         CertificateConstraintEvaluation {
-            if (sanList.isEmpty()) {
+            if (sanInfo == null || sanInfo.value.isEmpty()) {
                 add(Violations.missingSubjectAltName)
             }
         }
@@ -562,10 +567,10 @@ public fun ProfileBuilder.requireCrlDistributionPointsIfNoOcspAndNotValAssured()
         CertificateOperationsAlgebra.GetCrlDistributionPoints,
         CertificateOperationsAlgebra.GetAia,
         CertificateOperationsAlgebra.GetAllQcStatements,
-    ) { (crldp, aia, qcStatements) ->
+    ) { (crldp, aiaInfo, qcStatements) ->
         CertificateConstraintEvaluation {
             // Exempt if OCSP responder is present in AIA
-            val hasOcsp = aia?.ocspUri != null
+            val hasOcsp = aiaInfo?.value?.ocspUri != null
             if (hasOcsp) return@CertificateConstraintEvaluation
 
             // Exempt if validity-assured short-term certificate QC statement is present
@@ -623,8 +628,9 @@ public fun ProfileBuilder.requireQcStatementsForPolicy(rules: (String) -> List<S
     combine(
         CertificateOperationsAlgebra.GetPolicies,
         CertificateOperationsAlgebra.GetAllQcStatements,
-    ) { (policies, qcStatements) ->
+    ) { (policiesInfo, qcStatements) ->
         CertificateConstraintEvaluation {
+            val policies = policiesInfo?.value ?: emptyList()
             val requiredQcTypes = policies
                 .flatMap { rules(it) }
                 .toSet()

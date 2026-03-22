@@ -181,7 +181,7 @@ public class ProfileBuilder {
      * Defines a constraint on the certificate policies.
      */
     public fun policies(
-        evaluate: (List<String>) -> CertificateConstraintEvaluation,
+        evaluate: (ExtensionInfo<List<String>>?) -> CertificateConstraintEvaluation,
     ) {
         requirements += CertificateConstraint(CertificateOperationsAlgebra.GetPolicies, evaluate)
     }
@@ -199,7 +199,7 @@ public class ProfileBuilder {
      * Defines a constraint on the AIA extension.
      */
     public fun aia(
-        evaluate: (AuthorityInformationAccess?) -> CertificateConstraintEvaluation,
+        evaluate: (ExtensionInfo<AuthorityInformationAccess>?) -> CertificateConstraintEvaluation,
     ) {
         requirements += CertificateConstraint(CertificateOperationsAlgebra.GetAia, evaluate)
     }
@@ -238,7 +238,7 @@ public class ProfileBuilder {
      * Defines a constraint on Subject Alternative Names.
      */
     public fun subjectAltNames(
-        evaluate: (List<SubjectAlternativeName>) -> CertificateConstraintEvaluation,
+        evaluate: (ExtensionInfo<List<SubjectAlternativeName>>?) -> CertificateConstraintEvaluation,
     ) {
         requirements += CertificateConstraint(CertificateOperationsAlgebra.GetSubjectAltNames, evaluate)
     }

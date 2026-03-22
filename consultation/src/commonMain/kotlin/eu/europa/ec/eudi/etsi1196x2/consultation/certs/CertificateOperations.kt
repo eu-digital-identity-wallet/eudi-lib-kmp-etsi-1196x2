@@ -22,12 +22,12 @@ public interface CertificateOperations<CERT : Any> {
     public fun getQcStatements(certificate: CERT): List<QCStatementInfo>
     public fun getKeyUsage(certificate: CERT): ExtensionInfo<KeyUsageBits>?
     public fun getValidityPeriod(certificate: CERT): ValidityPeriod
-    public fun getCertificatePolicies(certificate: CERT): List<String>
+    public fun getCertificatePolicies(certificate: CERT): ExtensionInfo<List<String>>?
     public fun isSelfSigned(certificate: CERT): Boolean
-    public fun getAiaExtension(certificate: CERT): AuthorityInformationAccess?
+    public fun getAiaExtension(certificate: CERT): ExtensionInfo<AuthorityInformationAccess>?
     public fun getSubject(certificate: CERT): DistinguishedName?
     public fun getIssuer(certificate: CERT): DistinguishedName?
-    public fun getSubjectAltNames(certificate: CERT): List<SubjectAlternativeName>
+    public fun getSubjectAltNames(certificate: CERT): ExtensionInfo<List<SubjectAlternativeName>>?
     public fun getCrlDistributionPoints(certificate: CERT): List<CrlDistributionPoint>
     public fun getAuthorityKeyIdentifier(certificate: CERT): AuthorityKeyIdentifier?
     public fun getSerialNumber(certificate: CERT): SerialNumber
@@ -63,8 +63,9 @@ public sealed interface CertificateOperationsAlgebra<out T> {
 
     /**
      * Extract all certificate policy OIDs.
+     * Returns null if the extension is not present.
      */
-    public data object GetPolicies : CertificateOperationsAlgebra<List<String>>
+    public data object GetPolicies : CertificateOperationsAlgebra<ExtensionInfo<List<String>>?>
 
     /**
      * Check if the certificate is self-signed.
@@ -75,7 +76,7 @@ public sealed interface CertificateOperationsAlgebra<out T> {
      * Extract the Authority Information Access (AIA) extension.
      * Returns null if the extension is not present.
      */
-    public data object GetAia : CertificateOperationsAlgebra<AuthorityInformationAccess?>
+    public data object GetAia : CertificateOperationsAlgebra<ExtensionInfo<AuthorityInformationAccess>?>
 
     /**
      * Extract QCStatements of a specific type (ETSI EN 319 412-5).
@@ -96,8 +97,9 @@ public sealed interface CertificateOperationsAlgebra<out T> {
 
     /**
      * Extract Subject Alternative Names.
+     * Returns null if the extension is not present.
      */
-    public data object GetSubjectAltNames : CertificateOperationsAlgebra<List<SubjectAlternativeName>>
+    public data object GetSubjectAltNames : CertificateOperationsAlgebra<ExtensionInfo<List<SubjectAlternativeName>>?>
 
     /**
      * Extract CRL Distribution Points.

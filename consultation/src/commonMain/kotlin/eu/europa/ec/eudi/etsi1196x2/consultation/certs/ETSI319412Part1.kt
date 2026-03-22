@@ -98,7 +98,7 @@ public object ETSI319412Part1 {
     public const val ORG_ID_COUNTRY_CODE_LENGTH: Int = 2
 
     /** Regex pattern for organizationIdentifier format validation */
-    public val ORG_ID_PATTERN: Regex = Regex("^[A-Z]{3}[A-Z]{2}-.+$")
+    public val ORG_ID_PATTERN: Regex = Regex("^([A-Z]{3})[A-Z]{2}-.+$")
 
     /** Valid legal person identity type references */
     public val VALID_ORG_ID_TYPES: Set<String> = setOf(
@@ -108,5 +108,21 @@ public object ETSI319412Part1 {
         ORG_ID_TYPE_LEI,
         ORG_ID_TYPE_EOR,
         ORG_ID_TYPE_EXC,
+        "PAS", // Passport identifier (if applicable)
+        "IDC", // Identity card identifier (if applicable)
+        "PNO", // Personal number (if applicable)
+        "TAX", // Tax reference number
     )
+
+    /**
+     * Validates an organization identifier against the ETSI EN 319 412-1 format.
+     *
+     * @param orgId the organization identifier to validate
+     * @return true if valid, false otherwise
+     */
+    public fun isValidOrgId(orgId: String): Boolean {
+        val matchResult = ORG_ID_PATTERN.matchEntire(orgId) ?: return false
+        val identityType = matchResult.groupValues[1]
+        return identityType in VALID_ORG_ID_TYPES
+    }
 }

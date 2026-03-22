@@ -115,12 +115,16 @@ public object CertificateOperationsJvm : CertificateOperations<X509Certificate> 
      * Certificate policies are encoded in the certificate extension with OID 2.5.29.32.
      * This function parses the DER-encoded extension value to extract policy OIDs.
      *
-     * @return list of certificate policy OIDs or empty list if no policies present
+     * @return [ExtensionInfo] with list of certificate policy OIDs or null if no policies present
      */
-    public override fun getCertificatePolicies(certificate: X509Certificate): List<String> {
+    public override fun getCertificatePolicies(certificate: X509Certificate): ExtensionInfo<List<String>>? {
         val certPoliciesExtension =
             certificate.getExtensionValue(Extension.certificatePolicies.id)
-        return certPoliciesExtension?.parseCertificatePolicies().orEmpty()
+        return certPoliciesExtension?.let {
+            val policies = it.parseCertificatePolicies()
+            val critical = certificate.isCritical(Extension.certificatePolicies.id)
+            ExtensionInfo(policies, critical)
+        }
     }
 
     /**
@@ -136,11 +140,16 @@ public object CertificateOperationsJvm : CertificateOperations<X509Certificate> 
     /**
      * Extracts Authority Information Access (AIA) extension from an X509Certificate.
      *
-     * @return [AuthorityInformationAccess] or null if extension is not present or parsing fails
+     * @return [ExtensionInfo] with [AuthorityInformationAccess] or null if extension is not present or parsing fails
      */
-    public override fun getAiaExtension(certificate: X509Certificate): AuthorityInformationAccess? {
+    public override fun getAiaExtension(certificate: X509Certificate): ExtensionInfo<AuthorityInformationAccess>? {
         val aiaExtension = certificate.getExtensionValue(Extension.authorityInfoAccess.id)
-        return aiaExtension?.parseAiaExtension()
+        return aiaExtension?.let {
+            it.parseAiaExtension()?.let { aia ->
+                val critical = certificate.isCritical(Extension.authorityInfoAccess.id)
+                ExtensionInfo(aia, critical)
+            }
+        }
     }
 
     /**
@@ -286,16 +295,16 @@ public object CertificateOperationsJvm : CertificateOperations<X509Certificate> 
     /**
      * Extracts Subject Alternative Names from an X509Certificate.
      *
-     * @return list of [SubjectAlternativeName] or empty list if extension is not present
+     * @return [ExtensionInfo] with list of [SubjectAlternativeName] or null if extension is not present
      */
-    public override fun getSubjectAltNames(certificate: X509Certificate): List<SubjectAlternativeName> = try {
+    public override fun getSubjectAltNames(certificate: X509Certificate): ExtensionInfo<List<SubjectAlternativeName>>? = try {
         val sanExtension = certificate.getExtensionValue(Extension.subjectAlternativeName.id)
         if (sanExtension == null) {
-            emptyList()
+            null
         } else {
             val octetString = DEROctetString.getInstance(sanExtension)
             val names = GeneralNames.getInstance(octetString.octets)
-            names.names.mapNotNull { generalName ->
+            val sanList = names.names.mapNotNull { generalName ->
                 val type = generalName.tagNo
                 val name = generalName.name
                 val value = name.toString()
@@ -317,10 +326,12 @@ public object CertificateOperationsJvm : CertificateOperations<X509Certificate> 
                     else -> SubjectAlternativeName.OtherName(type.toString(), value)
                 }
             }
+            val critical = certificate.isCritical(Extension.subjectAlternativeName.id)
+            ExtensionInfo(sanList, critical)
         }
     } catch (e: Exception) {
         logger.warn("Failed to parse SubjectAltNames from certificate: ${e.message}", e)
-        emptyList()
+        null
     }
 
     /**
