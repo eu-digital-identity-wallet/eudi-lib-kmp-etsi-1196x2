@@ -30,6 +30,7 @@ public interface CertificateOperations<CERT : Any> {
     public fun getSubjectAltNames(certificate: CERT): ExtensionInfo<List<SubjectAlternativeName>>?
     public fun getCrlDistributionPoints(certificate: CERT): List<CrlDistributionPoint>
     public fun getAuthorityKeyIdentifier(certificate: CERT): AuthorityKeyIdentifier?
+    public fun getSubjectKeyIdentifier(certificate: CERT): ByteArray?
     public fun getSerialNumber(certificate: CERT): SerialNumber
     public fun getVersion(certificate: CERT): Version
     public fun getSubjectPublicKeyInfo(certificate: CERT): PublicKeyInfo
@@ -111,6 +112,12 @@ public sealed interface CertificateOperationsAlgebra<out T> {
      * Extract the Authority Key Identifier extension.
      */
     public data object GetAuthorityKeyIdentifier : CertificateOperationsAlgebra<AuthorityKeyIdentifier?>
+
+    /**
+     * Extract the Subject Key Identifier extension.
+     * Returns null if the extension is not present.
+     */
+    public data object GetSubjectKeyIdentifier : CertificateOperationsAlgebra<ByteArray?>
 
     /**
      * Extract the certificate serial number.

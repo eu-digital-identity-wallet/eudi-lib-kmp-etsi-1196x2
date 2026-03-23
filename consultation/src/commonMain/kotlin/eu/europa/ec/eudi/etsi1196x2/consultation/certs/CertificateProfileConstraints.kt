@@ -175,6 +175,10 @@ public fun ProfileBuilder.authorityKeyIdentifier() {
     authorityKeyIdentifier { aki -> CertificateConstraintsEvaluations.authorityKeyIdentifier(aki) }
 }
 
+public fun ProfileBuilder.subjectKeyIdentifier() {
+    subjectKeyIdentifier { ski -> CertificateConstraintsEvaluations.subjectKeyIdentifier(ski) }
+}
+
 public fun ProfileBuilder.crlDistributionPointsIfNoOcspAndNotValAssured() {
     combine(
         CertificateOperationsAlgebra.GetCrlDistributionPoints,

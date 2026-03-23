@@ -262,6 +262,15 @@ public class ProfileBuilder {
     }
 
     /**
+     * Defines a constraint on the Subject Key Identifier extension.
+     */
+    public fun subjectKeyIdentifier(
+        evaluate: (ByteArray?) -> CertificateConstraintEvaluation,
+    ) {
+        requirements += CertificateConstraint(CertificateOperationsAlgebra.GetSubjectKeyIdentifier, evaluate)
+    }
+
+    /**
      * Defines a constraint on the certificate serial number.
      */
     public fun serialNumber(

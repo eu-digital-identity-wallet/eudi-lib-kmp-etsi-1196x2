@@ -48,6 +48,9 @@ public fun pidSigningCertificateProfile(at: Instant? = null): CertificateProfile
     // (TS 119 412-6, PID-4.2-01)
     // (TS 119 412-6, PID-4.3-01, PID-4.3-02)
     issuerAndSubjectForPIDProvider()
+
+    // Subject Key Identifier required (TS 119 412-6, PID-4.4.2-01)
+    subjectKeyIdentifier()
 }
 
 /**

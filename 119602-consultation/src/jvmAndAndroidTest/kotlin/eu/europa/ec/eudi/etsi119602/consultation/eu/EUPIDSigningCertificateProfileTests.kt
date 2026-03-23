@@ -72,6 +72,7 @@ class EUPIDSigningCertificateProfileTests {
         ocspUri: String? = null,
         subjectAltNameUri: String? = null,
         keyUsage: KeyUsage,
+        withSKI: Boolean = true,
     ): X509Certificate {
         val sigAlg = "SHA256withECDSA"
         val (caKeyPair, caCert) = ca
@@ -86,6 +87,7 @@ class EUPIDSigningCertificateProfileTests {
             caIssuersUri = caIssuersUri,
             ocspUri = ocspUri,
             subjectAltNameUri = subjectAltNameUri,
+            withSKI = withSKI,
         )
         return certHolder.toX509Certificate()
     }
@@ -232,6 +234,7 @@ class EUPIDSigningCertificateProfileTests {
         qcStatements: List<Pair<String, Boolean>>? = null,
         policyOids: List<String>? = null,
         keyUsage: KeyUsage = KeyUsage(KeyUsage.digitalSignature),
+        withSKI: Boolean = true,
     ): X509Certificate {
         val sigAlg = "SHA256withECDSA"
         val (_, certHolder) = CertOps.genSelfSignedEndEntityCertificate(
@@ -240,6 +243,7 @@ class EUPIDSigningCertificateProfileTests {
             keyUsage = keyUsage,
             qcStatements = qcStatements,
             policyOids = policyOids,
+            withSKI = withSKI,
         )
         return certHolder.toX509Certificate()
     }
@@ -384,5 +388,37 @@ class EUPIDSigningCertificateProfileTests {
         val constraintEvaluation = evaluateCertificateConstraints(certificate)
 
         assertTrue(constraintEvaluation.isMet(), "Valid self-signed certificate should pass: $constraintEvaluation")
+    }
+
+    @Test
+    fun `CA-issued certificate should require subjectKeyIdentifier`() = runTest {
+        val certificate = genCAIssuedEndEntityCertificate(
+            qcStatements = listOf(ETSI119412Part6.ID_ETSI_QCT_PID to true),
+            policyOids = listOf("1.2.3.4.5"),
+            caIssuersUri = "http://example.com/ca.crt",
+            ocspUri = "http://example.com/ocsp",
+            keyUsage = KeyUsage(KeyUsage.digitalSignature),
+            subject = legalEntityPidProviderName,
+            withSKI = false, // Explicitly omit SKI
+        )
+
+        val constraintEvaluation = evaluateCertificateConstraints(certificate)
+        assertFalse(constraintEvaluation.isMet())
+        constraintEvaluation.assertSingleViolation { it.contains("subjectKeyIdentifier", ignoreCase = true) }
+    }
+
+    @Test
+    fun `Self-signed certificate should require subjectKeyIdentifier`() = runTest {
+        val certificate = genSelfSignedEndEntityCertificate(
+            qcStatements = listOf(ETSI119412Part6.ID_ETSI_QCT_PID to true),
+            policyOids = listOf("1.2.3.4.5"),
+            keyUsage = KeyUsage(KeyUsage.digitalSignature),
+            subject = legalEntityPidProviderName,
+            withSKI = false, // Explicitly omit SKI
+        )
+
+        val constraintEvaluation = evaluateCertificateConstraints(certificate)
+        assertFalse(constraintEvaluation.isMet())
+        constraintEvaluation.assertSingleViolation { it.contains("subjectKeyIdentifier", ignoreCase = true) }
     }
 }

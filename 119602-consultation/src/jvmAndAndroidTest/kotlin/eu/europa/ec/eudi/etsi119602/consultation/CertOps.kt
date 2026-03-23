@@ -129,6 +129,7 @@ object CertOps {
         subjectKeySize: Int? = null,
         notAfter: Date? = null,
         customExtensions: List<Triple<String, Boolean, ASN1Encodable>> = emptyList(),
+        withSKI: Boolean = true,
     ): Pair<KeyPair, X509CertificateHolder> {
         val eeKp = Ctx.generateKeyPair(subjectKeyPairAlg, subjectKeySize)
         val eeCertHolder = createEndEntity(
@@ -146,6 +147,7 @@ object CertOps {
             subjectAltNameUri,
             notAfter,
             customExtensions,
+            withSKI,
         )
         return eeKp to eeCertHolder
     }
@@ -156,6 +158,7 @@ object CertOps {
         keyUsage: KeyUsage = KeyUsage(KeyUsage.digitalSignature),
         qcStatements: List<Pair<String, Boolean>>? = null,
         policyOids: List<String>? = null,
+        withSKI: Boolean = true,
     ): Pair<KeyPair, X509CertificateHolder> {
         val kp = Ctx.generateECPair()
         val certHolder = createSelfSignedEndEntity(
@@ -165,6 +168,7 @@ object CertOps {
             keyUsage,
             qcStatements,
             policyOids,
+            withSKI,
         )
         return kp to certHolder
     }
@@ -180,6 +184,7 @@ object CertOps {
         keyUsage: KeyUsage,
         qcStatements: List<Pair<String, Boolean>>?,
         policyOids: List<String>?,
+        withSKI: Boolean = true,
     ): X509CertificateHolder {
         return JcaX509v3CertificateBuilder(
             name,
@@ -189,7 +194,9 @@ object CertOps {
             name,
             keyPair.public,
         ).apply {
-            subjectKeyIdentifier(keyPair.public)
+            if (withSKI) {
+                subjectKeyIdentifier(keyPair.public)
+            }
             basicConstraints(BasicConstraints(false)) // end-entity (cA=FALSE)
             keyUsage(keyUsage)
             if (!qcStatements.isNullOrEmpty()) {
@@ -225,6 +232,7 @@ object CertOps {
         subjectAltNameUri: String? = null,
         notAfter: Date? = null,
         customExtensions: List<Triple<String, Boolean, ASN1Encodable>> = emptyList(),
+        withSKI: Boolean = true,
     ): X509CertificateHolder =
         JcaX509v3CertificateBuilder(
             signerCert.subject,
@@ -235,7 +243,9 @@ object CertOps {
             certKey,
         ).apply {
             authorityKeyIdentifier(signerCert)
-            subjectKeyIdentifier(certKey)
+            if (withSKI) {
+                subjectKeyIdentifier(certKey)
+            }
             basicConstraints(BasicConstraints(false)) // do not allow this cert to sign other certs
             keyUsage(keyUsage)
             if (!qcStatements.isNullOrEmpty()) {

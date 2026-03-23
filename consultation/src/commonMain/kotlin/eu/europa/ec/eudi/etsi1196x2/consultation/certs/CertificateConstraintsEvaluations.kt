@@ -313,6 +313,14 @@ public object CertificateConstraintsEvaluations {
         }
     }
 
+    public fun subjectKeyIdentifier(
+        ski: ByteArray?,
+    ): CertificateConstraintEvaluation = CertificateConstraintEvaluation {
+        if (ski == null) {
+            add(missingSubjectKeyIdentifier)
+        }
+    }
+
     public fun evaluateCrlDistributionPointsIfNoOcspAndNotValAssured(
         crldp: List<CrlDistributionPoint>,
         aiaInfo: ExtensionInfo<AuthorityInformationAccess>?,
@@ -568,6 +576,12 @@ public object CertificateConstraintsEvaluations {
     public val missingAuthorityKeyIdentifier: CertificateConstraintViolation
         get() = CertificateConstraintViolation(
             reason = "Certificate missing authorityKeyIdentifier extension (per ETSI EN 319 412-2)",
+        )
+
+    // Subject Key Identifier violations
+    public val missingSubjectKeyIdentifier: CertificateConstraintViolation
+        get() = CertificateConstraintViolation(
+            reason = "Certificate missing subjectKeyIdentifier extension",
         )
 
     // CRL Distribution Points violations

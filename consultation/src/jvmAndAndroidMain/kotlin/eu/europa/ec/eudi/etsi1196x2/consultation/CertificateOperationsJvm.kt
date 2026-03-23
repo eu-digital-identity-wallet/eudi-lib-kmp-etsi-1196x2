@@ -387,6 +387,19 @@ public object CertificateOperationsJvm : CertificateOperations<X509Certificate> 
     }
 
     /**
+     * Extracts Subject Key Identifier from an X509Certificate.
+     *
+     * @return the Subject Key Identifier as a byte array, or null if extension is not present
+     */
+    public override fun getSubjectKeyIdentifier(certificate: X509Certificate): ByteArray? = try {
+        val skiExtension = certificate.getExtensionValue(Extension.subjectKeyIdentifier.id)
+        skiExtension?.parseSubjectKeyIdentifier()
+    } catch (e: Exception) {
+        logger.warn("Failed to parse SubjectKeyIdentifier from certificate: ${e.message}", e)
+        null
+    }
+
+    /**
      * Helper function to parse Authority Key Identifier from DER-encoded extension value.
      */
     private fun ByteArray.parseAuthorityKeyIdentifier(): AuthorityKeyIdentifier? = try {
@@ -404,6 +417,20 @@ public object CertificateOperationsJvm : CertificateOperations<X509Certificate> 
         AuthorityKeyIdentifier(keyIdentifier, authorityCertIssuer, authorityCertSerialNumber)
     } catch (e: Exception) {
         logger.warn("Failed to parse AuthorityKeyIdentifier: ${e.message}", e)
+        null
+    }
+
+    /**
+     * Helper function to parse Subject Key Identifier from DER-encoded extension value.
+     *
+     * The SubjectKeyIdentifier extension contains an OCTET STRING with the key identifier.
+     * Per RFC 5280 Section 4.2.1.2, the keyIdentifier is an octet string.
+     */
+    private fun ByteArray.parseSubjectKeyIdentifier(): ByteArray? = try {
+        val octetString = DEROctetString.getInstance(this)
+        octetString.octets.copyOf()
+    } catch (e: Exception) {
+        logger.warn("Failed to parse SubjectKeyIdentifier: ${e.message}", e)
         null
     }
 
