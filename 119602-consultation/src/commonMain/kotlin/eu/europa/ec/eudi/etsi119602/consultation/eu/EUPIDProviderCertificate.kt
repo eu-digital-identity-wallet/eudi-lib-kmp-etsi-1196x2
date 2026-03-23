@@ -53,26 +53,19 @@ public fun pidSigningCertificateProfile(at: Instant? = null): CertificateProfile
  * ETSI TS 119 412-6, PID-4.2-01
  */
 internal fun ProfileBuilder.issuerForPIDProvider() {
-    combine(
-        CertificateOperationsAlgebra.GetBasicConstraints,
-        CertificateOperationsAlgebra.GetIssuer,
-        CertificateOperationsAlgebra.GetSubject,
-    ) { (basicConstraints, issuer, subject) ->
-        if (basicConstraints.isCa) {
+    issuer { issuer -> validateIssuerLegalOrNaturalPerson(issuer) }
+}
+
+internal fun validateIssuerLegalOrNaturalPerson(issuer: DistinguishedName?): CertificateConstraintEvaluation {
+    return if (issuer == null) {
+        CertificateConstraintEvaluation(listOf(CertificateConstraintsEvaluations.missingIssuerDistinguishedName))
+    } else {
+        // organization identifier is required for legal persons
+        val isLegalPerson = issuer[DistinguishedName.X500OIDs.ORG_IDENTIFIER] != null
+        if (isLegalPerson) {
             CertificateConstraintsEvaluations.validIssuerLegalPersonAttributes(issuer)
-        } else if (subject == null) {
-            // Self-signed, without subject
-            // error will be reported by another validation rule
-            CertificateConstraintEvaluation.Met
         } else {
-            // Self-signed
-            // organization identifier is required for legal persons
-            val isLegalPerson = subject[DistinguishedName.X500OIDs.ORG_IDENTIFIER] != null
-            if (isLegalPerson) {
-                CertificateConstraintsEvaluations.validIssuerLegalPersonAttributes(issuer)
-            } else {
-                CertificateConstraintsEvaluations.subjectNaturalPersonAttributes(issuer)
-            }
+            CertificateConstraintsEvaluations.subjectNaturalPersonAttributes(issuer)
         }
     }
 }
