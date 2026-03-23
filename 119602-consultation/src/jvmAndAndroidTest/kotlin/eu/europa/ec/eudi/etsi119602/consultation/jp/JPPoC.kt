@@ -29,6 +29,7 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.io.files.Path
 import java.security.cert.TrustAnchor
 import java.security.cert.X509Certificate
+import kotlin.test.Ignore
 import kotlin.test.Test
 import kotlin.time.Duration.Companion.hours
 
@@ -96,6 +97,7 @@ object JPPoC {
     )
 }
 
+@Ignore("Depends on network, requires a working internet connection.")
 class JPLoTEDownloaderTest {
 
     @Test
