@@ -16,15 +16,16 @@
 package eu.europa.ec.eudi.etsi1196x2.consultation
 
 import eu.europa.ec.eudi.etsi1196x2.consultation.certs.*
-import eu.europa.ec.eudi.etsi1196x2.consultation.certs.AuthorityInformationAccess
-import eu.europa.ec.eudi.etsi1196x2.consultation.certs.AuthorityKeyIdentifier
+import org.bouncycastle.asn1.ASN1ObjectIdentifier
+import org.bouncycastle.asn1.ASN1OctetString
 import org.bouncycastle.asn1.ASN1Sequence
-import org.bouncycastle.asn1.DEROctetString
 import org.bouncycastle.asn1.DERUTF8String
 import org.bouncycastle.asn1.x500.X500Name
 import org.bouncycastle.asn1.x500.style.IETFUtils
 import org.bouncycastle.asn1.x509.*
 import org.bouncycastle.asn1.x509.qualified.QCStatement
+import org.bouncycastle.cert.X509CertificateHolder
+import org.bouncycastle.cert.jcajce.JcaX509CertificateHolder
 import org.slf4j.LoggerFactory
 import java.security.cert.X509Certificate
 import java.security.interfaces.ECPublicKey
@@ -68,7 +69,7 @@ public object CertificateOperationsJvm : CertificateOperations<X509Certificate> 
      * @return list of [eu.europa.ec.eudi.etsi1196x2.consultation.certs.QCStatementInfo] or empty list if no QCStatements present
      */
     public override fun getQcStatements(certificate: X509Certificate): List<QCStatementInfo> {
-        val qcStatementsExtension = certificate.getExtensionValue(Extension.qCStatements.id)
+        val qcStatementsExtension = certificate.extension(Extension.qCStatements)
         return qcStatementsExtension?.parseQcStatements().orEmpty()
     }
 
@@ -90,13 +91,15 @@ public object CertificateOperationsJvm : CertificateOperations<X509Certificate> 
                 encipherOnly = keyUsage.getOrElse(7) { false },
                 decipherOnly = keyUsage.getOrElse(8) { false },
             )
-            val critical = certificate.isCritical(Extension.keyUsage.id)
+            val critical = certificate.extension(Extension.keyUsage)?.isCritical == true
             ExtensionInfo(bits, critical)
         }
 
-    private fun X509Certificate.isCritical(p: String): Boolean {
-        return p in criticalExtensionOIDs.orEmpty()
-    }
+    private fun X509Certificate.asHolder(): X509CertificateHolder =
+        JcaX509CertificateHolder(this)
+
+    private fun X509Certificate.extension(oid: ASN1ObjectIdentifier): Extension? =
+        asHolder().extensions?.getExtension(oid)
 
     /**
      * Extracts validity period information from an X509Certificate.
@@ -118,12 +121,10 @@ public object CertificateOperationsJvm : CertificateOperations<X509Certificate> 
      * @return [ExtensionInfo] with list of certificate policy OIDs or null if no policies present
      */
     public override fun getCertificatePolicies(certificate: X509Certificate): ExtensionInfo<List<String>>? {
-        val certPoliciesExtension =
-            certificate.getExtensionValue(Extension.certificatePolicies.id)
-        return certPoliciesExtension?.let {
-            val policies = it.parseCertificatePolicies()
-            val critical = certificate.isCritical(Extension.certificatePolicies.id)
-            ExtensionInfo(policies, critical)
+        val certPoliciesExtension = certificate.extension(Extension.certificatePolicies)
+        return certPoliciesExtension?.let { extension ->
+            val policies = extension.parseCertificatePolicies()
+            ExtensionInfo(policies, extension.isCritical)
         }
     }
 
@@ -143,11 +144,10 @@ public object CertificateOperationsJvm : CertificateOperations<X509Certificate> 
      * @return [ExtensionInfo] with [AuthorityInformationAccess] or null if extension is not present or parsing fails
      */
     public override fun getAiaExtension(certificate: X509Certificate): ExtensionInfo<AuthorityInformationAccess>? {
-        val aiaExtension = certificate.getExtensionValue(Extension.authorityInfoAccess.id)
-        return aiaExtension?.let {
-            it.parseAiaExtension()?.let { aia ->
-                val critical = certificate.isCritical(Extension.authorityInfoAccess.id)
-                ExtensionInfo(aia, critical)
+        val aiaExtension = certificate.extension(Extension.authorityInfoAccess)
+        return aiaExtension?.let { extension ->
+            extension.parseAiaExtension()?.let { aia ->
+                ExtensionInfo(aia, extension.isCritical)
             }
         }
     }
@@ -155,13 +155,11 @@ public object CertificateOperationsJvm : CertificateOperations<X509Certificate> 
     /**
      * Helper function to parse AIA from DER-encoded extension value.
      */
-    private fun ByteArray.parseAiaExtension(): AuthorityInformationAccess? = try {
-        val octetString = DEROctetString.getInstance(this)
-        val aia = BcAuthorityInformationAccess.getInstance(octetString.octets)
-
+    private fun Extension.parseAiaExtension(): AuthorityInformationAccess? = try {
         var caIssuersUri: String? = null
         var ocspUri: String? = null
 
+        val aia = BcAuthorityInformationAccess.getInstance(extnValue.octets)
         val accessDescriptions = aia.accessDescriptions
         for (accessDescription in accessDescriptions) {
             val accessMethod = accessDescription.accessMethod
@@ -169,7 +167,6 @@ public object CertificateOperationsJvm : CertificateOperations<X509Certificate> 
 
             if (accessLocation.tagNo == GeneralName.uniformResourceIdentifier) {
                 val uri = accessLocation.name.toString()
-
                 when (accessMethod) {
                     AccessDescription.id_ad_caIssuers -> caIssuersUri = uri
                     AccessDescription.id_ad_ocsp -> ocspUri = uri
@@ -201,9 +198,8 @@ public object CertificateOperationsJvm : CertificateOperations<X509Certificate> 
      *
      * @see [ETSI EN 319 412-5](https://www.etsi.org/deliver/etsi_en/319400_319499/31941205/)
      */
-    private fun ByteArray.parseQcStatements(): List<QCStatementInfo> = try {
-        val octetString = DEROctetString.getInstance(this)
-        val qcStatements = ASN1Sequence.getInstance(octetString.octets)
+    private fun Extension.parseQcStatements(): List<QCStatementInfo> = try {
+        val qcStatements = ASN1Sequence.getInstance(extnValue.octets)
 
         qcStatements.mapNotNull { qcStatementObj ->
             val qcStatement = QCStatement.getInstance(qcStatementObj) ?: return@mapNotNull null
@@ -256,9 +252,8 @@ public object CertificateOperationsJvm : CertificateOperations<X509Certificate> 
      *
      * @see [RFC 5280 Section 4.2.1.4](https://datatracker.ietf.org/doc/html/rfc5280#section-4.2.1.4)
      */
-    private fun ByteArray.parseCertificatePolicies(): List<String> = try {
-        val octetString = DEROctetString.getInstance(this)
-        val certPolicies = BcCertificatePolicies.getInstance(octetString.octets)
+    private fun Extension.parseCertificatePolicies(): List<String> = try {
+        val certPolicies = BcCertificatePolicies.getInstance(extnValue.octets)
 
         certPolicies.policyInformation.map { policyInfo ->
             policyInfo.policyIdentifier.id
@@ -297,42 +292,39 @@ public object CertificateOperationsJvm : CertificateOperations<X509Certificate> 
      *
      * @return [ExtensionInfo] with list of [SubjectAlternativeName] or null if extension is not present
      */
-    public override fun getSubjectAltNames(certificate: X509Certificate): ExtensionInfo<List<SubjectAlternativeName>>? = try {
-        val sanExtension = certificate.getExtensionValue(Extension.subjectAlternativeName.id)
-        if (sanExtension == null) {
-            null
-        } else {
-            val octetString = DEROctetString.getInstance(sanExtension)
-            val names = GeneralNames.getInstance(octetString.octets)
-            val sanList = names.names.mapNotNull { generalName ->
-                val type = generalName.tagNo
-                val name = generalName.name
-                val value = name.toString()
+    public override fun getSubjectAltNames(certificate: X509Certificate): ExtensionInfo<List<SubjectAlternativeName>>? =
+        try {
+            val sanExtension = certificate.extension(Extension.subjectAlternativeName)
+            if (sanExtension == null) {
+                null
+            } else {
+                val names = GeneralNames.getInstance(sanExtension.extnValue.octets)
+                val sanList = names.names.mapNotNull { generalName ->
+                    val type = generalName.tagNo
+                    val name = generalName.name
+                    val value = name.toString()
 
-                when (type) {
-                    GeneralName.otherName -> SubjectAlternativeName.OtherName(type.toString(), value)
-                    GeneralName.rfc822Name -> SubjectAlternativeName.Email(value)
-                    GeneralName.dNSName -> SubjectAlternativeName.DNSName(value)
-                    GeneralName.x400Address -> SubjectAlternativeName.OtherName(type.toString(), value)
-                    GeneralName.directoryName -> SubjectAlternativeName.OtherName(type.toString(), value)
-                    GeneralName.ediPartyName -> SubjectAlternativeName.OtherName(type.toString(), value)
-                    GeneralName.uniformResourceIdentifier -> SubjectAlternativeName.Uri(value)
-                    GeneralName.iPAddress -> {
-                        val ipValue = DEROctetString.getInstance(name).octets
-                        SubjectAlternativeName.IPAddress(ipValue)
+                    when (type) {
+                        GeneralName.otherName -> SubjectAlternativeName.OtherName(type.toString(), value)
+                        GeneralName.rfc822Name -> SubjectAlternativeName.Email(value)
+                        GeneralName.dNSName -> SubjectAlternativeName.DNSName(value)
+                        GeneralName.x400Address -> SubjectAlternativeName.OtherName(type.toString(), value)
+                        GeneralName.directoryName -> SubjectAlternativeName.OtherName(type.toString(), value)
+                        GeneralName.ediPartyName -> SubjectAlternativeName.OtherName(type.toString(), value)
+                        GeneralName.uniformResourceIdentifier -> SubjectAlternativeName.Uri(value)
+                        GeneralName.iPAddress -> SubjectAlternativeName.IPAddress(ASN1OctetString.getInstance(name).octets)
+
+                        GeneralName.registeredID -> SubjectAlternativeName.RegisteredId(value)
+                        else -> SubjectAlternativeName.OtherName(type.toString(), value)
                     }
-
-                    GeneralName.registeredID -> SubjectAlternativeName.RegisteredId(value)
-                    else -> SubjectAlternativeName.OtherName(type.toString(), value)
                 }
+                val critical = sanExtension.isCritical
+                ExtensionInfo(sanList, critical)
             }
-            val critical = certificate.isCritical(Extension.subjectAlternativeName.id)
-            ExtensionInfo(sanList, critical)
+        } catch (e: Exception) {
+            logger.warn("Failed to parse SubjectAltNames from certificate: ${e.message}", e)
+            null
         }
-    } catch (e: Exception) {
-        logger.warn("Failed to parse SubjectAltNames from certificate: ${e.message}", e)
-        null
-    }
 
     /**
      * Extracts CRL Distribution Points from an X509Certificate.
@@ -340,7 +332,7 @@ public object CertificateOperationsJvm : CertificateOperations<X509Certificate> 
      * @return list of [CrlDistributionPoint] or empty list if extension is not present
      */
     public override fun getCrlDistributionPoints(certificate: X509Certificate): List<CrlDistributionPoint> = try {
-        val crldpExtension = certificate.getExtensionValue(Extension.cRLDistributionPoints.id)
+        val crldpExtension = certificate.extension(Extension.cRLDistributionPoints)
         crldpExtension?.parseCrlDistributionPoints().orEmpty()
     } catch (e: Exception) {
         logger.warn("Failed to parse CRLDistributionPoints from certificate: ${e.message}", e)
@@ -350,12 +342,9 @@ public object CertificateOperationsJvm : CertificateOperations<X509Certificate> 
     /**
      * Helper function to parse CRL Distribution Points from DER-encoded extension value.
      */
-    private fun ByteArray.parseCrlDistributionPoints(): List<CrlDistributionPoint> = try {
-        val octetString = DEROctetString.getInstance(this)
-        val crlDistPoint = CRLDistPoint.getInstance(octetString.octets)
-
+    private fun Extension.parseCrlDistributionPoints(): List<CrlDistributionPoint> = try {
+        val crlDistPoint = CRLDistPoint.getInstance(extnValue.octets)
         val dps = crlDistPoint.distributionPoints ?: return emptyList()
-
         dps.mapNotNull { dp ->
             if (dp == null) return@mapNotNull null
             val dpName = dp.distributionPoint
@@ -379,7 +368,7 @@ public object CertificateOperationsJvm : CertificateOperations<X509Certificate> 
      * @return [AuthorityKeyIdentifier] or null if extension is not present
      */
     public override fun getAuthorityKeyIdentifier(certificate: X509Certificate): AuthorityKeyIdentifier? = try {
-        val akiExtension = certificate.getExtensionValue(Extension.authorityKeyIdentifier.id)
+        val akiExtension = certificate.extension(Extension.authorityKeyIdentifier)
         akiExtension?.parseAuthorityKeyIdentifier()
     } catch (e: Exception) {
         logger.warn("Failed to parse AuthorityKeyIdentifier from certificate: ${e.message}", e)
@@ -392,7 +381,7 @@ public object CertificateOperationsJvm : CertificateOperations<X509Certificate> 
      * @return the Subject Key Identifier as a byte array, or null if extension is not present
      */
     public override fun getSubjectKeyIdentifier(certificate: X509Certificate): ByteArray? = try {
-        val skiExtension = certificate.getExtensionValue(Extension.subjectKeyIdentifier.id)
+        val skiExtension = certificate.extension(Extension.subjectKeyIdentifier)
         skiExtension?.parseSubjectKeyIdentifier()
     } catch (e: Exception) {
         logger.warn("Failed to parse SubjectKeyIdentifier from certificate: ${e.message}", e)
@@ -402,17 +391,12 @@ public object CertificateOperationsJvm : CertificateOperations<X509Certificate> 
     /**
      * Helper function to parse Authority Key Identifier from DER-encoded extension value.
      */
-    private fun ByteArray.parseAuthorityKeyIdentifier(): AuthorityKeyIdentifier? = try {
-        val octetString = DEROctetString.getInstance(this)
-        val aki = BcAuthorityKeyIdentifier.getInstance(octetString.octets)
-
+    private fun Extension.parseAuthorityKeyIdentifier(): AuthorityKeyIdentifier? = try {
+        val aki = BcAuthorityKeyIdentifier.getInstance(extnValue.octets)
         val keyIdentifier = aki.keyIdentifierOctets?.copyOf()
         val authorityCertSerialNumber = aki.authorityCertSerialNumber?.toByteArray()
-
-        var authorityCertIssuer: List<String>? = null
-        aki.authorityCertIssuer?.let { generalNames ->
-            authorityCertIssuer = generalNames.names.map { it.name.toString() }
-        }
+        val authorityCertIssuer = aki.authorityCertIssuer
+            ?.let { generalNames -> generalNames.names.map { it.name.toString() } }
 
         AuthorityKeyIdentifier(keyIdentifier, authorityCertIssuer, authorityCertSerialNumber)
     } catch (e: Exception) {
@@ -426,9 +410,8 @@ public object CertificateOperationsJvm : CertificateOperations<X509Certificate> 
      * The SubjectKeyIdentifier extension contains an OCTET STRING with the key identifier.
      * Per RFC 5280 Section 4.2.1.2, the keyIdentifier is an octet string.
      */
-    private fun ByteArray.parseSubjectKeyIdentifier(): ByteArray? = try {
-        val octetString = DEROctetString.getInstance(this)
-        octetString.octets.copyOf()
+    private fun Extension.parseSubjectKeyIdentifier(): ByteArray? = try {
+        extnValue.octets.copyOf()
     } catch (e: Exception) {
         logger.warn("Failed to parse SubjectKeyIdentifier: ${e.message}", e)
         null
@@ -499,7 +482,8 @@ public object CertificateOperationsJvm : CertificateOperations<X509Certificate> 
     }
 
     public override fun hasExtension(certificate: X509Certificate, oid: String): Boolean =
-        certificate.getExtensionValue(oid) != null
+        runCatching { certificate.extension(ASN1ObjectIdentifier(oid)) != null }
+            .getOrDefault(false)
 }
 
 internal fun X500Principal.asDistinguishedName(): DistinguishedName {
