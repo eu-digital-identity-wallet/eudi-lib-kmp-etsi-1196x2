@@ -161,8 +161,6 @@ public fun ProfileBuilder.validSubjectLegalPersonAttributes() {
  * - organizationIdentifier
  * - commonName (CN)
  *
- * This is used for WRPAC Provider CA certificates, which are always
- * operated by legal persons under eIDAS regulation.
  */
 public fun ProfileBuilder.issuerLegalPersonAttributes() {
     issuer { issuer -> CertificateConstraintsEvaluations.validIssuerLegalPersonAttributes(issuer) }
