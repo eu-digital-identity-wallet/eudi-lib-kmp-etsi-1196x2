@@ -16,7 +16,6 @@
 package eu.europa.ec.eudi.etsi119602.consultation.eu
 
 import eu.europa.ec.eudi.etsi119602.*
-import eu.europa.ec.eudi.etsi119602.consultation.ETSI119412Part6
 import eu.europa.ec.eudi.etsi1196x2.consultation.certs.*
 import kotlin.time.Instant
 
@@ -52,8 +51,6 @@ public val EUPIDProvidersList: EUListOfTrustedEntitiesProfile =
             serviceDigitalIdentityCertificateType = ServiceDigitalIdentityCertificateType.EndEntityOrCA,
         ),
     )
-
-
 
 /**
  * Creates constraints for PID Provider CA certificates in LoTE.
