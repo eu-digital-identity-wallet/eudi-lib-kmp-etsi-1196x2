@@ -16,18 +16,7 @@
 package eu.europa.ec.eudi.etsi119602.consultation.eu
 
 import eu.europa.ec.eudi.etsi119602.consultation.ETSI119412Part6
-import eu.europa.ec.eudi.etsi1196x2.consultation.certs.CertificateProfile
-import eu.europa.ec.eudi.etsi1196x2.consultation.certs.PublicKeyAlgorithmOptions
-import eu.europa.ec.eudi.etsi1196x2.consultation.certs.authorityInformationAccessIfCAIssued
-import eu.europa.ec.eudi.etsi1196x2.consultation.certs.certificateProfile
-import eu.europa.ec.eudi.etsi1196x2.consultation.certs.endEntity
-import eu.europa.ec.eudi.etsi1196x2.consultation.certs.keyUsageDigitalSignature
-import eu.europa.ec.eudi.etsi1196x2.consultation.certs.mandatoryQcStatement
-import eu.europa.ec.eudi.etsi1196x2.consultation.certs.policyIsPresent
-import eu.europa.ec.eudi.etsi1196x2.consultation.certs.positiveSerialNumber
-import eu.europa.ec.eudi.etsi1196x2.consultation.certs.publicKey
-import eu.europa.ec.eudi.etsi1196x2.consultation.certs.validAt
-import eu.europa.ec.eudi.etsi1196x2.consultation.certs.version3
+import eu.europa.ec.eudi.etsi1196x2.consultation.certs.*
 import kotlin.time.Instant
 
 /**
@@ -56,4 +45,34 @@ public fun pidSigningCertificateProfile(at: Instant? = null): CertificateProfile
             PublicKeyAlgorithmOptions.AlgorithmRequirement.ECDSA_256,
         ),
     )
+    // (TS 119 412-6, PID-4.2-01)
+    issuerForPIDProvider()
+}
+
+/**
+ * ETSI TS 119 412-6, PID-4.2-01
+ */
+internal fun ProfileBuilder.issuerForPIDProvider() {
+    combine(
+        CertificateOperationsAlgebra.GetBasicConstraints,
+        CertificateOperationsAlgebra.GetIssuer,
+        CertificateOperationsAlgebra.GetSubject,
+    ) { (basicConstraints, issuer, subject) ->
+        if (basicConstraints.isCa) {
+            CertificateConstraintsEvaluations.validIssuerLegalPersonAttributes(issuer)
+        } else if (subject == null) {
+            // Self-signed, without subject
+            // error will be reported by another validation rule
+            CertificateConstraintEvaluation.Met
+        } else {
+            // Self-signed
+            // organization identifier is required for legal persons
+            val isLegalPerson = subject[DistinguishedName.X500OIDs.ORG_IDENTIFIER] != null
+            if (isLegalPerson) {
+                CertificateConstraintsEvaluations.validIssuerLegalPersonAttributes(issuer)
+            } else {
+                CertificateConstraintsEvaluations.subjectNaturalPersonAttributes(issuer)
+            }
+        }
+    }
 }

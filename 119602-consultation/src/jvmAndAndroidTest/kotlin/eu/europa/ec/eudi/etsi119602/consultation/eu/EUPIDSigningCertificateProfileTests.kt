@@ -22,6 +22,8 @@ import eu.europa.ec.eudi.etsi1196x2.consultation.certs.CertificateConstraintEval
 import eu.europa.ec.eudi.etsi1196x2.consultation.certs.isMet
 import kotlinx.coroutines.test.runTest
 import org.bouncycastle.asn1.x500.X500Name
+import org.bouncycastle.asn1.x500.X500NameBuilder
+import org.bouncycastle.asn1.x500.style.BCStyle
 import org.bouncycastle.asn1.x509.KeyUsage
 import java.security.cert.X509Certificate
 import kotlin.test.Test
@@ -36,14 +38,34 @@ class EUPIDSigningCertificateProfileTests {
     ): CertificateConstraintEvaluation =
         CertificateProfileValidatorJVM.validate(pidSigningCertificateProfile(), certificate)
 
+    private val legalEntityPidProviderName = X500NameBuilder(BCStyle.INSTANCE).apply {
+        addRDN(BCStyle.C, "EU")
+        addRDN(BCStyle.O, "PID Provider Organization")
+        addRDN(BCStyle.ORGANIZATION_IDENTIFIER, "LEIEU-5493001KJTIIGC8Y1R12")
+        addRDN(BCStyle.CN, "PID Provider")
+    }.build()
+    private val naturalPersonPidProvider = X500NameBuilder(BCStyle.INSTANCE).apply {
+        addRDN(BCStyle.C, "GR")
+        addRDN(BCStyle.GIVENNAME, "John") // givenName
+        addRDN(BCStyle.SURNAME, "Doe") // surname
+        addRDN(BCStyle.CN, "John Doe")
+        addRDN(BCStyle.SERIALNUMBER, "PASGR-839201")
+    }.build()
+
     private val ca = CertOps.genTrustAnchor(
         sigAlg = "SHA256withECDSA",
-        subject = X500Name("CN=Test CA"),
+        subject = X500NameBuilder(BCStyle.INSTANCE).apply {
+            addRDN(BCStyle.C, "EU")
+            addRDN(BCStyle.O, "Test CA Organization")
+            addRDN(BCStyle.ORGANIZATION_IDENTIFIER, "LEIEU-12312312")
+            addRDN(BCStyle.CN, "Test CA")
+        }.build(),
         policyOids = null,
         pathLenConstraint = null,
     )
 
     private fun genCAIssuedEndEntityCertificate(
+        subject: X500Name,
         qcStatements: List<Pair<String, Boolean>>? = null,
         policyOids: List<String>? = null,
         caIssuersUri: String? = null,
@@ -57,7 +79,7 @@ class EUPIDSigningCertificateProfileTests {
             signerCert = caCert,
             signerKey = caKeyPair.private,
             sigAlg = sigAlg,
-            subject = X500Name("CN=PID Provider Test"),
+            subject = subject,
             keyUsage = keyUsage,
             qcStatements = qcStatements,
             policyOids = policyOids,
@@ -76,6 +98,7 @@ class EUPIDSigningCertificateProfileTests {
             caIssuersUri = "http://example.com/ca.crt",
             ocspUri = "http://example.com/ocsp",
             keyUsage = KeyUsage(KeyUsage.digitalSignature),
+            subject = legalEntityPidProviderName,
         )
 
         // Validate as PID Provider
@@ -97,6 +120,7 @@ class EUPIDSigningCertificateProfileTests {
             caIssuersUri = "http://example.com/ca.crt",
             ocspUri = "http://example.com/ocsp",
             keyUsage = KeyUsage(KeyUsage.digitalSignature),
+            subject = legalEntityPidProviderName,
         )
 
         // Validate as PID Provider
@@ -117,6 +141,7 @@ class EUPIDSigningCertificateProfileTests {
             caIssuersUri = "http://example.com/ca.crt",
             ocspUri = "http://example.com/ocsp",
             keyUsage = KeyUsage(KeyUsage.digitalSignature),
+            subject = legalEntityPidProviderName,
         )
 
         // Validate as PID Provider
@@ -133,6 +158,7 @@ class EUPIDSigningCertificateProfileTests {
             qcStatements = listOf(ETSI119412Part6.ID_ETSI_QCT_PID to true),
             policyOids = listOf("1.2.3.4.5"), // TSP-defined policy OID
             keyUsage = KeyUsage(KeyUsage.digitalSignature),
+            subject = legalEntityPidProviderName,
         )
 
         // Validate as PID Provider
@@ -149,6 +175,7 @@ class EUPIDSigningCertificateProfileTests {
             caIssuersUri = "http://example.com/ca.crt",
             ocspUri = "http://example.com/ocsp",
             keyUsage = KeyUsage(KeyUsage.digitalSignature),
+            subject = legalEntityPidProviderName,
         )
 
         // Validate as PID Provider
@@ -162,7 +189,7 @@ class EUPIDSigningCertificateProfileTests {
     fun `CA-issued certificate should require end-entity not CA`() = runTest {
         val (_, caCertHolder) = CertOps.genTrustAnchor(
             sigAlg = "SHA256withECDSA",
-            subject = X500Name("CN=Self-Signed PID Provider CA Test"),
+            subject = legalEntityPidProviderName,
             keyUsage = KeyUsage(KeyUsage.digitalSignature),
             policyOids = listOf("1.2.3.4.5"),
             pathLenConstraint = null,
@@ -187,6 +214,7 @@ class EUPIDSigningCertificateProfileTests {
             caIssuersUri = "http://example.com/ca.crt",
             ocspUri = "http://example.com/ocsp",
             keyUsage = KeyUsage(KeyUsage.keyCertSign), // wrong key usage
+            subject = legalEntityPidProviderName,
         )
 
         val constraintEvaluation = evaluateCertificateConstraints(certificate)
@@ -200,6 +228,7 @@ class EUPIDSigningCertificateProfileTests {
     //
 
     private fun genSelfSignedEndEntityCertificate(
+        subject: X500Name,
         qcStatements: List<Pair<String, Boolean>>? = null,
         policyOids: List<String>? = null,
         keyUsage: KeyUsage = KeyUsage(KeyUsage.digitalSignature),
@@ -207,7 +236,7 @@ class EUPIDSigningCertificateProfileTests {
         val sigAlg = "SHA256withECDSA"
         val (_, certHolder) = CertOps.genSelfSignedEndEntityCertificate(
             sigAlg = sigAlg,
-            subject = X500Name("CN=Self-Signed PID Provider Test"),
+            subject = subject,
             keyUsage = keyUsage,
             qcStatements = qcStatements,
             policyOids = policyOids,
@@ -220,7 +249,7 @@ class EUPIDSigningCertificateProfileTests {
         // Generate a self-signed CA certificate (cA=TRUE) instead of end-entity
         val (_, caCertHolder) = CertOps.genTrustAnchor(
             sigAlg = "SHA256withECDSA",
-            subject = X500Name("CN=Self-Signed PID Provider CA Test"),
+            subject = legalEntityPidProviderName,
             keyUsage = KeyUsage(KeyUsage.digitalSignature),
             policyOids = listOf("1.2.3.4.5"),
             qcStatements = listOf(ETSI119412Part6.ID_ETSI_QCT_PID to true),
@@ -236,12 +265,13 @@ class EUPIDSigningCertificateProfileTests {
     }
 
     @Test
-    fun `Self-signed certificate should require digitalSignature key usage`() = runTest {
+    fun `Self-signed LP certificate should require digitalSignature key usage`() = runTest {
         // Generate a self-signed certificate with keyCertSign instead of digitalSignature
         val certificate = genSelfSignedEndEntityCertificate(
             qcStatements = listOf(ETSI119412Part6.ID_ETSI_QCT_PID to true),
             policyOids = listOf("1.2.3.4.5"),
             keyUsage = KeyUsage(KeyUsage.keyCertSign), // wrong key usage
+            subject = legalEntityPidProviderName,
         )
 
         val constraintEvaluation = evaluateCertificateConstraints(certificate)
@@ -251,11 +281,28 @@ class EUPIDSigningCertificateProfileTests {
     }
 
     @Test
-    fun `Self-signed certificate should require QCStatement`() = runTest {
+    fun `Self-signed NP certificate should require digitalSignature key usage`() = runTest {
+        // Generate a self-signed certificate with keyCertSign instead of digitalSignature
+        val certificate = genSelfSignedEndEntityCertificate(
+            qcStatements = listOf(ETSI119412Part6.ID_ETSI_QCT_PID to true),
+            policyOids = listOf("1.2.3.4.5"),
+            keyUsage = KeyUsage(KeyUsage.keyCertSign), // wrong key usage
+            subject = naturalPersonPidProvider,
+        )
+
+        val constraintEvaluation = evaluateCertificateConstraints(certificate)
+
+        assertFalse(constraintEvaluation.isMet(), "Certificate without digitalSignature should fail")
+        constraintEvaluation.assertSingleViolation { it.contains("keyUsage", ignoreCase = true) }
+    }
+
+    @Test
+    fun `Self-signed LP certificate should require QCStatement`() = runTest {
         // Generate a self-signed certificate without QCStatement
         val certificate = genSelfSignedEndEntityCertificate(
             qcStatements = null, // No QCStatement
             policyOids = listOf("1.2.3.4.5"),
+            subject = legalEntityPidProviderName,
         )
 
         val constraintEvaluation = evaluateCertificateConstraints(certificate)
@@ -265,11 +312,27 @@ class EUPIDSigningCertificateProfileTests {
     }
 
     @Test
-    fun `Self-signed certificate should require QCStatement ID_ETSI_QCT_PID`() = runTest {
+    fun `Self-signed NP certificate should require QCStatement`() = runTest {
+        // Generate a self-signed certificate without QCStatement
+        val certificate = genSelfSignedEndEntityCertificate(
+            qcStatements = null, // No QCStatement
+            policyOids = listOf("1.2.3.4.5"),
+            subject = naturalPersonPidProvider,
+        )
+
+        val constraintEvaluation = evaluateCertificateConstraints(certificate)
+
+        assertFalse(constraintEvaluation.isMet(), "Certificate without QCStatement should fail")
+        constraintEvaluation.assertSingleViolation { it.contains("QCStatement", ignoreCase = true) }
+    }
+
+    @Test
+    fun `Self-signed LP certificate should require QCStatement ID_ETSI_QCT_PID`() = runTest {
         // Generate a self-signed certificate with wrong QCStatement type (Wallet instead of PID)
         val certificate = genSelfSignedEndEntityCertificate(
             qcStatements = listOf(ETSI119412Part6.ID_ETSI_QCT_WAL to true), // Wrong type
             policyOids = listOf("1.2.3.4.5"),
+            subject = legalEntityPidProviderName,
         )
 
         val constraintEvaluation = evaluateCertificateConstraints(certificate)
@@ -279,12 +342,43 @@ class EUPIDSigningCertificateProfileTests {
     }
 
     @Test
-    fun `Self-signed certificate should be valid`() = runTest {
+    fun `Self-signed NP certificate should require QCStatement ID_ETSI_QCT_PID`() = runTest {
+        // Generate a self-signed certificate with wrong QCStatement type (Wallet instead of PID)
+        val certificate = genSelfSignedEndEntityCertificate(
+            qcStatements = listOf(ETSI119412Part6.ID_ETSI_QCT_WAL to true), // Wrong type
+            policyOids = listOf("1.2.3.4.5"),
+            subject = naturalPersonPidProvider,
+        )
+
+        val constraintEvaluation = evaluateCertificateConstraints(certificate)
+
+        assertFalse(constraintEvaluation.isMet(), "Wrong QCStatement type should fail")
+        constraintEvaluation.assertSingleViolation { it.contains("QCStatement", ignoreCase = true) }
+    }
+
+    @Test
+    fun `Self-signed LP certificate should be valid`() = runTest {
         // Generate a valid self-signed certificate with all requirements
         val certificate = genSelfSignedEndEntityCertificate(
             qcStatements = listOf(ETSI119412Part6.ID_ETSI_QCT_PID to true),
             policyOids = listOf("1.2.3.4.5"),
             keyUsage = KeyUsage(KeyUsage.digitalSignature),
+            subject = legalEntityPidProviderName,
+        )
+
+        val constraintEvaluation = evaluateCertificateConstraints(certificate)
+
+        assertTrue(constraintEvaluation.isMet(), "Valid self-signed certificate should pass: $constraintEvaluation")
+    }
+
+    @Test
+    fun `Self-signed NP certificate should be valid`() = runTest {
+        // Generate a valid self-signed certificate with all requirements
+        val certificate = genSelfSignedEndEntityCertificate(
+            qcStatements = listOf(ETSI119412Part6.ID_ETSI_QCT_PID to true),
+            policyOids = listOf("1.2.3.4.5"),
+            keyUsage = KeyUsage(KeyUsage.digitalSignature),
+            subject = naturalPersonPidProvider,
         )
 
         val constraintEvaluation = evaluateCertificateConstraints(certificate)

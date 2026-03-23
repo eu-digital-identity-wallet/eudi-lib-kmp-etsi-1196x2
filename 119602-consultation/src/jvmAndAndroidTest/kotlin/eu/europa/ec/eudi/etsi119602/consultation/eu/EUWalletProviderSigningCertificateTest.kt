@@ -22,6 +22,8 @@ import eu.europa.ec.eudi.etsi1196x2.consultation.certs.CertificateConstraintEval
 import eu.europa.ec.eudi.etsi1196x2.consultation.certs.isMet
 import kotlinx.coroutines.test.runTest
 import org.bouncycastle.asn1.x500.X500Name
+import org.bouncycastle.asn1.x500.X500NameBuilder
+import org.bouncycastle.asn1.x500.style.BCStyle
 import org.bouncycastle.asn1.x509.KeyUsage
 import java.security.cert.X509Certificate
 import kotlin.test.Test
@@ -36,14 +38,27 @@ class EUWalletProviderSigningCertificateTest {
     ): CertificateConstraintEvaluation =
         CertificateProfileValidatorJVM.validate(walletProviderSigningCertificateProfile(), certificate)
 
+    private val legalEntityWalletProviderName = X500NameBuilder(BCStyle.INSTANCE).apply {
+        addRDN(BCStyle.C, "EU")
+        addRDN(BCStyle.O, "Wallet Provider Organization")
+        addRDN(BCStyle.ORGANIZATION_IDENTIFIER, "LEIEU-5493001KJTIIGC8Y1R12")
+        addRDN(BCStyle.CN, "Wallet Provider")
+    }.build()
+
     private val ca = CertOps.genTrustAnchor(
         sigAlg = "SHA256withECDSA",
-        subject = X500Name("CN=Test CA"),
+        subject = X500NameBuilder(BCStyle.INSTANCE).apply {
+            addRDN(BCStyle.C, "EU")
+            addRDN(BCStyle.O, "Test CA Organization")
+            addRDN(BCStyle.ORGANIZATION_IDENTIFIER, "LEIEU-12312312")
+            addRDN(BCStyle.CN, "Test CA")
+        }.build(),
         policyOids = null,
         pathLenConstraint = null,
     )
 
     private fun genCAIssuedEndEntityCertificate(
+        subject: X500Name,
         qcStatements: List<Pair<String, Boolean>>? = null,
         policyOids: List<String>? = null,
         caIssuersUri: String? = null,
@@ -55,7 +70,7 @@ class EUWalletProviderSigningCertificateTest {
             signerCert = caCert,
             signerKey = caKeyPair.private,
             sigAlg = "SHA256withECDSA",
-            subject = X500Name("CN=Test Wallet Provider"),
+            subject = subject,
             qcStatements = qcStatements,
             policyOids = policyOids,
             caIssuersUri = caIssuersUri,
@@ -72,6 +87,7 @@ class EUWalletProviderSigningCertificateTest {
             policyOids = listOf("1.2.3.4.5"),
             caIssuersUri = "http://example.com/ca.crt",
             ocspUri = "http://example.com/ocsp",
+            subject = legalEntityWalletProviderName,
         )
 
         // Validate as PID Provider
@@ -92,6 +108,7 @@ class EUWalletProviderSigningCertificateTest {
             policyOids = listOf("1.2.3.4.5"), // TSP-defined policy OID
             caIssuersUri = "http://example.com/ca.crt",
             ocspUri = "http://example.com/ocsp",
+            subject = legalEntityWalletProviderName,
         )
 
         // Validate as PID Provider
@@ -111,6 +128,7 @@ class EUWalletProviderSigningCertificateTest {
             policyOids = listOf("1.2.3.4.5"), // TSP-defined policy OID
             caIssuersUri = "http://example.com/ca.crt",
             ocspUri = "http://example.com/ocsp",
+            subject = legalEntityWalletProviderName,
         )
 
         // Validate as PID Provider
@@ -126,6 +144,8 @@ class EUWalletProviderSigningCertificateTest {
         val certificate = genCAIssuedEndEntityCertificate(
             qcStatements = listOf(ETSI119412Part6.ID_ETSI_QCT_WAL to true),
             policyOids = listOf("1.2.3.4.5"), // TSP-defined policy OID
+            subject = legalEntityWalletProviderName,
+
         )
 
         // Validate as PID Provider
@@ -141,6 +161,7 @@ class EUWalletProviderSigningCertificateTest {
             policyOids = listOf("1.2.3.4.5"), // TSP-defined policy OID
             caIssuersUri = "http://example.com/ca.crt",
             ocspUri = "http://example.com/ocsp",
+            subject = legalEntityWalletProviderName,
         )
 
         // Validate as PID Provider
@@ -196,6 +217,7 @@ class EUWalletProviderSigningCertificateTest {
     //
 
     private fun genSelfSignedEndEntityCertificate(
+        subject: X500Name = X500Name("CN=Self-Signed Wallet Provider Test"),
         qcStatements: List<Pair<String, Boolean>>? = null,
         policyOids: List<String>? = null,
         keyUsage: KeyUsage = KeyUsage(KeyUsage.digitalSignature),
@@ -203,7 +225,7 @@ class EUWalletProviderSigningCertificateTest {
         val sigAlg = "SHA256withECDSA"
         val (_, certHolder) = CertOps.genSelfSignedEndEntityCertificate(
             sigAlg = sigAlg,
-            subject = X500Name("CN=Self-Signed Wallet Provider Test"),
+            subject = subject,
             keyUsage = keyUsage,
             qcStatements = qcStatements,
             policyOids = policyOids,
