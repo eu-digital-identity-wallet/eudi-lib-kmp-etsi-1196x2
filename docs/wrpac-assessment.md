@@ -51,6 +51,7 @@ structural alignment** with all critical infrastructure components in place.
 ```kotlin
 public fun wrpAccessCertificateProfile(
     at: Instant? = null,
+    maxShortTermDuration: Duration = 7.days,
 ): CertificateProfile = certificateProfile {
     // Basic certificate requirements
     endEntity()
@@ -71,8 +72,11 @@ public fun wrpAccessCertificateProfile(
     // Authority Key Identifier required (EN 319 412-2)
     authorityKeyIdentifier()
 
+    // Validity-assured short-term certificate requirements
+    validityAssuredShortTerm(maxShortTermDuration)
+
     // Subject Alternative Name with contact info required (TS 119 411-8)
-    subjectAltNameForWRPAC()
+    wrpacSubjectAlternativeNames()
 
     // CRL Distribution Points required if no OCSP (EN 319 412-2)
     crlDistributionPointsIfNoOcspAndNotValAssured()
@@ -97,10 +101,10 @@ public fun wrpAccessCertificateProfile(
     }
 
     // Subject DN attributes required based on certificate policy (natural person vs legal person)
-    subjectNameForWRPAC()
+    wrpacSubject()
 
     // Issuer DN attributes required (WRPAC Provider CA is always a legal person)
-    issuerLegalPersonAttributes()
+    issuerLegalPerson()
 }
 ```
 
@@ -119,15 +123,15 @@ public fun wrpAccessCertificateProfile(
 | Serial number (positive)            | RFC 5280 4.1.2.2        | `positiveSerialNumber()`                                 | ✅      |
 | AuthorityInfoAccess                 | EN 319 412-2 4.4.1      | `authorityInformationAccessIfCAIssued()`                 | ✅      |
 | AuthorityKeyIdentifier              | EN 319 412-2 4.3.1      | `authorityKeyIdentifier()`                               | ✅      |
-| SubjectAltName (contact info)       | TS 119 411-8 6.6.1      | `subjectAltNameForWRPAC()`                               | ✅      |
+| SubjectAltName (contact info)       | TS 119 411-8 6.6.1      | `wrpacSubjectAlternativeNames()`                        | ✅      |
 | CRLDistributionPoints (conditional) | EN 319 412-2 4.3.11     | `crlDistributionPointsIfNoOcspAndNotValAssured()`        | ✅      |
 | Public key algorithm/size           | TS 119 312              | `publicKey(options = ...)`                               | ✅      |
 | QCStatement: QcCompliance (QCP)     | EN 319 412-5 4.2.1      | `requireQcStatementsForPolicy`                           | ✅      |
 | QCStatement: QcSSCD (QCP)           | EN 319 412-5 4.2.2      | `requireQcStatementsForPolicy`                           | ✅      |
 | QCStatement: QcType (QCP-l only)    | EN 319 412-5 4.2.3      | `requireQcStatementsForPolicy`                           | ✅      |
-| Subject DN: Natural person attrs    | EN 319 412-2 4.2.2      | `subjectNameForWRPAC()` → `subjectNaturalPersonAttributes()` | ✅      |
-| Subject DN: Legal person attrs      | EN 319 412-3 4.2.1      | `subjectNameForWRPAC()` → `validSubjectLegalPersonAttributes()` | ✅      |
-| Issuer DN: Legal person attrs       | EN 319 412-3 4.2.3      | `issuerLegalPersonAttributes()`                          | ✅      |
+| Subject DN: Natural person attrs    | EN 319 412-2 4.2.2      | `wrpacSubject()` → `naturalPersonDN()`                  | ✅      |
+| Subject DN: Legal person attrs      | EN 319 412-3 4.2.1      | `wrpacSubject()` → `legalPersonDN()`                    | ✅      |
+| Issuer DN: Legal person attrs       | EN 319 412-3 4.2.3      | `issuerLegalPerson()`                                    | ✅      |
 | KeyUsage criticality                | RFC 5280 4.2.1.3        | `requireKeyUsageCritical()`                              | ✅      |
 | organizationIdentifier format       | EN 319 412-1 5.1.4      | `ETSI319412Part1.ORG_ID_PATTERN`                         | ✅      |
 
@@ -185,7 +189,7 @@ public fun wrpAccessCertificateProfile(
 | CRLDistributionPoints             | M(C)           | NC          | ✅          |                                                |
 | AuthorityInfoAccess               | M              | NC          | ✅          | Enforced (caIssuers)                           |
 | CertificatePolicies               | M              | NC          | ✅          | OIDs validated (NOT required critical)         |
-| SubjectAltName                    | M              | NC          | ✅          | Contact info required (URI, email, telephone)  |
+| SubjectAltName                    | M              | NC          | ✅          | `wrpacSubjectAlternativeNames()` (URI, email, tel) |
 | ext-etsi-valassured-ST-certs      | R(C)           | NC          | ✅          | Fully validated (duration check)               |
 | noRevocationAvail                 | M(C)           | NC          | ✅          | Validated for validity-assured certs           |
 | qcStatements (esi4-qcStatement-1) | M(C) for QCP   | NC          | ✅          | Validated for qualified (QcCompliance)         |

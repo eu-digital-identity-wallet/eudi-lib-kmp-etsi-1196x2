@@ -143,49 +143,20 @@ public fun ProfileBuilder.positiveSerialNumber() {
 // Subject/Issuer DN Constraints
 //
 
-public fun ProfileBuilder.subjectNaturalPersonAttributes() {
-    subject { subject -> CertificateConstraintsEvaluations.subjectNaturalPersonAttributes(subject) }
+public fun ProfileBuilder.subjectNaturalPerson() {
+    subject { subject -> CertificateConstraintsEvaluations.naturalPersonDN("Subject", subject) }
 }
 
-public fun ProfileBuilder.subjectLegalPersonAttributes() {
-    subject { subject -> CertificateConstraintsEvaluations.subjectLegalPersonAttributes(subject) }
+public fun ProfileBuilder.subjectLegalPerson() {
+    subject { subject -> CertificateConstraintsEvaluations.legalPersonDN("Subject", subject) }
 }
 
-/**
- * Requires the issuer DN to contain attributes for a legal person
- * per ETSI EN 319 412-3.
- *
- * Required attributes:
- * - countryName (C)
- * - organizationName (O)
- * - organizationIdentifier
- * - commonName (CN)
- *
- */
-public fun ProfileBuilder.issuerLegalPersonAttributes() {
-    issuer { issuer -> CertificateConstraintsEvaluations.issuerLegalPersonAttributes(issuer) }
+public fun ProfileBuilder.issuerNaturalPerson() {
+    issuer { issuer -> CertificateConstraintsEvaluations.naturalPersonDN("Issuer", issuer) }
 }
 
-/**
- * Requires the issuer DN to contain appropriate attributes.
- *
- * @param requireCountryName whether countryName is required (default: true)
- * @param requireOrganizationName whether organizationName is required (default: true)
- * @param requireCommonName whether commonName is required (default: true)
- */
-public fun ProfileBuilder.validIssuerAttributes(
-    requireCountryName: Boolean = true,
-    requireOrganizationName: Boolean = true,
-    requireCommonName: Boolean = true,
-) {
-    issuer { issuer ->
-        CertificateConstraintsEvaluations.validIssuerAttributes(
-            issuer,
-            requireCountryName,
-            requireOrganizationName,
-            requireCommonName,
-        )
-    }
+public fun ProfileBuilder.issuerLegalPerson() {
+    issuer { issuer -> CertificateConstraintsEvaluations.legalPersonDN("Issuer", issuer) }
 }
 
 //

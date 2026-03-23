@@ -46,46 +46,63 @@ public fun pidSigningCertificateProfile(at: Instant? = null): CertificateProfile
         ),
     )
     // (TS 119 412-6, PID-4.2-01)
-    issuerForPIDProvider()
     // (TS 119 412-6, PID-4.3-01, PID-4.3-02)
-    subjectForPIDProvider()
+    issuerAndSubjectForPIDProvider()
 }
 
 /**
  * ETSI TS 119 412-6, PID-4.2-01
  */
-internal fun ProfileBuilder.issuerForPIDProvider() {
-    issuer { issuer -> validateIssuerLegalOrNaturalPerson(issuer) }
-}
-internal fun ProfileBuilder.subjectForPIDProvider() {
-    issuer { issuer -> validateSubjectLegalOrNaturalPerson(issuer) }
-}
+internal fun ProfileBuilder.issuerAndSubjectForPIDProvider() {
+    combine(
+        CertificateOperationsAlgebra.CheckSelfSigned,
+        CertificateOperationsAlgebra.GetIssuer,
+        CertificateOperationsAlgebra.GetSubject,
+    ) { (isSelfSigned, issuer, subject) ->
 
-internal fun validateIssuerLegalOrNaturalPerson(issuer: DistinguishedName?): CertificateConstraintEvaluation =
-    if (issuer == null) {
-        CertificateConstraintEvaluation(listOf(CertificateConstraintsEvaluations.missingIssuerDistinguishedName))
-    } else {
-        // organization identifier is required for legal persons
-        val isLegalPerson = issuer[DistinguishedName.X500OIDs.ORG_IDENTIFIER] != null
-        if (isLegalPerson) {
-            CertificateConstraintsEvaluations.issuerLegalPersonAttributes(issuer)
+        val issuerAndSubjectPresent = CertificateConstraintEvaluation {
+            if (issuer == null) {
+                add(CertificateConstraintsEvaluations.missingDN("Issuer"))
+            }
+            if (subject == null) {
+                add(CertificateConstraintsEvaluations.missingDN("Subject"))
+            }
+        }
+        if (!issuerAndSubjectPresent.isMet()) {
+            return@combine issuerAndSubjectPresent
+        }
+
+        checkNotNull(issuer) { "Cannot happen" }
+        checkNotNull(subject) { "Cannot happen" }
+
+        if (isSelfSigned) {
+            check(issuer == subject) { "Self-signed certificate must have the same issuer and subject" }
+            validateLegalOrNaturalPerson("Subject", subject)
         } else {
-            CertificateConstraintsEvaluations.issuerNaturalPersonAttributes(issuer)
+            fun CertificateConstraintEvaluation.vs() = when (this) {
+                CertificateConstraintEvaluation.Met -> emptyList()
+                is CertificateConstraintEvaluation.Violated -> violations
+            }
+            CertificateConstraintEvaluation {
+                addAll(validateLegalOrNaturalPerson("Issuer", issuer).vs())
+                addAll(validateLegalOrNaturalPerson("Subject", subject).vs())
+            }
         }
     }
+}
 
 /**
  * ETSI TS 119 412-6, PID-4.3-01, PID-4.3-02
  */
-internal fun validateSubjectLegalOrNaturalPerson(subject: DistinguishedName?): CertificateConstraintEvaluation =
-    if (subject == null) {
-        CertificateConstraintEvaluation(listOf(CertificateConstraintsEvaluations.missingSubjectDistinguishedName))
+internal fun validateLegalOrNaturalPerson(attribute: String, dn: DistinguishedName?): CertificateConstraintEvaluation =
+    if (dn == null) {
+        CertificateConstraintEvaluation(listOf(CertificateConstraintsEvaluations.missingDN(attribute)))
     } else {
         // organization identifier is required for legal persons
-        val isLegalPerson = subject[DistinguishedName.X500OIDs.ORG_IDENTIFIER] != null
+        val isLegalPerson = dn[DistinguishedName.X500OIDs.ORG_IDENTIFIER] != null
         if (isLegalPerson) {
-            CertificateConstraintsEvaluations.subjectLegalPersonAttributes(subject)
+            CertificateConstraintsEvaluations.legalPersonDN(attribute, dn)
         } else {
-            CertificateConstraintsEvaluations.subjectNaturalPersonAttributes(subject)
+            CertificateConstraintsEvaluations.naturalPersonDN(attribute, dn)
         }
     }
