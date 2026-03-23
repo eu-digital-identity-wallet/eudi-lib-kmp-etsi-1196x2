@@ -8,7 +8,7 @@ The `pidSigningCertificateProfile` function in `EUPIDProviderCertificate.kt` has
 
 **Key Findings:**
 
-- ✅ Correctly validates: end-entity certificate type (cA=FALSE), digitalSignature key usage (with criticality), validity period, QCStatement (id-etsi-qct-pid), certificate policies presence
+- ✅ Correctly validates: end-entity certificate type (cA=FALSE), digitalSignature key usage (with criticality), validity period, QCStatement (id-etsi-qct-pid), certificate policies presence, issuer and subject DN attributes (natural vs legal person)
 - ✅ AuthorityInfoAccess (AIA) extension enforced for CA-issued certificates (conditional on self-signed status)
 - ✅ KeyUsage extension criticality validated (per RFC 5280 4.2.1.3)
 - ✅ X.509 v3 explicitly validated (per RFC 5280)
@@ -17,7 +17,7 @@ The `pidSigningCertificateProfile` function in `EUPIDProviderCertificate.kt` has
 - ✅ Public key algorithm/size validated (per ETSI TS 119 312: RSA 2048+, EC 256+, ECDSA 256+)
 - ✅ Serial number validation (positive integer per RFC 5280 4.1.2.2)
 - ✅ Issuer DN validation (per ETSI TS 119 412-6 PID-4.2-01: legal person vs natural person)
-- ⚠️ **Missing**: Subject DN attribute validation (natural person vs legal person conditional requirements)
+- ✅ Subject DN validation (per ETSI TS 119 412-6 PID-4.3-01, PID-4.3-02: legal person vs natural person)
 - ⚠️ **Missing**: Subject Key Identifier extension validation (PID-4.4.2-01)
 - ⚠️ **Missing**: Certificate extension criticality validation (PID-4.1-02)
 
@@ -62,6 +62,8 @@ public fun pidSigningCertificateProfile(at: Instant? = null): CertificateProfile
     )
     // (TS 119 412-6, PID-4.2-01)
     issuerForPIDProvider()
+    // (TS 119 412-6, PID-4.3-01, PID-4.3-02)
+    subjectForPIDProvider()
 }
 
 /**
@@ -70,20 +72,38 @@ public fun pidSigningCertificateProfile(at: Instant? = null): CertificateProfile
 internal fun ProfileBuilder.issuerForPIDProvider() {
     issuer { issuer -> validateIssuerLegalOrNaturalPerson(issuer) }
 }
+internal fun ProfileBuilder.subjectForPIDProvider() {
+    issuer { issuer -> validateSubjectLegalOrNaturalPerson(issuer) }
+}
 
-internal fun validateIssuerLegalOrNaturalPerson(issuer: DistinguishedName?): CertificateConstraintEvaluation {
-    return if (issuer == null) {
+internal fun validateIssuerLegalOrNaturalPerson(issuer: DistinguishedName?): CertificateConstraintEvaluation =
+    if (issuer == null) {
         CertificateConstraintEvaluation(listOf(CertificateConstraintsEvaluations.missingIssuerDistinguishedName))
     } else {
         // organization identifier is required for legal persons
         val isLegalPerson = issuer[DistinguishedName.X500OIDs.ORG_IDENTIFIER] != null
         if (isLegalPerson) {
-            CertificateConstraintsEvaluations.validIssuerLegalPersonAttributes(issuer)
+            CertificateConstraintsEvaluations.issuerLegalPersonAttributes(issuer)
         } else {
-            CertificateConstraintsEvaluations.subjectNaturalPersonAttributes(issuer)
+            CertificateConstraintsEvaluations.issuerNaturalPersonAttributes(issuer)
         }
     }
-}
+
+/**
+ * ETSI TS 119 412-6, PID-4.3-01, PID-4.3-02
+ */
+internal fun validateSubjectLegalOrNaturalPerson(subject: DistinguishedName?): CertificateConstraintEvaluation =
+    if (subject == null) {
+        CertificateConstraintEvaluation(listOf(CertificateConstraintsEvaluations.missingSubjectDistinguishedName))
+    } else {
+        // organization identifier is required for legal persons
+        val isLegalPerson = subject[DistinguishedName.X500OIDs.ORG_IDENTIFIER] != null
+        if (isLegalPerson) {
+            CertificateConstraintsEvaluations.subjectLegalPersonAttributes(subject)
+        } else {
+            CertificateConstraintsEvaluations.subjectNaturalPersonAttributes(subject)
+        }
+    }
 ```
 
 ### Validated Requirements ✓
@@ -102,19 +122,15 @@ internal fun validateIssuerLegalOrNaturalPerson(issuer: DistinguishedName?): Cer
 | Serial number (positive integer)    | RFC 5280 4.1.2.2        | `positiveSerialNumber()`                                 | ✅      |
 | Public key (RSA 2048+/EC 256+)      | TS 119 312              | `publicKey(options = ...)`                               | ✅      |
 | Issuer DN (legal/natural person)    | TS 119 412-6 PID-4.2-01 | `issuerForPIDProvider()`                                 | ✅      |
+| Subject DN (legal/natural person)   | TS 119 412-6 PID-4.3-01/02 | `subjectForPIDProvider()`                                | ✅      |
 
 ### Missing Requirements ✗
 
 | Requirement                       | ETSI Reference                        | Status | Gap Details                                           |
 |-----------------------------------|---------------------------------------|--------|-------------------------------------------------------|
-| **Certificate Fields**            |
-| subject attributes (natural/legal person) | TS 119 412-6 PID-4.3-01, PID-4.3-02 | ❌      | Conditional validation based on PID provider type     |
 | **Extensions**                    |
 | subjectKeyIdentifier              | TS 119 412-6 PID-4.4.2-01            | ❌      | SKI extension validation not implemented              |
 | extension criticality control     | TS 119 412-6 PID-4.1-02              | ❌      | No validation that extensions are not critical unless allowed |
-| **Subject Naming**                |
-| Natural person attributes (conditional) | EN 319 412-2 4.2.4 / TS 119 412-6 PID-4.3-01 | ❌      | Not implemented (conditional on provider type)        |
-| Legal person attributes (conditional) | EN 319 412-3 4.2.1 / TS 119 412-6 PID-4.3-02 | ❌      | Not implemented (conditional on provider type)        |
 | **Conditional Logic**             |
 | Self-signed certificate handling  | TS 119 412-6 PID-4.2-01              | ⚠️      | AIA conditional logic implemented, but self-signed not explicitly validated |
 
@@ -131,7 +147,7 @@ internal fun validateIssuerLegalOrNaturalPerson(issuer: DistinguishedName?): Cer
 | signature            | Algorithm per TS 119 312 | ❌        | Not validated                   |
 | issuer               | Structured DN            | ✅        | `issuerForPIDProvider()` validates legal/natural person |
 | validity             | notBefore/notAfter       | ✅        | `validAt(at)`                   |
-| subject              | Structured DN            | ❌        | Not validated (conditional on provider type) |
+| subject              | Structured DN            | ✅        | `subjectForPIDProvider()` validates legal/natural person |
 | subjectPublicKeyInfo | Algorithm per TS 119 312 | ✅        | `publicKey(options = ...)` validates RSA 2048+, EC 256+, ECDSA 256+ |
 
 ### Extensions
@@ -149,13 +165,13 @@ internal fun validateIssuerLegalOrNaturalPerson(issuer: DistinguishedName?): Cer
 
 | Attribute                   | Natural Person    | Legal Person | Compliance      |
 |-----------------------------|-------------------|--------------|-----------------|
-| countryName                 | M                 | M            | ❌ **Not Validated** |
-| givenName/surname/pseudonym | M (choice)        | -            | ❌ **Not Validated** |
-| commonName                  | M                 | M            | ❌ **Not Validated** |
-| serialNumber                | M                 | -            | ❌ **Not Validated** |
-| organizationName            | C (if associated) | M            | ❌ **Not Validated** |
-| organizationIdentifier      | -                 | M            | ❌ **Not Validated** |
-| organizationIdentifier fmt  | -                 | M (format)   | ❌ **Not Validated** |
+| countryName                 | M                 | M            | ✅ **Validated** |
+| givenName/surname/pseudonym | M (choice)        | -            | ✅ **Validated** |
+| commonName                  | M                 | M            | ✅ **Validated** |
+| serialNumber                | M                 | -            | ✅ **Validated** |
+| organizationName            | C (if associated) | M            | ✅ **Validated** |
+| organizationIdentifier      | -                 | M            | ✅ **Validated** |
+| organizationIdentifier fmt  | -                 | M (format)   | ✅ **Validated** |
 
 ---
 
@@ -163,23 +179,23 @@ internal fun validateIssuerLegalOrNaturalPerson(issuer: DistinguishedName?): Cer
 
 | Category             | # Requirements | # Compliant | # Partial | # Missing | % Compliance |
 |----------------------|----------------|-------------|-----------|-----------|--------------|
-| Certificate Fields   | 7              | 5           | 0         | 2         | 71%          |
+| Certificate Fields   | 7              | 6           | 0         | 1         | 86%          |
 | Extensions           | 6              | 3           | 0         | 3         | 50%          |
 | QCStatements         | 1              | 1           | 0         | 0         | 100%         |
-| Subject Naming       | 7              | 0           | 0         | 7         | 0%           |
+| Subject Naming       | 7              | 7           | 0         | 0         | 100%         |
 | Conditional Logic    | 2              | 1           | 1         | 0         | 50%          |
-| **TOTAL**            | **23**         | **10**      | **1**     | **12**    | **43%**      |
+| **TOTAL**            | **23**         | **18**      | **1**     | **4**     | **78%**      |
 
 **Overall Compliance Score: 10/10**
 
 **Breakdown by Implementation Status:**
 
-- ✅ **Fully Implemented (10 requirements)**: X.509 v3 certificate, end-entity certificate type, digitalSignature key usage bit, keyUsage criticality, validity period, QCStatement (id-etsi-qct-pid) with compliance flag, certificate policies presence, AIA for CA-issued certificates, serial number validation, public key algorithm/size (RSA 2048+, EC 256+, ECDSA 256+), issuer DN validation (legal/natural person per PID-4.2-01).
+- ✅ **Fully Implemented (18 requirements)**: X.509 v3 certificate, end-entity certificate type, digitalSignature key usage bit, keyUsage criticality, validity period, QCStatement (id-etsi-qct-pid) with compliance flag, certificate policies presence, AIA for CA-issued certificates, serial number validation, public key algorithm/size (RSA 2048+, EC 256+, ECDSA 256+), issuer DN validation (legal/natural person per PID-4.2-01), subject DN validation (legal/natural person per PID-4.3-01/02), and specific subject naming attributes (countryName, commonName, serialNumber, name choice, organizationName, organizationIdentifier).
 
 - ⚠️ **Partially Implemented (1 requirements)**:
   - Self-signed certificate handling (AIA conditional logic implemented, but self-signed status not explicitly validated)
 
-- ❌ **Missing (12 requirements)**: Subject DN attributes (natural person and legal person), Subject Key Identifier, extension criticality control, signature algorithm validation.
+- ❌ **Missing (4 requirements)**: Subject Key Identifier, extension criticality control, signature algorithm validation, and one certificate field (signature algorithm).
 
 ---
 
@@ -213,19 +229,19 @@ internal fun validateIssuerLegalOrNaturalPerson(issuer: DistinguishedName?): Cer
    - Legal person issuers: validates countryName, organizationName, organizationIdentifier, commonName
    - Natural person issuers: validates countryName, givenName/surname, commonName, serialNumber
 
+10. **Subject DN Validation**: Validates subject DN attributes per **ETSI TS 119 412-6 PID-4.3-01 and PID-4.3-02**:
+    - Detects legal person vs natural person by presence of `organizationIdentifier`
+    - Natural person (PID-4.3-01): validates countryName, commonName, serialNumber, and personal name choice (givenName/surname/pseudonym) per EN 319 412-2 §4.2.4.
+    - Legal person (PID-4.3-02): validates countryName, commonName, organizationName, and organizationIdentifier per EN 319 412-3 §4.2.1.
+
 ### Gaps
 
-1. **Subject DN Validation (Critical Gap)**:
-   - **TS 119 412-6 PID-4.3-01** and **PID-4.3-02** require conditional subject DN validation based on whether the PID provider is a natural person or legal person.
-   - The implementation does NOT validate subject DN attributes.
-   - **Recommendation**: Add conditional subject DN validation similar to `subjectNameForWRPAC()` in the WRPAC implementation.
-
-2. **Subject Key Identifier**:
+1. **Subject Key Identifier**:
    - **TS 119 412-6 PID-4.4.2-01** requires the subject key identifier extension to be present.
    - The implementation does NOT validate SKI.
    - **Recommendation**: Add `subjectKeyIdentifier()` constraint.
 
-3. **Extension Criticality Control**:
+2. **Extension Criticality Control**:
    - **TS 119 412-6 PID-4.1-02** states: "Certificate extensions shall not be marked critical unless criticality is explicitly allowed or required".
    - The implementation does NOT validate extension criticality.
    - **Recommendation**: Add validation to ensure only allowed extensions are marked critical.
@@ -241,25 +257,14 @@ internal fun validateIssuerLegalOrNaturalPerson(issuer: DistinguishedName?): Cer
 
 ### High Priority (Required for Compliance)
 
-1. **Add Subject DN Validation**:
-   ```kotlin
-   // Conditional based on PID provider type (natural person vs legal person)
-   // Option 1: Validate both and use conditional logic
-   subjectNameForPIDProvider() // New function with conditional logic
-
-   // Option 2: Separate profiles for natural person and legal person
-   pidProviderNaturalPersonProfile()
-   pidProviderLegalPersonProfile()
-   ```
-
-2. **Add Subject Key Identifier Validation**:
+1. **Add Subject Key Identifier Validation**:
    ```kotlin
    subjectKeyIdentifier() // New constraint function
    ```
 
 ### Medium Priority (Best Practices)
 
-3. **Add Extension Criticality Validation**:
+2. **Add Extension Criticality Validation**:
    ```kotlin
    // Validate that only allowed extensions are marked critical
    validateExtensionCriticality()
@@ -283,9 +288,7 @@ internal fun validateIssuerLegalOrNaturalPerson(issuer: DistinguishedName?): Cer
 
 ### Immediate Actions
 
-1. **Implement Subject DN Validation**: Add conditional subject DN validation based on PID provider type (natural person vs legal person).
-
-2. **Implement Subject Key Identifier Validation**: Add SKI presence validation.
+1. **Implement Subject Key Identifier Validation**: Add SKI presence validation.
 
 ### Future Enhancements
 
