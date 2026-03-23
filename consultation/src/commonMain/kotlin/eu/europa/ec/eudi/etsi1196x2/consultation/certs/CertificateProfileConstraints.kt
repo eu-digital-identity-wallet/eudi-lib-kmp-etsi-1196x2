@@ -147,8 +147,8 @@ public fun ProfileBuilder.subjectNaturalPersonAttributes() {
     subject { subject -> CertificateConstraintsEvaluations.subjectNaturalPersonAttributes(subject) }
 }
 
-public fun ProfileBuilder.validSubjectLegalPersonAttributes() {
-    subject { subject -> CertificateConstraintsEvaluations.validSubjectLegalPersonAttributes(subject) }
+public fun ProfileBuilder.subjectLegalPersonAttributes() {
+    subject { subject -> CertificateConstraintsEvaluations.subjectLegalPersonAttributes(subject) }
 }
 
 /**
@@ -163,7 +163,7 @@ public fun ProfileBuilder.validSubjectLegalPersonAttributes() {
  *
  */
 public fun ProfileBuilder.issuerLegalPersonAttributes() {
-    issuer { issuer -> CertificateConstraintsEvaluations.validIssuerLegalPersonAttributes(issuer) }
+    issuer { issuer -> CertificateConstraintsEvaluations.issuerLegalPersonAttributes(issuer) }
 }
 
 /**

@@ -155,7 +155,7 @@ internal fun validateSubjectNameForWRPAC(
         isNaturalPerson && !isLegalPerson ->
             CertificateConstraintsEvaluations.subjectNaturalPersonAttributes(subject)
         isLegalPerson && !isNaturalPerson ->
-            CertificateConstraintsEvaluations.validSubjectLegalPersonAttributes(subject)
+            CertificateConstraintsEvaluations.subjectLegalPersonAttributes(subject)
         else -> {
             // Not a concern of this rule to enforce policy OIDs
             CertificateConstraintEvaluation.Met

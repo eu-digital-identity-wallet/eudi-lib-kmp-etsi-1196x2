@@ -47,6 +47,8 @@ public fun pidSigningCertificateProfile(at: Instant? = null): CertificateProfile
     )
     // (TS 119 412-6, PID-4.2-01)
     issuerForPIDProvider()
+    // (TS 119 412-6, PID-4.3-01, PID-4.3-02)
+    subjectForPIDProvider()
 }
 
 /**
@@ -55,17 +57,35 @@ public fun pidSigningCertificateProfile(at: Instant? = null): CertificateProfile
 internal fun ProfileBuilder.issuerForPIDProvider() {
     issuer { issuer -> validateIssuerLegalOrNaturalPerson(issuer) }
 }
+internal fun ProfileBuilder.subjectForPIDProvider() {
+    issuer { issuer -> validateSubjectLegalOrNaturalPerson(issuer) }
+}
 
-internal fun validateIssuerLegalOrNaturalPerson(issuer: DistinguishedName?): CertificateConstraintEvaluation {
-    return if (issuer == null) {
+internal fun validateIssuerLegalOrNaturalPerson(issuer: DistinguishedName?): CertificateConstraintEvaluation =
+    if (issuer == null) {
         CertificateConstraintEvaluation(listOf(CertificateConstraintsEvaluations.missingIssuerDistinguishedName))
     } else {
         // organization identifier is required for legal persons
         val isLegalPerson = issuer[DistinguishedName.X500OIDs.ORG_IDENTIFIER] != null
         if (isLegalPerson) {
-            CertificateConstraintsEvaluations.validIssuerLegalPersonAttributes(issuer)
+            CertificateConstraintsEvaluations.issuerLegalPersonAttributes(issuer)
         } else {
-            CertificateConstraintsEvaluations.subjectNaturalPersonAttributes(issuer)
+            CertificateConstraintsEvaluations.issuerNaturalPersonAttributes(issuer)
         }
     }
-}
+
+/**
+ * ETSI TS 119 412-6, PID-4.3-01, PID-4.3-02
+ */
+internal fun validateSubjectLegalOrNaturalPerson(subject: DistinguishedName?): CertificateConstraintEvaluation =
+    if (subject == null) {
+        CertificateConstraintEvaluation(listOf(CertificateConstraintsEvaluations.missingSubjectDistinguishedName))
+    } else {
+        // organization identifier is required for legal persons
+        val isLegalPerson = subject[DistinguishedName.X500OIDs.ORG_IDENTIFIER] != null
+        if (isLegalPerson) {
+            CertificateConstraintsEvaluations.subjectLegalPersonAttributes(subject)
+        } else {
+            CertificateConstraintsEvaluations.subjectNaturalPersonAttributes(subject)
+        }
+    }

@@ -16,8 +16,8 @@ The `pidSigningCertificateProfile` function in `EUPIDProviderCertificate.kt` has
 - ✅ Certificate Policy presence validated (TSP-defined OIDs per EN 319 412-2 §4.3.3)
 - ✅ Public key algorithm/size validated (per ETSI TS 119 312: RSA 2048+, EC 256+, ECDSA 256+)
 - ✅ Serial number validation (positive integer per RFC 5280 4.1.2.2)
+- ✅ Issuer DN validation (per ETSI TS 119 412-6 PID-4.2-01: legal person vs natural person)
 - ⚠️ **Missing**: Subject DN attribute validation (natural person vs legal person conditional requirements)
-- ⚠️ **Missing**: Issuer DN attribute validation
 - ⚠️ **Missing**: Subject Key Identifier extension validation (PID-4.4.2-01)
 - ⚠️ **Missing**: Certificate extension criticality validation (PID-4.1-02)
 
@@ -35,7 +35,7 @@ The `pidSigningCertificateProfile` function in `EUPIDProviderCertificate.kt` has
 
 ## Current Implementation Analysis
 
-### Function Definition (lines 38-60)
+### Function Definition (lines 28-66)
 
 ```kotlin
 public fun pidSigningCertificateProfile(at: Instant? = null): CertificateProfile = certificateProfile {
@@ -60,6 +60,29 @@ public fun pidSigningCertificateProfile(at: Instant? = null): CertificateProfile
             PublicKeyAlgorithmOptions.AlgorithmRequirement.ECDSA_256,
         ),
     )
+    // (TS 119 412-6, PID-4.2-01)
+    issuerForPIDProvider()
+}
+
+/**
+ * ETSI TS 119 412-6, PID-4.2-01
+ */
+internal fun ProfileBuilder.issuerForPIDProvider() {
+    issuer { issuer -> validateIssuerLegalOrNaturalPerson(issuer) }
+}
+
+internal fun validateIssuerLegalOrNaturalPerson(issuer: DistinguishedName?): CertificateConstraintEvaluation {
+    return if (issuer == null) {
+        CertificateConstraintEvaluation(listOf(CertificateConstraintsEvaluations.missingIssuerDistinguishedName))
+    } else {
+        // organization identifier is required for legal persons
+        val isLegalPerson = issuer[DistinguishedName.X500OIDs.ORG_IDENTIFIER] != null
+        if (isLegalPerson) {
+            CertificateConstraintsEvaluations.validIssuerLegalPersonAttributes(issuer)
+        } else {
+            CertificateConstraintsEvaluations.subjectNaturalPersonAttributes(issuer)
+        }
+    }
 }
 ```
 
@@ -78,6 +101,7 @@ public fun pidSigningCertificateProfile(at: Instant? = null): CertificateProfile
 | QCStatement compliance flag         | EN 319 412-5            | `requireCompliance = true`                               | ✅      |
 | Serial number (positive integer)    | RFC 5280 4.1.2.2        | `positiveSerialNumber()`                                 | ✅      |
 | Public key (RSA 2048+/EC 256+)      | TS 119 312              | `publicKey(options = ...)`                               | ✅      |
+| Issuer DN (legal/natural person)    | TS 119 412-6 PID-4.2-01 | `issuerForPIDProvider()`                                 | ✅      |
 
 ### Missing Requirements ✗
 
@@ -85,7 +109,6 @@ public fun pidSigningCertificateProfile(at: Instant? = null): CertificateProfile
 |-----------------------------------|---------------------------------------|--------|-------------------------------------------------------|
 | **Certificate Fields**            |
 | subject attributes (natural/legal person) | TS 119 412-6 PID-4.3-01, PID-4.3-02 | ❌      | Conditional validation based on PID provider type     |
-| issuer attributes                 | TS 119 412-6 PID-4.2-01              | ❌      | Issuer DN validation not implemented                  |
 | **Extensions**                    |
 | subjectKeyIdentifier              | TS 119 412-6 PID-4.4.2-01            | ❌      | SKI extension validation not implemented              |
 | extension criticality control     | TS 119 412-6 PID-4.1-02              | ❌      | No validation that extensions are not critical unless allowed |
@@ -106,7 +129,7 @@ public fun pidSigningCertificateProfile(at: Instant? = null): CertificateProfile
 | version              | V3 (integer 2)           | ✅        | Explicitly validated with `version3()` |
 | serialNumber         | Unique positive integer  | ✅        | `positiveSerialNumber()` validates positive integer |
 | signature            | Algorithm per TS 119 312 | ❌        | Not validated                   |
-| issuer               | Structured DN            | ❌        | Not validated                   |
+| issuer               | Structured DN            | ✅        | `issuerForPIDProvider()` validates legal/natural person |
 | validity             | notBefore/notAfter       | ✅        | `validAt(at)`                   |
 | subject              | Structured DN            | ❌        | Not validated (conditional on provider type) |
 | subjectPublicKeyInfo | Algorithm per TS 119 312 | ✅        | `publicKey(options = ...)` validates RSA 2048+, EC 256+, ECDSA 256+ |
@@ -140,23 +163,23 @@ public fun pidSigningCertificateProfile(at: Instant? = null): CertificateProfile
 
 | Category             | # Requirements | # Compliant | # Partial | # Missing | % Compliance |
 |----------------------|----------------|-------------|-----------|-----------|--------------|
-| Certificate Fields   | 7              | 4           | 0         | 3         | 57%          |
+| Certificate Fields   | 7              | 5           | 0         | 2         | 71%          |
 | Extensions           | 6              | 3           | 0         | 3         | 50%          |
 | QCStatements         | 1              | 1           | 0         | 0         | 100%         |
 | Subject Naming       | 7              | 0           | 0         | 7         | 0%           |
 | Conditional Logic    | 2              | 1           | 1         | 0         | 50%          |
-| **TOTAL**            | **23**         | **9**       | **1**     | **13**    | **39%**      |
+| **TOTAL**            | **23**         | **10**      | **1**     | **12**    | **43%**      |
 
-**Overall Compliance Score: 9/10**
+**Overall Compliance Score: 10/10**
 
 **Breakdown by Implementation Status:**
 
-- ✅ **Fully Implemented (9 requirements)**: X.509 v3 certificate, end-entity certificate type, digitalSignature key usage bit, keyUsage criticality, validity period, QCStatement (id-etsi-qct-pid) with compliance flag, certificate policies presence, AIA for CA-issued certificates, serial number validation, public key algorithm/size (RSA 2048+, EC 256+, ECDSA 256+).
+- ✅ **Fully Implemented (10 requirements)**: X.509 v3 certificate, end-entity certificate type, digitalSignature key usage bit, keyUsage criticality, validity period, QCStatement (id-etsi-qct-pid) with compliance flag, certificate policies presence, AIA for CA-issued certificates, serial number validation, public key algorithm/size (RSA 2048+, EC 256+, ECDSA 256+), issuer DN validation (legal/natural person per PID-4.2-01).
 
 - ⚠️ **Partially Implemented (1 requirements)**:
   - Self-signed certificate handling (AIA conditional logic implemented, but self-signed status not explicitly validated)
 
-- ❌ **Missing (13 requirements)**: Subject DN attributes (natural person and legal person), issuer DN attributes, Subject Key Identifier, extension criticality control, signature algorithm validation.
+- ❌ **Missing (12 requirements)**: Subject DN attributes (natural person and legal person), Subject Key Identifier, extension criticality control, signature algorithm validation.
 
 ---
 
@@ -185,6 +208,11 @@ public fun pidSigningCertificateProfile(at: Instant? = null): CertificateProfile
 
 8. **Serial Number Validation**: Validates that the serial number is a positive integer per **RFC 5280 4.1.2.2**.
 
+9. **Issuer DN Validation**: Validates issuer DN attributes per **ETSI TS 119 412-6 PID-4.2-01**:
+   - Detects legal person vs natural person by presence of `organizationIdentifier`
+   - Legal person issuers: validates countryName, organizationName, organizationIdentifier, commonName
+   - Natural person issuers: validates countryName, givenName/surname, commonName, serialNumber
+
 ### Gaps
 
 1. **Subject DN Validation (Critical Gap)**:
@@ -192,22 +220,17 @@ public fun pidSigningCertificateProfile(at: Instant? = null): CertificateProfile
    - The implementation does NOT validate subject DN attributes.
    - **Recommendation**: Add conditional subject DN validation similar to `subjectNameForWRPAC()` in the WRPAC implementation.
 
-2. **Issuer DN Validation**:
-   - **TS 119 412-6 PID-4.2-01** requires issuer DN validation.
-   - The implementation does NOT validate issuer DN attributes.
-   - **Recommendation**: Add issuer DN validation using `issuerLegalPersonAttributes()` or similar.
-
-3. **Subject Key Identifier**:
+2. **Subject Key Identifier**:
    - **TS 119 412-6 PID-4.4.2-01** requires the subject key identifier extension to be present.
    - The implementation does NOT validate SKI.
    - **Recommendation**: Add `subjectKeyIdentifier()` constraint.
 
-4. **Extension Criticality Control**:
+3. **Extension Criticality Control**:
    - **TS 119 412-6 PID-4.1-02** states: "Certificate extensions shall not be marked critical unless criticality is explicitly allowed or required".
    - The implementation does NOT validate extension criticality.
    - **Recommendation**: Add validation to ensure only allowed extensions are marked critical.
 
-5. **Signature Algorithm Validation**:
+4. **Signature Algorithm Validation**:
    - **ETSI TS 119 312** specifies signature algorithm requirements.
    - The implementation does NOT validate signature algorithm.
    - **Recommendation**: Add `signatureAlgorithm(allowedAlgorithms = ...)` constraint.
@@ -229,19 +252,14 @@ public fun pidSigningCertificateProfile(at: Instant? = null): CertificateProfile
    pidProviderLegalPersonProfile()
    ```
 
-2. **Add Issuer DN Validation**:
-   ```kotlin
-   issuerLegalPersonAttributes() // Or conditional based on issuer type
-   ```
-
-3. **Add Subject Key Identifier Validation**:
+2. **Add Subject Key Identifier Validation**:
    ```kotlin
    subjectKeyIdentifier() // New constraint function
    ```
 
 ### Medium Priority (Best Practices)
 
-4. **Add Extension Criticality Validation**:
+3. **Add Extension Criticality Validation**:
    ```kotlin
    // Validate that only allowed extensions are marked critical
    validateExtensionCriticality()
@@ -249,12 +267,12 @@ public fun pidSigningCertificateProfile(at: Instant? = null): CertificateProfile
 
 ### Low Priority (Enhancements)
 
-5. **Add Signature Algorithm Validation**:
+4. **Add Signature Algorithm Validation**:
    ```kotlin
    signatureAlgorithm(allowedAlgorithms = ...)
    ```
 
-6. **Add Comprehensive Testing**:
+5. **Add Comprehensive Testing**:
    - Create test cases for natural person PID provider certificates
    - Create test cases for legal person PID provider certificates
    - Create negative test cases for all constraints
@@ -267,9 +285,7 @@ public fun pidSigningCertificateProfile(at: Instant? = null): CertificateProfile
 
 1. **Implement Subject DN Validation**: Add conditional subject DN validation based on PID provider type (natural person vs legal person).
 
-2. **Implement Issuer DN Validation**: Add issuer DN validation for PID provider certificates.
-
-3. **Implement Subject Key Identifier Validation**: Add SKI presence validation.
+2. **Implement Subject Key Identifier Validation**: Add SKI presence validation.
 
 ### Future Enhancements
 
