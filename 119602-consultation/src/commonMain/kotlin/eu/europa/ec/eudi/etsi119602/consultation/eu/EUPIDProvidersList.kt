@@ -53,43 +53,7 @@ public val EUPIDProvidersList: EUListOfTrustedEntitiesProfile =
         ),
     )
 
-//
-// A PID provider certificate may be either:
-// - End-entity certificate (Direct Trust validation)
-// - CA certificate (PKIX validation)
-//
 
-/**
- * Creates constraints for PID Provider end-entity certificates in LoTE.
- *
- * Per ETSI TS 119 602 Annex D and ETSI TS 119 412-6:
- * - Certificate type: End-entity ONLY (cA=FALSE)
- * - QCStatement: id-etsi-qct-pid (0.4.0.194126.1.1) REQUIRED in the QCStatement extension
- * - Key Usage: digitalSignature REQUIRED
- * - Validity: Must be valid at validation time
- * - Certificate Policy: Presence REQUIRED per EN 319 412-2 §4.3.3 (TSP-defined OID, not validated)
- * - AIA: Required if CA-issued, not required if self-signed
- *
- * **Note on Certificate Policy OIDs:** Per EN 319 412-2 §4.3.3, the certificatePolicies extension
- * shall be present and shall contain at least one certificate policy OID that reflects the practices
- * and procedures undertaken by the CA. However, ETSI TS 119 412-6 does NOT mandate specific policy
- * OID values for PID providers - these are TSP-defined. The validator checks for the presence of
- * the certificatePolicies extension but does not validate specific OID values.
- *
- * **Note on QCStatement vs Certificate Policy:** The OID `id-etsi-qct-pid` is a **QCStatement type
- * OID** (QcType) that MUST appear in the QCStatement extension, NOT in the certificatePolicies extension.
- *
- * @return a validator configured for PID Provider end-entity certificates
- */
-public fun pidSigningCertificateProfile(at: Instant? = null): CertificateProfile = certificateProfile {
-    endEntity()
-    mandatoryQcStatement(qcType = ETSI119412Part6.ID_ETSI_QCT_PID, requireCompliance = true)
-    keyUsageDigitalSignature()
-    validAt(at)
-    // Per EN 319 412-2 §4.3.3: certificatePolicies extension shall be present (TSP-defined OID)
-    policyIsPresent()
-    authorityInformationAccessIfCAIssued()
-}
 
 /**
  * Creates constraints for PID Provider CA certificates in LoTE.

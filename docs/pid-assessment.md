@@ -8,15 +8,15 @@ The `pidSigningCertificateProfile` function in `EUPIDProvidersList.kt` has been 
 
 **Key Findings:**
 
-- ✅ Correctly validates: end-entity certificate type (cA=FALSE), digitalSignature key usage, validity period, QCStatement (id-etsi-qct-pid), certificate policies presence
+- ✅ Correctly validates: end-entity certificate type (cA=FALSE), digitalSignature key usage (with criticality), validity period, QCStatement (id-etsi-qct-pid), certificate policies presence
 - ✅ AuthorityInfoAccess (AIA) extension enforced for CA-issued certificates (conditional on self-signed status)
+- ✅ KeyUsage extension criticality validated (per RFC 5280 4.2.1.3)
 - ✅ X.509 v3 validation implicitly required (for extensions)
 - ✅ QCStatement requirement for PID provider certificates validated (id-etsi-qct-pid OID)
 - ✅ Certificate Policy presence validated (TSP-defined OIDs per EN 319 412-2 §4.3.3)
 - ⚠️ **Missing**: Subject DN attribute validation (natural person vs legal person conditional requirements)
 - ⚠️ **Missing**: Issuer DN attribute validation
 - ⚠️ **Missing**: Subject Key Identifier extension validation (PID-4.4.2-01)
-- ⚠️ **Missing**: Key Usage extension criticality validation
 - ⚠️ **Missing**: Public key algorithm/size validation (per ETSI TS 119 312)
 - ⚠️ **Missing**: Certificate extension criticality validation (PID-4.1-02)
 
@@ -24,11 +24,11 @@ The `pidSigningCertificateProfile` function in `EUPIDProvidersList.kt` has been 
 
 ## Assessment Scope
 
-- **File**: `/home/babis/work/eudiw/src/eudi-lib-kmp-etsi-1196x2/119602-consultation/src/commonMain/kotlin/eu/europa/ec/eudi/etsi119602/consultation/eu/EUPIDProvidersList.kt`
+- **File**: `/home/babis/work/eudiw/src/eudi-lib-kmp-etsi-1196x2/119602-consultation/src/commonMain/kotlin/eu/europa/ec/eudi/etsi119602/consultation/eu/EUPIDProviderCertificate.kt`
 - **Function**: `pidSigningCertificateProfile()`
 - **Standard**: ETSI TS 119 412-6 (Certificate profiles for PID and Wallet providers)
 - **Related Standards**: ETSI EN 319 412-1, ETSI EN 319 412-2, ETSI EN 319 412-3, ETSI EN 319 412-5, RFC 5280
-- **Assessment Date**: 2026-03-22
+- **Assessment Date**: 2026-03-23
 
 ---
 
@@ -54,6 +54,7 @@ public fun pidSigningCertificateProfile(at: Instant? = null): CertificateProfile
 |-------------------------------------|-------------------------|----------------------------------------------------------|--------|
 | End-entity certificate (cA=FALSE)   | TS 119 412-6 PID-4.1-01 | `endEntity()`                                            | ✅      |
 | Key Usage: digitalSignature         | TS 119 412-6 PID-4.4.1-01 | `keyUsageDigitalSignature()`                             | ✅      |
+| Key Usage criticality               | RFC 5280 4.2.1.3        | `keyUsageDigitalSignature()` (validates critical flag)   | ✅      |
 | Validity at time of use             | TS 119 412-6 PID-4.1-01 | `validAt(at)`                                            | ✅      |
 | QCStatement: id-etsi-qct-pid        | TS 119 412-6 PID-4.5-01 | `mandatoryQcStatement(qcType = ID_ETSI_QCT_PID, requireCompliance = true)` | ✅      |
 | Certificate Policy presence         | EN 319 412-2 §4.3.3     | `policyIsPresent()`                                      | ✅      |
@@ -70,7 +71,6 @@ public fun pidSigningCertificateProfile(at: Instant? = null): CertificateProfile
 | subjectPublicKeyInfo              | TS 119 312                            | ❌      | Public key algorithm/size validation missing          |
 | **Extensions**                    |
 | subjectKeyIdentifier              | TS 119 412-6 PID-4.4.2-01            | ❌      | SKI extension validation not implemented              |
-| keyUsage criticality              | RFC 5280 4.2.1.3 / TS 119 412-6 PID-4.1-02 | ❌      | KeyUsage criticality not explicitly validated         |
 | extension criticality control     | TS 119 412-6 PID-4.1-02              | ❌      | No validation that extensions are not critical unless allowed |
 | **Subject Naming**                |
 | Natural person attributes (conditional) | EN 319 412-2 4.2.4 / TS 119 412-6 PID-4.3-01 | ❌      | Not implemented (conditional on provider type)        |
@@ -98,7 +98,7 @@ public fun pidSigningCertificateProfile(at: Instant? = null): CertificateProfile
 
 | Extension                         | Presence       | Criticality | Compliance | Notes                                          |
 |-----------------------------------|----------------|-------------|------------|------------------------------------------------|
-| keyUsage                          | M              | C           | ⚠️        | digitalSignature bit validated, criticality NOT validated |
+| keyUsage                          | M              | C           | ✅        | digitalSignature bit and criticality validated |
 | subjectKeyIdentifier              | M              | NC          | ❌        | Not validated (PID-4.4.2-01)                    |
 | AuthorityInfoAccess               | M(C)           | NC          | ✅        | Conditional (not self-signed)                  |
 | CertificatePolicies               | M              | NC          | ✅        | Presence validated (TSP-defined OIDs)          |
@@ -124,20 +124,19 @@ public fun pidSigningCertificateProfile(at: Instant? = null): CertificateProfile
 | Category             | # Requirements | # Compliant | # Partial | # Missing | % Compliance |
 |----------------------|----------------|-------------|-----------|-----------|--------------|
 | Certificate Fields   | 7              | 1           | 1         | 5         | 14%          |
-| Extensions           | 6              | 2           | 1         | 3         | 33%          |
+| Extensions           | 6              | 3           | 0         | 3         | 50%          |
 | QCStatements         | 1              | 1           | 0         | 0         | 100%         |
 | Subject Naming       | 7              | 0           | 0         | 7         | 0%           |
 | Conditional Logic    | 2              | 1           | 1         | 0         | 50%          |
-| **TOTAL**            | **23**         | **5**       | **3**     | **15**    | **22%**      |
+| **TOTAL**            | **23**         | **6**       | **2**     | **15**    | **26%**      |
 
-**Overall Compliance Score: 5/10**
+**Overall Compliance Score: 6/10**
 
 **Breakdown by Implementation Status:**
 
-- ✅ **Fully Implemented (5 requirements)**: End-entity certificate type, digitalSignature key usage bit, validity period, QCStatement (id-etsi-qct-pid) with compliance flag, certificate policies presence, AIA for CA-issued certificates.
+- ✅ **Fully Implemented (6 requirements)**: End-entity certificate type, digitalSignature key usage bit, keyUsage criticality, validity period, QCStatement (id-etsi-qct-pid) with compliance flag, certificate policies presence, AIA for CA-issued certificates.
 
-- ⚠️ **Partially Implemented (3 requirements)**: 
-  - KeyUsage extension (digitalSignature bit validated, but criticality NOT validated)
+- ⚠️ **Partially Implemented (2 requirements)**:
   - X.509 v3 (implicitly required for extensions, but not explicitly validated)
   - Self-signed certificate handling (AIA conditional logic implemented, but self-signed status not explicitly validated)
 
@@ -163,7 +162,7 @@ public fun pidSigningCertificateProfile(at: Instant? = null): CertificateProfile
 
 ### Gaps
 
-1. **Subject DN Validation (Critical Gap)**: 
+1. **Subject DN Validation (Critical Gap)**:
    - **TS 119 412-6 PID-4.3-01** and **PID-4.3-02** require conditional subject DN validation based on whether the PID provider is a natural person or legal person.
    - The implementation does NOT validate subject DN attributes.
    - **Recommendation**: Add conditional subject DN validation similar to `subjectNameForWRPAC()` in the WRPAC implementation.
@@ -178,22 +177,17 @@ public fun pidSigningCertificateProfile(at: Instant? = null): CertificateProfile
    - The implementation does NOT validate SKI.
    - **Recommendation**: Add `subjectKeyIdentifier()` constraint.
 
-4. **Key Usage Criticality**:
-   - **RFC 5280 4.2.1.3** requires KeyUsage to be marked critical.
-   - The `keyUsageDigitalSignature()` function validates the digitalSignature bit but does NOT validate the critical flag.
-   - **Recommendation**: Ensure `mandatoryKeyUsage()` validates criticality (already implemented in `CertificateConstraintsEvaluations.mandatoryKeyUsage()`).
-
-5. **Public Key Validation**:
+4. **Public Key Validation**:
    - **TS 119 312** specifies public key algorithm and size requirements.
    - The implementation does NOT validate public key parameters.
    - **Recommendation**: Add `publicKey(options = ...)` constraint similar to WRPAC implementation.
 
-6. **Extension Criticality Control**:
+5. **Extension Criticality Control**:
    - **TS 119 412-6 PID-4.1-02** states: "Certificate extensions shall not be marked critical unless criticality is explicitly allowed or required".
    - The implementation does NOT validate extension criticality.
    - **Recommendation**: Add validation to ensure only allowed extensions are marked critical.
 
-7. **Serial Number Validation**:
+6. **Serial Number Validation**:
    - **RFC 5280 4.1.2.2** requires serial number to be a positive integer.
    - The implementation does NOT validate serial number.
    - **Recommendation**: Add `positiveSerialNumber()` constraint.
@@ -279,8 +273,6 @@ public fun pidSigningCertificateProfile(at: Instant? = null): CertificateProfile
 3. **Implement Subject Key Identifier Validation**: Add SKI presence validation.
 
 4. **Implement Public Key Validation**: Add public key algorithm and size validation per ETSI TS 119 312.
-
-5. **Verify Key Usage Criticality**: Ensure `keyUsageDigitalSignature()` validates the critical flag.
 
 ### Future Enhancements
 
