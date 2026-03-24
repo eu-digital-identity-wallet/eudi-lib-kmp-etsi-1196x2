@@ -54,7 +54,12 @@ public fun walletProviderSigningCertificateProfile(at: Instant? = null): Certifi
                 PublicKeyAlgorithmOptions.AlgorithmRequirement.ECDSA_256,
             ),
         )
+        // (TS 119 412-6, WAL-5.1-01, PID-4.2 and PID-4.3)
+        // Same as PID Provider
+        //pidProviderIssuerAndSubject()
+
         // Subject Key Identifier required (TS 119 412-6,WAL-5.1-01, PID-4.4.2-01)
+        // Same as PID Provider
         subjectKeyIdentifier()
     }
 
