@@ -29,13 +29,7 @@ public fun pidSigningCertificateProfile(at: Instant? = null): CertificateProfile
     endEntity()
     mandatoryQcStatement(qcType = ETSI119412Part6.ID_ETSI_QCT_PID, requireCompliance = true)
     keyUsageDigitalSignature()
-
-    extensionCriticality(mustBeCritical = true) { oid ->
-        oid in listOf(RFC5280.EXT_KEY_USAGE, RFC5280.EXT_BASIC_CONSTRAINTS)
-    }
-    extensionCriticality(mustBeCritical = false) { oid ->
-        oid !in listOf(RFC5280.EXT_KEY_USAGE, RFC5280.EXT_BASIC_CONSTRAINTS)
-    }
+    pidProviderExplicitExtensionCriticality()
 
     validAt(at)
     // Per EN 319 412-2 §4.3.3: certificatePolicies extension shall be present (TSP-defined OID)
@@ -55,16 +49,30 @@ public fun pidSigningCertificateProfile(at: Instant? = null): CertificateProfile
     )
     // (TS 119 412-6, PID-4.2-01)
     // (TS 119 412-6, PID-4.3-01, PID-4.3-02)
-    issuerAndSubjectForPIDProvider()
+    pidProviderIssuerAndSubject()
 
     // Subject Key Identifier required (TS 119 412-6, PID-4.4.2-01)
     subjectKeyIdentifier()
 }
 
 /**
+ * ETSI TS 119 412-6, PID-4.1-02
+ */
+internal fun ProfileBuilder.pidProviderExplicitExtensionCriticality() {
+    fun basicConstraintOrKeyUsage(oid: String) =
+        oid == RFC5280.EXT_BASIC_CONSTRAINTS || oid == RFC5280.EXT_KEY_USAGE
+    extensionCriticality(mustBeCritical = true) { oid ->
+        basicConstraintOrKeyUsage(oid)
+    }
+    extensionCriticality(mustBeCritical = false) { oid ->
+        !basicConstraintOrKeyUsage(oid)
+    }
+}
+
+/**
  * ETSI TS 119 412-6, PID-4.2-01
  */
-internal fun ProfileBuilder.issuerAndSubjectForPIDProvider() {
+internal fun ProfileBuilder.pidProviderIssuerAndSubject() {
     combine(
         CertificateOperationsAlgebra.CheckSelfSigned,
         CertificateOperationsAlgebra.GetIssuer,
