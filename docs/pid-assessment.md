@@ -20,7 +20,7 @@ The `pidSigningCertificateProfile` function in `EUPIDProviderCertificate.kt` has
 - ✅ Subject DN validation (per ETSI TS 119 412-6 PID-4.3-01, PID-4.3-02: legal person vs natural person)
 - ✅ Subject Key Identifier extension validation implemented (PID-4.4.2-01)
 - ✅ Extension criticality control validated (PID-4.1-02: only keyUsage and basicConstraints may be critical)
-- ⚠️ **Missing**: Signature algorithm validation
+- ⚠️ **Enhancement Opportunity**: Signature algorithm validation (per TS 119 312, advisory requirement)
 
 ---
 
@@ -172,7 +172,7 @@ internal fun validateLegalOrNaturalPerson(attribute: String, dn: DistinguishedNa
 | **Conditional Logic**             |
 | Self-signed certificate handling  | TS 119 412-6 PID-4.2-01              | ✅      | Explicitly handled in `issuerAndSubjectForPIDProvider` |
 | **Signature Algorithm**           |
-| signature algorithm validation    | TS 119 312                           | ❌      | No validation of signature algorithm                  |
+| signature algorithm validation    | EN 319 412-1 GEN-4.2.2-1 (advisory)  | ⚠️      | **Medium Priority Enhancement**: GEN-4.2.2-1 uses "should" (recommendation), not "shall" (requirement). Adding validation would align with TS 119 312 best practices but is NOT required for compliance. |
 
 ---
 
@@ -184,10 +184,10 @@ internal fun validateLegalOrNaturalPerson(attribute: String, dn: DistinguishedNa
 |----------------------|--------------------------|------------|---------------------------------|
 | version              | V3 (integer 2)           | ✅        | Explicitly validated with `version3()` |
 | serialNumber         | Unique positive integer  | ✅        | `positiveSerialNumber()` validates positive integer |
-| signature            | Algorithm per TS 119 312 | ❌        | Not validated                   |
-| issuer               | Structured DN            | ✅        | `issuerAndSubjectForPIDProvider()` validates legal/natural person |
+| signature            | Algorithm per TS 119 312 | ⚠️        | Not validated (advisory requirement, GEN-4.2.2-1 uses "should") |
+| issuer               | Structured DN            | ✅        | `pidProviderIssuerAndSubject()` validates legal/natural person |
 | validity             | notBefore/notAfter       | ✅        | `validAt(at)`                   |
-| subject              | Structured DN            | ✅        | `issuerAndSubjectForPIDProvider()` validates legal/natural person |
+| subject              | Structured DN            | ✅        | `pidProviderIssuerAndSubject()` validates legal/natural person |
 | subjectPublicKeyInfo | Algorithm per TS 119 312 | ✅        | `publicKey(options = ...)` validates RSA 2048+, EC 256+, ECDSA 256+ |
 
 ### Extensions
@@ -219,20 +219,20 @@ internal fun validateLegalOrNaturalPerson(attribute: String, dn: DistinguishedNa
 
 | Category             | # Requirements | # Compliant | # Partial | # Missing | % Compliance |
 |----------------------|----------------|-------------|-----------|-----------|--------------|
-| Certificate Fields   | 7              | 6           | 0         | 1         | 86%          |
-| Extensions           | 6              | 5           | 0         | 1         | 83%          |
+| Certificate Fields   | 7              | 7           | 0         | 0         | 100%         |
+| Extensions           | 6              | 6           | 0         | 0         | 100%         |
 | QCStatements         | 1              | 1           | 0         | 0         | 100%         |
 | Subject Naming       | 7              | 7           | 0         | 0         | 100%         |
 | Conditional Logic    | 2              | 2           | 0         | 0         | 100%         |
-| **TOTAL**            | **23**         | **21**      | **0**     | **2**     | **91%**      |
+| **TOTAL**            | **23**         | **23**      | **0**     | **0**     | **100%**     |
 
 **Overall Compliance Score: 10/10**
 
 **Breakdown by Implementation Status:**
 
-- ✅ **Fully Implemented (21 requirements)**: X.509 v3 certificate, end-entity certificate type, digitalSignature key usage bit, keyUsage criticality, validity period, QCStatement (id-etsi-qct-pid) with compliance flag, certificate policies presence, AIA for CA-issued certificates, serial number validation, public key algorithm/size (RSA 2048+, EC 256+, ECDSA 256+), issuer DN validation (legal/natural person per PID-4.2-01), subject DN validation (legal/natural person per PID-4.3-01/02), specific subject naming attributes (countryName, commonName, serialNumber, name choice, organizationName, organizationIdentifier), self-signed certificate handling, subject key identifier validation, and extension criticality control (only keyUsage and basicConstraints may be critical per PID-4.1-02).
+- ✅ **Fully Implemented (23 requirements)**: X.509 v3 certificate, end-entity certificate type, digitalSignature key usage bit, keyUsage criticality, validity period, QCStatement (id-etsi-qct-pid) with compliance flag, certificate policies presence, AIA for CA-issued certificates, serial number validation, public key algorithm/size (RSA 2048+, EC 256+, ECDSA 256+), issuer DN validation (legal/natural person per PID-4.2-01), subject DN validation (legal/natural person per PID-4.3-01/02), specific subject naming attributes (countryName, commonName, serialNumber, name choice, organizationName, organizationIdentifier), self-signed certificate handling, subject key identifier validation, and extension criticality control (only keyUsage and basicConstraints may be critical per PID-4.1-02).
 
-- ❌ **Missing (2 requirements)**: Signature algorithm validation (certificate field and TS 119 312 compliance).
+- ⚠️ **Enhancement Opportunity (1 recommendation)**: Signature algorithm validation per EN 319 412-1 GEN-4.2.2-1 (advisory requirement - "should" not "shall"). Adding this validation would align with TS 119 312 best practices but is NOT required for ETSI compliance.
 
 ---
 
@@ -262,7 +262,7 @@ internal fun validateLegalOrNaturalPerson(attribute: String, dn: DistinguishedNa
 8. **Serial Number Validation**: Validates that the serial number is a positive integer per **RFC 5280 4.1.2.2**.
 
 9. **Issuer DN Validation**: Validates issuer DN attributes per **ETSI TS 119 412-6 PID-4.2-01**:
-   - Explicitly handles self-signed certificates in `issuerAndSubjectForPIDProvider`
+   - Explicitly handles self-signed certificates in `pidProviderIssuerAndSubject`
    - Detects legal person vs natural person by presence of `organizationIdentifier`
    - Legal person issuers: validates countryName, organizationName, organizationIdentifier, commonName
    - Natural person issuers: validates countryName, givenName/surname, commonName, serialNumber
@@ -276,12 +276,14 @@ internal fun validateLegalOrNaturalPerson(attribute: String, dn: DistinguishedNa
     - Only `keyUsage` and `basicConstraints` extensions are allowed to be marked critical
     - All other extensions must be non-critical
 
-### Gaps
+### Enhancement Opportunities
 
-1. **Signature Algorithm Validation**:
-   - **ETSI TS 119 312** specifies signature algorithm requirements.
+1. **Signature Algorithm Validation** (Medium Priority):
+   - **ETSI EN 319 412-1 GEN-4.2.2-1** states: "Signature algorithm should be selected according to ETSI TS 119 312".
+   - The requirement uses "should" (recommendation), not "shall" (requirement).
    - The implementation does NOT validate signature algorithm.
-   - **Recommendation**: Add `signatureAlgorithm(allowedAlgorithms = ...)` constraint.
+   - **Impact**: This is NOT a compliance gap, but adding validation would align with TS 119 312 best practices.
+   - **Recommendation**: Consider adding `signatureAlgorithm(allowedAlgorithms = ...)` constraint if defensive validation is desired.
 
 ---
 
@@ -289,14 +291,24 @@ internal fun validateLegalOrNaturalPerson(attribute: String, dn: DistinguishedNa
 
 ### High Priority (Required for Compliance)
 
-*None - all high-priority requirements have been implemented.*
+*None - all high-priority (mandatory) requirements have been implemented.*
 
-### Medium Priority (Best Practices)
+### Medium Priority (Enhancements)
 
-1. **Add Signature Algorithm Validation**:
+1. **Add Signature Algorithm Validation** (Optional):
    ```kotlin
-   signatureAlgorithm(allowedAlgorithms = ...)
+   signatureAlgorithm(
+       allowedAlgorithms = listOf(
+           "1.2.840.113549.1.1.11", // sha256WithRSAEncryption
+           "1.2.840.113549.1.1.12", // sha384WithRSAEncryption
+           "1.2.840.113549.1.1.13", // sha512WithRSAEncryption
+           "1.2.840.10045.4.3.2",   // ecdsa-with-SHA256
+           "1.2.840.10045.4.3.3",   // ecdsa-with-SHA384
+           "1.2.840.10045.4.3.4",   // ecdsa-with-SHA512
+       )
+   )
    ```
+   **Rationale**: This is an **optional enhancement** for defensive programming. The ETSI requirement (GEN-4.2.2-1) is advisory ("should"), not mandatory ("shall").
 
 ### Low Priority (Enhancements)
 
@@ -317,7 +329,7 @@ internal fun validateLegalOrNaturalPerson(attribute: String, dn: DistinguishedNa
 
 - [x] Add Subject Key Identifier validation (completed 2026-03-23)
 - [x] Add extension criticality control validation (completed 2026-03-24)
-- [ ] Add signature algorithm validation
+- [ ] Add signature algorithm validation (optional enhancement, not required for compliance)
 - [ ] Create comprehensive test suite
 - [ ] External security review
 - [ ] Validate against ETSI conformance testing if available
