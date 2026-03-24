@@ -47,7 +47,7 @@ structural alignment** with all critical infrastructure components in place.
 
 ## Current Implementation Analysis
 
-### Function Definition (lines 28-88)
+### Function Definition (lines 28-95)
 
 ```kotlin
 public fun wrpAccessCertificateProfile(
@@ -57,14 +57,7 @@ public fun wrpAccessCertificateProfile(
     // Basic certificate requirements
     endEntity()
     keyUsageDigitalSignature()
-    // Extension criticality control (EN 319 412-1 GEN-4.1-2)
-    // Only keyUsage and basicConstraints may be marked critical
-    extensionCriticality(mustBeCritical = true) { oid ->
-        oid in listOf(RFC5280.EXT_KEY_USAGE, RFC5280.EXT_BASIC_CONSTRAINTS)
-    }
-    extensionCriticality(mustBeCritical = false) { oid ->
-        oid !in listOf(RFC5280.EXT_KEY_USAGE, RFC5280.EXT_BASIC_CONSTRAINTS)
-    }
+    wrpacExplicitExtensionCriticality()
     validAt(at)
     policyOneOf(NCP_N_EUDIWRP, NCP_L_EUDIWRP, QCP_N_EUDIWRP, QCP_L_EUDIWRP)
     notSelfSigned()
@@ -115,6 +108,20 @@ public fun wrpAccessCertificateProfile(
     // Issuer DN attributes required (WRPAC Provider CA is always a legal person)
     issuerLegalPerson()
 }
+
+/**
+ * EN 319 412-1 GEN-4.1-2
+ */
+internal fun ProfileBuilder.wrpacExplicitExtensionCriticality() {
+    fun basicConstraintOrKeyUsage(oid: String) =
+        oid == RFC5280.EXT_BASIC_CONSTRAINTS || oid == RFC5280.EXT_KEY_USAGE
+    extensionCriticality(mustBeCritical = true) { oid ->
+        basicConstraintOrKeyUsage(oid)
+    }
+    extensionCriticality(mustBeCritical = false) { oid ->
+        !basicConstraintOrKeyUsage(oid)
+    }
+}
 ```
 
 ### Validated Requirements ✓
@@ -143,7 +150,7 @@ public fun wrpAccessCertificateProfile(
 | Issuer DN: Legal person attrs       | EN 319 412-3 4.2.3      | `issuerLegalPerson()`                                    | ✅      |
 | KeyUsage criticality                | RFC 5280 4.2.1.3        | `requireKeyUsageCritical()`                              | ✅      |
 | organizationIdentifier format       | EN 319 412-1 5.1.4      | `ETSI319412Part1.ORG_ID_PATTERN`                         | ✅      |
-| Extension criticality control       | EN 319 412-1 GEN-4.1-2  | `extensionCriticality(mustBeCritical = true/false)`      | ✅      |
+| Extension criticality control       | EN 319 412-1 GEN-4.1-2  | `wrpacExplicitExtensionCriticality()`                    | ✅      |
 
 ### Missing Requirements ✗
 

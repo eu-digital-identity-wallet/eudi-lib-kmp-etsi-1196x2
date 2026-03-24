@@ -36,7 +36,7 @@ The `pidSigningCertificateProfile` function in `EUPIDProviderCertificate.kt` has
 
 ## Current Implementation Analysis
 
-### Function Definition (lines 28-63)
+### Function Definition (lines 28-70)
 
 ```kotlin
 public fun pidSigningCertificateProfile(at: Instant? = null): CertificateProfile = certificateProfile {
@@ -45,15 +45,7 @@ public fun pidSigningCertificateProfile(at: Instant? = null): CertificateProfile
     endEntity()
     mandatoryQcStatement(qcType = ETSI119412Part6.ID_ETSI_QCT_PID, requireCompliance = true)
     keyUsageDigitalSignature()
-
-    // Extension criticality control (TS 119 412-6, PID-4.1-02)
-    // Only keyUsage and basicConstraints may be marked critical
-    extensionCriticality(mustBeCritical = true) { oid ->
-        oid in listOf(RFC5280.EXT_KEY_USAGE, RFC5280.EXT_BASIC_CONSTRAINTS)
-    }
-    extensionCriticality(mustBeCritical = false) { oid ->
-        oid !in listOf(RFC5280.EXT_KEY_USAGE, RFC5280.EXT_BASIC_CONSTRAINTS)
-    }
+    pidProviderExplicitExtensionCriticality()
 
     validAt(at)
     // Per EN 319 412-2 §4.3.3: certificatePolicies extension shall be present (TSP-defined OID)
@@ -73,17 +65,30 @@ public fun pidSigningCertificateProfile(at: Instant? = null): CertificateProfile
     )
     // (TS 119 412-6, PID-4.2-01)
     // (TS 119 412-6, PID-4.3-01, PID-4.3-02)
-    issuerAndSubjectForPIDProvider()
+    pidProviderIssuerAndSubject()
 
     // Subject Key Identifier required (TS 119 412-6, PID-4.4.2-01)
     subjectKeyIdentifier()
 }
 
 /**
+ * ETSI TS 119 412-6, PID-4.1-02
+ */
+internal fun ProfileBuilder.pidProviderExplicitExtensionCriticality() {
+    fun basicConstraintOrKeyUsage(oid: String) =
+        oid == RFC5280.EXT_BASIC_CONSTRAINTS || oid == RFC5280.EXT_KEY_USAGE
+    extensionCriticality(mustBeCritical = true) { oid ->
+        basicConstraintOrKeyUsage(oid)
+    }
+    extensionCriticality(mustBeCritical = false) { oid ->
+        !basicConstraintOrKeyUsage(oid)
+    }
+}
+
+/**
  * ETSI TS 119 412-6, PID-4.2-01
  */
-
-internal fun ProfileBuilder.issuerAndSubjectForPIDProvider() {
+internal fun ProfileBuilder.pidProviderIssuerAndSubject() {
     combine(
         CertificateOperationsAlgebra.CheckSelfSigned,
         CertificateOperationsAlgebra.GetIssuer,
@@ -103,9 +108,8 @@ internal fun ProfileBuilder.issuerAndSubjectForPIDProvider() {
         }
 
         checkNotNull(issuer) { "Cannot happen" }
-        checkNotNull(subject) {
-            "Cannot happen"
-        }
+        checkNotNull(subject) { "Cannot happen" }
+
         if (isSelfSigned) {
             check(issuer == subject) { "Self-signed certificate must have the same issuer and subject" }
             validateLegalOrNaturalPerson("Subject", subject)
@@ -154,9 +158,10 @@ internal fun validateLegalOrNaturalPerson(attribute: String, dn: DistinguishedNa
 | QCStatement compliance flag         | EN 319 412-5            | `requireCompliance = true`                               | ✅      |
 | Serial number (positive integer)    | RFC 5280 4.1.2.2        | `positiveSerialNumber()`                                 | ✅      |
 | Public key (RSA 2048+/EC 256+)      | TS 119 312              | `publicKey(options = ...)`                               | ✅      |
-| Issuer DN (legal/natural person)    | TS 119 412-6 PID-4.2-01 | `issuerAndSubjectForPIDProvider()`                       | ✅      |
-| Subject DN (legal/natural person)   | TS 119 412-6 PID-4.3-01/02 | `issuerAndSubjectForPIDProvider()`                      | ✅      |
+| Issuer DN (legal/natural person)    | TS 119 412-6 PID-4.2-01 | `pidProviderIssuerAndSubject()`                          | ✅      |
+| Subject DN (legal/natural person)   | TS 119 412-6 PID-4.3-01/02 | `pidProviderIssuerAndSubject()`                      | ✅      |
 | Subject Key Identifier              | TS 119 412-6 PID-4.4.2-01 | `subjectKeyIdentifier()`                                 | ✅      |
+| Extension criticality control       | TS 119 412-6 PID-4.1-02   | `pidProviderExplicitExtensionCriticality()`              | ✅      |
 
 ### Missing Requirements ✗
 
