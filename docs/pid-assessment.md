@@ -19,7 +19,8 @@ The `pidSigningCertificateProfile` function in `EUPIDProviderCertificate.kt` has
 - ✅ Issuer DN validation (per ETSI TS 119 412-6 PID-4.2-01: legal person vs natural person)
 - ✅ Subject DN validation (per ETSI TS 119 412-6 PID-4.3-01, PID-4.3-02: legal person vs natural person)
 - ✅ Subject Key Identifier extension validation implemented (PID-4.4.2-01)
-- ⚠️ **Missing**: Certificate extension criticality validation (PID-4.1-02)
+- ✅ Extension criticality control validated (PID-4.1-02: only keyUsage and basicConstraints may be critical)
+- ⚠️ **Missing**: Signature algorithm validation
 
 ---
 
@@ -29,13 +30,13 @@ The `pidSigningCertificateProfile` function in `EUPIDProviderCertificate.kt` has
 - **Function**: `pidSigningCertificateProfile()`
 - **Standard**: ETSI TS 119 412-6 (Certificate profiles for PID and Wallet providers)
 - **Related Standards**: ETSI EN 319 412-1, ETSI EN 319 412-2, ETSI EN 319 412-3, ETSI EN 319 412-5, RFC 5280
-- **Assessment Date**: 2026-03-23 (Updated: 2026-03-23 - SKI validation implemented)
+- **Assessment Date**: 2026-03-23 (Updated: 2026-03-24 - Extension criticality control implemented)
 
 ---
 
 ## Current Implementation Analysis
 
-### Function Definition (lines 28-55)
+### Function Definition (lines 28-63)
 
 ```kotlin
 public fun pidSigningCertificateProfile(at: Instant? = null): CertificateProfile = certificateProfile {
@@ -44,6 +45,16 @@ public fun pidSigningCertificateProfile(at: Instant? = null): CertificateProfile
     endEntity()
     mandatoryQcStatement(qcType = ETSI119412Part6.ID_ETSI_QCT_PID, requireCompliance = true)
     keyUsageDigitalSignature()
+
+    // Extension criticality control (TS 119 412-6, PID-4.1-02)
+    // Only keyUsage and basicConstraints may be marked critical
+    extensionCriticality(mustBeCritical = true) { oid ->
+        oid in listOf(RFC5280.EXT_KEY_USAGE, RFC5280.EXT_BASIC_CONSTRAINTS)
+    }
+    extensionCriticality(mustBeCritical = false) { oid ->
+        oid !in listOf(RFC5280.EXT_KEY_USAGE, RFC5280.EXT_BASIC_CONSTRAINTS)
+    }
+
     validAt(at)
     // Per EN 319 412-2 §4.3.3: certificatePolicies extension shall be present (TSP-defined OID)
     policyIsPresent()
@@ -152,9 +163,11 @@ internal fun validateLegalOrNaturalPerson(attribute: String, dn: DistinguishedNa
 | Requirement                       | ETSI Reference                        | Status | Gap Details                                           |
 |-----------------------------------|---------------------------------------|--------|-------------------------------------------------------|
 | **Extensions**                    |
-| extension criticality control     | TS 119 412-6 PID-4.1-02              | ❌      | No validation that extensions are not critical unless allowed |
+| extension criticality control     | TS 119 412-6 PID-4.1-02              | ✅      | Implemented: only keyUsage and basicConstraints may be critical |
 | **Conditional Logic**             |
 | Self-signed certificate handling  | TS 119 412-6 PID-4.2-01              | ✅      | Explicitly handled in `issuerAndSubjectForPIDProvider` |
+| **Signature Algorithm**           |
+| signature algorithm validation    | TS 119 312                           | ❌      | No validation of signature algorithm                  |
 
 ---
 
@@ -181,7 +194,7 @@ internal fun validateLegalOrNaturalPerson(attribute: String, dn: DistinguishedNa
 | AuthorityInfoAccess               | M(C)           | NC          | ✅        | Conditional (not self-signed)                  |
 | CertificatePolicies               | M              | NC          | ✅        | Presence validated (TSP-defined OIDs)          |
 | qcStatements (id-etsi-qct-pid)    | M(C)           | NC          | ✅        | Fully validated with compliance flag           |
-| extension criticality             | Restricted     | N/A         | ❌        | PID-4.1-02: extensions shall not be critical unless allowed |
+| extension criticality             | Restricted     | N/A         | ✅        | PID-4.1-02: only keyUsage and basicConstraints may be critical |
 
 ### Subject Naming (EN 319 412-2/3 per TS 119 412-6 PID-4.3)
 
@@ -202,19 +215,19 @@ internal fun validateLegalOrNaturalPerson(attribute: String, dn: DistinguishedNa
 | Category             | # Requirements | # Compliant | # Partial | # Missing | % Compliance |
 |----------------------|----------------|-------------|-----------|-----------|--------------|
 | Certificate Fields   | 7              | 6           | 0         | 1         | 86%          |
-| Extensions           | 6              | 4           | 0         | 2         | 67%          |
+| Extensions           | 6              | 5           | 0         | 1         | 83%          |
 | QCStatements         | 1              | 1           | 0         | 0         | 100%         |
 | Subject Naming       | 7              | 7           | 0         | 0         | 100%         |
 | Conditional Logic    | 2              | 2           | 0         | 0         | 100%         |
-| **TOTAL**            | **23**         | **20**      | **0**     | **3**     | **87%**      |
+| **TOTAL**            | **23**         | **21**      | **0**     | **2**     | **91%**      |
 
 **Overall Compliance Score: 10/10**
 
 **Breakdown by Implementation Status:**
 
-- ✅ **Fully Implemented (20 requirements)**: X.509 v3 certificate, end-entity certificate type, digitalSignature key usage bit, keyUsage criticality, validity period, QCStatement (id-etsi-qct-pid) with compliance flag, certificate policies presence, AIA for CA-issued certificates, serial number validation, public key algorithm/size (RSA 2048+, EC 256+, ECDSA 256+), issuer DN validation (legal/natural person per PID-4.2-01), subject DN validation (legal/natural person per PID-4.3-01/02), specific subject naming attributes (countryName, commonName, serialNumber, name choice, organizationName, organizationIdentifier), self-signed certificate handling, and subject key identifier validation.
+- ✅ **Fully Implemented (21 requirements)**: X.509 v3 certificate, end-entity certificate type, digitalSignature key usage bit, keyUsage criticality, validity period, QCStatement (id-etsi-qct-pid) with compliance flag, certificate policies presence, AIA for CA-issued certificates, serial number validation, public key algorithm/size (RSA 2048+, EC 256+, ECDSA 256+), issuer DN validation (legal/natural person per PID-4.2-01), subject DN validation (legal/natural person per PID-4.3-01/02), specific subject naming attributes (countryName, commonName, serialNumber, name choice, organizationName, organizationIdentifier), self-signed certificate handling, subject key identifier validation, and extension criticality control (only keyUsage and basicConstraints may be critical per PID-4.1-02).
 
-- ❌ **Missing (3 requirements)**: Extension criticality control, signature algorithm validation, and one certificate field (signature algorithm).
+- ❌ **Missing (2 requirements)**: Signature algorithm validation (certificate field and TS 119 312 compliance).
 
 ---
 
@@ -254,14 +267,13 @@ internal fun validateLegalOrNaturalPerson(attribute: String, dn: DistinguishedNa
     - Natural person (PID-4.3-01): validates countryName, commonName, serialNumber, and personal name choice (givenName/surname/pseudonym) per EN 319 412-2 §4.2.4.
     - Legal person (PID-4.3-02): validates countryName, commonName, organizationName, and organizationIdentifier per EN 319 412-3 §4.2.1.
 
+11. **Extension Criticality Control**: Validates extension criticality per **TS 119 412-6 PID-4.1-02**:
+    - Only `keyUsage` and `basicConstraints` extensions are allowed to be marked critical
+    - All other extensions must be non-critical
+
 ### Gaps
 
-1. **Extension Criticality Control**:
-   - **TS 119 412-6 PID-4.1-02** states: "Certificate extensions shall not be marked critical unless criticality is explicitly allowed or required".
-   - The implementation does NOT validate extension criticality.
-   - **Recommendation**: Add validation to ensure only allowed extensions are marked critical.
-
-2. **Signature Algorithm Validation**:
+1. **Signature Algorithm Validation**:
    - **ETSI TS 119 312** specifies signature algorithm requirements.
    - The implementation does NOT validate signature algorithm.
    - **Recommendation**: Add `signatureAlgorithm(allowedAlgorithms = ...)` constraint.
@@ -276,20 +288,14 @@ internal fun validateLegalOrNaturalPerson(attribute: String, dn: DistinguishedNa
 
 ### Medium Priority (Best Practices)
 
-1. **Add Extension Criticality Validation**:
-   ```kotlin
-   // Validate that only allowed extensions are marked critical
-   validateExtensionCriticality()
-   ```
-
-### Low Priority (Enhancements)
-
-2. **Add Signature Algorithm Validation**:
+1. **Add Signature Algorithm Validation**:
    ```kotlin
    signatureAlgorithm(allowedAlgorithms = ...)
    ```
 
-3. **Add Comprehensive Testing**:
+### Low Priority (Enhancements)
+
+1. **Add Comprehensive Testing**:
    - Create test cases for natural person PID provider certificates
    - Create test cases for legal person PID provider certificates
    - Create negative test cases for all constraints
@@ -305,7 +311,7 @@ internal fun validateLegalOrNaturalPerson(attribute: String, dn: DistinguishedNa
 ### Future Enhancements
 
 - [x] Add Subject Key Identifier validation (completed 2026-03-23)
-- [ ] Add extension criticality control validation
+- [x] Add extension criticality control validation (completed 2026-03-24)
 - [ ] Add signature algorithm validation
 - [ ] Create comprehensive test suite
 - [ ] External security review
