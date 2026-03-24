@@ -36,8 +36,13 @@ public fun wrpAccessCertificateProfile(
     // Basic certificate requirements
     endEntity()
     keyUsageDigitalSignature()
+    // Extension criticality control (EN 319 412-1 GEN-4.1-2)
+    // Only keyUsage and basicConstraints may be marked critical
     extensionCriticality(mustBeCritical = true) { oid ->
         oid in listOf(RFC5280.EXT_KEY_USAGE, RFC5280.EXT_BASIC_CONSTRAINTS)
+    }
+    extensionCriticality(mustBeCritical = false) { oid ->
+        oid !in listOf(RFC5280.EXT_KEY_USAGE, RFC5280.EXT_BASIC_CONSTRAINTS)
     }
     validAt(at)
     policyOneOf(NCP_N_EUDIWRP, NCP_L_EUDIWRP, QCP_N_EUDIWRP, QCP_L_EUDIWRP)
