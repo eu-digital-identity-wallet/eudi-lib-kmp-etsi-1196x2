@@ -16,7 +16,6 @@
 package eu.europa.ec.eudi.etsi119602.consultation.eu
 
 import eu.europa.ec.eudi.etsi119602.*
-import eu.europa.ec.eudi.etsi119602.consultation.ETSI119412Part6
 import eu.europa.ec.eudi.etsi1196x2.consultation.certs.*
 import kotlin.time.Instant
 
@@ -60,40 +59,6 @@ public val EUWalletProvidersList: EUListOfTrustedEntitiesProfile =
 // - End-entity certificate (Direct Trust validation)
 // - CA certificate (PKIX validation)
 //
-
-/**
- * Creates constraints for Wallet Provider end-entity certificates in LoTE.
- *
- * Per ETSI TS 119 602 Annex E and ETSI TS 119 412-6:
- * - Certificate type: End-entity ONLY (cA=FALSE)
- * - QCStatement: id-etsi-qct-wal (0.4.0.194126.1.2) REQUIRED in the QCStatement extension
- * - Key Usage: digitalSignature REQUIRED
- * - Validity: Must be valid at validation time
- * - Certificate Policy: Presence REQUIRED per EN 319 412-2 §4.3.3 (TSP-defined OID, not validated)
- * - AIA: Required if CA-issued, not required if self-signed
- *
- * **Note on Certificate Policy OIDs:** Per EN 319 412-2 §4.3.3, the certificatePolicies extension
- * shall be present and shall contain at least one certificate policy OID that reflects the practices
- * and procedures undertaken by the CA. However, ETSI TS 119 412-6 does NOT mandate specific policy
- * OID values for Wallet providers - these are TSP-defined. The validator checks for the presence of
- * the certificatePolicies extension but does not validate specific OID values.
- *
- * **Note on QCStatement vs Certificate Policy:** The OID `id-etsi-qct-wal` is a **QCStatement type
- * OID** (QcType) that MUST appear in the QCStatement extension, NOT in the certificatePolicies extension.
- *
- * @param at Instant for validity check (null = current time)
- *
- * @return a validator configured for Wallet Provider end-entity certificates
- */
-public fun walletProviderSigningCertificateProfile(at: Instant? = null): CertificateProfile =
-    certificateProfile {
-        endEntity()
-        mandatoryQcStatement(qcType = ETSI119412Part6.ID_ETSI_QCT_WAL, requireCompliance = true)
-        keyUsageDigitalSignature()
-        validAt(at)
-        policyIsPresent()
-        authorityInformationAccessIfCAIssued()
-    }
 
 /**
  * Creates a certificate profile for Wallet Provider
