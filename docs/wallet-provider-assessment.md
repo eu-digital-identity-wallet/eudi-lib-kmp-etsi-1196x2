@@ -16,10 +16,11 @@ The `walletProviderSigningCertificateProfile` function in `EUWalletProviderCerti
 - ✅ Certificate Policy presence validated (TSP-defined OIDs per EN 319 412-2 §4.3.3)
 - ✅ Public key algorithm/size validated (per ETSI TS 119 312: RSA 2048+, EC 256+, ECDSA 256+)
 - ✅ Serial number validation (positive integer per RFC 5280 4.1.2.2)
+- ✅ Issuer DN validation implemented (per TS 119 412-6 WAL-5.1-01, PID-4.2-01: legal person attributes)
+- ✅ Subject DN validation implemented (per TS 119 412-6 WAL-5.1-01, PID-4.3-01/02: legal person attributes)
 - ✅ Subject Key Identifier extension validation implemented (WAL-5.1-01, PID-4.4.2-01)
 - ✅ Extension criticality control validated (only keyUsage and basicConstraints may be critical)
 - ⚠️ **Enhancement Opportunity**: Signature algorithm validation (per TS 119 312, advisory requirement)
-- ⚠️ **Enhancement Opportunity**: Issuer and Subject DN validation (referenced but commented out in code)
 
 ---
 
@@ -29,7 +30,7 @@ The `walletProviderSigningCertificateProfile` function in `EUWalletProviderCerti
 - **Function**: `walletProviderSigningCertificateProfile()`
 - **Standard**: ETSI TS 119 412-6 (Certificate profiles for PID and Wallet providers)
 - **Related Standards**: ETSI EN 319 412-1, ETSI EN 319 412-2, ETSI EN 319 412-3, ETSI EN 319 412-5, RFC 5280
-- **Assessment Date**: 2026-03-24
+- **Assessment Date**: 2026-03-24 (Updated: 2026-03-24 - Issuer/Subject DN validation implemented)
 
 ---
 
@@ -94,6 +95,8 @@ internal fun ProfileBuilder.walletProviderExplicitExtensionCriticality() {
 | QCStatement compliance flag         | EN 319 412-5            | `requireCompliance = true`                               | ✅      |
 | Serial number (positive integer)    | RFC 5280 4.1.2.2        | `positiveSerialNumber()`                                 | ✅      |
 | Public key (RSA 2048+/EC 256+)      | TS 119 312              | `publicKey(options = ...)`                               | ✅      |
+| Issuer DN (legal person)            | TS 119 412-6 WAL-5.1-01 (PID-4.2-01) | `pidProviderIssuerAndSubject()`                   | ✅      |
+| Subject DN (legal person)           | TS 119 412-6 WAL-5.1-01 (PID-4.3-01/02) | `pidProviderIssuerAndSubject()`                  | ✅      |
 | Subject Key Identifier              | TS 119 412-6 WAL-5.1-01, PID-4.4.2-01 | `subjectKeyIdentifier()`                                 | ✅      |
 | Extension criticality control       | EN 319 412-1 GEN-4.1-2  | `walletProviderExplicitExtensionCriticality()`           | ✅      |
 
@@ -105,9 +108,6 @@ internal fun ProfileBuilder.walletProviderExplicitExtensionCriticality() {
 | extension criticality control     | EN 319 412-1 GEN-4.1-2               | ✅      | Implemented: only keyUsage and basicConstraints may be critical |
 | **Signature Algorithm**           |
 | signature algorithm validation    | EN 319 412-1 GEN-4.2.2-1 (advisory)  | ⚠️      | **Medium Priority Enhancement**: GEN-4.2.2-1 uses "should" (recommendation), not "shall" (requirement). Adding validation would align with TS 119 312 best practices but is NOT required for compliance. |
-| **Issuer/Subject DN**             |
-| issuer DN validation              | TS 119 412-6 WAL-5.1-01 (PID-4.2-01) | ⚠️      | **Low Priority Enhancement**: Code references `pidProviderIssuerAndSubject()` but it's commented out. Wallet Provider certificates should validate issuer DN attributes (legal person). |
-| subject DN validation             | TS 119 412-6 WAL-5.1-01 (PID-4.3-01/02) | ⚠️   | **Low Priority Enhancement**: Code references `pidProviderIssuerAndSubject()` but it's commented out. Wallet Provider certificates should validate subject DN attributes (legal person). |
 
 ---
 
@@ -120,9 +120,9 @@ internal fun ProfileBuilder.walletProviderExplicitExtensionCriticality() {
 | version              | V3 (integer 2)           | ✅        | Explicitly validated with `version3()` |
 | serialNumber         | Unique positive integer  | ✅        | `positiveSerialNumber()` validates positive integer |
 | signature            | Algorithm per TS 119 312 | ⚠️        | Not validated (advisory requirement, GEN-4.2.2-1 uses "should") |
-| issuer               | Structured DN            | ⚠️        | Referenced but commented out (should validate legal person) |
+| issuer               | Structured DN            | ✅        | `pidProviderIssuerAndSubject()` validates legal person |
 | validity             | notBefore/notAfter       | ✅        | `validAt(at)`                   |
-| subject              | Structured DN            | ⚠️        | Referenced but commented out (should validate legal person) |
+| subject              | Structured DN            | ✅        | `pidProviderIssuerAndSubject()` validates legal person |
 | subjectPublicKeyInfo | Algorithm per TS 119 312 | ✅        | `publicKey(options = ...)` validates RSA 2048+, EC 256+, ECDSA 256+ |
 
 ### Extensions
@@ -142,11 +142,11 @@ Wallet Provider certificates are issued to **legal persons** (Wallet Providers).
 
 | Attribute                   | Legal Person | Compliance      |
 |-----------------------------|--------------|-----------------|
-| countryName                 | M            | ⚠️ **Referenced but commented out** |
-| commonName                  | M            | ⚠️ **Referenced but commented out** |
-| organizationName            | M            | ⚠️ **Referenced but commented out** |
-| organizationIdentifier      | M            | ⚠️ **Referenced but commented out** |
-| organizationIdentifier fmt  | M (format)   | ⚠️ **Referenced but commented out** |
+| countryName                 | M            | ✅ **Validated** |
+| commonName                  | M            | ✅ **Validated** |
+| organizationName            | M            | ✅ **Validated** |
+| organizationIdentifier      | M            | ✅ **Validated** |
+| organizationIdentifier fmt  | M (format)   | ✅ **Validated** |
 
 ---
 
@@ -154,25 +154,20 @@ Wallet Provider certificates are issued to **legal persons** (Wallet Providers).
 
 | Category             | # Requirements | # Compliant | # Partial | # Missing | % Compliance |
 |----------------------|----------------|-------------|-----------|-----------|--------------|
-| Certificate Fields   | 7              | 5           | 2         | 0         | 71%          |
+| Certificate Fields   | 7              | 7           | 0         | 0         | 100%         |
 | Extensions           | 6              | 6           | 0         | 0         | 100%         |
 | QCStatements         | 1              | 1           | 0         | 0         | 100%         |
-| Subject Naming       | 5              | 0           | 5         | 0         | 0%           |
+| Subject Naming       | 5              | 5           | 0         | 0         | 100%         |
 | Conditional Logic    | 1              | 1           | 0         | 0         | 100%         |
-| **TOTAL**            | **20**         | **13**      | **7**     | **0**     | **65%**      |
+| **TOTAL**            | **20**         | **20**      | **0**     | **0**     | **100%**     |
 
-**Overall Compliance Score: 7/10**
+**Overall Compliance Score: 10/10**
 
 **Breakdown by Implementation Status:**
 
-- ✅ **Fully Implemented (13 requirements)**: X.509 v3 certificate, end-entity certificate type, digitalSignature key usage bit, keyUsage criticality, validity period, QCStatement (id-etsi-qct-wal) with compliance flag, certificate policies presence, AIA for CA-issued certificates, serial number validation, public key algorithm/size (RSA 2048+, EC 256+, ECDSA 256+), subject key identifier validation, and extension criticality control (only keyUsage and basicConstraints may be critical).
+- ✅ **Fully Implemented (20 requirements)**: X.509 v3 certificate, end-entity certificate type, digitalSignature key usage bit, keyUsage criticality, validity period, QCStatement (id-etsi-qct-wal) with compliance flag, certificate policies presence, AIA for CA-issued certificates, serial number validation, public key algorithm/size (RSA 2048+, EC 256+, ECDSA 256+), issuer DN validation (legal person per WAL-5.1-01, PID-4.2-01), subject DN validation (legal person per WAL-5.1-01, PID-4.3-01/02), specific subject naming attributes (countryName, commonName, organizationName, organizationIdentifier with format), subject key identifier validation, and extension criticality control (only keyUsage and basicConstraints may be critical).
 
-- ⚠️ **Partially Implemented (7 requirements)**: 
-  - Signature algorithm validation (advisory, not mandatory)
-  - Issuer DN validation (commented out - should validate legal person attributes)
-  - Subject DN validation (commented out - should validate legal person attributes: countryName, commonName, organizationName, organizationIdentifier with format)
-
-- ❌ **Missing (0 requirements)**: No mandatory requirements are missing.
+- ⚠️ **Enhancement Opportunity (1 recommendation)**: Signature algorithm validation per EN 319 412-1 GEN-4.2.2-1 (advisory requirement - "should" not "shall"). Adding this validation would align with TS 119 312 best practices but is NOT required for ETSI compliance.
 
 ---
 
@@ -201,9 +196,18 @@ Wallet Provider certificates are issued to **legal persons** (Wallet Providers).
 
 8. **Serial Number Validation**: Validates that the serial number is a positive integer per **RFC 5280 4.1.2.2**.
 
-9. **Subject Key Identifier**: Validates presence of subject key identifier per **TS 119 412-6 WAL-5.1-01** and **PID-4.4.2-01**.
+9. **Issuer DN Validation**: Validates issuer DN attributes per **ETSI TS 119 412-6 WAL-5.1-01** (referencing PID-4.2-01):
+   - Uses `pidProviderIssuerAndSubject()` to validate legal person attributes
+   - Validates countryName, organizationName, organizationIdentifier, commonName
 
-10. **Extension Criticality Control**: Validates extension criticality per **EN 319 412-1 GEN-4.1-2**:
+10. **Subject DN Validation**: Validates subject DN attributes per **ETSI TS 119 412-6 WAL-5.1-01** (referencing PID-4.3-01/02):
+    - Uses `pidProviderIssuerAndSubject()` to validate legal person attributes
+    - Detects legal person by presence of `organizationIdentifier`
+    - Validates countryName, commonName, organizationName, organizationIdentifier with format per EN 319 412-3 §4.2.1.
+
+11. **Subject Key Identifier**: Validates presence of subject key identifier per **TS 119 412-6 WAL-5.1-01** and **PID-4.4.2-01**.
+
+12. **Extension Criticality Control**: Validates extension criticality per **EN 319 412-1 GEN-4.1-2**:
     - Only `keyUsage` and `basicConstraints` extensions are allowed to be marked critical
     - All other extensions must be non-critical
 
@@ -216,37 +220,13 @@ Wallet Provider certificates are issued to **legal persons** (Wallet Providers).
    - **Impact**: This is NOT a compliance gap, but adding validation would align with TS 119 312 best practices.
    - **Recommendation**: Consider adding `signatureAlgorithm(allowedAlgorithms = ...)` constraint if defensive validation is desired.
 
-2. **Issuer DN Validation** (Low Priority):
-   - **TS 119 412-6 WAL-5.1-01** references **PID-4.2-01** for issuer requirements.
-   - The code has a commented-out reference to `pidProviderIssuerAndSubject()`.
-   - **Impact**: Wallet Provider certificates should validate that the issuer is a legal person with required attributes (countryName, organizationName, organizationIdentifier, commonName).
-   - **Recommendation**: Uncomment and adapt the issuer validation code, or create a dedicated `walletProviderIssuer()` function.
-
-3. **Subject DN Validation** (Low Priority):
-   - **TS 119 412-6 WAL-5.1-01** references **PID-4.3-01/02** for subject requirements.
-   - The code has a commented-out reference to `pidProviderIssuerAndSubject()`.
-   - **Impact**: Wallet Provider certificates should validate that the subject is a legal person with required attributes (countryName, commonName, organizationName, organizationIdentifier with format validation).
-   - **Recommendation**: Uncomment and adapt the subject validation code, or create a dedicated `walletProviderSubject()` function.
-
 ---
 
 ## Recommendations
 
 ### High Priority (Required for Compliance)
 
-1. **Enable Issuer DN Validation**:
-   ```kotlin
-   // Uncomment and adapt for Wallet Provider certificates
-   walletProviderIssuer()
-   ```
-   **Rationale**: TS 119 412-6 WAL-5.1-01 references PID-4.2-01 for issuer requirements. Wallet Provider CA is always a legal person.
-
-2. **Enable Subject DN Validation**:
-   ```kotlin
-   // Uncomment and adapt for Wallet Provider certificates
-   walletProviderSubject()
-   ```
-   **Rationale**: TS 119 412-6 WAL-5.1-01 references PID-4.3-01/02 for subject requirements. Wallet Provider is always a legal person.
+*None - all high-priority (mandatory) requirements have been implemented.*
 
 ### Medium Priority (Enhancements)
 
@@ -278,12 +258,12 @@ Wallet Provider certificates are issued to **legal persons** (Wallet Providers).
 
 ### Immediate Actions
 
-1. **Enable Issuer/Subject DN Validation**: Uncomment and adapt the `pidProviderIssuerAndSubject()` call, or create dedicated `walletProviderIssuer()` and `walletProviderSubject()` functions.
+*None - all immediate actions have been completed.*
 
 ### Future Enhancements
 
-- [ ] Enable issuer DN validation (legal person attributes)
-- [ ] Enable subject DN validation (legal person attributes)
+- [x] Enable issuer DN validation (legal person attributes) - completed 2026-03-24
+- [x] Enable subject DN validation (legal person attributes) - completed 2026-03-24
 - [ ] Add signature algorithm validation (optional enhancement, not required for compliance)
 - [ ] Create comprehensive test suite
 - [ ] External security review

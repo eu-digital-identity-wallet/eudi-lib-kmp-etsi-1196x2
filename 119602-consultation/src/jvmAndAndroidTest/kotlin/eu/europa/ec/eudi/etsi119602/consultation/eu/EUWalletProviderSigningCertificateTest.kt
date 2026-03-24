@@ -175,7 +175,7 @@ class EUWalletProviderSigningCertificateTest {
     fun `CA-issued certificate should require end-entity not CA`() = runTest {
         val (_, caCertHolder) = CertOps.genTrustAnchor(
             sigAlg = "SHA256withECDSA",
-            subject = X500Name("CN=Wallet Provider CA Test"),
+            subject = legalEntityWalletProviderName,
             keyUsage = KeyUsage(KeyUsage.digitalSignature),
             policyOids = listOf("1.2.3.4.5"),
             pathLenConstraint = null,
@@ -197,7 +197,7 @@ class EUWalletProviderSigningCertificateTest {
             signerCert = caCert,
             signerKey = caKeyPair.private,
             sigAlg = "SHA256withECDSA",
-            subject = X500Name("CN=Wallet Provider Test"),
+            subject = legalEntityWalletProviderName,
             keyUsage = KeyUsage(KeyUsage.keyCertSign), // wrong key usage
             qcStatements = listOf(ETSI119412Part6.ID_ETSI_QCT_WAL to true),
             policyOids = listOf("1.2.3.4.5"),
@@ -216,8 +216,15 @@ class EUWalletProviderSigningCertificateTest {
     // Self-signed Wallet Provider Certificate Tests
     //
 
+    private val legalEntitySelfSignedWalletProviderName = X500NameBuilder(BCStyle.INSTANCE).apply {
+        addRDN(BCStyle.C, "EU")
+        addRDN(BCStyle.O, "Self-Signed Wallet Provider Organization")
+        addRDN(BCStyle.ORGANIZATION_IDENTIFIER, "LEIEU-5493001KJTIIGC8Y1R13")
+        addRDN(BCStyle.CN, "Self-Signed Wallet Provider")
+    }.build()
+
     private fun genSelfSignedEndEntityCertificate(
-        subject: X500Name = X500Name("CN=Self-Signed Wallet Provider Test"),
+        subject: X500Name = legalEntitySelfSignedWalletProviderName,
         qcStatements: List<Pair<String, Boolean>>? = null,
         policyOids: List<String>? = null,
         keyUsage: KeyUsage = KeyUsage(KeyUsage.digitalSignature),
@@ -238,7 +245,7 @@ class EUWalletProviderSigningCertificateTest {
         // Generate a self-signed CA certificate (cA=TRUE) instead of end-entity
         val (_, caCertHolder) = CertOps.genTrustAnchor(
             sigAlg = "SHA256withECDSA",
-            subject = X500Name("CN=Self-Signed Wallet Provider CA Test"),
+            subject = legalEntitySelfSignedWalletProviderName,
             keyUsage = KeyUsage(KeyUsage.digitalSignature),
             policyOids = listOf("1.2.3.4.5"),
             qcStatements = listOf(ETSI119412Part6.ID_ETSI_QCT_WAL to true),
