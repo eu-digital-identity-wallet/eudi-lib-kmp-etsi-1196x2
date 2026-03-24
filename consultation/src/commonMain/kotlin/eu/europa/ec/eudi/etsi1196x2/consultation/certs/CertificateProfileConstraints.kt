@@ -73,6 +73,15 @@ public fun ProfileBuilder.validAt(time: Instant? = null) {
     validity { period -> CertificateConstraintsEvaluations.validAt(period, time) }
 }
 
+public fun ProfileBuilder.extensionCriticality(
+    mustBeCritical: Boolean,
+    filter: (String) -> Boolean,
+) {
+    extensionCriticality { extension ->
+        CertificateConstraintsEvaluations.checkCriticalExtension(extension, mustBeCritical, filter)
+    }
+}
+
 //
 // Certificate Policies
 //

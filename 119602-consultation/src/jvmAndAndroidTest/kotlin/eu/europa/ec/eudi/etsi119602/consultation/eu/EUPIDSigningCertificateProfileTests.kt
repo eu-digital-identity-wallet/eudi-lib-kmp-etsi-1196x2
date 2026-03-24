@@ -106,7 +106,6 @@ class EUPIDSigningCertificateProfileTests {
         // Validate as PID Provider
         val constraintEvaluation = evaluateCertificateConstraints(certificate)
         assertFalse(constraintEvaluation.isMet())
-
         // Should fail QCStatement check (end-entity cert without QCStatement)
         constraintEvaluation.assertSingleViolation {
             it.contains("QCStatement")

@@ -163,7 +163,7 @@ public class ProfileBuilder {
      * Defines a constraint on the key usage extension.
      */
     public fun keyUsage(
-        evaluate: (ExtensionInfo<KeyUsageBits>?) -> CertificateConstraintEvaluation,
+        evaluate: (KeyUsageBits?) -> CertificateConstraintEvaluation,
     ) {
         requirements += CertificateConstraint(CertificateOperationsAlgebra.GetKeyUsage, evaluate)
     }
@@ -181,7 +181,7 @@ public class ProfileBuilder {
      * Defines a constraint on the certificate policies.
      */
     public fun policies(
-        evaluate: (ExtensionInfo<List<String>>?) -> CertificateConstraintEvaluation,
+        evaluate: (List<String>?) -> CertificateConstraintEvaluation,
     ) {
         requirements += CertificateConstraint(CertificateOperationsAlgebra.GetPolicies, evaluate)
     }
@@ -199,7 +199,7 @@ public class ProfileBuilder {
      * Defines a constraint on the AIA extension.
      */
     public fun aia(
-        evaluate: (ExtensionInfo<AuthorityInformationAccess>?) -> CertificateConstraintEvaluation,
+        evaluate: (AuthorityInformationAccess?) -> CertificateConstraintEvaluation,
     ) {
         requirements += CertificateConstraint(CertificateOperationsAlgebra.GetAia, evaluate)
     }
@@ -238,7 +238,7 @@ public class ProfileBuilder {
      * Defines a constraint on Subject Alternative Names.
      */
     public fun subjectAltNames(
-        evaluate: (ExtensionInfo<List<SubjectAlternativeName>>?) -> CertificateConstraintEvaluation,
+        evaluate: (List<SubjectAlternativeName>?) -> CertificateConstraintEvaluation,
     ) {
         requirements += CertificateConstraint(CertificateOperationsAlgebra.GetSubjectAltNames, evaluate)
     }
@@ -295,6 +295,12 @@ public class ProfileBuilder {
         check: (PublicKeyInfo) -> CertificateConstraintEvaluation,
     ) {
         requirements += CertificateConstraint(CertificateOperationsAlgebra.GetSubjectPublicKeyInfo, check)
+    }
+
+    public fun extensionCriticality(
+        check: (Map<String, Boolean>) -> CertificateConstraintEvaluation,
+    ) {
+        requirements += CertificateConstraint(CertificateOperationsAlgebra.GetExtensionCriticality, check)
     }
 
     public fun <A, B> combine(

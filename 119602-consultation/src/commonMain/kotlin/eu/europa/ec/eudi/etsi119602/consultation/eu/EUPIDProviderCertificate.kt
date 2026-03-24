@@ -29,6 +29,14 @@ public fun pidSigningCertificateProfile(at: Instant? = null): CertificateProfile
     endEntity()
     mandatoryQcStatement(qcType = ETSI119412Part6.ID_ETSI_QCT_PID, requireCompliance = true)
     keyUsageDigitalSignature()
+
+    extensionCriticality(mustBeCritical = true) { oid ->
+        oid in listOf(RFC5280.EXT_KEY_USAGE, RFC5280.EXT_BASIC_CONSTRAINTS)
+    }
+    extensionCriticality(mustBeCritical = false) { oid ->
+        oid !in listOf(RFC5280.EXT_KEY_USAGE, RFC5280.EXT_BASIC_CONSTRAINTS)
+    }
+
     validAt(at)
     // Per EN 319 412-2 §4.3.3: certificatePolicies extension shall be present (TSP-defined OID)
     policyIsPresent()

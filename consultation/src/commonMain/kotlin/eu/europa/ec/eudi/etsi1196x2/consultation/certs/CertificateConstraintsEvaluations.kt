@@ -73,16 +73,12 @@ public object CertificateConstraintsEvaluations {
     }
 
     public fun mandatoryKeyUsage(
-        keyUsageAndCritical: ExtensionInfo<KeyUsageBits>?,
+        keyUsage: KeyUsageBits?,
         requiredKeyUsage: String,
     ): CertificateConstraintEvaluation = CertificateConstraintEvaluation {
-        if (keyUsageAndCritical == null) {
+        if (keyUsage == null) {
             add(certificateDoesNotContainKeyUsage)
         } else {
-            val (keyUsage, critical) = keyUsageAndCritical
-            if (!critical) {
-                add(keyUsageNotMarkedCritical)
-            }
             if (!keyUsage[requiredKeyUsage]) {
                 add(certificateMissingKeyUsage(requiredKeyUsage))
             }
@@ -127,42 +123,33 @@ public object CertificateConstraintsEvaluations {
     }
 
     public fun policyOneOf(
-        policiesInfo: ExtensionInfo<List<String>>?,
+        policies: List<String>?,
         oids: Set<String>,
     ): CertificateConstraintEvaluation = CertificateConstraintEvaluation {
-        if (policiesInfo == null) {
+        if (policies.isNullOrEmpty()) {
             add(certificateDoesNotContainPolicies(oids.toList()))
-        } else {
-            val policies = policiesInfo.value
-            when {
-                policies.isEmpty() -> {
-                    add(certificateDoesNotContainPolicies(oids.toList()))
-                }
-
-                policies.none { it in oids } -> {
-                    add(certificateDoesNotContainAnyPolicy(policies, oids.toList()))
-                }
-            }
+        } else if (policies.none { it in oids }) {
+            add(certificateDoesNotContainAnyPolicy(policies, oids.toList()))
         }
     }
 
     public fun policyIsPresent(
-        policiesInfo: ExtensionInfo<List<String>>?,
+        policies: List<String>?,
     ): CertificateConstraintEvaluation = CertificateConstraintEvaluation {
-        if (policiesInfo == null || policiesInfo.value.isEmpty()) {
+        if (policies.isNullOrEmpty()) {
             add(missingCertificatePoliciesExtension)
         }
     }
 
     public fun aiaForCaIssued(
-        aiaInfo: ExtensionInfo<AuthorityInformationAccess>?,
+        aia: AuthorityInformationAccess?,
         isSelfSigned: Boolean,
     ): CertificateConstraintEvaluation = CertificateConstraintEvaluation {
         // Only check AIA for non-self-signed certificates
         if (!isSelfSigned) {
-            if (aiaInfo == null) {
+            if (aia == null) {
                 add(caIssuedCertificateMissingAiaExtension)
-            } else if (aiaInfo.value.caIssuersUri == null) {
+            } else if (aia.caIssuersUri == null) {
                 add(aiaMissingIdAdCaIssuersAccessMethod)
             }
         }
@@ -298,9 +285,9 @@ public object CertificateConstraintsEvaluations {
     }
 
     public fun subjectAltName(
-        sanInfo: ExtensionInfo<List<SubjectAlternativeName>>?,
+        san: List<SubjectAlternativeName>?,
     ): CertificateConstraintEvaluation = CertificateConstraintEvaluation {
-        if (sanInfo == null || sanInfo.value.isEmpty()) {
+        if (san.isNullOrEmpty()) {
             add(missingSubjectAltName)
         }
     }
@@ -323,11 +310,11 @@ public object CertificateConstraintsEvaluations {
 
     public fun evaluateCrlDistributionPointsIfNoOcspAndNotValAssured(
         crldp: List<CrlDistributionPoint>,
-        aiaInfo: ExtensionInfo<AuthorityInformationAccess>?,
+        aia: AuthorityInformationAccess?,
         qcStatements: List<QCStatementInfo>,
     ): CertificateConstraintEvaluation = CertificateConstraintEvaluation {
         // Exempt if OCSP responder is present in AIA
-        val hasOcsp = aiaInfo?.value?.ocspUri != null
+        val hasOcsp = aia?.ocspUri != null
         if (hasOcsp) return@CertificateConstraintEvaluation
 
         // Exempt if validity-assured short-term certificate QC statement is present
@@ -351,12 +338,12 @@ public object CertificateConstraintsEvaluations {
     }
 
     public fun evaluateQcStatementsForPolicy(
-        policiesInfo: ExtensionInfo<List<String>>?,
+        policies: List<String>?,
         qcStatements: List<QCStatementInfo>,
         rules: (String) -> List<String>,
     ): CertificateConstraintEvaluation = CertificateConstraintEvaluation {
-        val policies = policiesInfo?.value ?: emptyList()
-        val requiredQcTypes = policies
+        val policyList = policies ?: emptyList()
+        val requiredQcTypes = policyList
             .flatMap { rules(it) }
             .toSet()
 
@@ -379,6 +366,35 @@ public object CertificateConstraintsEvaluations {
             add(publicKeyNotCompliant(pkInfo, options))
         }
     }
+
+    /**
+     * Checks that the criticality of specified extensions matches the expected value.
+     *
+     * @param mustBeCritical true if extensions should be critical, false if they should be non-critical
+     * @param filter predicate that returns true for OIDs that should have this criticality
+     * @return a function that evaluates the criticality map
+     */
+    public fun checkCriticalExtension(
+        extensionsCriticality: Map<String, Boolean>,
+        mustBeCritical: Boolean,
+        filter: (String) -> Boolean,
+    ): CertificateConstraintEvaluation =
+        CertificateConstraintEvaluation {
+            fun violation(oid: String): CertificateConstraintViolation {
+                val reason = if (mustBeCritical) {
+                    "Extension $oid must be marked critical but is not"
+                } else {
+                    "Extension $oid must not be marked critical but is marked critical"
+                }
+                return CertificateConstraintViolation(reason)
+            }
+
+            extensionsCriticality.forEach { (oid, isCritical) ->
+                if (filter(oid) && isCritical != mustBeCritical) {
+                    add(violation(oid))
+                }
+            }
+        }
 
     public fun evaluateValidityAssuredShortTerm(
         maxShortTermDuration: Duration = 7.days,

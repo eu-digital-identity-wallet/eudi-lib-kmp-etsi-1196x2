@@ -20,14 +20,15 @@ import kotlin.time.Instant
 public interface CertificateOperations<CERT : Any> {
     public fun getBasicConstraints(certificate: CERT): BasicConstraintsInfo
     public fun getQcStatements(certificate: CERT): List<QCStatementInfo>
-    public fun getKeyUsage(certificate: CERT): ExtensionInfo<KeyUsageBits>?
+    public fun getKeyUsage(certificate: CERT): KeyUsageBits?
     public fun getValidityPeriod(certificate: CERT): ValidityPeriod
-    public fun getCertificatePolicies(certificate: CERT): ExtensionInfo<List<String>>?
+    public fun getCertificatePolicies(certificate: CERT): List<String>?
     public fun isSelfSigned(certificate: CERT): Boolean
-    public fun getAiaExtension(certificate: CERT): ExtensionInfo<AuthorityInformationAccess>?
+    public fun getAiaExtension(certificate: CERT): AuthorityInformationAccess?
     public fun getSubject(certificate: CERT): DistinguishedName?
     public fun getIssuer(certificate: CERT): DistinguishedName?
-    public fun getSubjectAltNames(certificate: CERT): ExtensionInfo<List<SubjectAlternativeName>>?
+    public fun getSubjectAltNames(certificate: CERT): List<SubjectAlternativeName>?
+    public fun getExtensionCriticality(certificate: CERT): Map<String, Boolean>
     public fun getCrlDistributionPoints(certificate: CERT): List<CrlDistributionPoint>
     public fun getAuthorityKeyIdentifier(certificate: CERT): AuthorityKeyIdentifier?
     public fun getSubjectKeyIdentifier(certificate: CERT): ByteArray?
@@ -56,7 +57,7 @@ public sealed interface CertificateOperationsAlgebra<out T> {
      * Extract the key usage extension bits.
      * Returns null if the extension is not present.
      */
-    public data object GetKeyUsage : CertificateOperationsAlgebra<ExtensionInfo<KeyUsageBits>?>
+    public data object GetKeyUsage : CertificateOperationsAlgebra<KeyUsageBits?>
 
     /**
      * Extract the validity period (notBefore and notAfter dates).
@@ -67,7 +68,7 @@ public sealed interface CertificateOperationsAlgebra<out T> {
      * Extract all certificate policy OIDs.
      * Returns null if the extension is not present.
      */
-    public data object GetPolicies : CertificateOperationsAlgebra<ExtensionInfo<List<String>>?>
+    public data object GetPolicies : CertificateOperationsAlgebra<List<String>?>
 
     /**
      * Check if the certificate is self-signed.
@@ -78,7 +79,7 @@ public sealed interface CertificateOperationsAlgebra<out T> {
      * Extract the Authority Information Access (AIA) extension.
      * Returns null if the extension is not present.
      */
-    public data object GetAia : CertificateOperationsAlgebra<ExtensionInfo<AuthorityInformationAccess>?>
+    public data object GetAia : CertificateOperationsAlgebra<AuthorityInformationAccess?>
 
     /**
      * Extract QCStatements of a specific type (ETSI EN 319 412-5).
@@ -101,7 +102,7 @@ public sealed interface CertificateOperationsAlgebra<out T> {
      * Extract Subject Alternative Names.
      * Returns null if the extension is not present.
      */
-    public data object GetSubjectAltNames : CertificateOperationsAlgebra<ExtensionInfo<List<SubjectAlternativeName>>?>
+    public data object GetSubjectAltNames : CertificateOperationsAlgebra<List<SubjectAlternativeName>?>
 
     /**
      * Extract CRL Distribution Points.
@@ -145,6 +146,8 @@ public sealed interface CertificateOperationsAlgebra<out T> {
      * Check if the certificate contains a specific extension.
      */
     public data class HasExtension(val oid: String) : CertificateOperationsAlgebra<Boolean>
+
+    public data object GetExtensionCriticality : CertificateOperationsAlgebra<Map<String, Boolean>>
 
     public data class GetCombined<A, B, out C>(
         val first: CertificateOperationsAlgebra<A>,
@@ -582,21 +585,4 @@ public data class AuthorityKeyIdentifier(
 public data class CrlDistributionPoint(
     val distributionPointUri: String?,
     val crlIssuer: List<String>? = null,
-)
-
-/**
- * Wrapper for extension data with criticality flag.
- *
- * Per RFC 5280 Section 4.2, each extension has a criticality flag indicating
- * whether the extension must be processed by conforming implementations.
- *
- * @param T the type of the extension data
- * @param value the extension data
- * @param isCritical true if the extension is marked critical
- *
- * @see [RFC 5280 Section 4.2 - Certificate Extensions](https://datatracker.ietf.org/doc/html/rfc5280#section-4.2)
- */
-public data class ExtensionInfo<out T>(
-    val value: T,
-    val isCritical: Boolean,
 )

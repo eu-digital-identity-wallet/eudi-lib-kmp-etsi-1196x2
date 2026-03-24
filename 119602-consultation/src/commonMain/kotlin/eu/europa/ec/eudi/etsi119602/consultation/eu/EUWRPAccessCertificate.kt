@@ -36,6 +36,9 @@ public fun wrpAccessCertificateProfile(
     // Basic certificate requirements
     endEntity()
     keyUsageDigitalSignature()
+    extensionCriticality(mustBeCritical = true) { oid ->
+        oid in listOf(RFC5280.EXT_KEY_USAGE, RFC5280.EXT_BASIC_CONSTRAINTS)
+    }
     validAt(at)
     policyOneOf(NCP_N_EUDIWRP, NCP_L_EUDIWRP, QCP_N_EUDIWRP, QCP_L_EUDIWRP)
     notSelfSigned()
@@ -107,17 +110,17 @@ internal fun ProfileBuilder.wrpacSubject() =
  * in the subjectAltName extension (URI, email, or telephone).
  */
 internal fun validateSubjectAltNameForWRPAC(
-    subjectAltNames: ExtensionInfo<List<SubjectAlternativeName>>?,
+    subjectAltNames: List<SubjectAlternativeName>?,
 ): CertificateConstraintEvaluation =
     CertificateConstraintEvaluation {
-        if (subjectAltNames == null || subjectAltNames.value.isEmpty()) {
+        if (subjectAltNames.isNullOrEmpty()) {
             val missingSubjectAltName =
                 CertificateConstraintViolation("Certificate missing subjectAltName extension")
             add(missingSubjectAltName)
             return@CertificateConstraintEvaluation
         }
 
-        val hasContactInfo = subjectAltNames.value.any { san ->
+        val hasContactInfo = subjectAltNames.any { san ->
             san is SubjectAlternativeName.Uri ||
                 san is SubjectAlternativeName.Email ||
                 san is SubjectAlternativeName.Telephone
@@ -144,13 +147,13 @@ internal fun validateSubjectAltNameForWRPAC(
  * The certificate policy OID determines which set of attributes is required.
  */
 internal fun validateSubjectForWRPAC(
-    policies: ExtensionInfo<List<String>>?,
+    policies: List<String>?,
     subject: DistinguishedName?,
 ): CertificateConstraintEvaluation {
-    if (policies == null || policies.value.isEmpty()) return CertificateConstraintEvaluation.Met
+    if (policies.isNullOrEmpty()) return CertificateConstraintEvaluation.Met
 
-    val isNaturalPerson = policies.value.any { it in listOf(NCP_N_EUDIWRP, QCP_N_EUDIWRP) }
-    val isLegalPerson = policies.value.any { it in listOf(NCP_L_EUDIWRP, QCP_L_EUDIWRP) }
+    val isNaturalPerson = policies.any { it in listOf(NCP_N_EUDIWRP, QCP_N_EUDIWRP) }
+    val isLegalPerson = policies.any { it in listOf(NCP_L_EUDIWRP, QCP_L_EUDIWRP) }
     return when {
         isNaturalPerson && !isLegalPerson ->
             CertificateConstraintsEvaluations.naturalPersonDN("Subject", subject)
