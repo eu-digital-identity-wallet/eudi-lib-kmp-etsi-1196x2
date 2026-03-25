@@ -15,23 +15,27 @@
  */
 package eu.europa.ec.eudi.etsi119602.consultation
 
+import eu.europa.ec.eudi.etsi119602.ListOfTrustedEntitiesClaims
 import eu.europa.ec.eudi.etsi1196x2.consultation.SensitiveApi
 import eu.europa.ec.eudi.etsi1196x2.consultation.SupportedLists
 import eu.europa.ec.eudi.etsi1196x2.consultation.ValidateCertificateChainUsingPKIXJvm
 import eu.europa.ec.eudi.etsi1196x2.consultation.VerificationContext
+import kotlinx.serialization.json.JsonObject
 import java.security.cert.TrustAnchor
 import java.security.cert.X509Certificate
 
 @SensitiveApi
 fun getTrustAnchorsProvisioner(
     loadLoTE: LoadLoTE<String>,
-    svcTypePerCtx: SupportedLists<LotEMeta<VerificationContext>>,
+    svcTypePerCtx: SupportedLists<LotEMeta<VerificationContext>> = SupportedLists.eu(),
+    parseJwt: ParseJwt<JsonObject, ListOfTrustedEntitiesClaims> = ParseJwt(),
 ): ProvisionTrustAnchorsFromLoTEs<List<X509Certificate>, VerificationContext, TrustAnchor, X509Certificate> =
     ProvisionTrustAnchorsFromLoTEs.eudiwJvm(
         loadLoTEAndPointers = LoadLoTEAndPointers(
             constraints = LoadLoTEAndPointers.Constraints.DoNotLoadOtherPointers,
             verifyJwtSignature = NotValidating,
             loadLoTE = loadLoTE,
+            parseJwt = parseJwt,
         ),
         svcTypePerCtx = svcTypePerCtx,
         pkix = ValidateCertificateChainUsingPKIXJvm(customization = { isRevocationEnabled = false }),
