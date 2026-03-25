@@ -60,6 +60,7 @@ import kotlin.time.Instant
  * @param clock the clock used to determine cache expiration
  * @param fileCacheExpiration the default duration after which a cached LoTE expires if no nextUpdate is present
  * @param ioDispatcher the dispatcher used for I/O operations
+ * @param parseJwt optional service to parse JWTs to extract nextUpdate
  */
 public class LoadSingleLoTEWithFileCache internal constructor(
     private val fileStore: LoTEFileStore,
@@ -67,6 +68,7 @@ public class LoadSingleLoTEWithFileCache internal constructor(
     private val clock: Clock = Clock.System,
     private val fileCacheExpiration: Duration = 24.hours,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
+    private val parseJwt: ParseJwt<JsonObject, ListOfTrustedEntitiesClaims> = ParseJwt(),
 ) : LoadLoTE<String> {
 
     public constructor(
@@ -84,7 +86,6 @@ public class LoadSingleLoTEWithFileCache internal constructor(
         ioDispatcher,
     )
 
-    private val parseJwt = ParseJwt<JsonObject, ListOfTrustedEntitiesClaims>()
     private val mutex = Mutex()
 
     override suspend fun invoke(uri: URI): LoadLoTE.Outcome<String> = mutex.withLock {

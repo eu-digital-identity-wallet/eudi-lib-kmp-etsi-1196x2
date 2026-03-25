@@ -56,11 +56,13 @@ public fun interface LoadLoTE<out LOTE : Any> {
  * @param constraints limits for the recursive loading process
  * @param verifyJwtSignature service used to verify the JWT signature of each loaded LoTE
  * @param loadLoTE the underlying loader used to fetch the content for a specific URI
+ * @param parseJwt the parser used to extract the payload from the JWT content
  */
 public class LoadLoTEAndPointers(
     private val constraints: Constraints,
     private val verifyJwtSignature: VerifyJwtSignature,
     private val loadLoTE: LoadLoTE<String>,
+    private val parseJwt: ParseJwt<JsonObject, ListOfTrustedEntitiesClaims> = ParseJwt(),
 ) {
 
     /**
@@ -75,7 +77,7 @@ public class LoadLoTEAndPointers(
         public data class MaxDepthReached(val uri: URI, val maxDepth: Int) : Problem
         public data class MaxListsReached(val uri: URI, val maxLists: Int) : Problem
         public data class CircularReferenceDetected(val uri: URI) : Problem
-        public data class Error(val uri: URI, val error: Throwable) : Problem
+        public data class Error(val uri: URI, val cause: Throwable) : Problem
     }
 
     private class State(val visitedUris: MutableSet<URI>, initialCount: Int = 0) {
@@ -85,8 +87,6 @@ public class LoadLoTEAndPointers(
     private data class Step(val uri: URI, val depth: Int) {
         fun childStep(uri: String) = Step(uri, depth + 1)
     }
-
-    private val parseJwt: ParseJwt<JsonObject, ListOfTrustedEntitiesClaims> = ParseJwt()
 
     public operator fun invoke(uri: URI): Flow<Event> = channelFlow {
         val initial = State(mutableSetOf(), 0)
