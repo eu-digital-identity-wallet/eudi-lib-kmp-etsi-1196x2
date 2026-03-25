@@ -87,7 +87,7 @@ public class GetTrustAnchorsFromLoTE<out TRUST_ANCHOR : Any>(
         val events = loadLoTEAndPointers(loTEDownloadUrl)
         val result = LoTELoadResult.collect(events, continueOnProblem)
         val loaded = result.toLoadedLoTE()
-        return checkNotNull(loaded) { loadingProblems(result) }
+        return loaded ?: raiseLoadingProblems(result)
     }
 
     private fun LoTELoadResult.toLoadedLoTE(): LoadedLoTE? =
@@ -108,11 +108,36 @@ public class GetTrustAnchorsFromLoTE<out TRUST_ANCHOR : Any>(
     private fun ServiceDigitalIdentity.trustAnchors(): List<TRUST_ANCHOR> =
         createTrustAnchors(this)
 
-    private fun loadingProblems(result: LoTELoadResult): String = buildString {
-        appendLine("Failed to load LoTE from $loTEDownloadUrl\n")
-        appendLine("Problems encountered during loading:")
-        result.problems.forEachIndexed { index, problem ->
-            appendLine("${index + 1}. $problem")
+    private fun raiseLoadingProblems(result: LoTELoadResult): Nothing {
+        val causes = mutableListOf<Throwable?>()
+        fun LoadLoTEAndPointers.Event.Problem.addCause() {
+            val cause = cause()
+            if (cause != null) {
+                causes.add(cause)
+                causes.addAll(cause.suppressed)
+            }
         }
+
+        val msg = buildString {
+            appendLine("Failed to load LoTE from $loTEDownloadUrl\n")
+            appendLine("Problems encountered during loading:")
+            result.problems.forEachIndexed { index, problem ->
+                problem.addCause()
+                appendLine("${index + 1}. $problem")
+            }
+        }
+        throw IllegalStateException(msg).apply {
+            causes.forEach { cause -> addSuppressed(cause) }
+        }
+    }
+
+    private fun LoadLoTEAndPointers.Event.Problem.cause(): Throwable? = when (this) {
+        is LoadLoTEAndPointers.Event.CircularReferenceDetected -> null
+        is LoadLoTEAndPointers.Event.Error -> cause
+        is LoadLoTEAndPointers.Event.FailedToParseJwt -> cause
+        is LoadLoTEAndPointers.Event.InvalidJWTSignature -> cause
+        is LoadLoTEAndPointers.Event.MaxDepthReached -> null
+        is LoadLoTEAndPointers.Event.MaxListsReached -> null
+        is LoadLoTEAndPointers.Event.ResourceNotFound -> null
     }
 }
