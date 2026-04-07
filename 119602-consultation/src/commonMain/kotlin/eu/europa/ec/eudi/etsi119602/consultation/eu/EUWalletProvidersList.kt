@@ -34,7 +34,7 @@ public val EUWalletProvidersList: EUListOfTrustedEntitiesProfile =
         listAndSchemeInformation =
         EUListAndSchemeInformationProfile(
             type = LoTEType.of(ETSI19602.EU_WALLET_PROVIDERS_LOTE),
-            statusDeterminationApproach = ETSI19602.EU_WALLET_PROVIDERS_STATUS_DETERMINATION_APPROACH,
+            statusDeterminationApproach = URIValue(ETSI19602.EU_WALLET_PROVIDERS_STATUS_DETERMINATION_APPROACH),
             schemeCommunityRules = listOf(
                 MultiLanguageURI.en(URIValue(ETSI19602.EU_WALLET_PROVIDERS_SCHEME_COMMUNITY_RULES)),
             ),
