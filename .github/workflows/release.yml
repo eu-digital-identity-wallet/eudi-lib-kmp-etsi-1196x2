@@ -32,8 +32,9 @@ jobs:
           distribution: temurin
           java-version: '17'
           architecture: x64
-      - uses: gradle/actions/wrapper-validation@v5
-      - uses: gradle/actions/setup-gradle@v5
+      - uses: gradle/actions/setup-gradle@v6
+        with:
+          cache-provider: basic
       - name: Publish with Gradle
         env:
           CI: true
