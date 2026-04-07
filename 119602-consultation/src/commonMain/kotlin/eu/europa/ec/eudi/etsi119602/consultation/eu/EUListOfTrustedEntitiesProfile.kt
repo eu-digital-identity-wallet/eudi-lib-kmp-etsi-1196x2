@@ -94,7 +94,7 @@ public data class EUListAndSchemeInformationProfile(
      * The type of the list of trusted entities.
      */
     val type: URI,
-    val statusDeterminationApproach: String,
+    val statusDeterminationApproach: URIValue,
     val schemeCommunityRules: List<MultiLanguageURI>,
     val schemeTerritory: CountryCode,
     val maxMonthsUntilNextUpdate: Int,
@@ -167,7 +167,7 @@ internal interface ListAndSchemeInformationAssertions {
      * @throws IllegalStateException if the status determination approach is not the expected one
      */
     @Throws(IllegalStateException::class)
-    fun ListAndSchemeInformation.ensureStatusDeterminationApproachIs(expected: String) {
+    fun ListAndSchemeInformation.ensureStatusDeterminationApproachIs(expected: URIValue) {
         check(statusDeterminationApproach == expected) {
             "Invalid ${ETSI19602.STATUS_DETERMINATION_APPROACH}. Expected $expected, got $statusDeterminationApproach"
         }

@@ -38,7 +38,7 @@ public val EUMDLProvidersList: EUListOfTrustedEntitiesProfile =
     EUListOfTrustedEntitiesProfile(
         listAndSchemeInformation = EUListAndSchemeInformationProfile(
             type = EUMDLProvidersListSpec.LOTE_TYPE,
-            statusDeterminationApproach = EUMDLProvidersListSpec.STATUS_DETERMINATION_APPROACH,
+            statusDeterminationApproach = URIValue(EUMDLProvidersListSpec.STATUS_DETERMINATION_APPROACH),
             schemeCommunityRules = listOf(MultiLanguageURI.en(URIValue(EUMDLProvidersListSpec.SCHEME_COMMUNITY_RULES))),
             schemeTerritory = CountryCode.EU,
             maxMonthsUntilNextUpdate = 6,

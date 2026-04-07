@@ -21,6 +21,7 @@ import kotlinx.serialization.DeserializationStrategy
 import kotlinx.serialization.Required
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonContentPolymorphicSerializer
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.jsonObject
@@ -66,16 +67,16 @@ internal constructor(
     @SerialName(ETSI19602.SCHEME_OPERATOR_ADDRESS) val schemeOperatorAddress: SchemeOperatorAddress? = null,
     @SerialName(ETSI19602.SCHEME_NAME) val schemeName: List<MultilanguageString>? = null,
     @SerialName(ETSI19602.SCHEME_INFORMATION_URI) val schemeInformationURI: List<MultiLanguageURI>? = null,
-    @SerialName(ETSI19602.STATUS_DETERMINATION_APPROACH) val statusDeterminationApproach: String? = null,
+    @SerialName(ETSI19602.STATUS_DETERMINATION_APPROACH) val statusDeterminationApproach: URIValue? = null,
     @SerialName(ETSI19602.SCHEME_TYPE_COMMUNITY_RULES) val schemeTypeCommunityRules: List<MultiLanguageURI>? = null,
     @SerialName(ETSI19602.SCHEME_TERRITORY) val schemeTerritory: CountryCode? = null,
     @SerialName(ETSI19602.POLICY_OR_LEGAL_NOTICE) val policyOrLegalNotice: List<PolicyOrLegalNotice>? = null,
     @SerialName(ETSI19602.HISTORICAL_INFORMATION_PERIOD) val historicalInformationPeriod: HistoricalInformationPeriod? = null,
     @SerialName(ETSI19602.POINTER_TO_OTHER_LOTE) val pointersToOtherLists: List<OtherLoTEPointer>? = null,
-    @SerialName(ETSI19602.LIST_ISSUE_DATE_TIME) val listIssueDateTime: LoTEDateTime,
-    @SerialName(ETSI19602.NEXT_UPDATE) val nextUpdate: LoTEDateTime,
-    @SerialName(ETSI19602.DISTRIBUTION_POINTS) val distributionPoints: List<MultiLanguageURI>? = null,
-    @SerialName(ETSI19602.SCHEME_EXTENSIONS) val schemeExtensions: List<MultiLanguageURI>? = null,
+    @SerialName(ETSI19602.LIST_ISSUE_DATE_TIME) @Required val listIssueDateTime: LoTEDateTime,
+    @SerialName(ETSI19602.NEXT_UPDATE) @Required val nextUpdate: LoTEDateTime,
+    @SerialName(ETSI19602.DISTRIBUTION_POINTS) val distributionPoints: List<URIValue>? = null,
+    @SerialName(ETSI19602.SCHEME_EXTENSIONS) val schemeExtensions: JsonArray? = null,
 ) {
     init {
         versionIdentifier.requireValidVersionIdentifier()
@@ -167,8 +168,8 @@ internal constructor(
             pointerToOtherLote: List<OtherLoTEPointer>? = null,
             listIssueDateTime: LoTEDateTime,
             nextUpdate: LoTEDateTime,
-            distributionPoints: List<MultiLanguageURI>? = null,
-            schemeExtensions: List<MultiLanguageURI>? = null,
+            distributionPoints: List<URIValue>? = null,
+            schemeExtensions: JsonArray? = null,
         ): ListAndSchemeInformation =
             ListAndSchemeInformation(
                 versionIdentifier = ETSI19602.LOTE_VERSION,
@@ -203,7 +204,7 @@ internal constructor(
             schemeOperatorAddress: SchemeOperatorAddress,
             schemeName: List<MultilanguageString>,
             schemeInformationURI: List<MultiLanguageURI>,
-            statusDeterminationApproach: String,
+            statusDeterminationApproach: URIValue,
             schemeTypeCommunityRules: List<MultiLanguageURI>,
             schemeTerritory: CountryCode,
             policyOrLegalNotice: List<PolicyOrLegalNotice>,
@@ -211,8 +212,8 @@ internal constructor(
             pointerToOtherLote: List<OtherLoTEPointer>? = null,
             listIssueDateTime: LoTEDateTime,
             nextUpdate: LoTEDateTime,
-            distributionPoints: List<MultiLanguageURI>? = null,
-            schemeExtensions: List<MultiLanguageURI>? = null,
+            distributionPoints: List<URIValue>? = null,
+            schemeExtensions: JsonArray? = null,
         ): ListAndSchemeInformation =
             ListAndSchemeInformation(
                 versionIdentifier = ETSI19602.LOTE_VERSION,

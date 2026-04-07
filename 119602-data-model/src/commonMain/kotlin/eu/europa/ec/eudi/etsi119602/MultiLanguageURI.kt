@@ -29,12 +29,12 @@ public data class MultiLanguageURI(
     }
 }
 
-// TODO Value is URI
 @Serializable
 @JvmInline
 public value class URIValue(public val value: String) {
     init {
         Assertions.requireNotBlank(value, ETSI19602.URI_VALUE)
+        // TODO Value is URI
     }
 
     override fun toString(): String = value
