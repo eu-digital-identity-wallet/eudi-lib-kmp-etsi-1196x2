@@ -33,9 +33,11 @@ public constructor(
     init {
         with(Assertions) {
             requireNotBlank(streetAddress, ETSI19602.POSTAL_ADDRESS_STREET_ADDRESS)
-            requireNullOrNotBlank(locality, ETSI19602.POSTAL_ADDRESS_LOCALITY)
-            requireNullOrNotBlank(stateOrProvince, ETSI19602.POSTAL_ADDRESS_STATE_OR_PROVINCE)
-            requireNullOrNotBlank(postalCode, ETSI19602.POSTAL_ADDRESS_POSTAL_CODE)
+// In JSON Schema, locality, stateOrProvince and postalCode are defined as simple string(s)
+// In XSD Schema, those attributes are defined as non-empty string(s).
+//            requireNullOrNotBlank(locality, ETSI19602.POSTAL_ADDRESS_LOCALITY)
+//            requireNullOrNotBlank(stateOrProvince, ETSI19602.POSTAL_ADDRESS_STATE_OR_PROVINCE)
+//            requireNullOrNotBlank(postalCode, ETSI19602.POSTAL_ADDRESS_POSTAL_CODE)
         }
     }
 }
