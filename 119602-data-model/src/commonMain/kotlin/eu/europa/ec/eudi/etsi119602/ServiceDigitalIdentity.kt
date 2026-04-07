@@ -19,7 +19,6 @@ import eu.europa.ec.eudi.etsi119602.serialization.ByteArraySerializedInBase64
 import kotlinx.serialization.Required
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 
 @Serializable
@@ -30,7 +29,7 @@ public constructor(
     @SerialName(ETSI19602.X509_SUBJECT_NAMES) val x509SubjectNames: List<String>? = null,
     @SerialName(ETSI19602.PUBLIC_KEY_VALUES) val publicKeyValues: List<JsonObject>? = null,
     @SerialName(ETSI19602.X509_SKIS) val x509SKIs: List<ByteArraySerializedInBase64>? = null,
-    @SerialName(ETSI19602.OTHER_IDS) val otherIds: JsonArray? = null,
+    @SerialName(ETSI19602.OTHER_IDS) val otherIds: List<String>? = null,
 ) {
     init {
         with(Assertions) {
