@@ -75,7 +75,7 @@ internal constructor(
     @SerialName(ETSI19602.POINTER_TO_OTHER_LOTE) val pointersToOtherLists: List<OtherLoTEPointer>? = null,
     @SerialName(ETSI19602.LIST_ISSUE_DATE_TIME) @Required val listIssueDateTime: LoTEDateTime,
     @SerialName(ETSI19602.NEXT_UPDATE) @Required val nextUpdate: LoTEDateTime,
-    @SerialName(ETSI19602.DISTRIBUTION_POINTS) val distributionPoints: List<MultiLanguageURI>? = null,
+    @SerialName(ETSI19602.DISTRIBUTION_POINTS) val distributionPoints: List<URIValue>? = null,
     @SerialName(ETSI19602.SCHEME_EXTENSIONS) val schemeExtensions: JsonArray? = null,
 ) {
     init {
@@ -168,7 +168,7 @@ internal constructor(
             pointerToOtherLote: List<OtherLoTEPointer>? = null,
             listIssueDateTime: LoTEDateTime,
             nextUpdate: LoTEDateTime,
-            distributionPoints: List<MultiLanguageURI>? = null,
+            distributionPoints: List<URIValue>? = null,
             schemeExtensions: JsonArray? = null,
         ): ListAndSchemeInformation =
             ListAndSchemeInformation(
@@ -212,7 +212,7 @@ internal constructor(
             pointerToOtherLote: List<OtherLoTEPointer>? = null,
             listIssueDateTime: LoTEDateTime,
             nextUpdate: LoTEDateTime,
-            distributionPoints: List<MultiLanguageURI>? = null,
+            distributionPoints: List<URIValue>? = null,
             schemeExtensions: JsonArray? = null,
         ): ListAndSchemeInformation =
             ListAndSchemeInformation(
