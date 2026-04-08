@@ -29,7 +29,7 @@ kotlin {
 
     @OptIn(ExperimentalKotlinGradlePluginApi::class)
     compilerOptions {
-        apiVersion = KotlinVersion.KOTLIN_2_1
+        apiVersion = KotlinVersion.KOTLIN_2_2
         optIn =
             listOf(
                 "kotlinx.serialization.ExperimentalSerializationApi",
@@ -37,10 +37,6 @@ kotlin {
                 "kotlin.ExperimentalStdlibApi",
                 "kotlin.time.ExperimentalTime",
                 "kotlin.contracts.ExperimentalContracts",
-            )
-        freeCompilerArgs =
-            listOf(
-                "-Xconsistent-data-class-copy-visibility",
             )
     }
 
