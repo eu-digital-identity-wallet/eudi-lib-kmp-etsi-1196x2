@@ -15,7 +15,6 @@
  */
 package eu.europa.ec.eudi.etsi119602
 
-import com.eygraber.uri.Uri
 import eu.europa.ec.eudi.etsi119602.Assertions.requireNullOrNonEmpty
 import kotlinx.serialization.Required
 import kotlinx.serialization.SerialName

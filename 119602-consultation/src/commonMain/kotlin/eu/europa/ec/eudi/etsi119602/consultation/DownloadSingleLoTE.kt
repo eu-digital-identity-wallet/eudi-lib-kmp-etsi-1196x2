@@ -15,7 +15,7 @@
  */
 package eu.europa.ec.eudi.etsi119602.consultation
 
-import com.eygraber.uri.Uri
+import eu.europa.ec.eudi.etsi119602.Uri
 import io.ktor.client.*
 import io.ktor.client.plugins.*
 import io.ktor.client.request.*

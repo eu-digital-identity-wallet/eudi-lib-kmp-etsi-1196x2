@@ -15,16 +15,18 @@
  */
 package eu.europa.ec.eudi.etsi119602
 
-import kotlinx.serialization.Required
-import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 @Serializable
-public data class MultiLanguageURI(
-    @SerialName(ETSI19602.LANG) @Required val language: Language,
-    @SerialName(ETSI19602.URI_VALUE) @Required val value: Uri,
-) {
+@JvmInline
+public value class Uri(public val value: String) {
+
+    override fun toString(): String = value
+
     public companion object {
-        public fun en(value: Uri): MultiLanguageURI = MultiLanguageURI(Language.ENGLISH, value)
+        public fun parse(value: String): Uri {
+            require(value.isNotBlank()) { "Uri cannot be blank" }
+            return Uri(value)
+        }
     }
 }

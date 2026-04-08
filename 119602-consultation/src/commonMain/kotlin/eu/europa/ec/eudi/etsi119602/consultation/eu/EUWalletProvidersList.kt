@@ -15,10 +15,10 @@
  */
 package eu.europa.ec.eudi.etsi119602.consultation.eu
 
-import com.eygraber.uri.Uri
 import eu.europa.ec.eudi.etsi119602.CountryCode
 import eu.europa.ec.eudi.etsi119602.ETSI19602
 import eu.europa.ec.eudi.etsi119602.MultiLanguageURI
+import eu.europa.ec.eudi.etsi119602.Uri
 import eu.europa.ec.eudi.etsi1196x2.consultation.certs.*
 import kotlin.time.Instant
 

@@ -15,8 +15,8 @@
  */
 package eu.europa.ec.eudi.etsi119602.consultation.jp
 
-import com.eygraber.uri.Uri
 import com.nimbusds.jwt.SignedJWT
+import eu.europa.ec.eudi.etsi119602.Uri
 import eu.europa.ec.eudi.etsi119602.consultation.*
 import eu.europa.ec.eudi.etsi119602.consultation.eu.ServiceDigitalIdentityCertificateType
 import eu.europa.ec.eudi.etsi119602.consultation.jp.JPPoC.LC_VCT

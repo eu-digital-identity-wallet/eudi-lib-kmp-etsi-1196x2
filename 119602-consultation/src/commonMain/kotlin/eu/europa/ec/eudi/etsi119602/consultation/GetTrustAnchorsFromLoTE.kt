@@ -15,10 +15,10 @@
  */
 package eu.europa.ec.eudi.etsi119602.consultation
 
-import com.eygraber.uri.Uri
 import eu.europa.ec.eudi.etsi119602.ListOfTrustedEntities
 import eu.europa.ec.eudi.etsi119602.ServiceDigitalIdentity
 import eu.europa.ec.eudi.etsi119602.TrustedEntityService
+import eu.europa.ec.eudi.etsi119602.Uri
 import eu.europa.ec.eudi.etsi1196x2.consultation.GetTrustAnchors
 import eu.europa.ec.eudi.etsi1196x2.consultation.NonEmptyList
 import kotlinx.coroutines.sync.Mutex
@@ -127,7 +127,7 @@ public class GetTrustAnchorsFromLoTE<out TRUST_ANCHOR : Any>(
             }
         }
         throw IllegalStateException(msg).apply {
-            causes.forEach { cause -> addSuppressed(cause) }
+            causes.forEach { cause -> cause?.let { addSuppressed(it) } }
         }
     }
 

@@ -15,9 +15,9 @@
  */
 package eu.europa.ec.eudi.etsi119602.consultation
 
-import com.eygraber.uri.Uri
 import eu.europa.ec.eudi.etsi119602.ListOfTrustedEntities
 import eu.europa.ec.eudi.etsi119602.ListOfTrustedEntitiesClaims
+import eu.europa.ec.eudi.etsi119602.Uri
 import kotlinx.atomicfu.AtomicInt
 import kotlinx.atomicfu.atomic
 import kotlinx.coroutines.*

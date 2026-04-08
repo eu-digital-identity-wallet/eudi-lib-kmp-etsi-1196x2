@@ -15,7 +15,6 @@
  */
 package eu.europa.ec.eudi.etsi119602
 
-import com.eygraber.uri.Uri
 import eu.europa.ec.eudi.etsi119602.ListAndSchemeInformation.Companion.explicit
 import eu.europa.ec.eudi.etsi119602.ListAndSchemeInformation.Companion.implicit
 import kotlinx.serialization.DeserializationStrategy

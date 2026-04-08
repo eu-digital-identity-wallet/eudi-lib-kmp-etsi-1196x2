@@ -15,7 +15,6 @@
  */
 package eu.europa.ec.eudi.etsi119602.consultation.eu
 
-import com.eygraber.uri.Uri
 import eu.europa.ec.eudi.etsi119602.*
 import eu.europa.ec.eudi.etsi1196x2.consultation.certs.*
 import kotlin.time.Instant

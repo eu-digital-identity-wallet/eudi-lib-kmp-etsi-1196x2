@@ -15,7 +15,6 @@
  */
 package eu.europa.ec.eudi.etsi119602
 
-import com.eygraber.uri.Uri
 import java.security.Provider
 import java.security.cert.X509Certificate
 
