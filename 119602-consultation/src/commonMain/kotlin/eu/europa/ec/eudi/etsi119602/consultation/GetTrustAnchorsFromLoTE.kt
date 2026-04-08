@@ -114,7 +114,7 @@ public class GetTrustAnchorsFromLoTE<out TRUST_ANCHOR : Any>(
             val cause = cause()
             if (cause != null) {
                 causes.add(cause)
-                causes.addAll(cause.suppressed)
+                causes.addAll(cause.suppressedExceptions)
             }
         }
 
