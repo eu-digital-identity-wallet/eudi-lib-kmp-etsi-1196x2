@@ -17,8 +17,8 @@ package eu.europa.ec.eudi.etsi119602.consultation
 
 import eu.europa.ec.eudi.etsi119602.ListOfTrustedEntitiesClaims
 import eu.europa.ec.eudi.etsi119602.Uri
+import eu.europa.ec.eudi.etsi1196x2.consultation.consultationPlatform
 import kotlinx.coroutines.CoroutineDispatcher
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
@@ -67,7 +67,7 @@ public class LoadSingleLoTEWithFileCache internal constructor(
     private val downloadSingleLoTE: DownloadSingleLoTE? = null,
     private val clock: Clock = Clock.System,
     private val fileCacheExpiration: Duration = 24.hours,
-    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
+    private val ioDispatcher: CoroutineDispatcher = consultationPlatform().ioDispatcher,
     private val parseJwt: ParseJwt<JsonObject, ListOfTrustedEntitiesClaims> = ParseJwt(),
 ) : LoadLoTE<String> {
 
@@ -77,7 +77,7 @@ public class LoadSingleLoTEWithFileCache internal constructor(
         downloadSingleLoTE: DownloadSingleLoTE? = null,
         clock: Clock = Clock.System,
         fileCacheExpiration: Duration = 24.hours,
-        ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
+        ioDispatcher: CoroutineDispatcher = consultationPlatform().ioDispatcher,
     ) : this(
         LoTEFileStore(cacheDirectory, fileSystem, ioDispatcher),
         downloadSingleLoTE,
@@ -163,7 +163,7 @@ public class LoadSingleLoTEWithFileCache internal constructor(
 internal class LoTEFileStore(
     private val cacheDirectory: Path,
     fileSystem: FileSystem = SystemFileSystem,
-    ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
+    ioDispatcher: CoroutineDispatcher = consultationPlatform().ioDispatcher,
 ) {
 
     private val fileNames = FileNames(cacheDirectory)
@@ -268,7 +268,7 @@ internal class LoTEFileStore(
 
 internal class FileOperation(
     private val fileSystem: FileSystem,
-    ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
+    ioDispatcher: CoroutineDispatcher = consultationPlatform().ioDispatcher,
 ) {
 
     private val actualIoDispatcher = ioDispatcher.limitedParallelism(1)

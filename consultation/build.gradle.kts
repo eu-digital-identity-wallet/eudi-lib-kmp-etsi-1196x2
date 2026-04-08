@@ -73,6 +73,9 @@ kotlin {
                 withJvm()
                 withAndroidTarget()
             }
+            group("ios") {
+                withIos()
+            }
         }
     }
 
