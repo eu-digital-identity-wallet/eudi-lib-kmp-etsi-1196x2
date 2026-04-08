@@ -15,6 +15,7 @@
  */
 package eu.europa.ec.eudi.etsi119602.consultation.jp
 
+import com.eygraber.uri.Uri
 import com.nimbusds.jwt.SignedJWT
 import eu.europa.ec.eudi.etsi119602.consultation.*
 import eu.europa.ec.eudi.etsi119602.consultation.eu.ServiceDigitalIdentityCertificateType
@@ -49,7 +50,7 @@ object JPPoC {
         LotEMeta(
             svcTypePerCtx = buildMap {
                 val issuance = LotEMeta.SvcAndEEProfile(
-                    JP_WRPAC_PROVIDER_ISSUANCE_SVC_TYPE,
+                    Uri.parse(JP_WRPAC_PROVIDER_ISSUANCE_SVC_TYPE),
                     null,
                 )
                 put(VerificationContext.WalletRelyingPartyAccessCertificate, issuance)
@@ -61,7 +62,7 @@ object JPPoC {
         svcTypePerCtx =
         buildMap {
             val issuance = LotEMeta.SvcAndEEProfile(
-                LC_EAA_PROVIDER_SVC_TYPE,
+                Uri.parse(LC_EAA_PROVIDER_SVC_TYPE),
                 null,
             )
             put(VerificationContext.EAA(LC_USE_CASE), issuance)
@@ -90,9 +91,9 @@ object JPPoC {
     // Runtime
     //
     val loteLocations = SupportedLists(
-        wrpacProviders = "https://tl.eujp.ownd-project.com/trusted-list/jpwrpac_providers_list.jwt",
+        wrpacProviders = Uri.parse("https://tl.eujp.ownd-project.com/trusted-list/jpwrpac_providers_list.jwt"),
         eaaProviders = mapOf(
-            LC_USE_CASE to "https://tl.eujp.ownd-project.com/trusted-list/jpeaa_providers_list.jwt",
+            LC_USE_CASE to Uri.parse("https://tl.eujp.ownd-project.com/trusted-list/jpeaa_providers_list.jwt"),
         ),
     )
 }

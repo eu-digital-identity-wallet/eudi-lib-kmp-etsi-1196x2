@@ -15,10 +15,10 @@
  */
 package eu.europa.ec.eudi.etsi119602.consultation
 
+import com.eygraber.uri.Uri
 import eu.europa.ec.eudi.etsi119602.ListOfTrustedEntities
 import eu.europa.ec.eudi.etsi119602.ServiceDigitalIdentity
 import eu.europa.ec.eudi.etsi119602.TrustedEntityService
-import eu.europa.ec.eudi.etsi119602.URI
 import eu.europa.ec.eudi.etsi1196x2.consultation.GetTrustAnchors
 import eu.europa.ec.eudi.etsi1196x2.consultation.NonEmptyList
 import kotlinx.coroutines.sync.Mutex
@@ -55,11 +55,11 @@ public data class LoadedLoTE(
  * @param createTrustAnchors factory function to create trust anchors from digital identities
  */
 public class GetTrustAnchorsFromLoTE<out TRUST_ANCHOR : Any>(
-    private val loTEDownloadUrl: URI,
+    private val loTEDownloadUrl: Uri,
     private val loadLoTEAndPointers: LoadLoTEAndPointers,
     private val continueOnProblem: ContinueOnProblem = ContinueOnProblem.Never,
     private val createTrustAnchors: (ServiceDigitalIdentity) -> List<TRUST_ANCHOR>,
-) : GetTrustAnchors<URI, TRUST_ANCHOR> {
+) : GetTrustAnchors<Uri, TRUST_ANCHOR> {
 
     private val mutex = Mutex()
 
@@ -76,7 +76,7 @@ public class GetTrustAnchorsFromLoTE<out TRUST_ANCHOR : Any>(
      * @throws IllegalStateException in case of a loading problem or if the certificate constraints are not met
      */
     @Throws(IllegalStateException::class)
-    override suspend fun invoke(query: URI): NonEmptyList<TRUST_ANCHOR>? = mutex.withLock {
+    override suspend fun invoke(query: Uri): NonEmptyList<TRUST_ANCHOR>? = mutex.withLock {
         val trustAnchors =
             loadLoTe().trustAnchorsFor(query)
 
@@ -93,16 +93,16 @@ public class GetTrustAnchorsFromLoTE<out TRUST_ANCHOR : Any>(
     private fun LoTELoadResult.toLoadedLoTE(): LoadedLoTE? =
         list?.let { mainList -> LoadedLoTE(list = mainList.lote, otherLists = otherLists.map { it.lote }) }
 
-    private fun LoadedLoTE.trustAnchorsFor(svcType: URI): List<TRUST_ANCHOR> =
+    private fun LoadedLoTE.trustAnchorsFor(svcType: Uri): List<TRUST_ANCHOR> =
         servicesOfType(svcType).flatMap { trustedService ->
             trustedService.information.digitalIdentity.trustAnchors()
         }
 
-    private fun ListOfTrustedEntities.servicesOf(svcType: URI): List<TrustedEntityService> =
+    private fun ListOfTrustedEntities.servicesOf(svcType: Uri): List<TrustedEntityService> =
         entities.orEmpty()
             .flatMap { it.services.filter { svc -> svc.information.typeIdentifier == svcType } }
 
-    private fun LoadedLoTE.servicesOfType(svcType: URI): List<TrustedEntityService> =
+    private fun LoadedLoTE.servicesOfType(svcType: Uri): List<TrustedEntityService> =
         (listOf(list) + otherLists).flatMap { it.servicesOf(svcType) }
 
     private fun ServiceDigitalIdentity.trustAnchors(): List<TRUST_ANCHOR> =

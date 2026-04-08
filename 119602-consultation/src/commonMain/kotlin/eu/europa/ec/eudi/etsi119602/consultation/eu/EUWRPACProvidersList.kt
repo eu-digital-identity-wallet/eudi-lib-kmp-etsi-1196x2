@@ -24,7 +24,7 @@ public val EUWRPACProvidersList: EUListOfTrustedEntitiesProfile =
     EUListOfTrustedEntitiesProfile(
         listAndSchemeInformation =
         EUListAndSchemeInformationProfile(
-            type = LoTEType.of(ETSI19602.EU_WRPAC_PROVIDERS_LOTE),
+            type = Uri.parse(ETSI19602.EU_WRPAC_PROVIDERS_LOTE),
             statusDeterminationApproach = Uri.parse(ETSI19602.EU_WRPAC_PROVIDERS_STATUS_DETERMINATION_APPROACH),
             schemeCommunityRules = listOf(
                 MultiLanguageURI.en(Uri.parse(ETSI19602.EU_WRPAC_PROVIDERS_SCHEME_COMMUNITY_RULES)),
@@ -36,8 +36,8 @@ public val EUWRPACProvidersList: EUListOfTrustedEntitiesProfile =
         trustedEntities =
         EUTrustedEntitiesProfile(
             serviceTypeIdentifiers = ServiceTypeIdentifiers.IssuanceAndRevocation(
-                issuance = ETSI19602.EU_WRPAC_PROVIDERS_SVC_TYPE_ISSUANCE,
-                revocation = ETSI19602.EU_WRPAC_PROVIDERS_SVC_TYPE_REVOCATION,
+                issuance = Uri.parse(ETSI19602.EU_WRPAC_PROVIDERS_SVC_TYPE_ISSUANCE),
+                revocation = Uri.parse(ETSI19602.EU_WRPAC_PROVIDERS_SVC_TYPE_REVOCATION),
             ),
             serviceDigitalIdentityMustHaveCertificates = true,
             serviceStatuses = emptySet(),

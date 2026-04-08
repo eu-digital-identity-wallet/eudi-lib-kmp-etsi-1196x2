@@ -55,7 +55,7 @@ internal constructor(
     /**
      * The type of the list of trusted entities. I
      */
-    @SerialName(ETSI19602.LOTE_TYPE) val type: URI? = null,
+    @SerialName(ETSI19602.LOTE_TYPE) val type: Uri? = null,
     /**
      * The name of the entity in charge of establishing, publishing,
      * signing, and maintaining the list of trusted entities
@@ -161,7 +161,7 @@ internal constructor(
         @Throws(IllegalArgumentException::class)
         public fun implicit(
             sequenceNumber: Int = ETSI19602.INITIAL_SEQUENCE_NUMBER,
-            type: URI? = null,
+            type: Uri? = null,
             schemeOperatorName: List<MultilanguageString>,
             schemeOperatorAddress: SchemeOperatorAddress? = null,
             schemeTerritory: CountryCode? = null,
@@ -200,7 +200,7 @@ internal constructor(
         @Throws(IllegalArgumentException::class)
         public fun explicit(
             sequenceNumber: Int = ETSI19602.INITIAL_SEQUENCE_NUMBER,
-            type: URI,
+            type: Uri,
             schemeOperatorName: List<MultilanguageString>,
             schemeOperatorAddress: SchemeOperatorAddress,
             schemeName: List<MultilanguageString>,
@@ -254,8 +254,9 @@ internal constructor(
     }
 }
 
+@Deprecated("Use kmp-uri")
 public object LoTEType {
-    public fun of(value: String): URI = "${ETSI19602.LOTE_TYPE_URI}/$value"
+    public fun of(value: String): Uri = Uri.parse("${ETSI19602.LOTE_TYPE_URI}/$value")
 }
 
 /**
@@ -306,7 +307,7 @@ public value class HistoricalInformationPeriod(
 
 @Serializable
 public data class OtherLoTEPointer(
-    @SerialName(ETSI19602.LOTE_LOCATION) @Required val location: URI, // URI
+    @SerialName(ETSI19602.LOTE_LOCATION) @Required val location: Uri, // URI
     @SerialName(ETSI19602.SERVICE_DIGITAL_IDENTITIES) @Required val serviceDigitalIdentities: List<ServiceDigitalIdentity>,
     @SerialName(ETSI19602.LOTE_QUALIFIERS) @Required val qualifiers: List<LoTEQualifier>,
 ) {
@@ -320,7 +321,7 @@ public data class OtherLoTEPointer(
 
 @Serializable
 public data class LoTEQualifier(
-    @SerialName(ETSI19602.LOTE_TYPE) val type: URI,
+    @SerialName(ETSI19602.LOTE_TYPE) val type: Uri,
     @SerialName(ETSI19602.SCHEME_OPERATOR_NAME) @Required val schemeOperatorName: List<MultilanguageString>,
     @SerialName(ETSI19602.SCHEME_TYPE_COMMUNITY_RULES) val schemeTypeCommunityRules: List<MultiLanguageURI>? = null,
     @SerialName(ETSI19602.SCHEME_TERRITORY) val schemeTerritory: CountryCode? = null,

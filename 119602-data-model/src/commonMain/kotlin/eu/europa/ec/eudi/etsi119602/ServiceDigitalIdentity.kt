@@ -15,6 +15,7 @@
  */
 package eu.europa.ec.eudi.etsi119602
 
+import com.eygraber.uri.Uri
 import eu.europa.ec.eudi.etsi119602.serialization.ByteArraySerializedInBase64
 import kotlinx.serialization.Required
 import kotlinx.serialization.SerialName
@@ -45,7 +46,7 @@ public constructor(
 @Serializable
 public data class PKIObject(
     @SerialName(ETSI19602.PKI_OB_VAL) @Required val value: ByteArraySerializedInBase64,
-    @SerialName(ETSI19602.PKI_OB_ENCODING) val encoding: URI? = null,
+    @SerialName(ETSI19602.PKI_OB_ENCODING) val encoding: Uri? = null,
     @SerialName(ETSI19602.PKI_OB_SPEC_REF) val specRef: String? = null,
 ) {
     override fun equals(other: Any?): Boolean {

@@ -15,8 +15,8 @@
  */
 package eu.europa.ec.eudi.etsi119602.consultation
 
+import com.eygraber.uri.Uri
 import eu.europa.ec.eudi.etsi119602.ListOfTrustedEntitiesClaims
-import eu.europa.ec.eudi.etsi119602.URI
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
@@ -88,7 +88,7 @@ public class LoadSingleLoTEWithFileCache internal constructor(
 
     private val mutex = Mutex()
 
-    override suspend fun invoke(uri: URI): LoadLoTE.Outcome<String> = mutex.withLock {
+    override suspend fun invoke(uri: Uri): LoadLoTE.Outcome<String> = mutex.withLock {
         withContext(ioDispatcher) {
             // Try to read from cache
             val cached = fileStore.read(uri)
@@ -107,7 +107,7 @@ public class LoadSingleLoTEWithFileCache internal constructor(
         }
     }
 
-    private suspend fun downloadAndStore(loadFromHttp: DownloadSingleLoTE, uri: URI): LoadLoTE.Outcome<String> {
+    private suspend fun downloadAndStore(loadFromHttp: DownloadSingleLoTE, uri: Uri): LoadLoTE.Outcome<String> {
         fun createMetadata(jwt: String): LoTEFileMetadata {
             val loadedAt = clock.now()
 
@@ -181,7 +181,7 @@ internal class LoTEFileStore(
      * @param uri the URI of the LoTE to read. That's a HTTP URI
      * @return the cached LoTE with JWT and metadata, or null if not found or corrupted
      */
-    suspend fun read(uri: URI): StoredLoTE? =
+    suspend fun read(uri: Uri): StoredLoTE? =
         useFileSystem { fileSystem ->
             val (jwtPath, metaPath) = fileNames.jwtAndMetaFilePath(uri)
 
@@ -220,7 +220,7 @@ internal class LoTEFileStore(
      * @param metadata the metadata to store
      * @return [Result.success] if write was successful, [Result.failure] otherwise
      */
-    suspend fun write(uri: URI, jwt: String, metadata: LoTEFileMetadata): Result<Unit> =
+    suspend fun write(uri: Uri, jwt: String, metadata: LoTEFileMetadata): Result<Unit> =
         useFileSystem.runCatchingIO { fileSystem ->
 
             fun write(path: Path, content: String) {
@@ -239,7 +239,7 @@ internal class LoTEFileStore(
      * @param uri the URI of the LoTE to delete. That's a HTTP URI
      * @return [Result.success] if deletion was successful (or file didn't exist), [Result.failure] otherwise
      */
-    suspend fun delete(uri: URI): Result<Unit> =
+    suspend fun delete(uri: Uri): Result<Unit> =
         useFileSystem.runCatchingIO { fileSystem ->
             val (jwtPath, metaPath) = fileNames.jwtAndMetaFilePath(uri)
             fileSystem.delete(jwtPath, mustExist = false)
@@ -290,23 +290,23 @@ internal class FileOperation(
 
 internal class FileNames(val baseDir: Path) {
 
-    fun jwtAndMetaFilePath(uri: URI): Pair<Path, Path> {
+    fun jwtAndMetaFilePath(uri: Uri): Pair<Path, Path> {
         val jwtPath = jwtFilePath(uri)
         val metaPath = metadataFilePath(uri)
         return Pair(jwtPath, metaPath)
     }
 
-    fun jwtFilePath(uri: URI): Path =
+    fun jwtFilePath(uri: Uri): Path =
         Path(baseDir, "${uriToFilename(uri)}.$JWT")
 
-    fun metadataFilePath(uri: URI): Path =
+    fun metadataFilePath(uri: Uri): Path =
         Path(baseDir, "${uriToFilename(uri)}.${META_JSON}")
 
     /**
      * Converts a URI to a safe filename by replacing special characters.
      */
-    private fun uriToFilename(uri: URI): String =
-        uri
+    private fun uriToFilename(uri: Uri): String =
+        uri.toString()
             .replace(':', '_')
             .replace('/', '_')
             .replace('?', '_')

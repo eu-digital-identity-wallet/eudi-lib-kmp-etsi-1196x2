@@ -15,9 +15,9 @@
  */
 package eu.europa.ec.eudi.etsi119602.consultation
 
+import com.eygraber.uri.Uri
 import eu.europa.ec.eudi.etsi119602.ListOfTrustedEntities
 import eu.europa.ec.eudi.etsi119602.ListOfTrustedEntitiesClaims
-import eu.europa.ec.eudi.etsi119602.URI
 import kotlinx.atomicfu.AtomicInt
 import kotlinx.atomicfu.atomic
 import kotlinx.coroutines.*
@@ -36,7 +36,7 @@ import kotlinx.serialization.json.JsonObject
  * @see LoadSingleLoTEWithFileCache
  */
 public fun interface LoadLoTE<out LOTE : Any> {
-    public suspend operator fun invoke(uri: URI): Outcome<LOTE>
+    public suspend operator fun invoke(uri: Uri): Outcome<LOTE>
 
     public sealed interface Outcome<out LOTE : Any> {
         public data class Loaded<out LOTE : Any>(val content: LOTE) : Outcome<LOTE>
@@ -69,26 +69,26 @@ public class LoadLoTEAndPointers(
      * Events emitted by the loader
      */
     public sealed interface Event {
-        public data class LoTELoaded(val lote: ListOfTrustedEntities, val sourceUri: URI, val depth: Int) : Event
+        public data class LoTELoaded(val lote: ListOfTrustedEntities, val sourceUri: Uri, val depth: Int) : Event
         public sealed interface Problem : Event
-        public data class ResourceNotFound(val uri: URI, val cause: Throwable?) : Problem
-        public data class InvalidJWTSignature(val uri: URI, val cause: Throwable?) : Problem
-        public data class FailedToParseJwt(val uri: URI, val cause: Throwable?) : Problem
-        public data class MaxDepthReached(val uri: URI, val maxDepth: Int) : Problem
-        public data class MaxListsReached(val uri: URI, val maxLists: Int) : Problem
-        public data class CircularReferenceDetected(val uri: URI) : Problem
-        public data class Error(val uri: URI, val cause: Throwable) : Problem
+        public data class ResourceNotFound(val uri: Uri, val cause: Throwable?) : Problem
+        public data class InvalidJWTSignature(val uri: Uri, val cause: Throwable?) : Problem
+        public data class FailedToParseJwt(val uri: Uri, val cause: Throwable?) : Problem
+        public data class MaxDepthReached(val uri: Uri, val maxDepth: Int) : Problem
+        public data class MaxListsReached(val uri: Uri, val maxLists: Int) : Problem
+        public data class CircularReferenceDetected(val uri: Uri) : Problem
+        public data class Error(val uri: Uri, val cause: Throwable) : Problem
     }
 
-    private class State(val visitedUris: MutableSet<URI>, initialCount: Int = 0) {
+    private class State(val visitedUris: MutableSet<Uri>, initialCount: Int = 0) {
         val downloadsCounter: AtomicInt = atomic(initialCount)
     }
 
-    private data class Step(val uri: URI, val depth: Int) {
-        fun childStep(uri: String) = Step(uri, depth + 1)
+    private data class Step(val uri: Uri, val depth: Int) {
+        fun childStep(uri: Uri) = Step(uri, depth + 1)
     }
 
-    public operator fun invoke(uri: URI): Flow<Event> = channelFlow {
+    public operator fun invoke(uri: Uri): Flow<Event> = channelFlow {
         val initial = State(mutableSetOf(), 0)
         val firstStep = Step(uri, depth = 0)
         processLoTE(initial, firstStep)

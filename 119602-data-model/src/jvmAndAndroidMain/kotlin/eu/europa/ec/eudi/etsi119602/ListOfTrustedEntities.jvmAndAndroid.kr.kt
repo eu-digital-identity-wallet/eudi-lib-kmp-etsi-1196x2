@@ -15,23 +15,24 @@
  */
 package eu.europa.ec.eudi.etsi119602
 
+import com.eygraber.uri.Uri
 import java.security.Provider
 import java.security.cert.X509Certificate
 
 public fun ListOfTrustedEntities.certificatesOf(
-    serviceTypeIdentifier: URI,
+    serviceTypeIdentifier: Uri,
     provider: String? = null,
 ): List<X509Certificate> =
     pkiObjsOf(serviceOfType(serviceTypeIdentifier)) { pkiObj -> pkiObj.x509Certificate(provider) }
 
 public fun ListOfTrustedEntities.certificatesOf(
-    serviceTypeIdentifier: URI,
+    serviceTypeIdentifier: Uri,
     provider: Provider,
 ): List<X509Certificate> =
     pkiObjsOf(serviceOfType(serviceTypeIdentifier)) { pkiObj -> pkiObj.x509Certificate(provider) }
 
 private typealias ServiceInformationPredicate = (ServiceInformation) -> Boolean
-private fun serviceOfType(serviceTypeIdentifier: URI): ServiceInformationPredicate = { serviceInformation ->
+private fun serviceOfType(serviceTypeIdentifier: Uri): ServiceInformationPredicate = { serviceInformation ->
     serviceInformation.typeIdentifier == serviceTypeIdentifier
 }
 

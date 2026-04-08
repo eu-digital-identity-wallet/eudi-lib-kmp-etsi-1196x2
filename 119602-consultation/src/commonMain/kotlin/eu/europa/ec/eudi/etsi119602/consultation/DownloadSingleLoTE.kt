@@ -15,7 +15,7 @@
  */
 package eu.europa.ec.eudi.etsi119602.consultation
 
-import eu.europa.ec.eudi.etsi119602.URI
+import com.eygraber.uri.Uri
 import io.ktor.client.*
 import io.ktor.client.plugins.*
 import io.ktor.client.request.*
@@ -31,8 +31,8 @@ public class DownloadSingleLoTE(
     private val httpClient: HttpClient,
 ) : LoadLoTE<String> {
 
-    override suspend fun invoke(uri: URI): LoadLoTE.Outcome<String> {
-        val httpResponse = httpClient.get(uri) { expectSuccess = false }
+    override suspend fun invoke(uri: Uri): LoadLoTE.Outcome<String> {
+        val httpResponse = httpClient.get(uri.toString()) { expectSuccess = false }
         return when (httpResponse.status) {
             HttpStatusCode.OK -> {
                 val content = httpResponse.bodyAsText()

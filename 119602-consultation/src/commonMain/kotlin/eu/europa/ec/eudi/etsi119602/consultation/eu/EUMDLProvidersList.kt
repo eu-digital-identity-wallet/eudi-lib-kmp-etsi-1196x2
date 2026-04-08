@@ -37,7 +37,7 @@ public object EUMDLProvidersListSpec {
 public val EUMDLProvidersList: EUListOfTrustedEntitiesProfile =
     EUListOfTrustedEntitiesProfile(
         listAndSchemeInformation = EUListAndSchemeInformationProfile(
-            type = EUMDLProvidersListSpec.LOTE_TYPE,
+            type = Uri.parse(EUMDLProvidersListSpec.LOTE_TYPE),
             statusDeterminationApproach = Uri.parse(EUMDLProvidersListSpec.STATUS_DETERMINATION_APPROACH),
             schemeCommunityRules = listOf(MultiLanguageURI.en(Uri.parse(EUMDLProvidersListSpec.SCHEME_COMMUNITY_RULES))),
             schemeTerritory = CountryCode.EU,
@@ -46,8 +46,8 @@ public val EUMDLProvidersList: EUListOfTrustedEntitiesProfile =
         ),
         trustedEntities = EUTrustedEntitiesProfile(
             serviceTypeIdentifiers = ServiceTypeIdentifiers.IssuanceAndRevocation(
-                issuance = EUMDLProvidersListSpec.SVC_TYPE_ISSUANCE,
-                revocation = EUMDLProvidersListSpec.SVC_TYPE_REVOCATION,
+                issuance = Uri.parse(EUMDLProvidersListSpec.SVC_TYPE_ISSUANCE),
+                revocation = Uri.parse(EUMDLProvidersListSpec.SVC_TYPE_REVOCATION),
             ),
             serviceDigitalIdentityMustHaveCertificates = true,
             serviceStatuses = emptySet(),

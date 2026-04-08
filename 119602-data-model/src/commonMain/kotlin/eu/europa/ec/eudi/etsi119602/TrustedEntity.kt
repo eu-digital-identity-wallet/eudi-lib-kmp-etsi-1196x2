@@ -15,6 +15,7 @@
  */
 package eu.europa.ec.eudi.etsi119602
 
+import com.eygraber.uri.Uri
 import eu.europa.ec.eudi.etsi119602.Assertions.requireNullOrNonEmpty
 import kotlinx.serialization.Required
 import kotlinx.serialization.SerialName
@@ -94,8 +95,8 @@ public data class ServiceInformation
 public constructor(
     @SerialName(ETSI19602.SERVICE_NAME) @Required val name: List<MultilanguageString>,
     @SerialName(ETSI19602.SERVICE_DIGITAL_IDENTITY) @Required val digitalIdentity: ServiceDigitalIdentity,
-    @SerialName(ETSI19602.SERVICE_TYPE_IDENTIFIER) val typeIdentifier: URI? = null,
-    @SerialName(ETSI19602.SERVICE_STATUS) val status: URI? = null,
+    @SerialName(ETSI19602.SERVICE_TYPE_IDENTIFIER) val typeIdentifier: Uri? = null,
+    @SerialName(ETSI19602.SERVICE_STATUS) val status: Uri? = null,
     @SerialName(ETSI19602.STATUS_STARTING_TIME) val statusStartingTime: LoTEDateTime? = null,
     @SerialName(ETSI19602.SCHEME_SERVICE_DEFINITION_URI) val schemeServiceDefinitionURI: List<MultiLanguageURI>? = null,
     @SerialName(ETSI19602.SERVICE_SUPPLY_POINTS) val supplyPoints: List<ServiceSupplyPointURI>? = null,
@@ -119,9 +120,9 @@ public data class ServiceHistoryInstance
 public constructor(
     @SerialName(ETSI19602.SERVICE_NAME) @Required val name: List<MultilanguageString>,
     @SerialName(ETSI19602.SERVICE_DIGITAL_IDENTITY) @Required val digitalIdentity: ServiceDigitalIdentity,
-    @SerialName(ETSI19602.SERVICE_STATUS) @Required val status: URI,
+    @SerialName(ETSI19602.SERVICE_STATUS) @Required val status: Uri,
     @SerialName(ETSI19602.STATUS_STARTING_TIME) @Required val statusStartingTime: LoTEDateTime,
-    @SerialName(ETSI19602.SERVICE_TYPE_IDENTIFIER) val typeIdentifier: URI? = null,
+    @SerialName(ETSI19602.SERVICE_TYPE_IDENTIFIER) val typeIdentifier: Uri? = null,
     @SerialName(ETSI19602.SERVICE_INFORMATION_EXTENSIONS) val informationExtensions: ServiceInformationExtensions? = null,
 ) {
     init {
@@ -139,13 +140,6 @@ public typealias ServiceInformationExtensions = JsonArray
 public data class ServiceSupplyPointURI
 @Throws(IllegalArgumentException::class)
 public constructor(
-    @SerialName(ETSI19602.SERVICE_SUPPLY_POINT_URI_VALUE) @Required val uriValue: URI,
-    @SerialName(ETSI19602.SERVICE_SUPPLY_POINT_URI_TYPE) val serviceType: URI? = null,
-) {
-    init {
-        with(Assertions) {
-            requireNotBlank(uriValue, ETSI19602.SERVICE_SUPPLY_POINT_URI_VALUE)
-            requireNullOrNotBlank(serviceType, ETSI19602.SERVICE_SUPPLY_POINT_URI_TYPE)
-        }
-    }
-}
+    @SerialName(ETSI19602.SERVICE_SUPPLY_POINT_URI_VALUE) @Required val uriValue: Uri,
+    @SerialName(ETSI19602.SERVICE_SUPPLY_POINT_URI_TYPE) val serviceType: Uri? = null,
+)

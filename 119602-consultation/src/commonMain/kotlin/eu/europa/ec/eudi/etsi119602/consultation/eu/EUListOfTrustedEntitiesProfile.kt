@@ -94,7 +94,7 @@ public data class EUListAndSchemeInformationProfile(
     /**
      * The type of the list of trusted entities.
      */
-    val type: URI,
+    val type: Uri,
     val statusDeterminationApproach: Uri,
     val schemeCommunityRules: List<MultiLanguageURI>,
     val schemeTerritory: CountryCode,
@@ -103,14 +103,14 @@ public data class EUListAndSchemeInformationProfile(
 )
 
 public sealed interface ServiceTypeIdentifiers {
-    public data class IssuanceAndRevocation(val issuance: URI, val revocation: URI) : ServiceTypeIdentifiers
-    public data class OneOrMore(val value: Set<URI>) : ServiceTypeIdentifiers {
+    public data class IssuanceAndRevocation(val issuance: Uri, val revocation: Uri) : ServiceTypeIdentifiers
+    public data class OneOrMore(val value: Set<Uri>) : ServiceTypeIdentifiers {
         init {
             require(value.isNotEmpty()) { "Service type identifiers cannot be empty" }
         }
     }
 
-    public fun values(): Set<URI> = when (this) {
+    public fun values(): Set<Uri> = when (this) {
         is IssuanceAndRevocation -> setOf(issuance, revocation)
         is OneOrMore -> value
     }
@@ -138,7 +138,7 @@ public data class EUTrustedEntitiesProfile(
     /**
      * Exclusive set of service statuses that trusted entities of the LoTE may support.
      */
-    val serviceStatuses: Set<URI>,
+    val serviceStatuses: Set<Uri>,
 
     val serviceDigitalIdentityCertificateType: ServiceDigitalIdentityCertificateType,
 )
@@ -155,7 +155,7 @@ internal interface ListAndSchemeInformationAssertions {
      * @throws IllegalStateException if the type is not the expected one
      */
     @Throws(IllegalStateException::class)
-    fun ListAndSchemeInformation.ensureTypeIs(expected: URI) {
+    fun ListAndSchemeInformation.ensureTypeIs(expected: Uri) {
         check(type == expected) {
             "Invalid ${ETSI19602.LOTE_TYPE}. Expected $expected, got $type"
         }
@@ -279,7 +279,7 @@ internal interface TrustedEntityAssertions {
         ensureServiceTypeIsAnyOf(typeIdentifier, expectedServiceTypes)
 
     @Throws(IllegalStateException::class)
-    private fun ensureServiceTypeIsAnyOf(typeIdentifier: URI?, expectedServiceTypes: ServiceTypeIdentifiers) {
+    private fun ensureServiceTypeIsAnyOf(typeIdentifier: Uri?, expectedServiceTypes: ServiceTypeIdentifiers) {
         Assertions.checkNotNull(typeIdentifier, ETSI19602.SERVICE_TYPE_IDENTIFIER)
         check(typeIdentifier in expectedServiceTypes.values()) {
             "Invalid ${ETSI19602.SERVICE_TYPE_IDENTIFIER}. Expected one of $expectedServiceTypes, got $typeIdentifier"
@@ -321,7 +321,7 @@ internal interface TrustedEntityAssertions {
      * @throws IllegalStateException if the service status is not in the expected statuses
      */
     @Throws(IllegalStateException::class)
-    fun ServiceInformation.ensureServiceStatusIn(statuses: Set<URI>) {
+    fun ServiceInformation.ensureServiceStatusIn(statuses: Set<Uri>) {
         if (statuses.isEmpty()) {
             Assertions.checkIsNull(status, ETSI19602.SERVICE_STATUS)
             Assertions.checkIsNull(statusStartingTime, ETSI19602.STATUS_STARTING_TIME)

@@ -15,8 +15,8 @@
  */
 package eu.europa.ec.eudi.etsi119602.consultation
 
+import com.eygraber.uri.Uri
 import eu.europa.ec.eudi.etsi119602.ServiceDigitalIdentity
-import eu.europa.ec.eudi.etsi119602.URI
 import eu.europa.ec.eudi.etsi119602.consultation.eu.ServiceDigitalIdentityCertificateType
 import eu.europa.ec.eudi.etsi1196x2.consultation.*
 import eu.europa.ec.eudi.etsi1196x2.consultation.certs.CertificateProfile
@@ -46,7 +46,7 @@ public data class LotEMeta<CTX>(
     val serviceDigitalIdentityCertificateType: ServiceDigitalIdentityCertificateType,
 ) {
     public data class SvcAndEEProfile(
-        val svcTypeIdentifier: URI,
+        val svcTypeIdentifier: Uri,
         val endEntityProfile: CertificateProfile?,
     )
 }
@@ -91,7 +91,7 @@ public class ProvisionTrustAnchorsFromLoTEs<CHAIN : Any, CTX : Any, TRUST_ANCHOR
      *
      * @return a [ComposeChainTrust] instance
      */
-    public fun nonCached(loteLocationsSupported: SupportedLists<String>): ComposeChainTrust<CHAIN, CTX, TRUST_ANCHOR> =
+    public fun nonCached(loteLocationsSupported: SupportedLists<Uri>): ComposeChainTrust<CHAIN, CTX, TRUST_ANCHOR> =
         loteLocationsSupported
             .cfgs()
             .flatMap { cfg -> createValidators(cfg.metadata, createGetTrustAnchorsFromLoTE(cfg)) }
@@ -114,7 +114,7 @@ public class ProvisionTrustAnchorsFromLoTEs<CHAIN : Any, CTX : Any, TRUST_ANCHOR
      */
     public fun cached(
         disposableScope: DisposableScope,
-        loteLocationsSupported: SupportedLists<String>,
+        loteLocationsSupported: SupportedLists<Uri>,
         ttl: Duration,
         cacheDispatcher: CoroutineDispatcher = Dispatchers.Default,
         clock: Clock = Clock.System,
@@ -130,7 +130,7 @@ public class ProvisionTrustAnchorsFromLoTEs<CHAIN : Any, CTX : Any, TRUST_ANCHOR
 
     private fun createValidators(
         metadata: LotEMeta<CTX>,
-        getTrustAnchors: GetTrustAnchors<URI, TRUST_ANCHOR>,
+        getTrustAnchors: GetTrustAnchors<Uri, TRUST_ANCHOR>,
     ): List<IsChainTrustedForContext<CHAIN, CTX, TRUST_ANCHOR>> {
         val baseChainValidator: ValidateCertificateChain<CHAIN, TRUST_ANCHOR> = baseCertificateChainValidators(metadata)
         return metadata.groupPerCertificateProfile().map { (certProf, svcTypePerCtx) ->
@@ -138,7 +138,7 @@ public class ProvisionTrustAnchorsFromLoTEs<CHAIN : Any, CTX : Any, TRUST_ANCHOR
         }
     }
 
-    private fun LotEMeta<CTX>.groupPerCertificateProfile(): Map<CertificateProfile?, Map<CTX, URI>> =
+    private fun LotEMeta<CTX>.groupPerCertificateProfile(): Map<CertificateProfile?, Map<CTX, Uri>> =
         buildMap {
             val withoutCertificateProfile = svcTypePerCtx
                 .filter { (_, v) -> v.endEntityProfile == null }
@@ -147,7 +147,7 @@ public class ProvisionTrustAnchorsFromLoTEs<CHAIN : Any, CTX : Any, TRUST_ANCHOR
                 put(null, withoutCertificateProfile)
             }
 
-            val withCertificateProfile: Map<CertificateProfile?, Map<CTX, URI>> =
+            val withCertificateProfile: Map<CertificateProfile?, Map<CTX, Uri>> =
                 svcTypePerCtx.filter { (_, v) -> v.endEntityProfile != null }
                     .map { Triple(it.key, it.value.svcTypeIdentifier, it.value.endEntityProfile!!) }
                     .groupBy({ it.third }, { it.first to it.second })
@@ -156,8 +156,8 @@ public class ProvisionTrustAnchorsFromLoTEs<CHAIN : Any, CTX : Any, TRUST_ANCHOR
         }
 
     private fun createValidator(
-        svcTypePerCtx: Map<CTX, URI>,
-        getTrustAnchors: GetTrustAnchors<URI, TRUST_ANCHOR>,
+        svcTypePerCtx: Map<CTX, Uri>,
+        getTrustAnchors: GetTrustAnchors<Uri, TRUST_ANCHOR>,
         baseChainValidator: ValidateCertificateChain<CHAIN, TRUST_ANCHOR>,
         endEntityCertificateProfile: CertificateProfile?,
     ): IsChainTrustedForContext<CHAIN, CTX, TRUST_ANCHOR> {
@@ -176,14 +176,14 @@ public class ProvisionTrustAnchorsFromLoTEs<CHAIN : Any, CTX : Any, TRUST_ANCHOR
     private fun createGetTrustAnchorsFromLoTE(
         cfg: LoTECfg<CTX>,
         args: CacheArguments,
-    ): GetTrustAnchorsCachedSource<URI, TRUST_ANCHOR> {
+    ): GetTrustAnchorsCachedSource<Uri, TRUST_ANCHOR> {
         val getTrustAnchors = createGetTrustAnchorsFromLoTE(cfg)
         return getTrustAnchors.cached(args, cfg.metadata.svcTypePerCtx.size)
     }
 
     private fun createGetTrustAnchorsFromLoTE(
         cfg: LoTECfg<CTX>,
-    ): GetTrustAnchors<URI, TRUST_ANCHOR> =
+    ): GetTrustAnchors<Uri, TRUST_ANCHOR> =
         GetTrustAnchorsFromLoTE(
             loTEDownloadUrl = cfg.downloadUrl,
             loadLoTEAndPointers = loadLoTEAndPointers,
@@ -200,19 +200,19 @@ public class ProvisionTrustAnchorsFromLoTEs<CHAIN : Any, CTX : Any, TRUST_ANCHOR
             ServiceDigitalIdentityCertificateType.EndEntityOrCA -> directTrust or pkix
         }
 
-    private fun GetTrustAnchors<URI, TRUST_ANCHOR>.cached(
+    private fun GetTrustAnchors<Uri, TRUST_ANCHOR>.cached(
         args: CacheArguments,
         expectedQueries: Int,
-    ): GetTrustAnchorsCachedSource<URI, TRUST_ANCHOR> =
+    ): GetTrustAnchorsCachedSource<Uri, TRUST_ANCHOR> =
         cached(args.cacheDispatcher, args.clock, args.ttl, expectedQueries)
 
-    private fun SupportedLists<String>.cfgs(): SupportedLists<LoTECfg<CTX>> =
+    private fun SupportedLists<Uri>.cfgs(): SupportedLists<LoTECfg<CTX>> =
         SupportedLists.combine(this, svcTypePerCtx) { url, ctx ->
             LoTECfg(url, ctx)
         }
 
     private data class LoTECfg<CTX : Any>(
-        val downloadUrl: String,
+        val downloadUrl: Uri,
         val metadata: LotEMeta<CTX>,
     )
 

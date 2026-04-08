@@ -15,6 +15,7 @@
  */
 package eu.europa.ec.eudi.etsi119602.consultation
 
+import com.eygraber.uri.Uri
 import eu.europa.ec.eudi.etsi119602.consultation.eu.EUMDLProvidersListSpec
 import eu.europa.ec.eudi.etsi119602.consultation.eu.ServiceDigitalIdentityCertificateType
 import eu.europa.ec.eudi.etsi1196x2.consultation.SensitiveApi
@@ -28,8 +29,8 @@ import kotlin.time.Duration.Companion.hours
 
 object DIGIT {
 
-    private fun loteUrl(lote: String): String =
-        "https://acceptance.trust.tech.ec.europa.eu/lists/eudiw/$lote"
+    private fun loteUrl(lote: String): Uri =
+        Uri.parse("https://acceptance.trust.tech.ec.europa.eu/lists/eudiw/$lote")
 
     val loteLocations = SupportedLists(
         pidProviders = loteUrl("pid-providers.json"),
@@ -53,12 +54,12 @@ object DIGIT {
                     "mdl" to LotEMeta(
                         svcTypePerCtx = buildMap {
                             val issuance = LotEMeta.SvcAndEEProfile(
-                                EUMDLProvidersListSpec.SVC_TYPE_ISSUANCE,
+                                Uri.parse(EUMDLProvidersListSpec.SVC_TYPE_ISSUANCE),
                                 null,
                             )
                             put(VerificationContext.EAA("mdl"), issuance)
                             val revocation = LotEMeta.SvcAndEEProfile(
-                                EUMDLProvidersListSpec.SVC_TYPE_REVOCATION,
+                                Uri.parse(EUMDLProvidersListSpec.SVC_TYPE_REVOCATION),
                                 null,
                             )
                             put(VerificationContext.EAAStatus("mdl"), revocation)
