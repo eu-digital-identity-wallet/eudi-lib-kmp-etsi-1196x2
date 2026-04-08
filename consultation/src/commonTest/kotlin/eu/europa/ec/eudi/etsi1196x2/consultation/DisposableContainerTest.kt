@@ -124,8 +124,8 @@ class DisposableContainerTest {
         val thrown = assertFailsWith<RuntimeException> { container.dispose() }
         // Disposables are disposed in reverse order, so d2 (second) is disposed first
         assertEquals("second failure", thrown.message)
-        assertEquals(1, thrown.suppressed.size)
-        assertEquals("first failure", thrown.suppressed[0].message)
+        assertEquals(1, thrown.suppressedExceptions.size)
+        assertEquals("first failure", thrown.suppressedExceptions[0].message)
     }
 
     @Test
@@ -362,6 +362,6 @@ class DisposableContainerTest {
         }
 
         assertEquals("disposal failed", thrown.message)
-        assertTrue(thrown.suppressed.isEmpty())
+        assertTrue(thrown.suppressedExceptions.isEmpty())
     }
 }
