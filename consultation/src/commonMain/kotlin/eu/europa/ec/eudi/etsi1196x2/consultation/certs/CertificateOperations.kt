@@ -372,7 +372,7 @@ public data class PublicKeyAlgorithmOptions(
         val algorithm: String,
         val minimumKeySize: Int,
 
-        ) {
+    ) {
         public companion object {
             public val RSA_2048: AlgorithmRequirement get() = AlgorithmRequirement("RSA", 2048)
             public val EC_256: AlgorithmRequirement get() = AlgorithmRequirement("EC", 256)
