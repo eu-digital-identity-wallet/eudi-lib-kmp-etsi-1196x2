@@ -301,11 +301,6 @@ public data class SerialNumber(val value: ByteArray) {
     }
 
     /**
-     * Converts the serial number to a hexadecimal string representation.
-     */
-    public fun toHexString(): String = value.joinToString("") { "%02x".format(it) }
-
-    /**
      * Checks if this serial number equals another.
      */
     override fun equals(other: Any?): Boolean {
@@ -315,7 +310,7 @@ public data class SerialNumber(val value: ByteArray) {
     }
 
     override fun hashCode(): Int = value.contentHashCode()
-    override fun toString(): String = toHexString().uppercase()
+    override fun toString(): String = value.toHexString()
 }
 
 /**
@@ -377,7 +372,7 @@ public data class PublicKeyAlgorithmOptions(
         val algorithm: String,
         val minimumKeySize: Int,
 
-    ) {
+        ) {
         public companion object {
             public val RSA_2048: AlgorithmRequirement get() = AlgorithmRequirement("RSA", 2048)
             public val EC_256: AlgorithmRequirement get() = AlgorithmRequirement("EC", 256)
@@ -562,10 +557,10 @@ public data class AuthorityKeyIdentifier(
     override fun toString(): String = buildString {
         append("AuthorityKeyIdentifier(")
         if (keyIdentifier != null) {
-            append("keyIdentifier=${keyIdentifier.joinToString("") { "%02x".format(it) }}")
+            append("keyIdentifier=${keyIdentifier.toHexString()}")
         }
         if (authorityCertSerialNumber != null) {
-            append(", authorityCertSerialNumber=${authorityCertSerialNumber.joinToString("") { "%02x".format(it) }}")
+            append(", authorityCertSerialNumber=${authorityCertSerialNumber.toHexString()}")
         }
         append(")")
     }
