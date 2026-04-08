@@ -15,6 +15,8 @@
  */
 package eu.europa.ec.eudi.etsi1196x2.consultation
 
+import kotlin.jvm.JvmInline
+
 /**
  * A value class representing a non-empty list.
  *
