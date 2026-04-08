@@ -73,6 +73,7 @@ import eu.europa.ec.eudi.etsi119602.consultation.*
 import eu.europa.ec.eudi.etsi119602.consultation.eu.*
 import eu.europa.ec.eudi.etsi1196x2.consultation.*
 import eu.europa.ec.eudi.etsi1196x2.consultation.VerificationContext
+import com.eygraber.uri.Uri
 import io.ktor.client.*
 import io.ktor.client.engine.java.*
 import kotlinx.coroutines.*
@@ -95,8 +96,8 @@ val loadLoTE = LoadSingleLoTEWithFileCache(
 
 // 2. Configure LoTE locations and service types
 val loteLocations = SupportedLists(
-    pidProviders = "https://example.com/pid-providers.json",
-    walletProviders = "https://example.com/wallet-providers.json"
+    pidProviders = Uri.parse("https://example.com/pid-providers.json"),
+    walletProviders = Uri.parse("https://example.com/wallet-providers.json")
 )
 
 // 3. Create the main entry point
