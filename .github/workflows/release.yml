@@ -32,8 +32,6 @@ jobs:
           distribution: temurin
           java-version: '17'
       - uses: gradle/actions/setup-gradle@v6
-        with:
-          cache-provider: basic
       - name: Publish with Gradle
         env:
           CI: true
@@ -42,4 +40,4 @@ jobs:
           ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.OSSRH_GPG_PASSPHRASE }}
           ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.OSSRH_USERNAME }}
           ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.OSSRH_PASSWORD }}
-        run: ./gradlew clean build test publishAllPublicationsToMavenCentral --full-stacktrace --no-configuration-cache
+        run: ./gradlew publishAllPublicationsToMavenCentral --full-stacktrace
