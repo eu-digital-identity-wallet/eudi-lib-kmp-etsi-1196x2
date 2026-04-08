@@ -32,7 +32,7 @@ public class DownloadSingleLoTE(
 ) : LoadLoTE<String> {
 
     override suspend fun invoke(uri: Uri): LoadLoTE.Outcome<String> {
-        val httpResponse = httpClient.get(uri.toString()) { expectSuccess = false }
+        val httpResponse = httpClient.get(uri.value) { expectSuccess = false }
         return when (httpResponse.status) {
             HttpStatusCode.OK -> {
                 val content = httpResponse.bodyAsText()
