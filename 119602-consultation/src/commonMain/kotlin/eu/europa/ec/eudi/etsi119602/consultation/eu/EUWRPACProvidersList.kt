@@ -15,6 +15,7 @@
  */
 package eu.europa.ec.eudi.etsi119602.consultation.eu
 
+import com.eygraber.uri.Uri
 import eu.europa.ec.eudi.etsi119602.*
 import eu.europa.ec.eudi.etsi1196x2.consultation.certs.*
 import kotlin.time.Instant
@@ -24,9 +25,9 @@ public val EUWRPACProvidersList: EUListOfTrustedEntitiesProfile =
         listAndSchemeInformation =
         EUListAndSchemeInformationProfile(
             type = LoTEType.of(ETSI19602.EU_WRPAC_PROVIDERS_LOTE),
-            statusDeterminationApproach = URIValue(ETSI19602.EU_WRPAC_PROVIDERS_STATUS_DETERMINATION_APPROACH),
+            statusDeterminationApproach = Uri.parse(ETSI19602.EU_WRPAC_PROVIDERS_STATUS_DETERMINATION_APPROACH),
             schemeCommunityRules = listOf(
-                MultiLanguageURI.en(URIValue(ETSI19602.EU_WRPAC_PROVIDERS_SCHEME_COMMUNITY_RULES)),
+                MultiLanguageURI.en(Uri.parse(ETSI19602.EU_WRPAC_PROVIDERS_SCHEME_COMMUNITY_RULES)),
             ),
             schemeTerritory = CountryCode.EU,
             maxMonthsUntilNextUpdate = 6,

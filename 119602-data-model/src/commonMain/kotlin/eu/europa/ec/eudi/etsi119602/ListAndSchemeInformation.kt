@@ -15,6 +15,7 @@
  */
 package eu.europa.ec.eudi.etsi119602
 
+import com.eygraber.uri.Uri
 import eu.europa.ec.eudi.etsi119602.ListAndSchemeInformation.Companion.explicit
 import eu.europa.ec.eudi.etsi119602.ListAndSchemeInformation.Companion.implicit
 import kotlinx.serialization.DeserializationStrategy
@@ -67,7 +68,7 @@ internal constructor(
     @SerialName(ETSI19602.SCHEME_OPERATOR_ADDRESS) val schemeOperatorAddress: SchemeOperatorAddress? = null,
     @SerialName(ETSI19602.SCHEME_NAME) val schemeName: List<MultilanguageString>? = null,
     @SerialName(ETSI19602.SCHEME_INFORMATION_URI) val schemeInformationURI: List<MultiLanguageURI>? = null,
-    @SerialName(ETSI19602.STATUS_DETERMINATION_APPROACH) val statusDeterminationApproach: URIValue? = null,
+    @SerialName(ETSI19602.STATUS_DETERMINATION_APPROACH) val statusDeterminationApproach: Uri? = null,
     @SerialName(ETSI19602.SCHEME_TYPE_COMMUNITY_RULES) val schemeTypeCommunityRules: List<MultiLanguageURI>? = null,
     @SerialName(ETSI19602.SCHEME_TERRITORY) val schemeTerritory: CountryCode? = null,
     @SerialName(ETSI19602.POLICY_OR_LEGAL_NOTICE) val policyOrLegalNotice: List<PolicyOrLegalNotice>? = null,
@@ -75,7 +76,7 @@ internal constructor(
     @SerialName(ETSI19602.POINTER_TO_OTHER_LOTE) val pointersToOtherLists: List<OtherLoTEPointer>? = null,
     @SerialName(ETSI19602.LIST_ISSUE_DATE_TIME) @Required val listIssueDateTime: LoTEDateTime,
     @SerialName(ETSI19602.NEXT_UPDATE) @Required val nextUpdate: LoTEDateTime,
-    @SerialName(ETSI19602.DISTRIBUTION_POINTS) val distributionPoints: List<URIValue>? = null,
+    @SerialName(ETSI19602.DISTRIBUTION_POINTS) val distributionPoints: List<Uri>? = null,
     @SerialName(ETSI19602.SCHEME_EXTENSIONS) val schemeExtensions: JsonArray? = null,
 ) {
     init {
@@ -168,7 +169,7 @@ internal constructor(
             pointerToOtherLote: List<OtherLoTEPointer>? = null,
             listIssueDateTime: LoTEDateTime,
             nextUpdate: LoTEDateTime,
-            distributionPoints: List<URIValue>? = null,
+            distributionPoints: List<Uri>? = null,
             schemeExtensions: JsonArray? = null,
         ): ListAndSchemeInformation =
             ListAndSchemeInformation(
@@ -204,7 +205,7 @@ internal constructor(
             schemeOperatorAddress: SchemeOperatorAddress,
             schemeName: List<MultilanguageString>,
             schemeInformationURI: List<MultiLanguageURI>,
-            statusDeterminationApproach: URIValue,
+            statusDeterminationApproach: Uri,
             schemeTypeCommunityRules: List<MultiLanguageURI>,
             schemeTerritory: CountryCode,
             policyOrLegalNotice: List<PolicyOrLegalNotice>,
@@ -212,7 +213,7 @@ internal constructor(
             pointerToOtherLote: List<OtherLoTEPointer>? = null,
             listIssueDateTime: LoTEDateTime,
             nextUpdate: LoTEDateTime,
-            distributionPoints: List<URIValue>? = null,
+            distributionPoints: List<Uri>? = null,
             schemeExtensions: JsonArray? = null,
         ): ListAndSchemeInformation =
             ListAndSchemeInformation(

@@ -15,9 +15,9 @@
  */
 package eu.europa.ec.eudi.etsi119602.consultation.eu
 
+import com.eygraber.uri.Uri
 import eu.europa.ec.eudi.etsi119602.CountryCode
 import eu.europa.ec.eudi.etsi119602.MultiLanguageURI
-import eu.europa.ec.eudi.etsi119602.URIValue
 
 /**
  * [mDL Providers List Specification](https://eidas.ec.europa.eu/efda/wallet/lists-of-trusted-entities/mdl-providers)
@@ -38,8 +38,8 @@ public val EUMDLProvidersList: EUListOfTrustedEntitiesProfile =
     EUListOfTrustedEntitiesProfile(
         listAndSchemeInformation = EUListAndSchemeInformationProfile(
             type = EUMDLProvidersListSpec.LOTE_TYPE,
-            statusDeterminationApproach = URIValue(EUMDLProvidersListSpec.STATUS_DETERMINATION_APPROACH),
-            schemeCommunityRules = listOf(MultiLanguageURI.en(URIValue(EUMDLProvidersListSpec.SCHEME_COMMUNITY_RULES))),
+            statusDeterminationApproach = Uri.parse(EUMDLProvidersListSpec.STATUS_DETERMINATION_APPROACH),
+            schemeCommunityRules = listOf(MultiLanguageURI.en(Uri.parse(EUMDLProvidersListSpec.SCHEME_COMMUNITY_RULES))),
             schemeTerritory = CountryCode.EU,
             maxMonthsUntilNextUpdate = 6,
             historicalInformationPeriod = ValueRequirement.Absent,

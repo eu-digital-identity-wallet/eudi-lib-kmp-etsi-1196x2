@@ -15,6 +15,7 @@
  */
 package eu.europa.ec.eudi.etsi119602.consultation.eu
 
+import com.eygraber.uri.Uri
 import eu.europa.ec.eudi.etsi119602.*
 import eu.europa.ec.eudi.etsi119602.consultation.eu.TrustedEntityAssertions.Companion.ensureTrustedEntities
 import kotlinx.datetime.TimeZone
@@ -94,7 +95,7 @@ public data class EUListAndSchemeInformationProfile(
      * The type of the list of trusted entities.
      */
     val type: URI,
-    val statusDeterminationApproach: URIValue,
+    val statusDeterminationApproach: Uri,
     val schemeCommunityRules: List<MultiLanguageURI>,
     val schemeTerritory: CountryCode,
     val maxMonthsUntilNextUpdate: Int,
@@ -167,7 +168,7 @@ internal interface ListAndSchemeInformationAssertions {
      * @throws IllegalStateException if the status determination approach is not the expected one
      */
     @Throws(IllegalStateException::class)
-    fun ListAndSchemeInformation.ensureStatusDeterminationApproachIs(expected: URIValue) {
+    fun ListAndSchemeInformation.ensureStatusDeterminationApproachIs(expected: Uri) {
         check(statusDeterminationApproach == expected) {
             "Invalid ${ETSI19602.STATUS_DETERMINATION_APPROACH}. Expected $expected, got $statusDeterminationApproach"
         }

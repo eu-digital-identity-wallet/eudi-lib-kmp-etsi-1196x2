@@ -15,6 +15,7 @@
  */
 package eu.europa.ec.eudi.etsi119602
 
+import com.eygraber.uri.Uri
 import kotlinx.serialization.Required
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -22,20 +23,9 @@ import kotlinx.serialization.Serializable
 @Serializable
 public data class MultiLanguageURI(
     @SerialName(ETSI19602.LANG) @Required val language: Language,
-    @SerialName(ETSI19602.URI_VALUE) @Required val value: URIValue,
+    @SerialName(ETSI19602.URI_VALUE) @Required val value: Uri,
 ) {
     public companion object {
-        public fun en(value: URIValue): MultiLanguageURI = MultiLanguageURI(Language.ENGLISH, value)
+        public fun en(value: Uri): MultiLanguageURI = MultiLanguageURI(Language.ENGLISH, value)
     }
-}
-
-@Serializable
-@JvmInline
-public value class URIValue(public val value: String) {
-    init {
-        Assertions.requireNotBlank(value, ETSI19602.URI_VALUE)
-        // TODO Value is URI
-    }
-
-    override fun toString(): String = value
 }
