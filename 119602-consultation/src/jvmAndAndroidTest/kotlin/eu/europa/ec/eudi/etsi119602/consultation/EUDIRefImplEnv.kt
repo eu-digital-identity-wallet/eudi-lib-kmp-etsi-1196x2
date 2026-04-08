@@ -15,6 +15,7 @@
  */
 package eu.europa.ec.eudi.etsi119602.consultation
 
+import com.eygraber.uri.Uri
 import eu.europa.ec.eudi.etsi119602.ListOfTrustedEntities
 import eu.europa.ec.eudi.etsi119602.ListOfTrustedEntitiesClaims
 import eu.europa.ec.eudi.etsi1196x2.consultation.SensitiveApi
@@ -33,21 +34,22 @@ object EUDIRefImplEnv {
     // https://trustedlist.serviceproviders.eudiw.dev/LOTE/json/RegistrarsAndRegisters.json
     // https://trustedlist.serviceproviders.eudiw.dev/LOTE/json/PubEAAProviders.json
 
+    private fun String.uri() = Uri.parse(this)
     val LOTE_URL = SupportedLists(
-        pidProviders = "https://trustedlist.serviceproviders.eudiw.dev/LOTE/json/PIDProviders.json",
-        walletProviders = "https://trustedlist.serviceproviders.eudiw.dev/LOTE/json/WalletProviders.json",
-        wrpacProviders = "https://trustedlist.serviceproviders.eudiw.dev/LOTE/json/WRPACProviders.json",
-        wrprcProviders = "https://trustedlist.serviceproviders.eudiw.dev/LOTE/json/WRPRCProviders.json",
+        pidProviders = "https://trustedlist.serviceproviders.eudiw.dev/LOTE/json/PIDProviders.json".uri(),
+        walletProviders = "https://trustedlist.serviceproviders.eudiw.dev/LOTE/json/WalletProviders.json".uri(),
+        wrpacProviders = "https://trustedlist.serviceproviders.eudiw.dev/LOTE/json/WRPACProviders.json".uri(),
+        wrprcProviders = "https://trustedlist.serviceproviders.eudiw.dev/LOTE/json/WRPRCProviders.json".uri(),
     )
 }
 
 class EUDIRefImplEnvTest {
+    // TODO Remove this hack once the LoTE is fixed
     // this is a hack
     val hackedParseJwt = run {
         val jwsJson = ParseJwt.jwsJson<JsonObject, ListOfTrustedEntities>()
         ParseJwt { json ->
-            val outcome = jwsJson(json)
-            when (outcome) {
+            when (val outcome = jwsJson(json)) {
                 is ParseJwt.Outcome.Parsed -> {
                     val (h, p) = outcome
                     ParseJwt.Outcome.Parsed(h, ListOfTrustedEntitiesClaims(p))
