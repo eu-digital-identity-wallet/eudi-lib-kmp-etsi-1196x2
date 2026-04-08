@@ -11,7 +11,10 @@ permissions:
 jobs:
   build-gradle:
     name: Build
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ ubuntu-latest, macos-latest ]
     outputs:
       code-version: ${{ steps.extract.outputs.CODE_VERSION }}
     steps:
@@ -29,6 +32,7 @@ jobs:
           CI: true
         run: ./gradlew clean build test
       - id: extract
+        if: matrix.os == 'ubuntu-latest' # Extract version only once
         name: Extract code version from gradle.properties
         run: echo "CODE_VERSION=$(awk -F= '$1~/version/{print $2}' gradle.properties)" >> $GITHUB_OUTPUT
 
@@ -36,7 +40,7 @@ jobs:
     name: Publish to sonatype.org (SNAPSHOT)
     needs: [ build-gradle ]
     if: github.event_name != 'pull_request' && endsWith(needs.build-gradle.outputs.code-version, '-SNAPSHOT') && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/release')) &&  github.repository_owner == 'eu-digital-identity-wallet'
-    runs-on: ubuntu-latest
+    runs-on: macos-latest
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-java@v5
