@@ -81,6 +81,7 @@ kotlin {
             }
         }
 
+        @Suppress("UNUSED")
         val jvmAndAndroidMain by getting {
             dependencies {
                 implementation(libs.bouncy.castle)
@@ -176,7 +177,6 @@ mavenPublishing {
         KotlinMultiplatform(
             javadocJar = JavadocJar.Dokka(tasks.dokkaGeneratePublicationHtml),
             sourcesJar = true,
-            androidVariantsToPublish = listOf("release"),
         ),
     )
 
