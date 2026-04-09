@@ -37,6 +37,7 @@ kotlin {
                 "kotlin.time.ExperimentalTime",
                 "kotlin.contracts.ExperimentalContracts",
             )
+        compilerOptions.freeCompilerArgs.add("-Xconsistent-data-class-copy-visibility")
     }
 
     // JVM target
