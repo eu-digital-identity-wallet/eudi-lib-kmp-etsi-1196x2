@@ -85,6 +85,8 @@ kotlin {
                 implementation(libs.kotlinx.coroutines.test)
             }
         }
+
+        @Suppress("UNUSED")
         val jvmAndAndroidMain by getting {
             dependencies {
                 api(project.dependencies.platform(libs.dss.bom))
@@ -95,6 +97,7 @@ kotlin {
             }
         }
 
+        @Suppress("UNUSED")
         val jvmAndAndroidTest by getting {
             dependencies {
                 implementation(libs.dss.utils.guava)
@@ -177,7 +180,6 @@ mavenPublishing {
         KotlinMultiplatform(
             javadocJar = JavadocJar.Dokka(tasks.dokkaGeneratePublicationHtml),
             sourcesJar = true,
-            androidVariantsToPublish = listOf("release"),
         ),
     )
 
