@@ -35,7 +35,7 @@ public fun SupportedLists.Companion.eu(): SupportedLists<LotEMeta<VerificationCo
         ),
         walletProviders = UseCase.WalletAttestation.loteMeta(
             issuance = VerificationContext.WalletProviderAttestation,
-            revocation = VerificationContext.WalletProviderAttestationStatus,
+            revocation = VerificationContext.WalletOrKeyStorageStatus,
         ),
 
         wrpacProviders = UseCase.WRPAC.loteMeta(

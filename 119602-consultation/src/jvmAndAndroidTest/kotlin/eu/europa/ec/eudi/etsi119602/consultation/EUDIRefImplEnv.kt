@@ -62,7 +62,7 @@ class EUDIRefImplEnvTest {
                     VerificationContext.PID,
                     VerificationContext.PIDStatus,
                     VerificationContext.WalletProviderAttestation,
-                    VerificationContext.WalletProviderAttestationStatus,
+                    VerificationContext.WalletOrKeyStorageStatus,
                     VerificationContext.WalletRelyingPartyAccessCertificate,
                     VerificationContext.WalletRelyingPartyRegistrationCertificate,
                     VerificationContext.WalletRelyingPartyRegistrationCertificateStatus,

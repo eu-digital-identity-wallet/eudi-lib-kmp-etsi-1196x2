@@ -94,7 +94,7 @@ class DIGITTest {
                     VerificationContext.PID,
                     VerificationContext.PIDStatus,
                     VerificationContext.WalletProviderAttestation,
-                    VerificationContext.WalletProviderAttestationStatus,
+                    VerificationContext.WalletOrKeyStorageStatus,
                     VerificationContext.WalletRelyingPartyAccessCertificate,
                     VerificationContext.EAA("mdl"),
                     VerificationContext.EAAStatus("mdl"),
