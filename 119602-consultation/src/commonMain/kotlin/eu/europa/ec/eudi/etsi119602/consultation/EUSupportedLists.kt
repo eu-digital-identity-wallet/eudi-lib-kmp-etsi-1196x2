@@ -30,25 +30,22 @@ import kotlin.time.Instant
 public fun SupportedLists.Companion.eu(): SupportedLists<LotEMeta<VerificationContext>> =
     SupportedLists(
         pidProviders = UseCase.PID.loteMeta(
-            issuance = setOf(VerificationContext.PID),
-            revocation = setOf(VerificationContext.PIDStatus),
+            issuance = VerificationContext.PID,
+            revocation = VerificationContext.PIDStatus,
         ),
         walletProviders = UseCase.WalletAttestation.loteMeta(
-            issuance = setOf(
-                VerificationContext.WalletInstanceAttestation,
-                VerificationContext.WalletUnitAttestation,
-            ),
-            revocation = setOf(VerificationContext.WalletUnitAttestationStatus),
+            issuance = VerificationContext.WalletProviderAttestation,
+            revocation = VerificationContext.WalletProviderAttestationStatus,
         ),
 
         wrpacProviders = UseCase.WRPAC.loteMeta(
-            issuance = setOf(VerificationContext.WalletRelyingPartyAccessCertificate),
-            revocation = emptySet(),
+            issuance = VerificationContext.WalletRelyingPartyAccessCertificate,
+            revocation = null,
         ),
 
         wrprcProviders = UseCase.WRPC.loteMeta(
-            issuance = setOf(VerificationContext.WalletRelyingPartyRegistrationCertificate),
-            revocation = setOf(VerificationContext.WalletRelyingPartyRegistrationCertificateStatus),
+            issuance = VerificationContext.WalletRelyingPartyRegistrationCertificate,
+            revocation = VerificationContext.WalletRelyingPartyRegistrationCertificateStatus,
         ),
         pubEaaProviders = null,
         qeaProviders = null,
@@ -100,29 +97,29 @@ private data class UseCase(
 }
 
 private fun <CTX : Any> UseCase.loteMeta(
-    issuance: Set<CTX>,
-    revocation: Set<CTX>,
+    issuance: CTX?,
+    revocation: CTX?,
 ): LotEMeta<CTX> = LotEMeta(
     svcTypePerCtx = svcTypePerCtx(issuance, revocation),
     serviceDigitalIdentityCertificateType = loteProfile.trustedEntities.serviceDigitalIdentityCertificateType,
 )
 
 private fun <CTX : Any> UseCase.svcTypePerCtx(
-    issuanceCtxs: Set<CTX>,
-    revocationCtxs: Set<CTX>,
+    issuanceCtx: CTX?,
+    revocationCtx: CTX?,
 ): Map<CTX, LotEMeta.SvcAndEEProfile> =
     when (val serviceTypeIdentifiers = loteProfile.trustedEntities.serviceTypeIdentifiers) {
         is ServiceTypeIdentifiers.OneOrMore -> error("Not supported")
         is ServiceTypeIdentifiers.IssuanceAndRevocation -> {
             buildMap {
-                issuanceCtxs.forEach { ctx ->
+                issuanceCtx?.let { ctx ->
                     val value = LotEMeta.SvcAndEEProfile(
                         serviceTypeIdentifiers.issuance,
                         issuanceCertificateProfile,
                     )
                     put(ctx, value)
                 }
-                revocationCtxs.forEach { ctx ->
+                revocationCtx?.let { ctx ->
                     val value = LotEMeta.SvcAndEEProfile(
                         serviceTypeIdentifiers.revocation,
                         revocationCertificateProfile,

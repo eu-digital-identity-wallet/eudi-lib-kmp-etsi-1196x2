@@ -21,29 +21,21 @@ package eu.europa.ec.eudi.etsi1196x2.consultation
  */
 public sealed interface VerificationContext {
     /**
-     * Check the wallet provider's signature for a Wallet Instance Attestation (WIA)
+     * Check the wallet provider's signature for a Wallet Instance Attestation (WIA) and/or Key Attestation (KA)
      *
      * Can be used by an Authorization Server implementing
      * Attestation-Based Client Authentication
      */
-    public data object WalletInstanceAttestation : VerificationContext
-
-    /**
-     * Check the wallet provider's signature for a Wallet Unit Attestation (WUA)
-     *
-     * Can be used by a Credential Issuer, issuing device-bound attestations
-     * that require WUA
-     */
-    public data object WalletUnitAttestation : VerificationContext
+    public data object WalletProviderAttestation : VerificationContext
 
     /**
      * Check the wallet provider's signature for the Token Status List that keeps
-     * the status of a Wallet Unit Attestation (WUA)
+     * the status of a Wallet Unit Attestation (WUA) or a Key Attestation (KA)
      *
      * Can be used by a Credential Issuer, issuing device-bound attestations
      * to keep track of WUA status
      */
-    public data object WalletUnitAttestationStatus : VerificationContext
+    public data object WalletProviderAttestationStatus : VerificationContext
 
     /**
      * Check PID Provider's signature for a PID

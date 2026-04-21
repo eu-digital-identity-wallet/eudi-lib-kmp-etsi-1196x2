@@ -109,7 +109,7 @@ class IsChainTrustedUsingLoTLTest {
     @Test
     fun verifyThatPidX5CFailsForAnUnsupportedContext() = runTest {
         assertNull(
-            isX5CTrusted(pidX5c, VerificationContext.WalletUnitAttestation),
+            isX5CTrusted(pidX5c, VerificationContext.WalletProviderAttestation),
         )
     }
 }
