@@ -32,7 +32,11 @@ public class DownloadSingleLoTE(
 ) : LoadLoTE<String> {
 
     override suspend fun invoke(uri: Uri): LoadLoTE.Outcome<String> {
-        val httpResponse = httpClient.get(uri.value) { expectSuccess = false }
+        val httpResponse = httpClient.get(uri.value) {
+            expectSuccess = false
+            accept(APPLICATION_JOSE_JSON)
+            accept(APPLICATION_JWT)
+        }
         return when (httpResponse.status) {
             HttpStatusCode.OK -> {
                 val content = httpResponse.bodyAsText()
@@ -42,5 +46,9 @@ public class DownloadSingleLoTE(
             HttpStatusCode.NotFound -> LoadLoTE.Outcome.NotFound(null)
             else -> error("Unexpected response status: ${httpResponse.status}")
         }
+    }
+    private companion object {
+        val APPLICATION_JOSE_JSON: ContentType = ContentType.parse("application/jose+json")
+        val APPLICATION_JWT: ContentType = ContentType.parse("application/jwt")
     }
 }
