@@ -17,6 +17,7 @@ atomicfu = "0.28.0"
 bouncyCastle = "1.83"
 kotlinx-io = "0.8.2"
 slf4j = "2.0.17"
+jaxb = "4.0.7"
 eudiLibJvmSdjwtKt = "0.19.0"
 
 [libraries]
@@ -41,6 +42,8 @@ bouncy-castle = { module = "org.bouncycastle:bcpkix-jdk18on", version.ref = "bou
 kotlinx-io-core = { module = "org.jetbrains.kotlinx:kotlinx-io-core", version.ref = "kotlinx-io" }
 slf4j-api = {module ="org.slf4j:slf4j-api", version.ref="slf4j"}
 slf4j-simple = {module ="org.slf4j:slf4j-simple", version.ref="slf4j"}
+jaxb-runtime = { module = "org.glassfish.jaxb:jaxb-runtime", version.ref = "jaxb" }
+jaxb-core = { module = "org.glassfish.jaxb:jaxb-core", version.ref = "jaxb" }
 eudi-lib-jvm-sdjwt = { module = "eu.europa.ec.eudi:eudi-lib-jvm-sdjwt-kt", version.ref = "eudiLibJvmSdjwtKt" }
 
 [plugins]

@@ -97,6 +97,16 @@ kotlin {
             }
         }
 
+        androidMain {
+            dependencies {
+                // Force Android-compatible JAXB runtime (eclipse-ee4j/jaxb-ri#1869)
+                // JAXB 4.0.7 adds runtime checks for java.awt.* availability
+                // instead of hard static references that cause NoClassDefFoundError on Android
+                implementation(libs.jaxb.runtime)
+                implementation(libs.jaxb.core)
+            }
+        }
+
         @Suppress("UNUSED")
         val jvmAndAndroidTest by getting {
             dependencies {
