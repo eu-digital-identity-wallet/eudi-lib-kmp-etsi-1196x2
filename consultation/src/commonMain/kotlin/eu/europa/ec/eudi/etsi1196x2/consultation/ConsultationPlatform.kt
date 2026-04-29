@@ -13,21 +13,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package eu.europa.ec.eudi.etsi119602
+package eu.europa.ec.eudi.etsi1196x2.consultation
 
-import kotlinx.serialization.Serializable
-import kotlin.jvm.JvmInline
+import kotlinx.coroutines.CoroutineDispatcher
 
-@Serializable
-@JvmInline
-public value class Uri(public val value: String) {
-
-    override fun toString(): String = value
-
-    public companion object {
-        public fun parse(value: String): Uri {
-            require(value.isNotBlank()) { "Uri cannot be blank" }
-            return Uri(value)
-        }
-    }
+/**
+ * Platform-specific configuration for the consultation module.
+ *
+ * Provides access to the appropriate [CoroutineDispatcher] for I/O operations
+ * on each target platform.
+ */
+public interface ConsultationPlatform {
+    /**
+     * The dispatcher to use for I/O-bound coroutines on this platform.
+     */
+    public val ioDispatcher: CoroutineDispatcher
 }
+
+/**
+ * Returns the platform-specific [ConsultationPlatform] for the current target.
+ */
+public expect fun consultationPlatform(): ConsultationPlatform

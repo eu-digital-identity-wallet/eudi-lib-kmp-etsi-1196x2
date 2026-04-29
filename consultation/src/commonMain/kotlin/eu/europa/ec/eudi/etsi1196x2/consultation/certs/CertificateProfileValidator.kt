@@ -15,6 +15,7 @@
  */
 package eu.europa.ec.eudi.etsi1196x2.consultation.certs
 
+import eu.europa.ec.eudi.etsi1196x2.consultation.consultationPlatform
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
 
@@ -75,7 +76,7 @@ public interface CertificateProfileValidator<CERT : Any> {
          */
         public operator fun <CERT : Any> invoke(
             operations: CertificateOperations<CERT>,
-            dispatcher: CoroutineDispatcher = kotlinx.coroutines.Dispatchers.IO,
+            dispatcher: CoroutineDispatcher = consultationPlatform().ioDispatcher,
         ): CertificateProfileValidator<CERT> =
             invoke(CertificateProfileInterpreter(operations, dispatcher))
 

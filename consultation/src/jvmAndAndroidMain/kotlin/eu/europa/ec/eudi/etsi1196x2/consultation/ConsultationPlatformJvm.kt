@@ -13,21 +13,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package eu.europa.ec.eudi.etsi119602
+package eu.europa.ec.eudi.etsi1196x2.consultation
 
-import kotlinx.serialization.Serializable
-import kotlin.jvm.JvmInline
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
 
-@Serializable
-@JvmInline
-public value class Uri(public val value: String) {
-
-    override fun toString(): String = value
-
-    public companion object {
-        public fun parse(value: String): Uri {
-            require(value.isNotBlank()) { "Uri cannot be blank" }
-            return Uri(value)
-        }
-    }
+/**
+ * JVM and Android platform implementation of [ConsultationPlatform].
+ * Uses [Dispatchers.IO] which is optimal for I/O-bound operations on JVM.
+ */
+public object ConsultationPlatformJvm : ConsultationPlatform {
+    override val ioDispatcher: CoroutineDispatcher = Dispatchers.IO
 }
+
+public actual fun consultationPlatform(): ConsultationPlatform = ConsultationPlatformJvm

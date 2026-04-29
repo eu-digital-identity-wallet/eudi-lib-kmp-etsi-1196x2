@@ -56,6 +56,11 @@ kotlin {
             }
     }
 
+    // iOS targets
+    iosArm64()
+    iosX64()
+    iosSimulatorArm64()
+
     // Set up targets
     @OptIn(ExperimentalKotlinGradlePluginApi::class)
     applyDefaultHierarchyTemplate {
@@ -67,6 +72,9 @@ kotlin {
                 // Provide which targets would be part of this group
                 withJvm()
                 withAndroidTarget()
+            }
+            group("ios") {
+                withIos()
             }
         }
     }

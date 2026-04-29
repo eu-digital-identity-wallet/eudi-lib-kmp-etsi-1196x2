@@ -75,7 +75,6 @@ public class GetTrustAnchorsFromLoTE<out TRUST_ANCHOR : Any>(
      * @return a non-empty list of trust anchors, or null if no services of the requested type are found
      * @throws IllegalStateException in case of a loading problem or if the certificate constraints are not met
      */
-    @Throws(IllegalStateException::class)
     override suspend fun invoke(query: Uri): NonEmptyList<TRUST_ANCHOR>? = mutex.withLock {
         val trustAnchors =
             loadLoTe().trustAnchorsFor(query)
@@ -114,7 +113,7 @@ public class GetTrustAnchorsFromLoTE<out TRUST_ANCHOR : Any>(
             val cause = cause()
             if (cause != null) {
                 causes.add(cause)
-                causes.addAll(cause.suppressed)
+                causes.addAll(cause.suppressedExceptions)
             }
         }
 

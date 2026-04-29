@@ -18,6 +18,7 @@ package eu.europa.ec.eudi.etsi119602.consultation
 import eu.europa.ec.eudi.etsi119602.ListOfTrustedEntities
 import eu.europa.ec.eudi.etsi119602.ListOfTrustedEntitiesClaims
 import eu.europa.ec.eudi.etsi119602.Uri
+import eu.europa.ec.eudi.etsi1196x2.consultation.consultationPlatform
 import kotlinx.atomicfu.AtomicInt
 import kotlinx.atomicfu.atomic
 import kotlinx.coroutines.*
@@ -97,7 +98,7 @@ public class LoadLoTEAndPointers(
     private suspend fun ProducerScope<Event>.processLoTE(
         state: State,
         step: Step,
-    ) = withContext(Dispatchers.IO) {
+    ) = withContext(consultationPlatform().ioDispatcher) {
         // Check for cancellation
         currentCoroutineContext().ensureActive()
 
@@ -139,7 +140,7 @@ public class LoadLoTEAndPointers(
         state: State,
         parentStep: Step,
         event: Event.LoTELoaded,
-    ): Unit = withContext(Dispatchers.IO) {
+    ): Unit = withContext(consultationPlatform().ioDispatcher) {
         val otherLoTEPointers = event.lote.schemeInformation.pointersToOtherLists
         if (otherLoTEPointers.isNullOrEmpty()) {
             return@withContext
