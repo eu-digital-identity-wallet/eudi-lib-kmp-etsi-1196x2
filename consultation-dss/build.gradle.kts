@@ -4,7 +4,15 @@ import org.jetbrains.dokka.gradle.engine.parameters.VisibilityModifier
 import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.dsl.KotlinVersion
+import org.objectweb.asm.ClassReader
+import org.objectweb.asm.ClassVisitor
+import org.objectweb.asm.ClassWriter
+import org.objectweb.asm.MethodVisitor
+import org.objectweb.asm.Opcodes
 import java.net.URI
+import java.util.jar.JarEntry
+import java.util.jar.JarInputStream
+import java.util.jar.JarOutputStream
 
 plugins {
     alias(libs.plugins.kotlin.multiplatform)
@@ -99,17 +107,29 @@ kotlin {
 
         androidMain {
             dependencies {
-                // Force Android-compatible JAXB runtime (eclipse-ee4j/jaxb-ri#1869)
-                // JAXB 4.0.7 adds runtime checks for java.awt.* availability
-                // instead of hard static references that cause NoClassDefFoundError on Android
+                implementation(libs.dss.utils.guava)
                 implementation(libs.jaxb.runtime)
                 implementation(libs.jaxb.core)
+                implementation("xerces:xercesImpl:2.12.2") {
+                    // exclude(group = "xml-apis")
+                    exclude(group = "org.apache.xmlbeans")
+                    exclude(group = "net.sf.saxon")
+                }
             }
         }
 
         @Suppress("UNUSED")
         val jvmAndAndroidTest by getting {
             dependencies {
+                implementation(libs.slf4j.simple)
+            }
+        }
+
+        @Suppress("UNUSED")
+        val androidInstrumentedTest by getting {
+            dependencies {
+                implementation("androidx.test:runner:1.6.2")
+                implementation("androidx.test.ext:junit:1.2.1")
                 implementation(libs.dss.utils.guava)
                 implementation(libs.slf4j.simple)
             }
@@ -125,6 +145,7 @@ android {
 
     defaultConfig {
         minSdk = properties["android.minSdk"].toString().toInt()
+        testInstrumentationRunner = "eu.europa.ec.eudi.etsi1196x2.consultation.dss.DssAndroidJUnitRunner"
     }
 
     compileOptions {
@@ -133,6 +154,29 @@ android {
                 sourceCompatibility = javaVersion
                 targetCompatibility = javaVersion
             }
+    }
+
+    packaging {
+        resources {
+            excludes +=
+                listOf(
+                    "META-INF/DEPENDENCIES",
+                    "META-INF/LICENSE",
+                    "META-INF/LICENSE.txt",
+                    "META-INF/LICENSE.md",
+                    "META-INF/NOTICE",
+                    "META-INF/NOTICE.txt",
+                    "META-INF/NOTICE.md",
+                    "META-INF/sun-jaxb.episode",
+                    "META-INF/versions/**",
+                )
+            pickFirsts +=
+                listOf(
+                    "policy/tsl-constraint.xml",
+                    "xsd/bindings.xml",
+                    "xsd/**",
+                )
+        }
     }
 }
 
@@ -209,4 +253,112 @@ mavenPublishing {
 
 dependencyCheck {
     skip = true
+}
+
+// Patch DSS dss-jaxb-common JAR for Android compatibility.
+// DSS 6.4 uses XMLInputFactory.newFactory() (Java 9+) which doesn't exist on Android.
+// This task replaces those calls with XMLInputFactory.newInstance() which works on Android.
+buildscript {
+    repositories { mavenCentral() }
+    dependencies { classpath("org.ow2.asm:asm:9.8") }
+}
+
+val patchDssJaxbCommon by tasks.registering {
+    val dssVersion = libs.versions.dss.get()
+    val inputJarProvider =
+        provider {
+            val cfg =
+                configurations.detachedConfiguration(
+                    dependencies.create("eu.europa.ec.joinup.sd-dss:dss-jaxb-common:$dssVersion"),
+                )
+            cfg.resolve().single { it.name.startsWith("dss-jaxb-common") }
+        }
+    val outputJar = layout.buildDirectory.file("libs/dss-jaxb-common-$dssVersion-android.jar")
+    outputs.file(outputJar)
+    inputs.file(inputJarProvider)
+
+    doLast {
+        val out = outputJar.get().asFile
+        out.parentFile.mkdirs()
+
+        val inputJar = inputJarProvider.get()
+        val classToPatch = "eu/europa/esig/dss/jaxb/common/AbstractJaxbFacade.class"
+        JarInputStream(inputJar.inputStream()).use { jis ->
+            JarOutputStream(out.outputStream()).use { jos ->
+                var entry = jis.nextJarEntry
+                while (entry != null) {
+                    jos.putNextEntry(JarEntry(entry.name))
+                    if (entry.name == classToPatch) {
+                        val bytes: ByteArray = jis.readAllBytes()
+                        val reader = ClassReader(bytes)
+                        val writer = ClassWriter(0)
+                        reader.accept(
+                            object : ClassVisitor(Opcodes.ASM9, writer) {
+                                override fun visitMethod(
+                                    access: Int,
+                                    name: String?,
+                                    desc: String?,
+                                    signature: String?,
+                                    exceptions: Array<out String>?,
+                                ): MethodVisitor {
+                                    val mv = super.visitMethod(access, name, desc, signature, exceptions)
+                                    return if (name == "avoidXXE") {
+                                        object : MethodVisitor(Opcodes.ASM9, mv) {
+                                            override fun visitMethodInsn(
+                                                opcode: Int,
+                                                owner: String?,
+                                                methodName: String?,
+                                                methodDesc: String?,
+                                                isInterface: Boolean,
+                                            ) {
+                                                if (owner == "javax/xml/stream/XMLInputFactory" &&
+                                                    methodName == "newFactory" &&
+                                                    methodDesc == "()Ljavax/xml/stream/XMLInputFactory;"
+                                                ) {
+                                                    super.visitMethodInsn(
+                                                        opcode,
+                                                        owner,
+                                                        "newInstance",
+                                                        methodDesc,
+                                                        isInterface,
+                                                    )
+                                                } else {
+                                                    super.visitMethodInsn(
+                                                        opcode,
+                                                        owner,
+                                                        methodName,
+                                                        methodDesc,
+                                                        isInterface,
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    } else {
+                                        mv
+                                    }
+                                }
+                            },
+                            0,
+                        )
+                        jos.write(writer.toByteArray())
+                    } else {
+                        jis.copyTo(jos)
+                    }
+                    jos.closeEntry()
+                    entry = jis.nextJarEntry
+                }
+            }
+        }
+    }
+}
+
+// For Android configurations, exclude the original dss-jaxb-common and use the patched version
+afterEvaluate {
+    configurations.matching { it.name.contains("Android") && it.name.contains("Classpath") }.configureEach {
+        exclude(group = "eu.europa.ec.joinup.sd-dss", module = "dss-jaxb-common")
+    }
+    // Add patched JAR as an Android dependency
+    dependencies {
+        "androidMainImplementation"(files(patchDssJaxbCommon.map { it.outputs.files.singleFile }))
+    }
 }
