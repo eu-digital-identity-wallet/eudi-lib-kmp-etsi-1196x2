@@ -58,7 +58,7 @@ Android's built-in `SchemaFactory` throws when setting `FEATURE_SECURE_PROCESSIN
 
 The module applies three independent fixes, each targeting one failure path:
 
-> **Publishing Status**: The Android AAR (containing the patched JAR) is not yet published to Maven Central. Only the JVM variant is published. Android consumers must manually apply Fix 2 and Fix 3 in their own builds until Android publishing is enabled.
+> **Publishing Status**: The Android AAR (containing the patched JAR) is not yet published to Maven Central. Only the JVM variant is published. Android consumers must apply the `dss-android-patch.gradle.kts` script in their own builds (see Integration Guide, Step 3).
 
 ### Fix 1: JAXB RI 4.0.7 Upgrade
 
@@ -75,13 +75,11 @@ androidMain {
 
 This fix must be applied first — without it, the app crashes during class loading before any of the other fixes can help.
 
-### Fix 2: ASM Bytecode Patching (`patchDssJaxbCommon` task)
+### Fix 2: ASM Bytecode Patching (`dss-android-patch.gradle.kts`)
 
-A Gradle task patches the `dss-jaxb-common` JAR at build time using the OW2 ASM library. It replaces the `XMLInputFactory.newFactory()` call in `AbstractJaxbFacade.avoidXXE()` with `XMLInputFactory.newInstance()`, which exists on all Android API levels.
+A Gradle script patches the `dss-jaxb-common` JAR at build time using the OW2 ASM library. It replaces the `XMLInputFactory.newFactory()` call in `AbstractJaxbFacade.avoidXXE()` with `XMLInputFactory.newInstance()`, which exists on all Android API levels.
 
 The original `dss-jaxb-common` is excluded from Android configurations and the patched JAR is substituted via a file dependency. The JVM target continues to use the original, unmodified JAR from Maven Central.
-
-> **Note for consumers**: The Android AAR (which bundles the patched JAR) is not yet published to Maven Central. When publishing is enabled, the patched JAR will be included transitively in the Android AAR. Until then, consuming apps that need Android support must apply the `patchDssJaxbCommon` task themselves (copy from `consultation-dss/build.gradle.kts` lines 262-300).
 
 ### Fix 3: Xerces SAX/DOM Parser
 
@@ -154,95 +152,35 @@ This fix must be applied first — without it, the app crashes during class load
 
 ### Step 3: Apply the Bytecode Patch (Required for Android)
 
-Since the Android AAR isn't published yet, you need to patch `dss-jaxb-common` in your own build. Add this to your app's `build.gradle.kts`:
+Since the Android AAR isn't published yet, you need to patch `dss-jaxb-common` in your own build. The patch script is provided in the `consultation-dss` repository.
+
+**Copy the script** from the `consultation-dss` module's `gradle/dss-android-patch.gradle.kts` into your project (e.g., into your app's `gradle/` directory):
+
+```
+# Copy from the consultation-dss module:
+gradle/dss-android-patch.gradle.kts
+```
+
+**Apply it** in your app's `build.gradle.kts`:
 
 ```kotlin
-import org.objectweb.asm.ClassReader
-import org.objectweb.asm.ClassVisitor
-import org.objectweb.asm.ClassWriter
-import org.objectweb.asm.MethodVisitor
-import org.objectweb.asm.Opcodes
-import java.util.jar.JarEntry
-import java.util.jar.JarInputStream
-import java.util.jar.JarOutputStream
+apply(from = "gradle/dss-android-patch.gradle.kts")
+```
 
-buildscript {
-    repositories { mavenCentral() }
-    dependencies { classpath("org.ow2.asm:asm:9.8") }
-}
+The script automatically:
+- Downloads `dss-jaxb-common` from Maven Central
+- Patches `newFactory()` → `newInstance()` using ASM
+- Excludes the original JAR from Android configurations
+- Adds the patched JAR to your Android classpath
 
-val patchDssJaxbCommon by tasks.registering {
-    val dssVersion = "6.4" // Match the DSS version used by consultation-dss
-    val inputJarProvider =
-        provider {
-            val cfg = configurations.detachedConfiguration(
-                dependencies.create("eu.europa.ec.joinup.sd-dss:dss-jaxb-common:$dssVersion")
-            )
-            cfg.resolve().single { it.name.startsWith("dss-jaxb-common") }
-        }
-    val outputJar = layout.buildDirectory.file("libs/dss-jaxb-common-$dssVersion-android.jar")
-    outputs.file(outputJar)
-    inputs.file(inputJarProvider)
+The default DSS version is `6.4`. Override it if needed:
 
-    doLast {
-        val out = outputJar.get().asFile
-        out.parentFile.mkdirs()
-        val inputJar = inputJarProvider.get()
-        val classToPatch = "eu/europa/esig/dss/jaxb/common/AbstractJaxbFacade.class"
-        JarInputStream(inputJar.inputStream()).use { jis ->
-            JarOutputStream(out.outputStream()).use { jos ->
-                var entry = jis.nextJarEntry
-                while (entry != null) {
-                    jos.putNextEntry(JarEntry(entry.name))
-                    if (entry.name == classToPatch) {
-                        val bytes: ByteArray = jis.readAllBytes()
-                        val reader = ClassReader(bytes)
-                        val writer = ClassWriter(0)
-                        reader.accept(
-                            object : ClassVisitor(Opcodes.ASM9, writer) {
-                                override fun visitMethod(
-                                    access: Int, name: String?, desc: String?,
-                                    signature: String?, exceptions: Array<out String>?,
-                                ): MethodVisitor {
-                                    val mv = super.visitMethod(access, name, desc, signature, exceptions)
-                                    return if (name == "avoidXXE") {
-                                        object : MethodVisitor(Opcodes.ASM9, mv) {
-                                            override fun visitMethodInsn(
-                                                opcode: Int, owner: String?, methodName: String?,
-                                                methodDesc: String?, isInterface: Boolean,
-                                            ) {
-                                                val newName = if (owner == "javax/xml/stream/XMLInputFactory" &&
-                                                    methodName == "newFactory" &&
-                                                    methodDesc == "()Ljavax/xml/stream/XMLInputFactory;"
-                                                ) "newInstance" else methodName
-                                                super.visitMethodInsn(opcode, owner, newName, methodDesc, isInterface)
-                                            }
-                                        }
-                                    } else mv
-                                }
-                            },
-                            0,
-                        )
-                        jos.write(writer.toByteArray())
-                    } else {
-                        jis.copyTo(jos)
-                    }
-                    jos.closeEntry()
-                    entry = jis.nextJarEntry
-                }
-            }
-        }
-    }
-}
+```kotlin
+// Option 1: Project property
+// In gradle.properties: dssVersion=6.4.1
 
-// Replace original dss-jaxb-common with patched version for Android
-configurations.matching { it.name.contains("Android") && it.name.contains("Classpath") }.configureEach {
-    exclude(group = "eu.europa.ec.joinup.sd-dss", module = "dss-jaxb-common")
-}
-
-dependencies {
-    "implementation"(files(patchDssJaxbCommon.map { it.outputs.files.singleFile }))
-}
+// Option 2: Command line
+// ./gradlew build -PdssVersion=6.4.1
 ```
 
 ### Step 4: Add Xerces Dependency
@@ -250,12 +188,13 @@ dependencies {
 ```kotlin
 dependencies {
     implementation("xerces:xercesImpl:2.12.2") {
-        exclude(group = "xml-apis")
         exclude(group = "org.apache.xmlbeans")
         exclude(group = "net.sf.saxon")
     }
 }
 ```
+
+> **Note**: Do **not** exclude `xml-apis` from the xerces transitive dependencies. The `xml-apis` jar provides the `javax.xml.stream.*` StAX API classes that are missing from Android. Without it, `XMLInputFactory.newInstance()` will fail with `ClassNotFoundException`.
 
 ### Step 5: No Further Configuration Needed
 
