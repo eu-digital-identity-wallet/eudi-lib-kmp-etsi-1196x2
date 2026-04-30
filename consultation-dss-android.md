@@ -92,6 +92,12 @@ The `xerces:xercesImpl:2.12.2` library is added as an Android-only dependency. X
 3. **`javax.xml.parsers.DocumentBuilderFactory`** → `org.apache.xerces.jaxp.DocumentBuilderFactoryImpl` — Provides a compliant DOM parser.
 
 > **Known warnings**: Xerces doesn't implement every security feature DSS attempts to set. You will see `WARN` logs like `SECURITY : unable to set feature 'http://xml.org/sax/features/external-general-entities'` and `unable to set attribute 'accessExternalDTD'`. These are **non-critical** — DSS catches the exceptions internally and continues parsing. The critical crashes (`NoSuchMethodError`, `NoClassDefFoundError`, uncaught `SecurityConfigurationException`) are eliminated.
+>
+> Additionally, you may see:
+> - `"Unable to load the validation policy for trusted list"` from `AbstractAnalysis` — caused by the same XSD validation failures during `TLStructureVerifier`. Does **not** prevent certificate extraction.
+> - `"Certificate source is not defined for the LOTL"` from `ValidationJobSummaryBuilder` — a cosmetic summary issue when the LOTL itself isn't signed with a known certificate. Does **not** affect TL-level certificate extraction.
+>
+> Trust anchor extraction works correctly despite these warnings (33 certificates extracted from the EUDI Wallet reference LOTL in tests).
 
 ## Architecture Decision: Why Not Desugaring?
 
