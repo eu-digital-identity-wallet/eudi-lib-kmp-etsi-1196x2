@@ -17,6 +17,9 @@ package eu.europa.ec.eudi.etsi1196x2.consultation.dss
 
 import eu.europa.ec.eudi.etsi1196x2.consultation.GetTrustAnchors
 import eu.europa.ec.eudi.etsi1196x2.consultation.NonEmptyList
+import eu.europa.esig.dss.model.tsl.LOTLInfo
+import eu.europa.esig.dss.model.tsl.TLInfo
+import eu.europa.esig.dss.model.tsl.TLValidationJobSummary
 import eu.europa.esig.dss.model.x509.CertificateToken
 import eu.europa.esig.dss.spi.tsl.TrustedListsCertificateSource
 import eu.europa.esig.dss.tsl.cache.CacheCleaner
@@ -24,6 +27,7 @@ import eu.europa.esig.dss.tsl.job.TLValidationJob
 import eu.europa.esig.dss.tsl.source.LOTLSource
 import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.withContext
+import org.slf4j.LoggerFactory
 import java.security.cert.TrustAnchor
 
 /**
@@ -33,6 +37,16 @@ import java.security.cert.TrustAnchor
 public class GetTrustAnchorsFromLoTL(
     private val dssOptions: DssOptions = DssOptions.Default,
 ) : GetTrustAnchors<LOTLSource, TrustAnchor> {
+
+    private val log = LoggerFactory.getLogger(GetTrustAnchorsFromLoTL::class.java)
+
+    /**
+     * The summary of the last LOTL/TL validation job execution.
+     * Contains download, parsing, and validation results for each processed LOTL and TL.
+     * Useful for debugging why trust anchors might be empty.
+     */
+    public var lastValidationSummary: TLValidationJobSummary? = null
+        private set
 
     override suspend fun invoke(query: LOTLSource): NonEmptyList<TrustAnchor>? =
         withContext(dssOptions.validateJobDispatcher + CoroutineName("DSS-LOTL-${query.url}")) {
@@ -53,7 +67,10 @@ public class GetTrustAnchorsFromLoTL(
      */
     private fun runValidationJobFor(lotlSource: LOTLSource): List<TrustAnchor> =
         with(TrustedListsCertificateSource()) {
-            createValidationJob(lotlSource).onlineRefresh()
+            val job = createValidationJob(lotlSource)
+            job.onlineRefresh()
+            lastValidationSummary = job.summary
+            logValidationSummary(lastValidationSummary!!)
             certificates.map { it.toTrustAnchor() }
         }
 
@@ -76,6 +93,59 @@ public class GetTrustAnchorsFromLoTL(
                 setExecutorService(dssOptions.executorService)
             }
         }
+
+    private fun logValidationSummary(summary: TLValidationJobSummary) {
+        log.info("=== LOTL/TL Validation Summary ===")
+
+        val lotlInfos = summary.lotlInfos
+        if (lotlInfos.isEmpty()) {
+            log.warn("No LOTLs were processed!")
+        } else {
+            log.info("Processed ${lotlInfos.size} LOTL(s):")
+            lotlInfos.forEach { logLOTLInfo(it) }
+        }
+
+        val otherTLInfos = summary.otherTLInfos
+        if (otherTLInfos.isEmpty()) {
+            log.info("No standalone TLs (only LOTL-discovered TLs expected)")
+        } else {
+            log.info("Processed ${otherTLInfos.size} standalone TL(s):")
+            otherTLInfos.forEach { logTLInfo(it) }
+        }
+
+        log.info("Total processed LOTLs: ${summary.numberOfProcessedLOTLs}")
+        log.info("Total processed TLs: ${summary.numberOfProcessedTLs}")
+        log.info("=== End Validation Summary ===")
+    }
+
+    private fun logLOTLInfo(info: LOTLInfo) {
+        val parsing = info.parsingCacheInfo
+        log.info("  LOTL: ${info.url}")
+        log.info("    Download: ${info.downloadCacheInfo}")
+        log.info("    Parsing: ${info.parsingCacheInfo}")
+        log.info("    Validation: ${info.validationCacheInfo}")
+        log.info("    Territory: ${parsing?.territory}")
+        log.info("    Sequence: ${parsing?.sequenceNumber}")
+        log.info("    Version: ${parsing?.version}")
+        log.info("    TL pointers: ${parsing?.tlOtherPointers?.size}")
+        log.info("    LOTL pointers: ${parsing?.lotlOtherPointers?.size}")
+        log.info("    Certificates: ${parsing?.certNumber}")
+    }
+
+    private fun logTLInfo(info: TLInfo) {
+        val parsing = info.parsingCacheInfo
+        log.info("  TL: ${info.url}")
+        log.info("    Download: ${info.downloadCacheInfo}")
+        log.info("    Parsing: ${info.parsingCacheInfo}")
+        log.info("    Validation: ${info.validationCacheInfo}")
+        log.info("    Synchronized: ${parsing?.isSynchronized}")
+        log.info("    Territory: ${parsing?.territory}")
+        log.info("    Sequence: ${parsing?.sequenceNumber}")
+        log.info("    Version: ${parsing?.version}")
+        log.info("    TSPs: ${parsing?.tspNumber}")
+        log.info("    Services: ${parsing?.tsNumber}")
+        log.info("    Certificates: ${parsing?.certNumber}")
+    }
 
     private fun CertificateToken.toTrustAnchor(): TrustAnchor =
         TrustAnchor(certificate, null)

@@ -97,9 +97,30 @@ kotlin {
             }
         }
 
+        androidMain {
+            dependencies {
+                implementation(libs.dss.utils.guava)
+                implementation(libs.jaxb.runtime)
+                implementation(libs.jaxb.core)
+                implementation("xerces:xercesImpl:2.12.2") {
+                    exclude(group = "org.apache.xmlbeans")
+                    exclude(group = "net.sf.saxon")
+                }
+            }
+        }
+
         @Suppress("UNUSED")
         val jvmAndAndroidTest by getting {
             dependencies {
+                implementation(libs.slf4j.simple)
+            }
+        }
+
+        @Suppress("UNUSED")
+        val androidInstrumentedTest by getting {
+            dependencies {
+                implementation("androidx.test:runner:1.6.2")
+                implementation("androidx.test.ext:junit:1.2.1")
                 implementation(libs.dss.utils.guava)
                 implementation(libs.slf4j.simple)
             }
@@ -115,6 +136,7 @@ android {
 
     defaultConfig {
         minSdk = properties["android.minSdk"].toString().toInt()
+        testInstrumentationRunner = "eu.europa.ec.eudi.etsi1196x2.consultation.dss.DssAndroidJUnitRunner"
     }
 
     compileOptions {
@@ -123,6 +145,29 @@ android {
                 sourceCompatibility = javaVersion
                 targetCompatibility = javaVersion
             }
+    }
+
+    packaging {
+        resources {
+            excludes +=
+                listOf(
+                    "META-INF/DEPENDENCIES",
+                    "META-INF/LICENSE",
+                    "META-INF/LICENSE.txt",
+                    "META-INF/LICENSE.md",
+                    "META-INF/NOTICE",
+                    "META-INF/NOTICE.txt",
+                    "META-INF/NOTICE.md",
+                    "META-INF/sun-jaxb.episode",
+                    "META-INF/versions/**",
+                )
+            pickFirsts +=
+                listOf(
+                    "policy/tsl-constraint.xml",
+                    "xsd/bindings.xml",
+                    "xsd/**",
+                )
+        }
     }
 }
 
@@ -200,3 +245,7 @@ mavenPublishing {
 dependencyCheck {
     skip = true
 }
+
+// Patch DSS dss-jaxb-common JAR for Android compatibility.
+// See gradle/dss-android-patch.gradle.kts for implementation.
+apply(from = rootProject.file("gradle/dss-android-patch.gradle.kts"))
