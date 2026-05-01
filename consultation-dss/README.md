@@ -1,10 +1,15 @@
 # DSS Consultation Module
 
-This module provides abstractions and implementations for validating certificate chains against trust anchors that are published in [ETSI TS 119 612 Trusted Lists](https://www.etsi.org/deliver/etsi_ts/119600_119699/119612/02.04.01_60/ts_119612v020401p.pdf).
+This module provides abstractions and implementations for validating certificate chains against trust anchors that are
+published
+in [ETSI TS 119 612 Trusted Lists](https://www.etsi.org/deliver/etsi_ts/119600_119699/119612/02.04.01_60/ts_119612v020401p.pdf).
 
-Trusted Lists are fetched, parsed, and validated using [Digital Signature Service (DSS)](https://github.com/esig/dss). The module automates the process of fetching and verifying the European List of Trusted Lists (LOTL) and wraps the stateful DSS `TLValidationJob` into the library's functional `GetTrustAnchors` interface.
+Trusted Lists are fetched, parsed, and validated using [Digital Signature Service (DSS)](https://github.com/esig/dss).
+The module automates the process of fetching and verifying the European List of Trusted Lists (LOTL) and wraps the
+stateful DSS `TLValidationJob` into the library's functional `GetTrustAnchors` interface.
 
-**The ultimate goal is to create an instance of `IsChainTrustedForContext`** to validate certificate chains against trust anchors from ETSI Trusted Lists. To achieve this, you need to make three key decisions:
+**The ultimate goal is to create an instance of `IsChainTrustedForContext`** to validate certificate chains against
+trust anchors from ETSI Trusted Lists. To achieve this, you need to make three key decisions:
 
 1. **Select LOTLSource(s)** - Which trusted lists to use
 2. **Map to VerificationContext(s)** - How to associate trust sources with use cases
@@ -16,20 +21,20 @@ Trusted Lists are fetched, parsed, and validated using [Digital Signature Servic
 
 - [Quick Start](#quick-start)
 - [Understanding Your Choices](#understanding-your-choices)
-  - [Choice 1: Select LOTLSource(s)](#choice-1-select-lotlsources)
-  - [Choice 2: Map to VerificationContext(s)](#choice-2-map-to-verificationcontexts)
-  - [Choice 3: Choose DataLoader Variant](#choice-3-choose-dataloader-variant)
+    - [Choice 1: Select LOTLSource(s)](#choice-1-select-lotlsources)
+    - [Choice 2: Map to VerificationContext(s)](#choice-2-map-to-verificationcontexts)
+    - [Choice 3: Choose DataLoader Variant](#choice-3-choose-dataloader-variant)
 - [Architecture Overview](#architecture-overview)
 - [Caching Strategies](#caching-strategies)
-  - [Standard Caching (Low-Concurrency)](#standard-caching-low-concurrency)
-  - [High-Concurrency Caching](#high-concurrency-caching)
+    - [Standard Caching (Low-Concurrency)](#standard-caching-low-concurrency)
+    - [High-Concurrency Caching](#high-concurrency-caching)
 - [Complete Examples](#complete-examples)
-  - [Example 1: Single Context, Low-Concurrency](#example-1-single-context-low-concurrency-mobile-wallet)
-  - [Example 2: Multiple Contexts, Low-Concurrency](#example-2-multiple-contexts-low-concurrency-mobile-wallet)
-  - [Example 3: High-Concurrency Setup](#example-3-high-concurrency-setup-server-side)
+    - [Example 1: Single Context, Low-Concurrency](#example-1-single-context-low-concurrency-mobile-wallet)
+    - [Example 2: Multiple Contexts, Low-Concurrency](#example-2-multiple-contexts-low-concurrency-mobile-wallet)
+    - [Example 3: High-Concurrency Setup](#example-3-high-concurrency-setup-server-side)
 - [Configuration Reference](#configuration-reference)
-  - [DssOptions](#dssoptions)
-  - [Factory Methods](#factory-methods)
+    - [DssOptions](#dssoptions)
+    - [Factory Methods](#factory-methods)
 - [Platform Support](#platform-support)
 - [Examples](#examples)
 - [Dependencies](#dependencies)
@@ -77,7 +82,9 @@ val result = isChainTrustedForContext(certificateChain, VerificationContext.PID)
 
 > [!NOTE]
 >
-> This quick start uses `DssOptions.usingFileCacheDataLoader()` which is suitable for **low-concurrency scenarios** (e.g., mobile EUDIW wallets, desktop applications). For **high-concurrency scenarios** (e.g., server-side validation, high-throughput wallets), see [Choice 3: Choose DataLoader Variant](#choice-3-choose-dataloader-variant).
+> This quick start uses `DssOptions.usingFileCacheDataLoader()` which is suitable for **low-concurrency scenarios** (
+> e.g., mobile EUDIW wallets, desktop applications). For **high-concurrency scenarios** (e.g., server-side validation,
+> high-throughput wallets), see [Choice 3: Choose DataLoader Variant](#choice-3-choose-dataloader-variant).
 
 ---
 
@@ -103,9 +110,9 @@ flowchart TD
 
 A `LOTLSource` defines which List of Trusted Lists to fetch and how to filter it.
 
-| Scenario | Configuration |
-|----------|---------------|
-| **Single source** | One `LOTLSource` (e.g., EU LOTL only) |
+| Scenario             | Configuration                                                   |
+|----------------------|-----------------------------------------------------------------|
+| **Single source**    | One `LOTLSource` (e.g., EU LOTL only)                           |
 | **Multiple sources** | Multiple `LOTLSource` instances (e.g., EU LOTL + national LOTL) |
 
 ```kotlin
@@ -126,12 +133,13 @@ val nationalLotl = LOTLSource().apply {
 
 Map each `LOTLSource` to one or more `VerificationContext` values (e.g., `PID`, `PubEAA`, `mDL`).
 
-| Scenario | Approach |
-|----------|----------|
-| **Single context** | Direct `transform()` with one context |
+| Scenario              | Approach                                      |
+|-----------------------|-----------------------------------------------|
+| **Single context**    | Direct `transform()` with one context         |
 | **Multiple contexts** | Use `ComposeChainTrust` to combine validators |
 
 **Single Context:**
+
 ```kotlin
 val validator = IsChainTrustedForContext(
     supportedContexts = setOf(VerificationContext.PID),
@@ -143,6 +151,7 @@ val validator = IsChainTrustedForContext(
 ```
 
 **Multiple Contexts:**
+
 ```kotlin
 // Create separate validators for each context
 val pidValidator = IsChainTrustedForContext(
@@ -172,12 +181,13 @@ val isTrusted = IsChainTrustedForEUDIW(trustValidator)
 
 The DataLoader determines how trust lists are fetched and cached.
 
-| Use Case | DataLoader | Characteristics |
-|----------|------------|-----------------|
-| **Low-concurrency**<br>(mobile, desktop) | `usingFileCacheDataLoader()`<br>(DSS default) | • Simple setup<br>• File-based caching<br>• Suitable for sequential requests |
+| Use Case                                          | DataLoader                                             | Characteristics                                                                             |
+|---------------------------------------------------|--------------------------------------------------------|---------------------------------------------------------------------------------------------|
+| **Low-concurrency**<br>(mobile, desktop)          | `usingFileCacheDataLoader()`<br>(DSS default)          | • Simple setup<br>• File-based caching<br>• Suitable for sequential requests                |
 | **High-concurrency**<br>(server, high-throughput) | `ConcurrentCacheDataLoader`<br>(custom implementation) | • Thread-safe<br>• Per-URL mutex protection<br>• Dual-layer caching<br>• Atomic file writes |
 
 **Low-Concurrency (Mobile EUDIW):**
+
 ```kotlin
 val getTrustAnchors = GetTrustAnchorsFromLoTL(
     dssOptions = DssOptions.usingFileCacheDataLoader(
@@ -188,6 +198,7 @@ val getTrustAnchors = GetTrustAnchorsFromLoTL(
 ```
 
 **High-Concurrency (Server-Side):**
+
 ```kotlin
 
 useResoures {
@@ -235,14 +246,17 @@ flowchart TD
 
 The DSS module supports two validation strategies:
 
-| Strategy | Description | Use Case |
-|----------|-------------|----------|
-| **PKIX-based validation** | Traditional certificate chain validation using cryptographic PKIX algorithms | Standard X.509 validation with CRL/OCSP |
+| Strategy                    | Description                                                                                                           | Use Case                                          |
+|-----------------------------|-----------------------------------------------------------------------------------------------------------------------|---------------------------------------------------|
+| **PKIX-based validation**   | Traditional certificate chain validation using cryptographic PKIX algorithms                                          | Standard X.509 validation with CRL/OCSP           |
 | **Direct-trust validation** | Direct certificate matching where the head certificate is compared against trust anchors by subject and serial number | Simplified validation without revocation checking |
 
 > [!NOTE]
 >
-> **For ETSI TS 119 612 Trusted Lists, PKIX-based validation is the standard approach.** ETSI TS 119 612 Annex I explicitly references IETF RFC 5280 (X.509/PKIX) for certificate path validation when using trust anchors from Trusted Lists. Direct-trust validation may be suitable for simpler scenarios but is not the primary method specified for EUDI Wallet use cases.
+> **For ETSI TS 119 612 Trusted Lists, PKIX-based validation is the standard approach.** ETSI TS 119 612 Annex I
+> explicitly references IETF RFC 5280 (X.509/PKIX) for certificate path validation when using trust anchors from Trusted
+> Lists. Direct-trust validation may be suitable for simpler scenarios but is not the primary method specified for EUDI
+> Wallet use cases.
 
 ---
 
@@ -274,6 +288,7 @@ flowchart LR
 ```
 
 **Suitable for:**
+
 - ✅ Mobile EUDIW wallets
 - ✅ Desktop applications
 - ✅ Single-user scenarios
@@ -308,24 +323,28 @@ flowchart TB
 ```
 
 **Key Features:**
+
 - **Per-URL mutex:** Serializes file writes to prevent cache corruption
 - **In-memory cache:** Deduplicates concurrent HTTP requests
 - **Atomic file writes:** Write to temp file, then atomic move
 - **System clock:** File expiration uses system clock (consistency with filesystem timestamps)
 
 **Suitable for:**
+
 - ✅ Server-side validation with concurrent user requests
 - ✅ High-throughput wallets processing multiple attestations
 - ✅ Applications with parallel validation pipelines
 
 **Not required for:**
+
 - ❌ Single-threaded or low-concurrency applications
 - ❌ Simple client-side validation with sequential requests
 - ❌ Testing environments with controlled timing
 
 > [!NOTE]
 >
-> `ConcurrentCacheDataLoader` uses the **system clock** for file cache expiration to ensure consistency with filesystem timestamps. `AsyncCache` can use a custom clock for testing purposes.
+> `ConcurrentCacheDataLoader` uses the **system clock** for file cache expiration to ensure consistency with filesystem
+> timestamps. `AsyncCache` can use a custom clock for testing purposes.
 
 ---
 
@@ -441,40 +460,40 @@ val lotlSource = LOTLSource().apply {
 }
 
 useResoures {
-  // 1. Create thread-safe loader with dual-layer caching
-  val loader = ConcurrentCacheDataLoader(
-      httpLoader = NativeHTTPDataLoader(),
-      fileCacheExpiration = 24.hours,
-      cacheDirectory = Paths.get("/cache/lotl"),
-  ).bind()
-  
-  // 2. Configure DSS with the concurrent-safe loader
-  val dssOptions = DssOptions(loader = loader)
-  
-  // 3. Create GetTrustAnchorsFromLoTL
-  val getTrustAnchors = GetTrustAnchorsFromLoTL(dssOptions)
+    // 1. Create thread-safe loader with dual-layer caching
+    val loader = ConcurrentCacheDataLoader(
+        httpLoader = NativeHTTPDataLoader(),
+        fileCacheExpiration = 24.hours,
+        cacheDirectory = Paths.get("/cache/lotl"),
+    ).bind()
 
-  // 4. Wrap with AsyncCache for additional deduplication
-  val cachedGetTrustAnchors = getTrustAnchors.cached(ttl = 10.minutes, expectedQueries = 100,).bind()
-  
-  // 5. Create validator with cached GetTrustAnchors
-  val isChainTrustedForContext = IsChainTrustedForContext(
-    supportedContexts = setOf(VerificationContext.PID),
-    getTrustAnchors = cachedGetTrustAnchors.transform(
-      mapOf(VerificationContext.PID to lotlSource)
-    ),
-    validateCertificateChain = ValidateCertificateChainUsingPKIXJvm.Default
-  )
+    // 2. Configure DSS with the concurrent-safe loader
+    val dssOptions = DssOptions(loader = loader)
 
-  // 6. Handle concurrent validation requests efficiently
-  runBlocking {
-    (1..100).map { i ->
-      async {
-        val result = isChainTrustedForContext(chain, VerificationContext.PID)
-        // Process result...
-      }
-    }.awaitAll()
-  }
+    // 3. Create GetTrustAnchorsFromLoTL
+    val getTrustAnchors = GetTrustAnchorsFromLoTL(dssOptions)
+
+    // 4. Wrap with AsyncCache for additional deduplication
+    val cachedGetTrustAnchors = getTrustAnchors.cached(ttl = 10.minutes, expectedQueries = 100,).bind()
+
+    // 5. Create validator with cached GetTrustAnchors
+    val isChainTrustedForContext = IsChainTrustedForContext(
+        supportedContexts = setOf(VerificationContext.PID),
+        getTrustAnchors = cachedGetTrustAnchors.transform(
+            mapOf(VerificationContext.PID to lotlSource)
+        ),
+        validateCertificateChain = ValidateCertificateChainUsingPKIXJvm.Default
+    )
+
+    // 6. Handle concurrent validation requests efficiently
+    runBlocking {
+        (1..100).map { i ->
+            async {
+                val result = isChainTrustedForContext(chain, VerificationContext.PID)
+                // Process result...
+            }
+        }.awaitAll()
+    }
 }
 
 ```
@@ -485,18 +504,19 @@ useResoures {
 
 ### DssOptions
 
-| Property | Type | Default | Description |
-|----------|------|---------|-------------|
-| `loader` | `DSSCacheFileLoader` | `FileCacheDataLoader` | DataLoader implementation |
-| `cleanMemory` | `Boolean` | `true` | Clean DSS memory cache |
-| `cleanFileSystem` | `Boolean` | `true` | Clean DSS file system cache |
-| `synchronizationStrategy` | `SynchronizationStrategy` | `ExpirationAndSignatureCheckStrategy` | LOTL/TL sync strategy |
-| `executorService` | `ExecutorService?` | `null` | Executor for validation job |
-| `validateJobDispatcher` | `CoroutineDispatcher` | `Dispatchers.IO` | Dispatcher for validation |
+| Property                  | Type                      | Default                               | Description                 |
+|---------------------------|---------------------------|---------------------------------------|-----------------------------|
+| `loader`                  | `DSSCacheFileLoader`      | `FileCacheDataLoader`                 | DataLoader implementation   |
+| `cleanMemory`             | `Boolean`                 | `true`                                | Clean DSS memory cache      |
+| `cleanFileSystem`         | `Boolean`                 | `true`                                | Clean DSS file system cache |
+| `synchronizationStrategy` | `SynchronizationStrategy` | `ExpirationAndSignatureCheckStrategy` | LOTL/TL sync strategy       |
+| `executorService`         | `ExecutorService?`        | `null`                                | Executor for validation job |
+| `validateJobDispatcher`   | `CoroutineDispatcher`     | `Dispatchers.IO`                      | Dispatcher for validation   |
 
 ### Factory Methods
 
 **`DssOptions.usingFileCacheDataLoader()`** - Low-concurrency setup:
+
 ```kotlin
 DssOptions.usingFileCacheDataLoader(
     fileCacheExpiration = 24.hours,
@@ -509,6 +529,7 @@ DssOptions.usingFileCacheDataLoader(
 ```
 
 **`ConcurrentCacheDataLoader`** - High-concurrency setup:
+
 ```kotlin
 ConcurrentCacheDataLoader(
     httpLoader = NativeHTTPDataLoader(),
@@ -524,9 +545,9 @@ ConcurrentCacheDataLoader(
 
 ## Platform Support
 
-| Platform | Status |
-|----------|--------|
-| **JVM** | ✅ Supported |
+| Platform    | Status                                |
+|-------------|---------------------------------------|
+| **JVM**     | ✅ Supported                           |
 | **Android** | ✅ Supported (minSdk=26, targetSdk=34) |
 
 ---
@@ -535,12 +556,16 @@ ConcurrentCacheDataLoader(
 
 Additional usage examples can be found in:
 
-- [IsChainTrustedUsingLoTLTest.kt](src/jvmAndAndroidTest/kotlin/eu/europa/ec/eudi/etsi1196x2/consultation/dss/IsChainTrustedUsingLoTLTest.kt) - Basic and concurrent scenarios
-- [ConcurrentCacheDataLoader Test](src/jvmAndAndroidTest/kotlin/eu/europa/ec/eudi/etsi1196x2/consultation/dss/IsChainTrustedUsingLoTLTest.kt) - High-concurrency stress tests
+- [IsChainTrustedUsingLoTLTest.kt](src/jvmAndAndroidTest/kotlin/eu/europa/ec/eudi/etsi1196x2/consultation/dss/IsChainTrustedUsingLoTLTest.kt) -
+  Basic and concurrent scenarios
+- [ConcurrentCacheDataLoader Test](src/jvmAndAndroidTest/kotlin/eu/europa/ec/eudi/etsi1196x2/consultation/dss/IsChainTrustedUsingLoTLTest.kt) -
+  High-concurrency stress tests
 
 ---
 
 ## Dependencies
+
+### JVM
 
 > [!IMPORTANT]
 >
@@ -558,7 +583,30 @@ Additional usage examples can be found in:
 > implementation("eu.europa.ec.joinup.sd-dss:dss-policy-jaxb:$dssVersion")
 > ```
 >
-> More information is available [here](https://github.com/esig/dss/blob/master/dss-cookbook/src/main/asciidoc/_chapters/signature-validation.adoc#12-ades-validation-constraintspolicy).
+> More information is
+> available [here](https://github.com/esig/dss/blob/master/dss-cookbook/src/main/asciidoc/_chapters/signature-validation.adoc#12-ades-validation-constraintspolicy).
+
+### Android
+
+> [!IMPORTANT]
+>
+> Android requires an additional build-time patch. DSS 6.4 calls `XMLInputFactory.newFactory()` — a method added in Java 9 that does not exist on Android. A Gradle script patches the `dss-jaxb-common` JAR at build time, replacing `newFactory()` with `newInstance()`.
+>
+> For technical details, see [PR #106](https://github.com/eu-digital-identity-wallet/eudi-lib-kmp-etsi-1196x2/pull/106).
+
+**Step 1:** Add the dependency:
+```kotlin
+dependencies {
+    implementation("eu.europa.ec.eudi:etsi-1196x2-consultation-dss:<version>")
+}
+```
+
+**Step 2:** Copy `gradle/dss-android-patch.gradle.kts` from this module into your project (e.g., into your app's `gradle/` directory) and apply it in your `build.gradle.kts`:
+```kotlin
+apply(from = "gradle/dss-android-patch.gradle.kts")
+```
+
+No other dependencies are required — JAXB RI 4.0.7, Xerces, and all other libraries are provided transitively. The default DSS version in the patch script is `6.4`; override it via `-PdssVersion` if needed.
 
 ---
 
