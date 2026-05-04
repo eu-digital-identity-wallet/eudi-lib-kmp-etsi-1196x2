@@ -52,7 +52,7 @@ jobs:
             -Dsonar.kotlin.coverage.reportPaths=consultation/build/reports/kover/report.xml,consultation-dss/build/reports/kover/report.xml,119602-data-model/build/reports/kover/report.xml,119602-consultation/build/reports/kover/report.xml
             -Dsonar.kotlin.multiplatform.reportPaths=consultation/build/reports/kover/report.xml,consultation-dss/build/reports/kover/report.xml,119602-data-model/build/reports/kover/report.xml,119602-consultation/build/reports/kover/report.xml
             -Dsonar.sources=consultation/src/commonMain,consultation/src/jvmAndAndroidMain,consultation-dss/src/jvmAndAndroidMain,119602-data-model/src/commonMain,119602-consultation/src/commonMain
-            -Dsonar.tests=consultation/src/jvmAndAndroidTest,consultation-dss/src/jvmAndAndroidTest,119602-data-model/src/jvmAndAndroidTest,119602-consultation/src/jvmAndAndroidTest,119602-data-model/src/commonTest,119602-consultation/src/commonTest
+            -Dsonar.tests=consultation/src/jvmAndAndroidTest,consultation-dss/src/jvmAndAndroidTest,119602-data-model/src/jvmAndAndroidTest,119602-consultation/src/jvmAndAndroidTest,119602-consultation/src/commonTest
             -Dsonar.java.binaries=consultation/build/classes/kotlin/jvm,consultation-dss/build/classes/kotlin/jvm,119602-data-model/build/classes/kotlin/jvm,119602-consultation/build/classes/kotlin/jvm
             -Dsonar.kotlin.binaries=consultation/build/classes/kotlin/jvm,consultation-dss/build/classes/kotlin/jvm,119602-data-model/build/classes/kotlin/jvm,119602-consultation/build/classes/kotlin/jvm
       - uses: sonarsource/sonarqube-scan-action@v7.1.0
@@ -71,7 +71,7 @@ jobs:
             -Dsonar.kotlin.coverage.reportPaths=consultation/build/reports/kover/report.xml,consultation-dss/build/reports/kover/report.xml,119602-data-model/build/reports/kover/report.xml,119602-consultation/build/reports/kover/report.xml
             -Dsonar.kotlin.multiplatform.reportPaths=consultation/build/reports/kover/report.xml,consultation-dss/build/reports/kover/report.xml,119602-data-model/build/reports/kover/report.xml,119602-consultation/build/reports/kover/report.xml
             -Dsonar.sources=consultation/src/commonMain,consultation/src/jvmAndAndroidMain,consultation-dss/src/jvmAndAndroidMain,119602-data-model/src/commonMain,119602-consultation/src/commonMain
-            -Dsonar.tests=consultation/src/jvmAndAndroidTest,consultation-dss/src/jvmAndAndroidTest,119602-data-model/src/jvmAndAndroidTest,119602-consultation/src/jvmAndAndroidTest,119602-data-model/src/commonTest,119602-consultation/src/commonTest
+            -Dsonar.tests=consultation/src/jvmAndAndroidTest,consultation-dss/src/jvmAndAndroidTest,119602-data-model/src/jvmAndAndroidTest,119602-consultation/src/jvmAndAndroidTest,119602-consultation/src/commonTest
             -Dsonar.java.binaries=consultation/build/classes/kotlin/jvm,consultation-dss/build/classes/kotlin/jvm,119602-data-model/build/classes/kotlin/jvm,119602-consultation/build/classes/kotlin/jvm
             -Dsonar.kotlin.binaries=consultation/build/classes/kotlin/jvm,consultation-dss/build/classes/kotlin/jvm,119602-data-model/build/classes/kotlin/jvm,119602-consultation/build/classes/kotlin/jvm
       - uses: actions/setup-node@v6
