@@ -39,7 +39,7 @@ jobs:
         with:
           cache-provider: basic
       - run: ./gradlew test koverXmlReport
-      - uses: sonarsource/sonarqube-scan-action@v7.1.0
+      - uses: sonarsource/sonarqube-scan-action@v8.0.0
         if: (github.event_name == 'push'|| github.event_name == 'workflow_dispatch')
         with:
           projectBaseDir: ${{ github.workspace }}
@@ -55,7 +55,7 @@ jobs:
             -Dsonar.tests=consultation/src/jvmAndAndroidTest,consultation-dss/src/jvmAndAndroidTest,119602-data-model/src/jvmAndAndroidTest,119602-consultation/src/jvmAndAndroidTest,119602-consultation/src/commonTest
             -Dsonar.java.binaries=consultation/build/classes/kotlin/jvm,consultation-dss/build/classes/kotlin/jvm,119602-data-model/build/classes/kotlin/jvm,119602-consultation/build/classes/kotlin/jvm
             -Dsonar.kotlin.binaries=consultation/build/classes/kotlin/jvm,consultation-dss/build/classes/kotlin/jvm,119602-data-model/build/classes/kotlin/jvm,119602-consultation/build/classes/kotlin/jvm
-      - uses: sonarsource/sonarqube-scan-action@v7.1.0
+      - uses: sonarsource/sonarqube-scan-action@v8.0.0
         if: (github.event_name == 'pull_request_target')
         with:
           projectBaseDir: ${{ github.workspace }}
