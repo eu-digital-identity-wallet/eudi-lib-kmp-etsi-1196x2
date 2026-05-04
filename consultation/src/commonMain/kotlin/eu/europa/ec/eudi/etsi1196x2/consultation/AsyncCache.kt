@@ -44,9 +44,7 @@ public class AsyncCache<A : Any, B>(
     }
 
     override suspend fun invoke(key: A): B {
-        if (!cacheScope.isActive) {
-            throw IllegalStateException("AsyncCache has been closed")
-        }
+        check(cacheScope.isActive) { "AsyncCache has been closed" }
         val now = clock.now().toEpochMilliseconds()
         val entry = mutex.withLock {
             val existing = cache[key]
