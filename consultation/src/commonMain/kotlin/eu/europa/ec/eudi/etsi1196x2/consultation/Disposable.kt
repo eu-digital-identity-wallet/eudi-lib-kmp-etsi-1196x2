@@ -20,7 +20,7 @@ import kotlinx.atomicfu.atomic
 /**
  * Represents a disposable resource that can be released.
  */
-public interface Disposable {
+public fun interface Disposable {
     /**
      * Releases the resource.
      */
