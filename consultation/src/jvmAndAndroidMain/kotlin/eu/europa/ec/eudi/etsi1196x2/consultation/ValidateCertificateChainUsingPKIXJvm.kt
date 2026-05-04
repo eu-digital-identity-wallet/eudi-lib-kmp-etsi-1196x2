@@ -25,9 +25,6 @@ import java.security.InvalidAlgorithmParameterException
 import java.security.Provider
 import java.security.cert.*
 
-@Deprecated("Use ValidateCertificateChainUsingPKIX instead", replaceWith = ReplaceWith("ValidateCertificateChainUsingPKIX"))
-public typealias ValidateCertificateChainJvm = ValidateCertificateChainUsingPKIXJvm
-
 /**
  * A JVM-specific implementation of [ValidateCertificateChain]
  *
@@ -97,7 +94,7 @@ public class ValidateCertificateChainUsingPKIXJvm(
         customization,
     )
 
-    private val coroutineContext = CoroutineName(name = "ValidateCertificateChainJvm") + dispatcher
+    private val coroutineContext = CoroutineName(name = "ValidateCertificateChainUsingPKIXJvm") + dispatcher
 
     override suspend fun invoke(
         chain: List<X509Certificate>,
