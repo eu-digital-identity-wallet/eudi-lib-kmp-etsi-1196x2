@@ -185,7 +185,7 @@ Designed from the ground up for asynchronous environments (KMP):
 The consultation module is a **Kotlin Multiplatform (KMP)** module.
 
 - **commonMain**: Core logic and abstractions.
-- **jvmAndAndroidMain**: Specific implementations for JVM and Android (e.g., `ValidateCertificateChainJvm`).
+- **jvmAndAndroidMain**: Specific implementations for JVM and Android (e.g., `ValidateCertificateChainUsingPKIXJvm`).
 
 ## Examples
 
@@ -248,7 +248,7 @@ useResources {
   val validator = IsChainTrustedForContext(
     supportedContexts = setOf(VerificationContext.PID),
     getTrustAnchors = getTrustAnchors,
-    validateCertificateChain = ValidateCertificateChainJvm()
+    validateCertificateChain = ValidateCertificateChainUsingPKIXJvm()
   )
 
   val isChainTrusted = IsChainTrustedForEUDIW(validator)

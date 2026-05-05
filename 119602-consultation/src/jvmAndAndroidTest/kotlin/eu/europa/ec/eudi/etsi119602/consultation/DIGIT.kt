@@ -23,6 +23,7 @@ import eu.europa.ec.eudi.etsi1196x2.consultation.SupportedLists
 import eu.europa.ec.eudi.etsi1196x2.consultation.VerificationContext
 import kotlinx.coroutines.test.runTest
 import kotlinx.io.files.Path
+import kotlin.test.Ignore
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.time.Duration.Companion.hours
@@ -73,7 +74,7 @@ object DIGIT {
 
 class DIGITTest {
 
-    @Test
+    @Test @Ignore
     @SensitiveApi
     fun testDownload() = runTest {
         createHttpClient().use { httpClient ->

@@ -107,7 +107,13 @@ public class ConcurrentCacheDataLoader(
     httpCacheTtl: Duration = 5.seconds,
     maxCacheSize: Int = 100,
     private val filenameStrategy: CacheFilenameStrategy = CacheFilenameStrategy.DSS,
-) : DataLoader, DSSCacheFileLoader, Disposable {
+    private val httpCache: AsyncCache<String, ByteArray> = AsyncCache(
+        cacheDispatcher = cacheDispatcher,
+        clock = Clock.System,
+        ttl = httpCacheTtl,
+        maxCacheSize = maxCacheSize,
+    ) { url -> httpLoader.get(url) },
+) : DataLoader, DSSCacheFileLoader, Disposable by httpCache {
 
     init {
         require(fileCacheExpiration.isPositive() && fileCacheExpiration != Duration.INFINITE) {
@@ -120,15 +126,6 @@ public class ConcurrentCacheDataLoader(
             .also { Files.createDirectories(it) }
 
     private val mutexes = ConcurrentHashMap<String, MutexHolder>()
-
-    private val httpCache = AsyncCache<String, ByteArray>(
-        cacheDispatcher = cacheDispatcher,
-        clock = Clock.System,
-        ttl = httpCacheTtl,
-        maxCacheSize = maxCacheSize,
-    ) { url ->
-        httpLoader.get(url)
-    }
 
     override fun get(url: String): ByteArray = get(url, refresh = false)
 
@@ -205,10 +202,6 @@ public class ConcurrentCacheDataLoader(
         } catch (_: Exception) {
             false
         }
-    }
-
-    override fun dispose() {
-        httpCache.dispose()
     }
 
     private fun cacheFileFor(url: String): Path {

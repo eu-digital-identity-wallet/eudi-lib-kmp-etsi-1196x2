@@ -64,9 +64,7 @@ public value class MultilingualStringValue(public val value: String) {
 
             // Rule 7: Simple check for markup-like patterns (tags)
             // While a full parser is complex, Rule 7 forbids mark-up elements/tags.
-            if (s.contains("<") && s.contains(">")) {
-                if (containsHtmlLikeTags(s)) return false
-            }
+            if (s.contains("<") && s.contains(">") && containsHtmlLikeTags(s)) return false
 
             return true
         }

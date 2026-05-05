@@ -63,7 +63,7 @@ class IsChainTrustedUsingLoTLAndroidTest {
             trustServicePredicate = Predicate { tspServiceType ->
                 tspServiceType.serviceInformation.serviceTypeIdentifier == serviceType
             }
-            isPivotSupport = true
+            isPivotSupport = false
         }
 
         private fun pkixValidator(enableRevocation: Boolean) =

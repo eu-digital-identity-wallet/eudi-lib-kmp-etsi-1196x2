@@ -156,18 +156,15 @@ public class GetTrustAnchorsCachedSource<in QUERY : Any, out TRUST_ANCHOR : Any>
     ttl: Duration,
     expectedQueries: Int,
     private val delegate: GetTrustAnchors<QUERY, TRUST_ANCHOR>,
-) : GetTrustAnchors<QUERY, TRUST_ANCHOR>, Disposable {
-
-    private val cached: AsyncCache<QUERY, NonEmptyList<TRUST_ANCHOR>?> =
-        AsyncCache(cacheDispatcher, clock, ttl, expectedQueries) { query ->
-            delegate(query)
-        }
+    private val cached: AsyncCache<QUERY, NonEmptyList<TRUST_ANCHOR>?> = AsyncCache(
+        cacheDispatcher,
+        clock,
+        ttl,
+        expectedQueries,
+    ) { query -> delegate(query) },
+) : GetTrustAnchors<QUERY, TRUST_ANCHOR>, Disposable by cached {
 
     override suspend fun invoke(query: QUERY): NonEmptyList<TRUST_ANCHOR>? = cached(query)
-
-    override fun dispose() {
-        cached.dispose()
-    }
 }
 
 @SensitiveApi

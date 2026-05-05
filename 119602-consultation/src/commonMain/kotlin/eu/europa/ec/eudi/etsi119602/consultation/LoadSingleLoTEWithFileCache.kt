@@ -260,7 +260,7 @@ internal class LoTEFileStore(
             }
 
             // Delete all files in cache directory
-            fileSystem.list(cacheDirectory).forEach { it ->
+            fileSystem.list(cacheDirectory).forEach {
                 deleteIgnoringIOExceptions(it)
             }
         }

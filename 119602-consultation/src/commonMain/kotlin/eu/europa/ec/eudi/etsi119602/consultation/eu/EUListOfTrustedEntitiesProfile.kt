@@ -75,9 +75,8 @@ public data class EUListOfTrustedEntitiesProfile(
                 trustedEntitiesErrors[index] = e.message ?: "Unknown error"
             }
         }
-        if (trustedEntitiesErrors.isNotEmpty()) {
-            throw IllegalStateException("Violation of ${listAndSchemeInformation.type}, trusted entities errors: ${trustedEntitiesErrors.map { "${it.key}: ${it.value}" }}")
-        }
+        val errorMessage = "Violation of ${listAndSchemeInformation.type}, trusted entities errors: ${trustedEntitiesErrors.map { "${it.key}: ${it.value}" }}"
+        check(trustedEntitiesErrors.isEmpty()) { errorMessage }
     }
 }
 
