@@ -54,7 +54,7 @@ object EUDIRefDevEnv {
             trustServicePredicate = Predicate { tspServiceType ->
                 tspServiceType.serviceInformation.serviceTypeIdentifier == serviceType
             }
-            isPivotSupport = true
+            isPivotSupport = false
         }
         return lotlSource
     }
