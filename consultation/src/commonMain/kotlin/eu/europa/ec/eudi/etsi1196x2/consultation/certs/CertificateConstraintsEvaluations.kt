@@ -52,7 +52,7 @@ public object CertificateConstraintsEvaluations {
         }
     }
 
-    public fun mandatoryQcStatement(
+    public fun mandatoryQcType(
         statements: List<QCStatementInfo>,
         qcType: String,
     ): CertificateConstraintEvaluation = CertificateConstraintEvaluation {

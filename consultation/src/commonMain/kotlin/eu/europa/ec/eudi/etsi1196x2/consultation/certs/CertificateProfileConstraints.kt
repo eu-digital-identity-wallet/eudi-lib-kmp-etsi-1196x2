@@ -40,10 +40,10 @@ public fun ProfileBuilder.ca(maxPathLen: Int? = null) {
 // QCStatements
 //
 
-public fun ProfileBuilder.mandatoryQcStatement(
+public fun ProfileBuilder.mandatoryQcType(
     qcType: String,
 ) {
-    qcStatements(qcType) { statements -> CertificateConstraintsEvaluations.mandatoryQcStatement(statements, qcType) }
+    qcStatements(qcType) { statements -> CertificateConstraintsEvaluations.mandatoryQcType(statements, qcType) }
 }
 
 //

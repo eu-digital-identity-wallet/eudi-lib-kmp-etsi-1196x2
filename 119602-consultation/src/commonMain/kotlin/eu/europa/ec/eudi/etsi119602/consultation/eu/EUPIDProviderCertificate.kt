@@ -27,7 +27,7 @@ public fun pidSigningCertificateProfile(at: Instant? = null): CertificateProfile
     // X.509 v3 required (for extensions)
     version3()
     endEntity()
-    mandatoryQcStatement(qcType = ETSI119412Part6.ID_ETSI_QCT_PID)
+    mandatoryQcType(qcType = ETSI119412Part6.ID_ETSI_QCT_PID)
     keyUsageDigitalSignature()
     pidProviderExplicitExtensionCriticality()
 
