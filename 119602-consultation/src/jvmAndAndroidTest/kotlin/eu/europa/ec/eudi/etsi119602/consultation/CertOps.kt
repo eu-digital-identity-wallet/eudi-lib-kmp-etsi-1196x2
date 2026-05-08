@@ -16,6 +16,7 @@
 package eu.europa.ec.eudi.etsi119602.consultation
 
 import eu.europa.ec.eudi.etsi1196x2.consultation.JvmSecurity
+import eu.europa.ec.eudi.etsi1196x2.consultation.certs.ETSI319412
 import eu.europa.ec.eudi.etsi1196x2.consultation.certs.RFC3739
 import org.bouncycastle.asn1.*
 import org.bouncycastle.asn1.x500.X500Name
@@ -57,7 +58,7 @@ object CertOps {
         sigAlg: String,
         subject: X500Name,
         keyUsage: KeyUsage = KeyUsage(KeyUsage.keyCertSign or KeyUsage.cRLSign),
-        qcStatements: List<Pair<String, Boolean>>? = null,
+        qcStatements: List<String>? = null,
         policyOids: List<String>? = null,
         pathLenConstraint: Int? = null,
     ): Pair<KeyPair, X509CertificateHolder> {
@@ -76,7 +77,7 @@ object CertOps {
         sigAlg: String,
         name: X500Name,
         keyUsage: KeyUsage,
-        qcStatements: List<Pair<String, Boolean>>?,
+        qcStatements: List<String>?,
         policyOids: List<String>? = null,
         pathLenConstraint: Int? = null,
     ): X509CertificateHolder {
@@ -99,13 +100,17 @@ object CertOps {
                 certificatePolicies(policyOids)
             }
             if (!qcStatements.isNullOrEmpty()) {
-                val qcStatementSequences = qcStatements.map { (qcType, qcCompliance) ->
-                    DERSequence(
-                        arrayOf(
-                            ASN1ObjectIdentifier(qcType),
-                            DERUTF8String(if (qcCompliance) "compliant" else "non-compliant"),
-                        ),
-                    )
+                val qcStatementSequences = qcStatements.map { oid ->
+                    if (oid == ETSI119412Part6.ID_ETSI_QCT_PID || oid == ETSI119412Part6.ID_ETSI_QCT_WAL) {
+                        DERSequence(
+                            arrayOf(
+                                ASN1ObjectIdentifier(ETSI319412.QC_TYPE),
+                                DERSequence(ASN1ObjectIdentifier(oid)),
+                            ),
+                        )
+                    } else {
+                        DERSequence(arrayOf(ASN1ObjectIdentifier(oid)))
+                    }
                 }
                 val qcStatementsSeq = DERSequence(qcStatementSequences.toTypedArray())
                 addExtension(ASN1ObjectIdentifier(RFC3739.ID_PE_QCSTATEMENTS), false, qcStatementsSeq)
@@ -119,7 +124,7 @@ object CertOps {
         sigAlg: String,
         subject: X500Name,
         keyUsage: KeyUsage = KeyUsage(KeyUsage.digitalSignature),
-        qcStatements: List<Pair<String, Boolean>>? = null,
+        qcStatements: List<String>? = null,
         policyOids: List<String>? = null,
         caIssuersUri: String? = null,
         ocspUri: String? = null,
@@ -156,7 +161,7 @@ object CertOps {
         sigAlg: String,
         subject: X500Name,
         keyUsage: KeyUsage = KeyUsage(KeyUsage.digitalSignature),
-        qcStatements: List<Pair<String, Boolean>>? = null,
+        qcStatements: List<String>? = null,
         policyOids: List<String>? = null,
         withSKI: Boolean = true,
     ): Pair<KeyPair, X509CertificateHolder> {
@@ -182,7 +187,7 @@ object CertOps {
         sigAlg: String,
         name: X500Name,
         keyUsage: KeyUsage,
-        qcStatements: List<Pair<String, Boolean>>?,
+        qcStatements: List<String>?,
         policyOids: List<String>?,
         withSKI: Boolean = true,
     ): X509CertificateHolder {
@@ -200,13 +205,17 @@ object CertOps {
             basicConstraints(BasicConstraints(false)) // end-entity (cA=FALSE)
             keyUsage(keyUsage)
             if (!qcStatements.isNullOrEmpty()) {
-                val qcStatementSequences = qcStatements.map { (qcType, qcCompliance) ->
-                    DERSequence(
-                        arrayOf(
-                            ASN1ObjectIdentifier(qcType),
-                            DERUTF8String(if (qcCompliance) "compliant" else "non-compliant"),
-                        ),
-                    )
+                val qcStatementSequences = qcStatements.map { oid ->
+                    if (oid == ETSI119412Part6.ID_ETSI_QCT_PID || oid == ETSI119412Part6.ID_ETSI_QCT_WAL) {
+                        DERSequence(
+                            arrayOf(
+                                ASN1ObjectIdentifier(ETSI319412.QC_TYPE),
+                                DERSequence(ASN1ObjectIdentifier(oid)),
+                            ),
+                        )
+                    } else {
+                        DERSequence(arrayOf(ASN1ObjectIdentifier(oid)))
+                    }
                 }
                 val qcStatementsSeq = DERSequence(qcStatementSequences.toTypedArray())
                 addExtension(ASN1ObjectIdentifier(RFC3739.ID_PE_QCSTATEMENTS), false, qcStatementsSeq)
@@ -224,7 +233,7 @@ object CertOps {
         certKey: PublicKey,
         subject: X500Name,
         keyUsage: KeyUsage,
-        qcStatements: List<Pair<String, Boolean>>? = null,
+        qcStatements: List<String>? = null,
         policyOids: List<String>? = null,
         caIssuersUri: String? = null,
         ocspUri: String? = null,
@@ -249,13 +258,17 @@ object CertOps {
             basicConstraints(BasicConstraints(false)) // do not allow this cert to sign other certs
             keyUsage(keyUsage)
             if (!qcStatements.isNullOrEmpty()) {
-                val qcStatementSequences = qcStatements.map { (qcType, qcCompliance) ->
-                    DERSequence(
-                        arrayOf(
-                            ASN1ObjectIdentifier(qcType),
-                            DERUTF8String(if (qcCompliance) "compliant" else "non-compliant"),
-                        ),
-                    )
+                val qcStatementSequences = qcStatements.map { oid ->
+                    if (oid == ETSI119412Part6.ID_ETSI_QCT_PID || oid == ETSI119412Part6.ID_ETSI_QCT_WAL) {
+                        DERSequence(
+                            arrayOf(
+                                ASN1ObjectIdentifier(ETSI319412.QC_TYPE),
+                                DERSequence(ASN1ObjectIdentifier(oid)),
+                            ),
+                        )
+                    } else {
+                        DERSequence(arrayOf(ASN1ObjectIdentifier(oid)))
+                    }
                 }
                 val qcStatementsSeq = DERSequence(qcStatementSequences.toTypedArray())
                 addExtension(ASN1ObjectIdentifier(RFC3739.ID_PE_QCSTATEMENTS), false, qcStatementsSeq)

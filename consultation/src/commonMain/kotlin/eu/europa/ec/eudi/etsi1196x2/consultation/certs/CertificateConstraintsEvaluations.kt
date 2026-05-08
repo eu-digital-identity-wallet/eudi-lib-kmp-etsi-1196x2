@@ -55,19 +55,14 @@ public object CertificateConstraintsEvaluations {
     public fun mandatoryQcStatement(
         statements: List<QCStatementInfo>,
         qcType: String,
-        requireCompliance: Boolean = false,
     ): CertificateConstraintEvaluation = CertificateConstraintEvaluation {
         when {
             statements.isEmpty() -> {
                 add(certificateDoesNotContainAnyQCStatement)
             }
 
-            statements.none { it.qcType == qcType } -> {
+            statements.none { it.semanticOid == qcType } -> {
                 add(certificateDoesNotContainRequiredQCStatement(qcType, statements))
-            }
-
-            requireCompliance && statements.none { it.qcType == qcType && it.qcCompliance } -> {
-                add(certificateNotMarkedCompliantForQCStatement(qcType))
             }
         }
     }
@@ -319,7 +314,7 @@ public object CertificateConstraintsEvaluations {
 
         // Exempt if validity-assured short-term certificate QC statement is present
         val isValAssured = qcStatements.any {
-            it.qcType == ETSI319412Part1.EXT_ETSI_VAL_ASSURED_ST_CERTS
+            it.semanticOid == ETSI319412Part1.EXT_ETSI_VAL_ASSURED_ST_CERTS
         }
         if (isValAssured) return@CertificateConstraintEvaluation
 
@@ -348,7 +343,7 @@ public object CertificateConstraintsEvaluations {
             .toSet()
 
         for (requiredType in requiredQcTypes) {
-            if (qcStatements.none { it.qcType == requiredType }) {
+            if (qcStatements.none { it.semanticOid == requiredType }) {
                 add(certificateDoesNotContainRequiredQCStatement(requiredType, qcStatements))
             }
         }
@@ -403,7 +398,7 @@ public object CertificateConstraintsEvaluations {
         hasNoRevAvail: Boolean,
     ): CertificateConstraintEvaluation = CertificateConstraintEvaluation {
         val isValAssured = qcStatements.any {
-            it.qcType == ETSI319412Part1.EXT_ETSI_VAL_ASSURED_ST_CERTS
+            it.semanticOid == ETSI319412Part1.EXT_ETSI_VAL_ASSURED_ST_CERTS
         }
         if (!isValAssured) return@CertificateConstraintEvaluation
 
@@ -448,15 +443,10 @@ public object CertificateConstraintsEvaluations {
     ): CertificateConstraintViolation =
         CertificateConstraintViolation(
             reason = buildString {
-                val statementsStr = statements.joinToString { it.qcType }
+                val statementsStr = statements.joinToString { it.semanticOid }
                 append("Certificate does not contain required QCStatement type '$qcType'.")
                 append("Available: $statementsStr")
             },
-        )
-
-    public fun certificateNotMarkedCompliantForQCStatement(qcType: String): CertificateConstraintViolation =
-        CertificateConstraintViolation(
-            reason = "Certificate contains QCStatement type '$qcType' but it is not marked as compliant",
         )
 
     public val certificateDoesNotContainKeyUsage: CertificateConstraintViolation

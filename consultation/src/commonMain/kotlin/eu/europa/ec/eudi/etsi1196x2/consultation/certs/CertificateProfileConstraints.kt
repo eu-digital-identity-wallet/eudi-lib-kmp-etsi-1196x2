@@ -42,9 +42,8 @@ public fun ProfileBuilder.ca(maxPathLen: Int? = null) {
 
 public fun ProfileBuilder.mandatoryQcStatement(
     qcType: String,
-    requireCompliance: Boolean = false,
 ) {
-    qcStatements(qcType) { statements -> CertificateConstraintsEvaluations.mandatoryQcStatement(statements, qcType, requireCompliance) }
+    qcStatements(qcType) { statements -> CertificateConstraintsEvaluations.mandatoryQcStatement(statements, qcType) }
 }
 
 //

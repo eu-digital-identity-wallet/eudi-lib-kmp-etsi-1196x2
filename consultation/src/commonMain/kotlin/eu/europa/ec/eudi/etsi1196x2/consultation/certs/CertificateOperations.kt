@@ -195,13 +195,47 @@ public data class KeyUsageBits(
 /**
  * Information about a QCStatement in a certificate (ETSI EN 319 412-5).
  *
- * @param qcType the OID identifying the type of QCStatement (e.g., id-etsi-qct-pid)
- * @param qcCompliance whether the certificate is compliant with the QC type
+ * Two variants:
+ * - [QcType]: a QcType statement whose [statementId] is always id-etsi-qcs-QcType
+ *   and the semantic OID is the inner [typeIdentifier] (e.g., id-etsi-qct-pid).
+ * - [OtherQcStatement]: any other QC statement whose [statementId] is itself the
+ *   semantic OID.
+ *
+ * Use [semanticOid] for matching regardless of variant.
  */
-public data class QCStatementInfo(
-    val qcType: String, // OID
-    val qcCompliance: Boolean,
-)
+public sealed interface QCStatementInfo {
+    /**
+     * The OID of the QC statement id (outer statementId).
+     */
+    public val statementId: String
+
+    /**
+     * The OID that identifies the semantic type of this statement.
+     * For [QcType] this is the [QcType.typeIdentifier]; for [OtherQcStatement]
+     * this is the [OtherQcStatement.statementId].
+     */
+    public val semanticOid: String
+        get() = statementId
+
+    /**
+     * A QcType statement (id-etsi-qcs-QcType).
+     * The meaningful payload is the [typeIdentifier] OID.
+     *
+     * @param typeIdentifier the type identifier OID (e.g., id-etsi-qct-pid)
+     */
+    public data class QcType(val typeIdentifier: String) : QCStatementInfo {
+        override val statementId: String get() = ETSI319412.QC_TYPE
+        override val semanticOid: String get() = typeIdentifier
+    }
+
+    /**
+     * Any QC statement that is not a QcType statement.
+     * The [statementId] itself is the semantic OID.
+     *
+     * @param statementId the OID of the QC statement
+     */
+    public data class OtherQcStatement(override val statementId: String) : QCStatementInfo
+}
 
 /**
  * Information about the validity period of a certificate.

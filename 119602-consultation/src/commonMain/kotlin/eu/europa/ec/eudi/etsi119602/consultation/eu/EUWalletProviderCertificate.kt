@@ -38,7 +38,7 @@ public fun walletProviderSigningCertificateProfile(at: Instant? = null): Certifi
     certificateProfile {
         endEntity()
         version3()
-        mandatoryQcStatement(qcType = ETSI119412Part6.ID_ETSI_QCT_WAL, requireCompliance = true)
+        mandatoryQcStatement(qcType = ETSI119412Part6.ID_ETSI_QCT_WAL)
         keyUsageDigitalSignature()
         walletProviderExplicitExtensionCriticality()
         validAt(at)

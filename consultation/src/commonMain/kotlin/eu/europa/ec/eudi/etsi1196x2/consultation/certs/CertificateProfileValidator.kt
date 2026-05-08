@@ -143,7 +143,7 @@ public interface CertificateProfileInterpreter<CERT : Any> {
 
                         is CertificateOperationsAlgebra.GetQcStatements ->
                             operations.getQcStatements(certificate)
-                                .filter { it.qcType == op.qcType } as T
+                                .filter { it.semanticOid == op.qcType } as T
 
                         // New algebra type handlers
                         is CertificateOperationsAlgebra.GetSubject ->

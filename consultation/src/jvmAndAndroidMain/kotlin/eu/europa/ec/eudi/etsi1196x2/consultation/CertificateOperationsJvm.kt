@@ -19,7 +19,6 @@ import eu.europa.ec.eudi.etsi1196x2.consultation.certs.*
 import org.bouncycastle.asn1.ASN1ObjectIdentifier
 import org.bouncycastle.asn1.ASN1OctetString
 import org.bouncycastle.asn1.ASN1Sequence
-import org.bouncycastle.asn1.DERUTF8String
 import org.bouncycastle.asn1.x500.X500Name
 import org.bouncycastle.asn1.x500.style.IETFUtils
 import org.bouncycastle.asn1.x509.*
@@ -195,28 +194,25 @@ public object CertificateOperationsJvm : CertificateOperations<X509Certificate> 
         qcStatements.mapNotNull { qcStatementObj ->
             val qcStatement = QCStatement.getInstance(qcStatementObj) ?: return@mapNotNull null
 
-            // First element is the statementId (OID)
             val statementId = qcStatement.statementId.id
 
-            // Second element (optional) is statementInfo - check for QC compliance
-            // Per ETSI EN 319 412-5, QCStatements can have a compliance indicator
-            // We check if the second element is a UTF8String containing "compliant"
-            var qcCompliance = false
-            qcStatement.statementInfo?.let { statementInfo ->
-                // Check if it's a UTF8String with compliance indicator
-                if (statementInfo is DERUTF8String) {
-                    val complianceStr = statementInfo.string.lowercase()
-                    qcCompliance = complianceStr == "compliant"
-                } else {
-                    // If there's any second element, assume compliant (backward compatibility)
-                    qcCompliance = true
+            if (statementId == ETSI319412.QC_TYPE) {
+                val typeIdentifier = qcStatement.statementInfo?.let { statementInfo ->
+                    val qcTypeSeq = ASN1Sequence.getInstance(statementInfo)
+                    if (qcTypeSeq.size() > 0) {
+                        ASN1ObjectIdentifier.getInstance(qcTypeSeq.getObjectAt(0)).id
+                    } else {
+                        null
+                    }
                 }
+                if (typeIdentifier != null) {
+                    QCStatementInfo.QcType(typeIdentifier = typeIdentifier)
+                } else {
+                    QCStatementInfo.OtherQcStatement(statementId = statementId)
+                }
+            } else {
+                QCStatementInfo.OtherQcStatement(statementId = statementId)
             }
-
-            QCStatementInfo(
-                qcType = statementId,
-                qcCompliance = qcCompliance,
-            )
         }
     } catch (e: Exception) {
         logger.warn("Failed to parse QCStatements from certificate: ${e.message}", e)
