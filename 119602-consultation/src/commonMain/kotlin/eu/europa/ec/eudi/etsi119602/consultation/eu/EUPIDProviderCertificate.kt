@@ -118,7 +118,8 @@ internal fun validateLegalOrNaturalPerson(attribute: String, dn: DistinguishedNa
         CertificateConstraintEvaluation(listOf(CertificateConstraintsEvaluations.missingDN(attribute)))
     } else {
         // organization identifier is required for legal persons
-        val isLegalPerson = dn[DistinguishedName.X500OIDs.ORG_IDENTIFIER] != null
+        // val isLegalPerson = dn[DistinguishedName.X500OIDs.ORG_IDENTIFIER] != null
+        val isLegalPerson = dn[DistinguishedName.X500OIDs.ORGANIZATION] != null
         if (isLegalPerson) {
             CertificateConstraintsEvaluations.legalPersonDN(attribute, dn)
         } else {

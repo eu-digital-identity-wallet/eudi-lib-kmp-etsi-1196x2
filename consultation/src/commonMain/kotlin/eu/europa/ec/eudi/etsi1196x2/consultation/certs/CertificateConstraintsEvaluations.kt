@@ -238,20 +238,17 @@ public object CertificateConstraintsEvaluations {
             add(missingOrganizationName(attribute))
         }
 
-        // organizationIdentifier is mandatory
-        val organizationIdentifier = dn.organizationIdentifier
-        if (organizationIdentifier.isNullOrBlank()) {
-            add(missingOrganizationIdentifier(attribute))
-        } else {
-            // organizationIdentifier format validation (EN 319 412-1 clause 5.1.4)
-            if (!isValidOrgId(organizationIdentifier)) {
-                add(organizationIdentifierInvalidFormat)
-            }
-        }
-
         // commonName is mandatory
         if (dn.commonName.isNullOrBlank()) {
             add(missingCommonName(attribute))
+        }
+
+        // organizationIdentifier is mandatory
+        val organizationIdentifier = dn.organizationIdentifier
+        if (!organizationIdentifier.isNullOrBlank()) {
+            if (!isValidOrgId(organizationIdentifier)) {
+                add(organizationIdentifierInvalidFormat)
+            }
         }
     }
 

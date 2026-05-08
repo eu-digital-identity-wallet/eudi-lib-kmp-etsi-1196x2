@@ -34,6 +34,7 @@ import kotlin.io.encoding.Base64
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertIs
+import kotlin.test.assertTrue
 import kotlin.test.fail
 import kotlin.time.Duration.Companion.hours
 
@@ -187,30 +188,30 @@ class EUDIRefImplEnvTest {
 
         val certificate = CertificateFactory.getInstance("X.509").generateCertificate(pem.byteInputStream()) as X509Certificate
         val evaluation = evaluateCertificateConstraints(certificate)
-        if (!evaluation.isMet()) {
-            evaluation.violations.forEach { println(it.reason) }
-        }
+        assertTrue { evaluation.isMet() }
     }
 
     @Test
     fun testWalletProviderProfile() = runTest {
         val pem = """
             -----BEGIN CERTIFICATE-----
-            MIICnjCCAkWgAwIBAgIUfe4X0ubB1E97+DX+WKX5KdYwR08wCgYIKoZIzj0EAwIw
+            MIIDAjCCAqigAwIBAgIUWclZqMVuu3Er5tgW7exeSm1ibAkwCgYIKoZIzj0EAwIw
             VzEZMBcGA1UEAwwQUElEIElzc3VlciBDQSAwMjEtMCsGA1UECgwkRVVESSBXYWxs
             ZXQgUmVmZXJlbmNlIEltcGxlbWVudGF0aW9uMQswCQYDVQQGEwJFVTAeFw0yNjA1
-            MDQxNTI4NDRaFw0yODA1MDMxNTI4NDNaMFYxHjAcBgNVBAMMFVdhbGxldCBQcm92
-            aWRlciBOaXNjeTEXMBUGA1UEBRMOTEVJRVUxMjM0NTY3ODkxDjAMBgNVBAoMBU5p
-            c2N5MQswCQYDVQQGEwJFVTBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABMjCdMfZ
-            r/xQdS/YAJXKSWd9vIatS8nps3IA/I3GairMS5N1MU2S1AML9SgllUby78NLNn1d
-            7pIvSzyYyCwO4pqjge8wgewwDAYDVR0TAQH/BAIwADAfBgNVHSMEGDAWgBRCUFC+
-            ELgQ8J1EXI2/qxAI7ifcSTAxBgNVHREEKjAohiZodHRwczovL2Rldi53YWxsZXQt
-            cHJvdmlkZXIuZXVkaXcuZGV2LzAUBgNVHSAEDTALMAkGBwQAi+0MAQQwQwYDVR0f
-            BDwwOjA4oDagNIYyaHR0cHM6Ly9wcmVwcm9kLnBraS5ldWRpdy5kZXYvY3JsL3Bp
-            ZF9DQV9FVV8wMi5jcmwwHQYDVR0OBBYEFHV7FXPTOzJgRiGO9e6gSMDEUMUHMA4G
-            A1UdDwEB/wQEAwIHgDAKBggqhkjOPQQDAgNHADBEAiAeqe3oQJKq36qQJVvrpt5w
-            fKh+oG/qtgxFzs8EulZqnQIgUT1HaQ9HBdYWhTDRE6CK+zFnpYbFj3fZxyKKX+wi
-            o1w=
+            MDcxMDQ2MDVaFw0yODA1MDYxMDQ2MDRaMFoxCzAJBgNVBAYTAkVVMQ4wDAYDVQQK
+            DAVOaXNjeTEhMB8GA1UEAwwYV2FsbGV0IFByb3ZpZGVyIERFViBFWCAyMRgwFgYD
+            VQRhDA9MRUlFVS0xMjM0NTY3ODkwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAAQm
+            +N+6Cj8/4B59z1Fw/+iLXb+AG2BKIsBWMG1UZNJ7rdcxrXuaGEsVHWZL2vXBUGdx
+            E8gr5Kkc6725Eh+spPyho4IBTTCCAUkwDAYDVR0TAQH/BAIwADAfBgNVHSMEGDAW
+            gBRCUFC+ELgQ8J1EXI2/qxAI7ifcSTBZBggrBgEFBQcBAQRNMEswSQYIKwYBBQUH
+            MAKGPWh0dHBzOi8vcHJlcHJvZC5wa2kuZXVkaXcuZGV2L2FpYS9QSURJc3N1ZXJD
+            QTAyLUVVLmNhY2VydC5wZW0wLgYDVR0gBCcwJTAjBgMqAwQwHDAaBggrBgEFBQcC
+            ARYOZXhhbXBsZS5wb2xpY3kwQwYDVR0fBDwwOjA4oDagNIYyaHR0cHM6Ly9wcmVw
+            cm9kLnBraS5ldWRpdy5kZXYvY3JsL3BpZF9DQV9FVV8wMi5jcmwwHQYDVR0OBBYE
+            FPlYls0Eintao0UtQeopc5Cs+EhIMA4GA1UdDwEB/wQEAwIHgDAZBggrBgEFBQcB
+            AwQNMAswCQYHBACL7E4BAjAKBggqhkjOPQQDAgNIADBFAiB89GW6rJmzKDi/AbLG
+            JLfFee9FJntiQAT4Qh6rnuAhigIhAPhddtIl9ZpNxoVT0deASmgzeTv6lv6aRpAB
+            xoZ/gbin
             -----END CERTIFICATE-----
         """.trimIndent()
 
@@ -221,31 +222,31 @@ class EUDIRefImplEnvTest {
 
         val certificate = CertificateFactory.getInstance("X.509").generateCertificate(pem.byteInputStream()) as X509Certificate
         val evaluation = evaluateCertificateConstraints(certificate)
-        if (!evaluation.isMet()) {
-            evaluation.violations.forEach { println(it.reason) }
-        }
+        assertTrue { evaluation.isMet() }
     }
 
     @Test
     fun testIssuerAccessCertificate() = runTest {
         val pem = """
-            -----BEGIN CERTIFICATE-----
-            MIICpjCCAkygAwIBAgIUM7/PArCKjv27uiY/Ni8A8azqaZ8wCgYIKoZIzj0EAwIw
-            VzEZMBcGA1UEAwwQUElEIElzc3VlciBDQSAwMjEtMCsGA1UECgwkRVVESSBXYWxs
-            ZXQgUmVmZXJlbmNlIEltcGxlbWVudGF0aW9uMQswCQYDVQQGEwJFVTAeFw0yNjA1
-            MDQxNTAwNDNaFw0yODA1MDMxNTAwNDJaMFkxITAfBgNVBAMMGEtvdGxpbiBJc3N1
-            ZXIgU2lnbmVyIERldjEXMBUGA1UEBRMOTEVJRVUxMjM0NTY3ODkxDjAMBgNVBAoM
-            BU5pc2N5MQswCQYDVQQGEwJFVTBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABJjX
-            55LCoBGDOihHf0nsBg/NoVbO5j+wcg3JazvzzNhkKc8pDsYPwinJ8QeB9XE6T4BU
-            SwjzBb5PJeGNftLFBS2jgfMwgfAwDAYDVR0TAQH/BAIwADAfBgNVHSMEGDAWgBRC
-            UFC+ELgQ8J1EXI2/qxAI7ifcSTA1BgNVHREELjAshipodHRwczovL2Rldi5rb3Rs
-            aW5Jc3N1ZXJTaWduZXIuY29tL3N1cHBvcnQwFAYDVR0gBA0wCzAJBgcEAIvtDAEE
-            MEMGA1UdHwQ8MDowOKA2oDSGMmh0dHBzOi8vcHJlcHJvZC5wa2kuZXVkaXcuZGV2
-            L2NybC9waWRfQ0FfRVVfMDIuY3JsMB0GA1UdDgQWBBQOj02dmRPIysmmbzGS7iBw
-            C6l6eDAOBgNVHQ8BAf8EBAMCB4AwCgYIKoZIzj0EAwIDSAAwRQIhANwHb//QN5MT
-            SrVu56xpRTyShNZBSqLF0TT2gJe98DBcAiAD+F/xgb4Lb1CPWzK1wsJg4CzIEzbx
-            ce3TI4S4toz3aA==
-            -----END CERTIFICATE-----
+           -----BEGIN CERTIFICATE-----
+           MIIDAzCCAqqgAwIBAgIURqZMwltm47FnrUuswJZawUAjTtEwCgYIKoZIzj0EAwIw
+           VzEZMBcGA1UEAwwQUElEIElzc3VlciBDQSAwMjEtMCsGA1UECgwkRVVESSBXYWxs
+           ZXQgUmVmZXJlbmNlIEltcGxlbWVudGF0aW9uMQswCQYDVQQGEwJFVTAeFw0yNjA1
+           MDcxMzM3MzBaFw0yODA1MDYxMzM3MjlaMFoxITAfBgNVBAMMGEtvdGxpbiBJc3N1
+           ZXIgU2lnbmVyIERldjELMAkGA1UEBhMCRVUxDjAMBgNVBAoMBU5pc2N5MRgwFgYD
+           VQRhDA9MRUlFVS0xMjM0NTY3ODkwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAAQD
+           sy1vqh8TI7SUYY7OyZ0Tn08TaZPn+Zdw5BilTEVzXc6SSu0gAFkcaNKunRZB4JAk
+           luQ5YKi6DRPa3s8fcYGWo4IBTzCCAUswDAYDVR0TAQH/BAIwADAfBgNVHSMEGDAW
+           gBRCUFC+ELgQ8J1EXI2/qxAI7ifcSTBZBggrBgEFBQcBAQRNMEswSQYIKwYBBQUH
+           MAKGPWh0dHBzOi8vcHJlcHJvZC5wa2kuZXVkaXcuZGV2L2FpYS9QSURJc3N1ZXJD
+           QTAyLUVVLmNhY2VydC5wZW0wNQYDVR0RBC4wLIYqaHR0cHM6Ly9kZXYua290bGlu
+           SXNzdWVyU2lnbmVyLmNvbS9zdXBwb3J0MBQGA1UdIAQNMAswCQYHBACL7EYBAjBD
+           BgNVHR8EPDA6MDigNqA0hjJodHRwczovL3ByZXByb2QucGtpLmV1ZGl3LmRldi9j
+           cmwvcGlkX0NBX0VVXzAyLmNybDAdBgNVHQ4EFgQUwu8/c7hdHHi6rGE75pg3f4Yf
+           JSswDgYDVR0PAQH/BAQDAgeAMAoGCCqGSM49BAMCA0cAMEQCIDjAxHdaaRIc1CG3
+           oqbvYRbzIbMHoqNh2EUfLjLfsezLAiBPVXyUJQyJ/rE43aVgjB4tX5h8oAuQNEBS
+           G9WdPfYDrg==
+           -----END CERTIFICATE-----
         """.trimIndent()
         suspend fun evaluateCertificateConstraints(
             certificate: X509Certificate,
@@ -254,30 +255,30 @@ class EUDIRefImplEnvTest {
 
         val certificate = CertificateFactory.getInstance("X.509").generateCertificate(pem.byteInputStream()) as X509Certificate
         val evaluation = evaluateCertificateConstraints(certificate)
-        if (!evaluation.isMet()) {
-            evaluation.violations.forEach { println(it.reason) }
-        }
+        assertTrue { evaluation.isMet() }
     }
 
     @Test
     fun testVerifierAccessCertificate() = runTest {
         val pem = """
             -----BEGIN CERTIFICATE-----
-            MIICnTCCAkSgAwIBAgIUfN4WXnsvepKTY3fc3guAVCzOY8MwCgYIKoZIzj0EAwIw
+            MIIC/TCCAqKgAwIBAgIUK/6I3nrQOiMq/aIqMF7D7vv+xA4wCgYIKoZIzj0EAwIw
             VzEZMBcGA1UEAwwQUElEIElzc3VlciBDQSAwMjEtMCsGA1UECgwkRVVESSBXYWxs
             ZXQgUmVmZXJlbmNlIEltcGxlbWVudGF0aW9uMQswCQYDVQQGEwJFVTAeFw0yNjA1
-            MDQxNTM0MDVaFw0yODA1MDMxNTM0MDRaMFQxHDAaBgNVBAMME1ZlcmlmaWVyIFNp
-            Z25lciBkZXYxFzAVBgNVBAUTDkxFSUVVMTIzNDU2Nzg5MQ4wDAYDVQQKDAVOaXNj
-            eTELMAkGA1UEBhMCRVUwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAARFWwOxh4K9
-            l+zAs9PmFNaAfmZmi0MXfPV40Tlz8ry+vXesYxCtMcXSCyM0l3zkrDqDvxQfwRLR
-            4N2GibVmxI59o4HwMIHtMAwGA1UdEwEB/wQCMAAwHwYDVR0jBBgwFoAUQlBQvhC4
-            EPCdRFyNv6sQCO4n3EkwMgYDVR0RBCswKYYnaHR0cHM6Ly9kZXYudmVyaWZpZXIt
-            YmFja2VuZC5ldWRpdy5kZXYvMBQGA1UdIAQNMAswCQYHBACL7QwBBDBDBgNVHR8E
-            PDA6MDigNqA0hjJodHRwczovL3ByZXByb2QucGtpLmV1ZGl3LmRldi9jcmwvcGlk
-            X0NBX0VVXzAyLmNybDAdBgNVHQ4EFgQUDHcVltLcuUu9Wij7+uMMat42rHkwDgYD
-            VR0PAQH/BAQDAgeAMAoGCCqGSM49BAMCA0cAMEQCIH2VbWiul/bYGJFlhJ0mNh81
-            zzM2DA2BKPtMTuheQ95EAiBjl6d1BfHgRu8QR9cO5paFnj72iz94nXmPyn8Prxz7
-            6g==
+            MDcxMzM4MzhaFw0yODA1MDYxMzM4MzdaMFUxHDAaBgNVBAMME1ZlcmlmaWVyIFNp
+            Z25lciBkZXYxCzAJBgNVBAYTAkVVMQ4wDAYDVQQKDAVOaXNjeTEYMBYGA1UEYQwP
+            TEVJRVUtMTIzNDU2Nzg5MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEvZPdm4oz
+            0rYYexoyJSYU5YG0ZBMTUQRzSVZjo2y0gZYU2jpxwb8/Rk1Aeb2rcc98CfJONqky
+            a9p/wae5k7fChaOCAUwwggFIMAwGA1UdEwEB/wQCMAAwHwYDVR0jBBgwFoAUQlBQ
+            vhC4EPCdRFyNv6sQCO4n3EkwWQYIKwYBBQUHAQEETTBLMEkGCCsGAQUFBzAChj1o
+            dHRwczovL3ByZXByb2QucGtpLmV1ZGl3LmRldi9haWEvUElESXNzdWVyQ0EwMi1F
+            VS5jYWNlcnQucGVtMDIGA1UdEQQrMCmGJ2h0dHBzOi8vZGV2LnZlcmlmaWVyLWJh
+            Y2tlbmQuZXVkaXcuZGV2LzAUBgNVHSAEDTALMAkGBwQAi+xGAQIwQwYDVR0fBDww
+            OjA4oDagNIYyaHR0cHM6Ly9wcmVwcm9kLnBraS5ldWRpdy5kZXYvY3JsL3BpZF9D
+            QV9FVV8wMi5jcmwwHQYDVR0OBBYEFO+X15taOVBhkGJTBBt50FSN0zMPMA4GA1Ud
+            DwEB/wQEAwIHgDAKBggqhkjOPQQDAgNJADBGAiEApj2PCZqVuQwq/Wy6y5gf2tm4
+            XXYfyjgJS2jl6poPBK0CIQDOrjRS9rPbEK3MbUnQdcfZpRHCMeaT5+Fhqb+nrb89
+            cw==
             -----END CERTIFICATE-----
         """.trimIndent()
         suspend fun evaluateCertificateConstraints(
@@ -287,8 +288,6 @@ class EUDIRefImplEnvTest {
 
         val certificate = CertificateFactory.getInstance("X.509").generateCertificate(pem.byteInputStream()) as X509Certificate
         val evaluation = evaluateCertificateConstraints(certificate)
-        if (!evaluation.isMet()) {
-            evaluation.violations.forEach { println(it.reason) }
-        }
+        assertTrue { evaluation.isMet() }
     }
 }
