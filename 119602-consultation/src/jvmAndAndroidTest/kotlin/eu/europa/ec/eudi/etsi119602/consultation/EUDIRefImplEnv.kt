@@ -22,7 +22,7 @@ import eu.europa.ec.eudi.etsi119602.consultation.eu.walletProviderSigningCertifi
 import eu.europa.ec.eudi.etsi119602.consultation.eu.wrpAccessCertificateProfile
 import eu.europa.ec.eudi.etsi1196x2.consultation.*
 import eu.europa.ec.eudi.etsi1196x2.consultation.certs.CertificateConstraintEvaluation
-import eu.europa.ec.eudi.etsi1196x2.consultation.certs.isMet
+import eu.europa.ec.eudi.etsi1196x2.consultation.certs.CertificateProfile
 import io.ktor.client.*
 import kotlinx.coroutines.test.runTest
 import kotlinx.io.files.Path
@@ -34,7 +34,6 @@ import kotlin.io.encoding.Base64
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertIs
-import kotlin.test.assertTrue
 import kotlin.test.fail
 import kotlin.time.Duration.Companion.hours
 
@@ -159,8 +158,8 @@ class EUDIRefImplEnvTest {
     }
 
     @Test
-    fun testPidProviderProfile() = runTest {
-        val pem = """
+    fun testPidProviderProfile() = pidSigningCertificateProfile().testCertificate(
+        """
             -----BEGIN CERTIFICATE-----
             MIIDADCCAqWgAwIBAgIUPYqmwQevpl4zHH0kInP2kmjornYwCgYIKoZIzj0EAwIw
             VzEZMBcGA1UEAwwQUElEIElzc3VlciBDQSAwMjEtMCsGA1UECgwkRVVESSBXYWxs
@@ -180,20 +179,12 @@ class EUDIRefImplEnvTest {
             vCVI5zOksUqGnJtB9HaVHNECIQDBeW4UUk8jptkef6JRkAK52QOMGmIQ4bWZOZSe
             Twb1Ag==
             -----END CERTIFICATE-----
-        """.trimIndent()
-        suspend fun evaluateCertificateConstraints(
-            certificate: X509Certificate,
-        ): CertificateConstraintEvaluation =
-            CertificateProfileValidatorJVM.validate(pidSigningCertificateProfile(), certificate)
-
-        val certificate = CertificateFactory.getInstance("X.509").generateCertificate(pem.byteInputStream()) as X509Certificate
-        val evaluation = evaluateCertificateConstraints(certificate)
-        assertTrue { evaluation.isMet() }
-    }
+        """.trimIndent(),
+    )
 
     @Test
-    fun testWalletProviderProfile() = runTest {
-        val pem = """
+    fun testWalletProviderProfile() = walletProviderSigningCertificateProfile().testCertificate(
+        """
             -----BEGIN CERTIFICATE-----
             MIIDAjCCAqigAwIBAgIUWclZqMVuu3Er5tgW7exeSm1ibAkwCgYIKoZIzj0EAwIw
             VzEZMBcGA1UEAwwQUElEIElzc3VlciBDQSAwMjEtMCsGA1UECgwkRVVESSBXYWxs
@@ -213,21 +204,12 @@ class EUDIRefImplEnvTest {
             JLfFee9FJntiQAT4Qh6rnuAhigIhAPhddtIl9ZpNxoVT0deASmgzeTv6lv6aRpAB
             xoZ/gbin
             -----END CERTIFICATE-----
-        """.trimIndent()
-
-        suspend fun evaluateCertificateConstraints(
-            certificate: X509Certificate,
-        ): CertificateConstraintEvaluation =
-            CertificateProfileValidatorJVM.validate(walletProviderSigningCertificateProfile(), certificate)
-
-        val certificate = CertificateFactory.getInstance("X.509").generateCertificate(pem.byteInputStream()) as X509Certificate
-        val evaluation = evaluateCertificateConstraints(certificate)
-        assertTrue { evaluation.isMet() }
-    }
+        """.trimIndent(),
+    )
 
     @Test
-    fun testIssuerAccessCertificate() = runTest {
-        val pem = """
+    fun testIssuerAccessCertificate() = wrpAccessCertificateProfile().testCertificate(
+        """
            -----BEGIN CERTIFICATE-----
            MIIDAzCCAqqgAwIBAgIURqZMwltm47FnrUuswJZawUAjTtEwCgYIKoZIzj0EAwIw
            VzEZMBcGA1UEAwwQUElEIElzc3VlciBDQSAwMjEtMCsGA1UECgwkRVVESSBXYWxs
@@ -247,47 +229,42 @@ class EUDIRefImplEnvTest {
            oqbvYRbzIbMHoqNh2EUfLjLfsezLAiBPVXyUJQyJ/rE43aVgjB4tX5h8oAuQNEBS
            G9WdPfYDrg==
            -----END CERTIFICATE-----
-        """.trimIndent()
-        suspend fun evaluateCertificateConstraints(
-            certificate: X509Certificate,
-        ): CertificateConstraintEvaluation =
-            CertificateProfileValidatorJVM.validate(wrpAccessCertificateProfile(), certificate)
-
-        val certificate = CertificateFactory.getInstance("X.509").generateCertificate(pem.byteInputStream()) as X509Certificate
-        val evaluation = evaluateCertificateConstraints(certificate)
-        assertTrue { evaluation.isMet() }
-    }
+        """.trimIndent(),
+    )
 
     @Test
-    fun testVerifierAccessCertificate() = runTest {
-        val pem = """
-            -----BEGIN CERTIFICATE-----
-            MIIC/TCCAqKgAwIBAgIUK/6I3nrQOiMq/aIqMF7D7vv+xA4wCgYIKoZIzj0EAwIw
-            VzEZMBcGA1UEAwwQUElEIElzc3VlciBDQSAwMjEtMCsGA1UECgwkRVVESSBXYWxs
-            ZXQgUmVmZXJlbmNlIEltcGxlbWVudGF0aW9uMQswCQYDVQQGEwJFVTAeFw0yNjA1
-            MDcxMzM4MzhaFw0yODA1MDYxMzM4MzdaMFUxHDAaBgNVBAMME1ZlcmlmaWVyIFNp
-            Z25lciBkZXYxCzAJBgNVBAYTAkVVMQ4wDAYDVQQKDAVOaXNjeTEYMBYGA1UEYQwP
-            TEVJRVUtMTIzNDU2Nzg5MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEvZPdm4oz
-            0rYYexoyJSYU5YG0ZBMTUQRzSVZjo2y0gZYU2jpxwb8/Rk1Aeb2rcc98CfJONqky
-            a9p/wae5k7fChaOCAUwwggFIMAwGA1UdEwEB/wQCMAAwHwYDVR0jBBgwFoAUQlBQ
-            vhC4EPCdRFyNv6sQCO4n3EkwWQYIKwYBBQUHAQEETTBLMEkGCCsGAQUFBzAChj1o
-            dHRwczovL3ByZXByb2QucGtpLmV1ZGl3LmRldi9haWEvUElESXNzdWVyQ0EwMi1F
-            VS5jYWNlcnQucGVtMDIGA1UdEQQrMCmGJ2h0dHBzOi8vZGV2LnZlcmlmaWVyLWJh
-            Y2tlbmQuZXVkaXcuZGV2LzAUBgNVHSAEDTALMAkGBwQAi+xGAQIwQwYDVR0fBDww
-            OjA4oDagNIYyaHR0cHM6Ly9wcmVwcm9kLnBraS5ldWRpdy5kZXYvY3JsL3BpZF9D
-            QV9FVV8wMi5jcmwwHQYDVR0OBBYEFO+X15taOVBhkGJTBBt50FSN0zMPMA4GA1Ud
-            DwEB/wQEAwIHgDAKBggqhkjOPQQDAgNJADBGAiEApj2PCZqVuQwq/Wy6y5gf2tm4
-            XXYfyjgJS2jl6poPBK0CIQDOrjRS9rPbEK3MbUnQdcfZpRHCMeaT5+Fhqb+nrb89
-            cw==
-            -----END CERTIFICATE-----
-        """.trimIndent()
-        suspend fun evaluateCertificateConstraints(
-            certificate: X509Certificate,
-        ): CertificateConstraintEvaluation =
-            CertificateProfileValidatorJVM.validate(wrpAccessCertificateProfile(), certificate)
+    fun testVerifierAccessCertificate() = wrpAccessCertificateProfile().testCertificate(
+        """
+                -----BEGIN CERTIFICATE-----
+                MIIC/TCCAqKgAwIBAgIUK/6I3nrQOiMq/aIqMF7D7vv+xA4wCgYIKoZIzj0EAwIw
+                VzEZMBcGA1UEAwwQUElEIElzc3VlciBDQSAwMjEtMCsGA1UECgwkRVVESSBXYWxs
+                ZXQgUmVmZXJlbmNlIEltcGxlbWVudGF0aW9uMQswCQYDVQQGEwJFVTAeFw0yNjA1
+                MDcxMzM4MzhaFw0yODA1MDYxMzM4MzdaMFUxHDAaBgNVBAMME1ZlcmlmaWVyIFNp
+                Z25lciBkZXYxCzAJBgNVBAYTAkVVMQ4wDAYDVQQKDAVOaXNjeTEYMBYGA1UEYQwP
+                TEVJRVUtMTIzNDU2Nzg5MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEvZPdm4oz
+                0rYYexoyJSYU5YG0ZBMTUQRzSVZjo2y0gZYU2jpxwb8/Rk1Aeb2rcc98CfJONqky
+                a9p/wae5k7fChaOCAUwwggFIMAwGA1UdEwEB/wQCMAAwHwYDVR0jBBgwFoAUQlBQ
+                vhC4EPCdRFyNv6sQCO4n3EkwWQYIKwYBBQUHAQEETTBLMEkGCCsGAQUFBzAChj1o
+                dHRwczovL3ByZXByb2QucGtpLmV1ZGl3LmRldi9haWEvUElESXNzdWVyQ0EwMi1F
+                VS5jYWNlcnQucGVtMDIGA1UdEQQrMCmGJ2h0dHBzOi8vZGV2LnZlcmlmaWVyLWJh
+                Y2tlbmQuZXVkaXcuZGV2LzAUBgNVHSAEDTALMAkGBwQAi+xGAQIwQwYDVR0fBDww
+                OjA4oDagNIYyaHR0cHM6Ly9wcmVwcm9kLnBraS5ldWRpdy5kZXYvY3JsL3BpZF9D
+                QV9FVV8wMi5jcmwwHQYDVR0OBBYEFO+X15taOVBhkGJTBBt50FSN0zMPMA4GA1Ud
+                DwEB/wQEAwIHgDAKBggqhkjOPQQDAgNJADBGAiEApj2PCZqVuQwq/Wy6y5gf2tm4
+                XXYfyjgJS2jl6poPBK0CIQDOrjRS9rPbEK3MbUnQdcfZpRHCMeaT5+Fhqb+nrb89
+                cw==
+                -----END CERTIFICATE-----
+        """.trimIndent(),
+    )
 
-        val certificate = CertificateFactory.getInstance("X.509").generateCertificate(pem.byteInputStream()) as X509Certificate
-        val evaluation = evaluateCertificateConstraints(certificate)
-        assertTrue { evaluation.isMet() }
+    private fun CertificateProfile.testCertificate(pem: String) = runTest {
+        val certificate = x509Certificate(pem)
+        val evaluation = CertificateProfileValidatorJVM.validate(this@testCertificate, certificate)
+        if (evaluation is CertificateConstraintEvaluation.Violated) {
+            fail("Certificate validation failed: ${evaluation.violations.joinToString("\n")}")
+        }
     }
+
+    private fun x509Certificate(pem: String): X509Certificate =
+        JvmSecurity.DefaultX509Factory.generateCertificate(pem.byteInputStream()) as X509Certificate
 }
