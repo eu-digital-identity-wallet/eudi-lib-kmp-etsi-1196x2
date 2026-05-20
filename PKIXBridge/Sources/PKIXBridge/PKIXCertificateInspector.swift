@@ -35,14 +35,17 @@ import Security
         return cert.serialNumber as NSData
     }
 
-    @objc public func getValidityNotBefore(_ der: NSData) -> NSDate? {
+    /// Returns notBefore as seconds since the Unix epoch (boxed), or nil if the cert can't be parsed.
+    /// Epoch seconds rather than NSDate: Kotlin/Native's Foundation binding for NSDate does not
+    /// expose `timeIntervalSince1970`, so a boxed Double crosses the cinterop boundary cleanly.
+    @objc public func getValidityNotBeforeEpochSeconds(_ der: NSData) -> NSNumber? {
         guard let cert = try? X509Parser.parse(der as Data) else { return nil }
-        return cert.notBefore as NSDate
+        return NSNumber(value: cert.notBefore.timeIntervalSince1970)
     }
 
-    @objc public func getValidityNotAfter(_ der: NSData) -> NSDate? {
+    @objc public func getValidityNotAfterEpochSeconds(_ der: NSData) -> NSNumber? {
         guard let cert = try? X509Parser.parse(der as Data) else { return nil }
-        return cert.notAfter as NSDate
+        return NSNumber(value: cert.notAfter.timeIntervalSince1970)
     }
 
     @objc public func getSubject(_ der: NSData) -> [String: String]? {

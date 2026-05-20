@@ -19,8 +19,6 @@ import Security
 
 @objc public final class PKIXValidator: NSObject {
 
-    @objc public static let trustAnchorDerKey: String = "trustAnchorDer"
-
     private let configuration: PKIXConfiguration
 
     @objc public init(configuration: PKIXConfiguration) {
@@ -32,14 +30,27 @@ import Security
         self.init(configuration: PKIXConfiguration())
     }
 
+    /// Validates a certificate chain. On success, `completion` receives the DER bytes of the
+    /// matched trust anchor (so the caller can map it back to its own anchor representation);
+    /// on failure it receives an `NSError`.
+    ///
+    /// The matched anchor is returned directly as `NSData` rather than wrapped in a dictionary:
+    /// `NSDictionary` string keys do not reliably bridge to Kotlin `String` map keys across
+    /// cinterop, which previously caused the matched anchor to be silently dropped.
     @objc public func validateCertificateChain(
         leafCertificate: NSData,
         intermediateCertificates: [NSData],
         trustAnchors: [NSData],
-        completion: @escaping ([String: Any]?, Error?) -> Void
+        completion: @escaping (NSData?, Error?) -> Void
     ) {
-        let safeCompletion: ([String: Any]?, Error?) -> Void = { result, error in
-            DispatchQueue.main.async { completion(result, error) }
+        // completion is invoked directly on whatever queue we're running on: the caller's
+        // thread for synchronous input-validation failures, or the SecTrust evaluation queue
+        // for the async result. We deliberately do NOT hop to DispatchQueue.main — the
+        // Kotlin/Native consumer resumes a coroutine continuation (thread-agnostic), and
+        // forcing main-queue delivery would deadlock unit tests that block the main thread
+        // while awaiting the result.
+        let safeCompletion: (NSData?, Error?) -> Void = { matchedAnchorDer, error in
+            completion(matchedAnchorDer, error)
         }
 
         guard !trustAnchors.isEmpty else {
@@ -90,23 +101,22 @@ import Security
             return
         }
 
-        let queue = DispatchQueue.global(qos: .userInitiated)
-        let evalStatus = SecTrustEvaluateAsyncWithError(secTrust, queue) { resultTrust, isTrusted, cfError in
-            if !isTrusted {
-                let underlying: Error? = cfError.map { $0 as Error }
-                safeCompletion(nil, PKIXBridgeError.trustEvaluationFailed(underlying: underlying).asNSError())
-                return
-            }
-            guard let anchor = Self.matchedAnchor(in: resultTrust) else {
-                safeCompletion(nil, PKIXBridgeError.noTrustAnchorMatched.asNSError())
-                return
-            }
-            let anchorDer = SecCertificateCopyData(anchor) as NSData
-            safeCompletion([PKIXValidator.trustAnchorDerKey: anchorDer], nil)
+        // Synchronous evaluation. The Kotlin caller runs this on a background dispatcher,
+        // so blocking here is fine, and a synchronous invocation avoids both the queue-affinity
+        // requirements of SecTrustEvaluateAsyncWithError and any cross-thread coroutine resume.
+        var cfError: CFError?
+        let trusted = SecTrustEvaluateWithError(secTrust, &cfError)
+        guard trusted else {
+            let underlying: Error? = cfError.map { $0 as Error }
+            safeCompletion(nil, PKIXBridgeError.trustEvaluationFailed(underlying: underlying).asNSError())
+            return
         }
-        if evalStatus != errSecSuccess {
-            safeCompletion(nil, PKIXBridgeError.trustEvaluationFailed(underlying: osStatusError(evalStatus)).asNSError())
+        guard let anchor = Self.matchedAnchor(in: secTrust) else {
+            safeCompletion(nil, PKIXBridgeError.noTrustAnchorMatched.asNSError())
+            return
         }
+        let anchorDer = SecCertificateCopyData(anchor) as NSData
+        safeCompletion(anchorDer, nil)
     }
 
     private func decodeCertificate(_ data: NSData, label: String) throws -> SecCertificate {

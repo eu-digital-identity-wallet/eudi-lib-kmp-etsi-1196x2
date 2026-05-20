@@ -42,12 +42,12 @@ final class PKIXCertificateInspectorTests: XCTestCase {
         XCTAssertEqual(serial?.length, 20)
     }
 
-    func test_getValidity_dates() {
-        XCTAssertNotNil(inspector.getValidityNotBefore(rootCertData))
-        XCTAssertNotNil(inspector.getValidityNotAfter(rootCertData))
-        let before = inspector.getValidityNotBefore(rootCertData)! as Date
-        let after = inspector.getValidityNotAfter(rootCertData)! as Date
-        XCTAssertLessThan(before, after)
+    func test_getValidity_epochSeconds() {
+        let before = inspector.getValidityNotBeforeEpochSeconds(rootCertData)
+        let after = inspector.getValidityNotAfterEpochSeconds(rootCertData)
+        XCTAssertNotNil(before)
+        XCTAssertNotNil(after)
+        XCTAssertLessThan(before!.doubleValue, after!.doubleValue)
     }
 
     func test_getSubject() {

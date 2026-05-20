@@ -1,10 +1,12 @@
 import com.vanniktech.maven.publish.JavadocJar
 import com.vanniktech.maven.publish.KotlinMultiplatform
+import org.gradle.api.tasks.PathSensitivity
 import org.gradle.internal.os.OperatingSystem
 import org.jetbrains.dokka.gradle.engine.parameters.VisibilityModifier
 import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.dsl.KotlinVersion
+import org.jetbrains.kotlin.gradle.targets.native.tasks.KotlinNativeSimulatorTest
 import org.jetbrains.kotlin.gradle.tasks.CInteropProcess
 import java.net.URI
 
@@ -38,6 +40,7 @@ kotlin {
                 "kotlin.ExperimentalStdlibApi",
                 "kotlin.time.ExperimentalTime",
                 "kotlin.contracts.ExperimentalContracts",
+                "kotlinx.cinterop.ExperimentalForeignApi",
             )
     }
 
@@ -62,18 +65,40 @@ kotlin {
     // Slice paths match the xcframework layout: device = ios-arm64; both simulators share
     // the lipo'd ios-arm64_x86_64-simulator slice.
     val pkixBridgeXcframework = rootProject.file("PKIXBridge/build/PKIXBridge.xcframework")
-    fun pkixBridgeSlice(targetName: String): String = when (targetName) {
-        "iosArm64" -> "ios-arm64"
-        "iosX64", "iosSimulatorArm64" -> "ios-arm64_x86_64-simulator"
-        else -> error("Unknown iOS target: $targetName")
-    }
+
+    fun pkixBridgeSlice(targetName: String): String =
+        when (targetName) {
+            "iosArm64" -> "ios-arm64"
+            "iosX64", "iosSimulatorArm64" -> "ios-arm64_x86_64-simulator"
+            else -> error("Unknown iOS target: $targetName")
+        }
+
+    // Resolve the Swift toolchain's static-library directory so the Kotlin/Native linker can find
+    // the Swift ABI compatibility shims (libswiftCompatibility56.a, libswiftCompatibilityConcurrency.a)
+    // that PKIXBridge's objects force-load. Without this search path the link fails with
+    // "Undefined symbols: __swift_FORCE_LOAD_$_swiftCompatibility56".
+    val swiftLibBase: String? =
+        if (OperatingSystem.current().isMacOsX) {
+            providers.exec { commandLine("xcode-select", "-p") }
+                .standardOutput.asText.get().trim() +
+                "/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift"
+        } else {
+            null
+        }
+
+    fun swiftLibPlatform(targetName: String): String =
+        when (targetName) {
+            "iosArm64" -> "iphoneos"
+            "iosX64", "iosSimulatorArm64" -> "iphonesimulator"
+            else -> error("Unknown iOS target: $targetName")
+        }
 
     listOf(iosArm64(), iosX64(), iosSimulatorArm64()).forEach { target ->
         val frameworkSearchPath = pkixBridgeXcframework.resolve(pkixBridgeSlice(target.name)).absolutePath
 
         target.compilations.getByName("main") {
             cinterops {
-                val PKIXBridge by creating {
+                create("PKIXBridge") {
                     definitionFile.set(project.file("src/nativeInterop/cinterop/PKIXBridge.def"))
                     // -fmodules: PKIXBridge.framework exposes its @objc surface via module.modulemap,
                     // which requires clang module support.
@@ -83,6 +108,9 @@ kotlin {
         }
         target.binaries.all {
             linkerOpts("-framework", "PKIXBridge", "-F$frameworkSearchPath")
+            if (swiftLibBase != null) {
+                linkerOpts("-L$swiftLibBase/${swiftLibPlatform(target.name)}")
+            }
         }
     }
 
@@ -247,8 +275,25 @@ val buildPKIXBridge by tasks.registering(Exec::class) {
     onlyIf { OperatingSystem.current().isMacOsX }
 }
 
+// SecTrust evaluation requires the trust daemon (trustd), which is only reliably available on a
+// fully-booted simulator. Kotlin's default standalone test mode boots an ephemeral simulator where
+// trustd is not ready, so every SecTrust evaluation fails with OSStatus -26276. Run the simulator
+// tests against an already-booted device instead. CI must boot a simulator before running tests
+// (e.g. `xcrun simctl boot <device>`), which is standard for iOS test pipelines.
+tasks.withType<KotlinNativeSimulatorTest>().configureEach {
+    standalone.set(false)
+    device.set("booted")
+}
+
 tasks.withType<CInteropProcess>().configureEach {
     if (interopName == "PKIXBridge") {
         dependsOn(buildPKIXBridge)
+        // Track the xcframework contents so a Swift-side change (which rebuilds the
+        // xcframework via buildPKIXBridge) also invalidates the generated bindings.
+        // Without this, cinterop stays UP-TO-DATE off its .def hash alone and serves
+        // stale bindings after the @objc surface changes.
+        inputs.dir(rootProject.file("PKIXBridge/build/PKIXBridge.xcframework"))
+            .withPropertyName("pkixBridgeXcframework")
+            .withPathSensitivity(PathSensitivity.RELATIVE)
     }
 }
