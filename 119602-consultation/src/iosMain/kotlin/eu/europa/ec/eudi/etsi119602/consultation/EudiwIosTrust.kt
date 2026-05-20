@@ -16,6 +16,8 @@
 package eu.europa.ec.eudi.etsi119602.consultation
 
 import eu.europa.ec.eudi.etsi119602.Uri
+import eu.europa.ec.eudi.etsi119602.consultation.eu.EUMDLProvidersListSpec
+import eu.europa.ec.eudi.etsi119602.consultation.eu.ServiceDigitalIdentityCertificateType
 import eu.europa.ec.eudi.etsi1196x2.consultation.CertificationChainValidation
 import eu.europa.ec.eudi.etsi1196x2.consultation.ComposeChainTrust
 import eu.europa.ec.eudi.etsi1196x2.consultation.SupportedLists
@@ -54,6 +56,13 @@ public object EudiwIosTrust {
      * @param verifyJwtSignature verifies each downloaded LoTE JWT — supply a real implementation in
      *        production; this is a required, explicit choice so trust is never silently bypassed.
      */
+    /**
+     * The use-case key under which the mDL list is registered (in both the locations and the
+     * service-type metadata). Swift consumers select the mDL context with
+     * `VerificationContextEAA(useCase: EudiwIosTrust.shared.mdlUseCase)`.
+     */
+    public val mdlUseCase: String get() = "mdl"
+
     public fun nonCached(
         pidProvidersUrl: String?,
         walletProvidersUrl: String?,
@@ -61,6 +70,7 @@ public object EudiwIosTrust {
         wrprcProvidersUrl: String?,
         pubEaaProvidersUrl: String?,
         qeaProvidersUrl: String?,
+        mdlProvidersUrl: String?,
         verifyJwtSignature: VerifyJwtSignature,
     ): ComposeChainTrust<List<NSData>, VerificationContext, NSData> {
         val locations = SupportedLists(
@@ -70,7 +80,18 @@ public object EudiwIosTrust {
             wrprcProviders = wrprcProvidersUrl?.let(::Uri),
             pubEaaProviders = pubEaaProvidersUrl?.let(::Uri),
             qeaProviders = qeaProvidersUrl?.let(::Uri),
+            eaaProviders = buildMap {
+                mdlProvidersUrl?.let { put(mdlUseCase, Uri(it)) }
+            },
         )
+
+        // The baseline EU metadata has no mDL entry, so add one when an mDL URL is supplied.
+        // mDL uses a null end-entity profile (the advertised DIGIT lists do not satisfy the strict
+        // ETSI profiles), so its validation is pure direct trust / PKIX. Mirrors DIGIT.SVC_TYPE_PER_CTX.
+        val svcTypePerCtx = SupportedLists.eu().let { baseline ->
+            if (mdlProvidersUrl != null) baseline.copy(eaaProviders = mapOf(mdlUseCase to mdlMeta())) else baseline
+        }
+
         val httpClient = IosLoTEHttpClient.create()
         val downloadSingleLoTE = DownloadSingleLoTE(httpClient)
         val loadLoTEAndPointers = LoadLoTEAndPointers(
@@ -79,9 +100,23 @@ public object EudiwIosTrust {
             loadLoTE = downloadSingleLoTE,
         )
         return ProvisionTrustAnchorsFromLoTEs
-            .eudiwIos(loadLoTEAndPointers = loadLoTEAndPointers)
+            .eudiwIos(loadLoTEAndPointers = loadLoTEAndPointers, svcTypePerCtx = svcTypePerCtx)
             .nonCached(locations)
     }
+
+    private fun mdlMeta(): LotEMeta<VerificationContext> = LotEMeta(
+        svcTypePerCtx = buildMap {
+            put(
+                VerificationContext.EAA(mdlUseCase),
+                LotEMeta.SvcAndEEProfile(Uri(EUMDLProvidersListSpec.SVC_TYPE_ISSUANCE), null),
+            )
+            put(
+                VerificationContext.EAAStatus(mdlUseCase),
+                LotEMeta.SvcAndEEProfile(Uri(EUMDLProvidersListSpec.SVC_TYPE_REVOCATION), null),
+            )
+        },
+        serviceDigitalIdentityCertificateType = ServiceDigitalIdentityCertificateType.EndEntityOrCA,
+    )
 
     /**
      * Resolves the trust anchors (DER bytes) for [context] using [validator], as a plain list.
