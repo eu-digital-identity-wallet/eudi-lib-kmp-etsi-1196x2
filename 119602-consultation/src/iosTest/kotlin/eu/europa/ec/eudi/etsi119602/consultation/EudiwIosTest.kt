@@ -18,11 +18,19 @@ package eu.europa.ec.eudi.etsi119602.consultation
 import eu.europa.ec.eudi.etsi119602.PKIObject
 import eu.europa.ec.eudi.etsi119602.ServiceDigitalIdentity
 import eu.europa.ec.eudi.etsi1196x2.consultation.CertificationChainValidation
+import eu.europa.ec.eudi.etsi1196x2.consultation.ComposeChainTrust
+import eu.europa.ec.eudi.etsi1196x2.consultation.DisposableContainer
+import eu.europa.ec.eudi.etsi1196x2.consultation.GetTrustAnchors
 import eu.europa.ec.eudi.etsi1196x2.consultation.NonEmptyList
+import eu.europa.ec.eudi.etsi1196x2.consultation.ValidateCertificateChainUsingDirectTrustIos
 import eu.europa.ec.eudi.etsi1196x2.consultation.ValidateCertificateChainUsingPKIXIos
 import eu.europa.ec.eudi.etsi1196x2.consultation.VerificationContext
+import eu.europa.ec.eudi.etsi1196x2.consultation.cached
 import eu.europa.ec.eudi.etsi1196x2.consultation.toByteArray
 import eu.europa.ec.eudi.etsi1196x2.consultation.toNSData
+import eu.europa.ec.eudi.etsi1196x2.consultation.validator
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.runTest
 import platform.Foundation.NSData
 import kotlin.test.Test
@@ -30,6 +38,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertTrue
+import kotlin.time.Duration.Companion.hours
 
 /**
  * End-to-end coverage of the iOS-specific data path: a [ServiceDigitalIdentity]'s DER
@@ -131,5 +140,57 @@ class EudiwIosTest {
         )
 
         assertFalse(result.isTrusted)
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun cachedHandle_servesSecondTrustAnchorsCallFromCache_andDisposes() = runTest {
+        val testDispatcher = StandardTestDispatcher(testScheduler)
+        val anchor = E2eTestCerts.rootDer.toNSData()
+        var loadCount = 0
+
+        // A counting backend standing in for the LoTE download; the cache should call it only once.
+        val source = GetTrustAnchors<VerificationContext, NSData> { ctx ->
+            if (ctx == VerificationContext.PID) {
+                loadCount++
+                NonEmptyList(listOf(anchor))
+            } else {
+                null
+            }
+        }
+        val scope = DisposableContainer()
+        val cachedSource = source.cached(cacheDispatcher = testDispatcher, ttl = 1.hours, expectedQueries = 1)
+        scope.add(cachedSource)
+        val validator = ComposeChainTrust(
+            cachedSource.validator(
+                setOf<VerificationContext>(VerificationContext.PID),
+                ValidateCertificateChainUsingDirectTrustIos,
+            ),
+        )
+        val handle = CachedTrustValidator(scope, validator)
+
+        val first = handle.trustAnchors(VerificationContext.PID)
+        val second = handle.trustAnchors(VerificationContext.PID)
+
+        assertEquals(1, first.size)
+        assertEquals(1, second.size)
+        assertEquals(1, loadCount, "second call within the TTL must be served from cache")
+        handle.dispose()
+    }
+
+    @Test
+    fun cachedFacade_buildsAndDisposes() {
+        val handle = EudiwIosTrust.cached(
+            pidProvidersUrl = "https://example.test/pid",
+            walletProvidersUrl = null,
+            wrpacProvidersUrl = null,
+            wrprcProvidersUrl = null,
+            pubEaaProvidersUrl = null,
+            qeaProvidersUrl = null,
+            mdlProvidersUrl = null,
+            ttlHours = 1.0,
+            verifyJwtSignature = InsecureAcceptAllJwtSignature,
+        )
+        handle.dispose()
     }
 }

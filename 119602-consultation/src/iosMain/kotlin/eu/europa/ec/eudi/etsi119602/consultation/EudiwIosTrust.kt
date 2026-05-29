@@ -20,6 +20,7 @@ import eu.europa.ec.eudi.etsi119602.consultation.eu.EUMDLProvidersListSpec
 import eu.europa.ec.eudi.etsi119602.consultation.eu.ServiceDigitalIdentityCertificateType
 import eu.europa.ec.eudi.etsi1196x2.consultation.CertificationChainValidation
 import eu.europa.ec.eudi.etsi1196x2.consultation.ComposeChainTrust
+import eu.europa.ec.eudi.etsi1196x2.consultation.DisposableContainer
 import eu.europa.ec.eudi.etsi1196x2.consultation.GetTrustAnchors
 import eu.europa.ec.eudi.etsi1196x2.consultation.NonEmptyList
 import eu.europa.ec.eudi.etsi1196x2.consultation.SupportedLists
@@ -29,6 +30,7 @@ import eu.europa.ec.eudi.etsi1196x2.consultation.ValidateCertificateChainUsingPK
 import eu.europa.ec.eudi.etsi1196x2.consultation.VerificationContext
 import eu.europa.ec.eudi.etsi1196x2.consultation.validator
 import platform.Foundation.NSData
+import kotlin.time.Duration.Companion.hours
 
 /**
  * Swift-friendly outcome of a chain validation. Flattens the generic
@@ -95,37 +97,107 @@ public object EudiwIosTrust {
         qeaProvidersUrl: String?,
         mdlProvidersUrl: String?,
         verifyJwtSignature: VerifyJwtSignature,
-    ): ComposeChainTrust<List<NSData>, VerificationContext, NSData> {
-        val locations = SupportedLists(
+    ): ComposeChainTrust<List<NSData>, VerificationContext, NSData> =
+        ProvisionTrustAnchorsFromLoTEs
+            .eudiwIos(
+                loadLoTEAndPointers = buildLoadLoTEAndPointers(verifyJwtSignature),
+                svcTypePerCtx = buildSvcTypePerCtx(mdlProvidersUrl),
+            )
+            .nonCached(
+                buildLocations(
+                    pidProvidersUrl,
+                    walletProvidersUrl,
+                    wrpacProvidersUrl,
+                    wrprcProvidersUrl,
+                    pubEaaProvidersUrl,
+                    qeaProvidersUrl,
+                    mdlProvidersUrl,
+                ),
+            )
+
+    /**
+     * Builds a **cached** validator: trust anchors are resolved from the LoTEs once per context and
+     * kept in memory for [ttlHours] hours, so repeated [CachedTrustValidator.trustAnchors] /
+     * [CachedTrustValidator.validate] calls within that window are served without re-downloading.
+     * Pass `null` for contexts you do not need.
+     *
+     * Suited to higher-concurrency use (a wallet validating many credentials). The returned
+     * [CachedTrustValidator] **owns** the in-memory cache: hold it for the session and call
+     * [CachedTrustValidator.dispose] when finished (e.g. from a Swift `deinit`) to release it. Not
+     * disposing leaks the cache for the process lifetime — fine for an app-lifetime singleton, not
+     * for per-screen handles.
+     *
+     * @param ttlHours cache time-to-live in hours (e.g. `24.0`); a plain `Double` to avoid Kotlin's
+     *        `Duration` value class at the Swift boundary.
+     * @param verifyJwtSignature verifies each downloaded LoTE JWT — supply a real implementation in
+     *        production; this is a required, explicit choice so trust is never silently bypassed.
+     */
+    public fun cached(
+        pidProvidersUrl: String?,
+        walletProvidersUrl: String?,
+        wrpacProvidersUrl: String?,
+        wrprcProvidersUrl: String?,
+        pubEaaProvidersUrl: String?,
+        qeaProvidersUrl: String?,
+        mdlProvidersUrl: String?,
+        ttlHours: Double,
+        verifyJwtSignature: VerifyJwtSignature,
+    ): CachedTrustValidator {
+        val scope = DisposableContainer()
+        val validator = ProvisionTrustAnchorsFromLoTEs
+            .eudiwIos(
+                loadLoTEAndPointers = buildLoadLoTEAndPointers(verifyJwtSignature),
+                svcTypePerCtx = buildSvcTypePerCtx(mdlProvidersUrl),
+            )
+            .cached(
+                disposableScope = scope,
+                loteLocationsSupported = buildLocations(
+                    pidProvidersUrl,
+                    walletProvidersUrl,
+                    wrpacProvidersUrl,
+                    wrprcProvidersUrl,
+                    pubEaaProvidersUrl,
+                    qeaProvidersUrl,
+                    mdlProvidersUrl,
+                ),
+                ttl = ttlHours.hours,
+            )
+        return CachedTrustValidator(scope, validator)
+    }
+
+    private fun buildLocations(
+        pidProvidersUrl: String?,
+        walletProvidersUrl: String?,
+        wrpacProvidersUrl: String?,
+        wrprcProvidersUrl: String?,
+        pubEaaProvidersUrl: String?,
+        qeaProvidersUrl: String?,
+        mdlProvidersUrl: String?,
+    ): SupportedLists<Uri> =
+        SupportedLists(
             pidProviders = pidProvidersUrl?.let(::Uri),
             walletProviders = walletProvidersUrl?.let(::Uri),
             wrpacProviders = wrpacProvidersUrl?.let(::Uri),
             wrprcProviders = wrprcProvidersUrl?.let(::Uri),
             pubEaaProviders = pubEaaProvidersUrl?.let(::Uri),
             qeaProviders = qeaProvidersUrl?.let(::Uri),
-            eaaProviders = buildMap {
-                mdlProvidersUrl?.let { put(mdlUseCase, Uri(it)) }
-            },
+            eaaProviders = buildMap { mdlProvidersUrl?.let { put(mdlUseCase, Uri(it)) } },
         )
 
-        // The baseline EU metadata has no mDL entry, so add one when an mDL URL is supplied.
-        // mDL uses a null end-entity profile (the advertised DIGIT lists do not satisfy the strict
-        // ETSI profiles), so its validation is pure direct trust / PKIX. Mirrors DIGIT.SVC_TYPE_PER_CTX.
-        val svcTypePerCtx = SupportedLists.eu().let { baseline ->
+    // The baseline EU metadata has no mDL entry, so add one when an mDL URL is supplied.
+    // mDL uses a null end-entity profile (the advertised DIGIT lists do not satisfy the strict ETSI
+    // profiles), so its validation is pure direct trust / PKIX. Mirrors DIGIT.SVC_TYPE_PER_CTX.
+    private fun buildSvcTypePerCtx(mdlProvidersUrl: String?): SupportedLists<LotEMeta<VerificationContext>> =
+        SupportedLists.eu().let { baseline ->
             if (mdlProvidersUrl != null) baseline.copy(eaaProviders = mapOf(mdlUseCase to mdlMeta())) else baseline
         }
 
-        val httpClient = IosLoTEHttpClient.create()
-        val downloadSingleLoTE = DownloadSingleLoTE(httpClient)
-        val loadLoTEAndPointers = LoadLoTEAndPointers(
+    private fun buildLoadLoTEAndPointers(verifyJwtSignature: VerifyJwtSignature): LoadLoTEAndPointers =
+        LoadLoTEAndPointers(
             constraints = LoadLoTEAndPointers.Constraints.DoNotLoadOtherPointers,
             verifyJwtSignature = verifyJwtSignature,
-            loadLoTE = downloadSingleLoTE,
+            loadLoTE = DownloadSingleLoTE(IosLoTEHttpClient.create()),
         )
-        return ProvisionTrustAnchorsFromLoTEs
-            .eudiwIos(loadLoTEAndPointers = loadLoTEAndPointers, svcTypePerCtx = svcTypePerCtx)
-            .nonCached(locations)
-    }
 
     /**
      * Builds a validator backed by **bundled / hardcoded** certificate anchors instead of a
@@ -240,4 +312,33 @@ public object EudiwIosTrust {
                 failureReason = outcome.cause.message ?: "Chain is not trusted",
             )
         }
+}
+
+/**
+ * A cached iOS trust validator together with the lifecycle that owns its in-memory anchor cache.
+ *
+ * Created by [EudiwIosTrust.cached]. Hold it for the session (e.g. a property on a Swift view model
+ * or trust manager), then call [dispose] when finished to release the cache. The [trustAnchors] /
+ * [validate] entry points mirror the non-cached ones on [EudiwIosTrust], but anchor lookups are
+ * served from the in-memory cache within the configured TTL.
+ */
+public class CachedTrustValidator internal constructor(
+    private val scope: DisposableContainer,
+    private val validator: ComposeChainTrust<List<NSData>, VerificationContext, NSData>,
+) {
+    /** Resolves the trust anchors (DER bytes) for [context]; served from cache within the TTL. */
+    @Throws(Throwable::class)
+    public suspend fun trustAnchors(context: VerificationContext): List<NSData> =
+        EudiwIosTrust.trustAnchors(validator, context)
+
+    /**
+     * Validates a leaf-first DER [chain] for [context]; the anchor lookup is served from cache
+     * within the TTL. Returns an [IosValidationResult] (not-trusted if the context is unsupported).
+     */
+    @Throws(Throwable::class)
+    public suspend fun validate(chain: List<NSData>, context: VerificationContext): IosValidationResult =
+        EudiwIosTrust.validate(validator, chain, context)
+
+    /** Releases the in-memory caches. Call once when the validator is no longer needed. */
+    public fun dispose(): Unit = scope.dispose()
 }
