@@ -28,6 +28,7 @@ import io.ktor.client.request.*
 import io.ktor.http.*
 import kotlinx.coroutines.test.runTest
 import kotlinx.io.files.Path
+import java.nio.file.Files
 import java.security.cert.TrustAnchor
 import java.security.cert.X509Certificate
 import kotlin.test.Ignore
@@ -107,7 +108,7 @@ class JPLoTEDownloaderTest {
         createHttpClient().use { httpClient ->
 
             val fileStore = LoTEFileStore(
-                cacheDirectory = Path(System.getProperty("java.io.tmpdir")!!, "jp-lote"),
+                cacheDirectory = Path(Files.createTempDirectory("jp-lote").toString()),
             )
             val verifier = run {
                 val loadLoTE = LoadSingleLoTEWithFileCache(
