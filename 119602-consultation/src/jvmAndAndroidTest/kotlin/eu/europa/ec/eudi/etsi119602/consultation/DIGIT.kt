@@ -23,6 +23,7 @@ import eu.europa.ec.eudi.etsi1196x2.consultation.SupportedLists
 import eu.europa.ec.eudi.etsi1196x2.consultation.VerificationContext
 import kotlinx.coroutines.test.runTest
 import kotlinx.io.files.Path
+import java.nio.file.Files
 import kotlin.test.Ignore
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
@@ -79,7 +80,7 @@ class DIGITTest {
     fun testDownload() = runTest {
         createHttpClient().use { httpClient ->
             val fileStore = LoTEFileStore(
-                cacheDirectory = Path(System.getProperty("java.io.tmpdir")!!, "digit-lote"),
+                cacheDirectory = Path(Files.createTempDirectory("digit-lote").toString()),
             )
             val loadLoTE = LoadSingleLoTEWithFileCache(
                 fileStore = fileStore,

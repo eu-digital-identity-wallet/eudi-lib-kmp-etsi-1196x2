@@ -78,6 +78,7 @@ import io.ktor.client.*
 import io.ktor.client.engine.java.*
 import kotlinx.coroutines.*
 import kotlinx.io.files.Path
+import java.nio.file.Files
 import java.security.cert.TrustAnchor
 import java.security.cert.X509Certificate
 import kotlin.time.Duration.Companion.hours
@@ -86,7 +87,7 @@ import kotlin.time.Duration.Companion.minutes
 // 1. Setup HTTP client and file cache
 val httpClient = HttpClient(Java)
 val fileStore = LoTEFileStore(
-    cacheDirectory = Path(System.getProperty("java.io.tmpdir")!!, "lote-cache")
+    cacheDirectory = Path(Files.createTempDirectory("lote-cache").toString())
 )
 val loadLoTE = LoadSingleLoTEWithFileCache(
     fileStore = fileStore,

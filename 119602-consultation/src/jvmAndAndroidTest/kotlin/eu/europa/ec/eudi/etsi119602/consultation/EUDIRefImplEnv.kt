@@ -26,6 +26,7 @@ import eu.europa.ec.eudi.etsi1196x2.consultation.certs.CertificateProfile
 import io.ktor.client.*
 import kotlinx.coroutines.test.runTest
 import kotlinx.io.files.Path
+import java.nio.file.Files
 import java.security.cert.TrustAnchor
 import java.security.cert.X509Certificate
 import kotlin.test.Test
@@ -54,7 +55,7 @@ class EUDIRefImplEnvTest {
         createHttpClient().use { httpClient ->
 
             val fileStore = LoTEFileStore(
-                cacheDirectory = Path(System.getProperty("java.io.tmpdir")!!, "ref-impl-lote"),
+                cacheDirectory = Path(Files.createTempDirectory("ref-impl-lote").toString()),
             )
 
             val isChainTrustedForContext = isChainTrustedForContext(httpClient, fileStore)
