@@ -130,8 +130,7 @@ class EUDIRefImplEnvTest {
         return provisionTrustAnchors.nonCached(EUDIRefImplEnv.LOTE_URL)
     }
 
-    @Test
-    fun testPidProviderProfile() = pidSigningCertificateProfile().testCertificate(
+    private val pidProviderSigningCertificate =
         """
             -----BEGIN CERTIFICATE-----
             MIIDADCCAqWgAwIBAgIUET5T0Zf8eiEGSYn1U4xFBedGXsswCgYIKoZIzj0EAwIw
@@ -152,11 +151,9 @@ class EUDIRefImplEnvTest {
             PMIZjiKt9xplNamzAoTpv0kCIQCdzmncNLr51HhgGRZiPj7nolhJNoonoH6TkmZu
             pJXe3A==
             -----END CERTIFICATE-----
-        """.trimIndent(),
-    )
+        """.trimIndent()
 
-    @Test
-    fun testWalletProviderProfile() = walletProviderSigningCertificateProfile().testCertificate(
+    private val walletProviderSigningCertificate =
         """
             -----BEGIN CERTIFICATE-----
             MIIDAjCCAqigAwIBAgIUWclZqMVuu3Er5tgW7exeSm1ibAkwCgYIKoZIzj0EAwIw
@@ -177,11 +174,9 @@ class EUDIRefImplEnvTest {
             JLfFee9FJntiQAT4Qh6rnuAhigIhAPhddtIl9ZpNxoVT0deASmgzeTv6lv6aRpAB
             xoZ/gbin
             -----END CERTIFICATE-----
-        """.trimIndent(),
-    )
+        """.trimIndent()
 
-    @Test
-    fun testIssuerAccessCertificate() = wrpAccessCertificateProfile().testCertificate(
+    private val issuerAccessCertificate =
         """
             -----BEGIN CERTIFICATE-----
             MIIDAzCCAqqgAwIBAgIURqZMwltm47FnrUuswJZawUAjTtEwCgYIKoZIzj0EAwIw
@@ -202,11 +197,9 @@ class EUDIRefImplEnvTest {
             oqbvYRbzIbMHoqNh2EUfLjLfsezLAiBPVXyUJQyJ/rE43aVgjB4tX5h8oAuQNEBS
             G9WdPfYDrg==
             -----END CERTIFICATE-----
-        """.trimIndent(),
-    )
+        """.trimIndent()
 
-    @Test
-    fun testVerifierAccessCertificate() = wrpAccessCertificateProfile().testCertificate(
+    private val verifierAccessCertificate =
         """
             -----BEGIN CERTIFICATE-----
             MIIC/TCCAqKgAwIBAgIUK/6I3nrQOiMq/aIqMF7D7vv+xA4wCgYIKoZIzj0EAwIw
@@ -227,14 +220,51 @@ class EUDIRefImplEnvTest {
             XXYfyjgJS2jl6poPBK0CIQDOrjRS9rPbEK3MbUnQdcfZpRHCMeaT5+Fhqb+nrb89
             cw==
             -----END CERTIFICATE-----
-        """.trimIndent(),
-    )
+        """.trimIndent()
+
+    @Test
+    fun testPidProviderSigningCertificateProfile() = pidSigningCertificateProfile().testCertificate(pidProviderSigningCertificate)
+
+    @Test
+    fun testWalletProviderSigningCertificateProfile() = walletProviderSigningCertificateProfile().testCertificate(walletProviderSigningCertificate)
+
+    @Test
+    fun testIssuerAccessCertificate() = wrpAccessCertificateProfile().testCertificate(issuerAccessCertificate)
+
+    @Test
+    fun testVerifierAccessCertificate() = wrpAccessCertificateProfile().testCertificate(verifierAccessCertificate)
 
     private fun CertificateProfile.testCertificate(pem: String) = runTest {
         val certificate = x509Certificate(pem)
         val evaluation = CertificateProfileValidatorJVM.validate(this@testCertificate, certificate)
         if (evaluation is CertificateConstraintEvaluation.Violated) {
             fail("Certificate validation failed: ${evaluation.violations.joinToString("\n")}")
+        }
+    }
+
+    @Test
+    @OptIn(SensitiveApi::class)
+    fun testCertificateTrust() = runTest {
+        createHttpClient().use { httpClient ->
+            val fileStore = LoTEFileStore(
+                cacheDirectory = Path(Files.createTempDirectory("ref-impl-lote").toString()),
+            )
+
+            val isChainTrustedForContext = isChainTrustedForContext(httpClient, fileStore)
+            isChainTrustedForContext.testCertificate(pidProviderSigningCertificate, VerificationContext.PID)
+            isChainTrustedForContext.testCertificate(walletProviderSigningCertificate, VerificationContext.WalletProviderAttestation)
+            isChainTrustedForContext.testCertificate(issuerAccessCertificate, VerificationContext.WalletRelyingPartyAccessCertificate)
+            isChainTrustedForContext.testCertificate(verifierAccessCertificate, VerificationContext.WalletRelyingPartyAccessCertificate)
+        }
+    }
+
+    private suspend fun IsChainTrustedForEUDIW<List<X509Certificate>, TrustAnchor>.testCertificate(pem: String, context: VerificationContext) {
+        val certificate = x509Certificate(pem)
+        val certificationChainValidation = invoke(listOf(certificate), context)
+            ?: error("Verification context $context has not been configured")
+
+        if (certificationChainValidation is CertificationChainValidation.NotTrusted) {
+            fail("Certificate could not be validated against context $context", certificationChainValidation.cause)
         }
     }
 
