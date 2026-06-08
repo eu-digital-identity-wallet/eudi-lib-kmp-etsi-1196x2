@@ -25,3 +25,5 @@ gradle-app.setting
 build
 local.properties
 .kotlin
+
+.junie
