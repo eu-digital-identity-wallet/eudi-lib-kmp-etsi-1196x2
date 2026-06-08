@@ -15,9 +15,9 @@
  */
 package eu.europa.ec.eudi.etsi119602.consultation
 
-import eu.europa.ec.eudi.etsi119602.ListOfTrustedEntities
-import eu.europa.ec.eudi.etsi119602.ListOfTrustedEntitiesClaims
-import eu.europa.ec.eudi.etsi119602.Uri
+import eu.europa.ec.eudi.etsi119602.datamodel.ListOfTrustedEntities
+import eu.europa.ec.eudi.etsi119602.datamodel.ListOfTrustedEntitiesClaims
+import eu.europa.ec.eudi.etsi119602.datamodel.Uri
 import eu.europa.ec.eudi.etsi1196x2.consultation.consultationPlatform
 import kotlinx.atomicfu.AtomicInt
 import kotlinx.atomicfu.atomic

@@ -15,8 +15,19 @@
  */
 package eu.europa.ec.eudi.etsi119602.consultation.eu
 
-import eu.europa.ec.eudi.etsi119602.*
 import eu.europa.ec.eudi.etsi119602.consultation.eu.TrustedEntityAssertions.Companion.ensureTrustedEntities
+import eu.europa.ec.eudi.etsi119602.datamodel.Assertions
+import eu.europa.ec.eudi.etsi119602.datamodel.CountryCode
+import eu.europa.ec.eudi.etsi119602.datamodel.ETSI19602
+import eu.europa.ec.eudi.etsi119602.datamodel.HistoricalInformationPeriod
+import eu.europa.ec.eudi.etsi119602.datamodel.ListAndSchemeInformation
+import eu.europa.ec.eudi.etsi119602.datamodel.ListOfTrustedEntities
+import eu.europa.ec.eudi.etsi119602.datamodel.MultiLanguageURI
+import eu.europa.ec.eudi.etsi119602.datamodel.ServiceDigitalIdentity
+import eu.europa.ec.eudi.etsi119602.datamodel.ServiceHistoryInstance
+import eu.europa.ec.eudi.etsi119602.datamodel.ServiceInformation
+import eu.europa.ec.eudi.etsi119602.datamodel.TrustedEntity
+import eu.europa.ec.eudi.etsi119602.datamodel.Uri
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.monthsUntil
 

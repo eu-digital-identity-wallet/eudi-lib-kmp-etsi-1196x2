@@ -15,11 +15,11 @@
  */
 package eu.europa.ec.eudi.etsi119602.consultation
 
-import eu.europa.ec.eudi.etsi119602.Uri
 import eu.europa.ec.eudi.etsi119602.consultation.eu.CertificateProfileValidatorJVM
 import eu.europa.ec.eudi.etsi119602.consultation.eu.pidSigningCertificateProfile
 import eu.europa.ec.eudi.etsi119602.consultation.eu.walletProviderSigningCertificateProfile
 import eu.europa.ec.eudi.etsi119602.consultation.eu.wrpAccessCertificateProfile
+import eu.europa.ec.eudi.etsi119602.datamodel.Uri
 import eu.europa.ec.eudi.etsi1196x2.consultation.*
 import eu.europa.ec.eudi.etsi1196x2.consultation.certs.CertificateConstraintEvaluation
 import eu.europa.ec.eudi.etsi1196x2.consultation.certs.CertificateProfile

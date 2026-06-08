@@ -15,9 +15,9 @@
  */
 package eu.europa.ec.eudi.etsi119602.consultation
 
-import eu.europa.ec.eudi.etsi119602.ServiceDigitalIdentity
-import eu.europa.ec.eudi.etsi119602.Uri
 import eu.europa.ec.eudi.etsi119602.consultation.eu.ServiceDigitalIdentityCertificateType
+import eu.europa.ec.eudi.etsi119602.datamodel.ServiceDigitalIdentity
+import eu.europa.ec.eudi.etsi119602.datamodel.Uri
 import eu.europa.ec.eudi.etsi1196x2.consultation.*
 import eu.europa.ec.eudi.etsi1196x2.consultation.certs.CertificateProfile
 import eu.europa.ec.eudi.etsi1196x2.consultation.certs.CertificateProfileValidator
@@ -30,11 +30,11 @@ import kotlin.time.Duration
  * Metadata associated with a specific LoTE configuration, used by [ProvisionTrustAnchorsFromLoTEs]
  *
  * Requirements
- * - The LoTE must include a [eu.europa.ec.eudi.etsi119602.ServiceInformation.typeIdentifier] (in general it is optional), for every information
+ * - The LoTE must include a [eu.europa.ec.eudi.etsi119602.datamodel.ServiceInformation.typeIdentifier] (in general it is optional), for every information
  * - All service type identifies in [svcTypePerCtx] are available to the same LoTE profile
  * - For each trusted service there is at least one certificate within [ServiceDigitalIdentity.x509Certificates]
  *
- * @param svcTypePerCtx A map which correlates a verification context [CTX] to a [eu.europa.ec.eudi.etsi119602.ServiceInformation.typeIdentifier].
+ * @param svcTypePerCtx A map which correlates a verification context [CTX] to a [eu.europa.ec.eudi.etsi119602.datamodel.ServiceInformation.typeIdentifier].
  * @param serviceDigitalIdentityCertificateType A hint, indicating whether the [ServiceDigitalIdentity.x509Certificates]
  * are expecting/required to be End-Entity, CA or Both. This will drive the selection of chain validation method (direct trust, PKIX, or both)
  *

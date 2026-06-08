@@ -15,9 +15,9 @@
  */
 package eu.europa.ec.eudi.etsi119602.consultation.eu
 
-import eu.europa.ec.eudi.etsi119602.CountryCode
-import eu.europa.ec.eudi.etsi119602.MultiLanguageURI
-import eu.europa.ec.eudi.etsi119602.Uri
+import eu.europa.ec.eudi.etsi119602.datamodel.CountryCode
+import eu.europa.ec.eudi.etsi119602.datamodel.MultiLanguageURI
+import eu.europa.ec.eudi.etsi119602.datamodel.Uri
 
 /**
  * [mDL Providers List Specification](https://eidas.ec.europa.eu/efda/wallet/lists-of-trusted-entities/mdl-providers)

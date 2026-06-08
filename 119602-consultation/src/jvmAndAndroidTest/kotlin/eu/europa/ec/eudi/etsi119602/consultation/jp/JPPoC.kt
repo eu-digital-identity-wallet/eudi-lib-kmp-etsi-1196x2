@@ -16,10 +16,10 @@
 package eu.europa.ec.eudi.etsi119602.consultation.jp
 
 import com.nimbusds.jwt.SignedJWT
-import eu.europa.ec.eudi.etsi119602.Uri
 import eu.europa.ec.eudi.etsi119602.consultation.*
 import eu.europa.ec.eudi.etsi119602.consultation.eu.ServiceDigitalIdentityCertificateType
 import eu.europa.ec.eudi.etsi119602.consultation.jp.JPPoC.LC_VCT
+import eu.europa.ec.eudi.etsi119602.datamodel.Uri
 import eu.europa.ec.eudi.etsi1196x2.consultation.*
 import eu.europa.ec.eudi.sdjwt.vc.*
 import io.ktor.client.*
