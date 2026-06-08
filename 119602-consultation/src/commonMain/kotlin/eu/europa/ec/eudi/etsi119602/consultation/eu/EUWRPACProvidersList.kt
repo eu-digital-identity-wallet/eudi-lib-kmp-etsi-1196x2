@@ -15,7 +15,10 @@
  */
 package eu.europa.ec.eudi.etsi119602.consultation.eu
 
-import eu.europa.ec.eudi.etsi119602.*
+import eu.europa.ec.eudi.etsi119602.datamodel.CountryCode
+import eu.europa.ec.eudi.etsi119602.datamodel.ETSI19602
+import eu.europa.ec.eudi.etsi119602.datamodel.MultiLanguageURI
+import eu.europa.ec.eudi.etsi119602.datamodel.Uri
 import eu.europa.ec.eudi.etsi1196x2.consultation.certs.*
 import kotlin.time.Instant
 

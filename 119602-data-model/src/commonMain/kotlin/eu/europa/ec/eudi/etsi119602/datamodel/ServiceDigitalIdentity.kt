@@ -13,9 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package eu.europa.ec.eudi.etsi119602
+package eu.europa.ec.eudi.etsi119602.datamodel
 
-import eu.europa.ec.eudi.etsi119602.serialization.ByteArraySerializedInBase64
+import eu.europa.ec.eudi.etsi119602.datamodel.serialization.ByteArraySerializedInBase64
 import kotlinx.serialization.Required
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable

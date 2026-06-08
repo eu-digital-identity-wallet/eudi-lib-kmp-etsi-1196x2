@@ -13,25 +13,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package eu.europa.ec.eudi.etsi119602
+package eu.europa.ec.eudi.etsi119602.datamodel
 
 import kotlinx.serialization.Serializable
 import kotlin.jvm.JvmInline
 
 @Serializable
 @JvmInline
-public value class Language
-@Throws(IllegalArgumentException::class)
-public constructor(public val value: String) {
-    init {
-        Assertions.requireNotBlank(value, ETSI19602.LANG)
-        require(value.matches(ALPHA_2_PATTERN)) { "Invalid ${ETSI19602.LANG}" }
-    }
+public value class Uri(public val value: String) {
 
     override fun toString(): String = value
 
     public companion object {
-        public val ENGLISH: Language get() = Language(ETSI19602.LANG_ENGLISH)
-        private val ALPHA_2_PATTERN = Regex("^[a-z]{2}$")
+        public fun parse(value: String): Uri {
+            require(value.isNotBlank()) { "Uri cannot be blank" }
+            return Uri(value)
+        }
     }
 }

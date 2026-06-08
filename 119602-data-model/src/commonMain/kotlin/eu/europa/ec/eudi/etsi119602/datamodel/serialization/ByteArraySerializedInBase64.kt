@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package eu.europa.ec.eudi.etsi119602.serialization
+package eu.europa.ec.eudi.etsi119602.datamodel.serialization
 
 import kotlinx.serialization.Serializable
 import kotlin.io.encoding.Base64

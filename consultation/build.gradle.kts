@@ -108,7 +108,7 @@ kotlin {
 
 // Android configuration
 android {
-    namespace = properties["namespace"].toString()
+    namespace = "eu.europa.ec.eudi.etsi1196x2.consultation"
     group = properties["group"].toString()
     compileSdk = properties["android.targetSdk"].toString().toInt()
 

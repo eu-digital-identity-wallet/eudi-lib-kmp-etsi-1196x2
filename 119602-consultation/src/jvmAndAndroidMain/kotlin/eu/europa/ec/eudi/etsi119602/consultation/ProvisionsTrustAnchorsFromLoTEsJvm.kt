@@ -15,8 +15,8 @@
  */
 package eu.europa.ec.eudi.etsi119602.consultation
 
-import eu.europa.ec.eudi.etsi119602.ServiceDigitalIdentity
-import eu.europa.ec.eudi.etsi119602.x509Certificate
+import eu.europa.ec.eudi.etsi119602.datamodel.ServiceDigitalIdentity
+import eu.europa.ec.eudi.etsi119602.datamodel.x509Certificate
 import eu.europa.ec.eudi.etsi1196x2.consultation.*
 import eu.europa.ec.eudi.etsi1196x2.consultation.certs.CertificateProfileValidator
 import java.security.cert.TrustAnchor

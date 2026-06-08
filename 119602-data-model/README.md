@@ -21,7 +21,7 @@ dependencies {
 ### 2. Deserialize a LoTE document
 
 ```kotlin
-import eu.europa.ec.eudi.etsi119602.ListOfTrustedEntities
+import eu.europa.ec.eudi.etsi119602.datamodel.ListOfTrustedEntities
 import kotlinx.serialization.json.Json
 
 val json = """
@@ -77,7 +77,7 @@ println("Trusted Entities: ${lote.entities?.size}")
 ### 3. Serialize a LoTE document
 
 ```kotlin
-import eu.europa.ec.eudi.etsi119602.*
+import eu.europa.ec.eudi.etsi119602.datamodel.*
 import kotlinx.serialization.json.Json
 
 // Create LoTE structure
@@ -183,14 +183,14 @@ The module is designed to be compatible with the [ETSI TS 119 602 JSON Schema](h
 
 The module supports all ETSI TS 119 602 LoTE types:
 
-| LoTE Type | Constant | Description |
-|-----------|----------|-------------|
-| PID Providers | `ETSI19602.EU_PID_PROVIDERS_LOTE` | List of PID providers notified by Member States |
-| Wallet Providers | `ETSI19602.EU_WALLET_PROVIDERS_LOTE` | List of wallet providers notified by Member States |
-| WRPAC Providers | `ETSI19602.EU_WRPAC_PROVIDERS_LOTE` | List of wallet relying party access certificate providers |
-| WRPRC Providers | `ETSI19602.EU_WRPRC_PROVIDERS_LOTE` | List of wallet relying party registration certificate providers |
-| PubEAA Providers | `ETSI19602.EU_PUB_EAA_PROVIDERS_LOTE` | List of public sector EAA providers |
-| Registrars & Registers | `ETSI19602.EU_REGISTRARS_AND_REGISTERS_LOTE` | List of registrars and registers |
+| LoTE Type              | Constant                                     | Description                                                     |
+|------------------------|----------------------------------------------|-----------------------------------------------------------------|
+| PID Providers          | `ETSI19602.EU_PID_PROVIDERS_LOTE`            | List of PID providers notified by Member States                 |
+| Wallet Providers       | `ETSI19602.EU_WALLET_PROVIDERS_LOTE`         | List of wallet providers notified by Member States              |
+| WRPAC Providers        | `ETSI19602.EU_WRPAC_PROVIDERS_LOTE`          | List of wallet relying party access certificate providers       |
+| WRPRC Providers        | `ETSI19602.EU_WRPRC_PROVIDERS_LOTE`          | List of wallet relying party registration certificate providers |
+| PubEAA Providers       | `ETSI19602.EU_PUB_EAA_PROVIDERS_LOTE`        | List of public sector EAA providers                             |
+| Registrars & Registers | `ETSI19602.EU_REGISTRARS_AND_REGISTERS_LOTE` | List of registrars and registers                                |
 
 ---
 
@@ -198,10 +198,10 @@ The module supports all ETSI TS 119 602 LoTE types:
 
 The 119602-data-model module is a **Kotlin Multiplatform (KMP)** module.
 
-| Platform | Status |
-|----------|--------|
-| **commonMain** | ✅ Core data types and serialization |
-| **jvmAndAndroidMain** | ✅ JVM/Android extensions |
+| Platform              | Status                              |
+|-----------------------|-------------------------------------|
+| **commonMain**        | ✅ Core data types and serialization |
+| **jvmAndAndroidMain** | ✅ JVM/Android extensions            |
 
 ---
 
@@ -270,7 +270,7 @@ skis?.forEach { ski ->
 The module includes built-in validation for required fields:
 
 ```kotlin
-import eu.europa.ec.eudi.etsi119602.Assertions
+import eu.europa.ec.eudi.etsi119602.datamodel.Assertions
 
 // Validation is automatic during deserialization
 try {

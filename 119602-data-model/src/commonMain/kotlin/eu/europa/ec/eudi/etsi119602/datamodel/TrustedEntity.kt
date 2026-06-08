@@ -13,9 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package eu.europa.ec.eudi.etsi119602
+package eu.europa.ec.eudi.etsi119602.datamodel
 
-import eu.europa.ec.eudi.etsi119602.Assertions.requireNullOrNonEmpty
+import eu.europa.ec.eudi.etsi119602.datamodel.Assertions.requireNullOrNonEmpty
 import kotlinx.serialization.Required
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable

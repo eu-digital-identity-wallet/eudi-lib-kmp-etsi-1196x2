@@ -15,10 +15,10 @@
  */
 package eu.europa.ec.eudi.etsi119602.consultation
 
-import eu.europa.ec.eudi.etsi119602.ListOfTrustedEntities
-import eu.europa.ec.eudi.etsi119602.ServiceDigitalIdentity
-import eu.europa.ec.eudi.etsi119602.TrustedEntityService
-import eu.europa.ec.eudi.etsi119602.Uri
+import eu.europa.ec.eudi.etsi119602.datamodel.ListOfTrustedEntities
+import eu.europa.ec.eudi.etsi119602.datamodel.ServiceDigitalIdentity
+import eu.europa.ec.eudi.etsi119602.datamodel.TrustedEntityService
+import eu.europa.ec.eudi.etsi119602.datamodel.Uri
 import eu.europa.ec.eudi.etsi1196x2.consultation.GetTrustAnchors
 import eu.europa.ec.eudi.etsi1196x2.consultation.NonEmptyList
 import kotlinx.coroutines.sync.Mutex
