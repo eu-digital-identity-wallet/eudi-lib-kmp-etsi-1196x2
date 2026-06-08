@@ -120,8 +120,8 @@ kotlin {
         @Suppress("UNUSED")
         val androidInstrumentedTest by getting {
             dependencies {
-                implementation("androidx.test:runner:1.6.2")
-                implementation("androidx.test.ext:junit:1.2.1")
+                implementation("androidx.test:runner:1.7.0")
+                implementation("androidx.test.ext:junit:1.3.0")
                 implementation(libs.dss.utils.guava)
                 implementation(libs.slf4j.simple)
             }
