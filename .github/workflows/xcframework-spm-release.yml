@@ -2,14 +2,13 @@ name: Test XCFramework Package
  
 on:
   workflow_dispatch:
- 
   push:
     branches:
       - feat/ios-pkix
 
 jobs:
   test-xcframework-package:
-    runs-on: macos-latest
+    runs-on: macos-14
  
     env:
       GRADLE_PROJECT: etsi-119602-consultation   # Gradle project name (used in task path)
