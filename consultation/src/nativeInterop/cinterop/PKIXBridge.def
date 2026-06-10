@@ -1,0 +1,3 @@
+language = Objective-C
+modules = PKIXBridge
+package = eu.europa.ec.eudi.etsi1196x2.consultation.pkix
