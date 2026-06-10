@@ -15,7 +15,7 @@
  */
 package eu.europa.ec.eudi.etsi119602.consultation
 
-import eu.europa.ec.eudi.etsi119602.ServiceDigitalIdentity
+import eu.europa.ec.eudi.etsi119602.datamodel.ServiceDigitalIdentity
 import eu.europa.ec.eudi.etsi1196x2.consultation.ByteArrayKey
 import eu.europa.ec.eudi.etsi1196x2.consultation.SupportedLists
 import eu.europa.ec.eudi.etsi1196x2.consultation.ValidateCertificateChainUsingDirectTrust

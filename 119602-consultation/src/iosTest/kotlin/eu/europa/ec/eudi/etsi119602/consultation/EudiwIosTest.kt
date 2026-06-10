@@ -15,8 +15,8 @@
  */
 package eu.europa.ec.eudi.etsi119602.consultation
 
-import eu.europa.ec.eudi.etsi119602.PKIObject
-import eu.europa.ec.eudi.etsi119602.ServiceDigitalIdentity
+import eu.europa.ec.eudi.etsi119602.datamodel.PKIObject
+import eu.europa.ec.eudi.etsi119602.datamodel.ServiceDigitalIdentity
 import eu.europa.ec.eudi.etsi1196x2.consultation.CertificationChainValidation
 import eu.europa.ec.eudi.etsi1196x2.consultation.ComposeChainTrust
 import eu.europa.ec.eudi.etsi1196x2.consultation.DisposableContainer
