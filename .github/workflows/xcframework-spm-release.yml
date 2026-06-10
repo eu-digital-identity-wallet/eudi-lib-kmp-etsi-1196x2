@@ -1,5 +1,5 @@
 name: Test XCFramework Package
- 
+
 on:
   workflow_dispatch:
   push:
@@ -9,52 +9,52 @@ on:
 jobs:
   test-xcframework-package:
     runs-on: macos-14
- 
+
     env:
-      GRADLE_PROJECT: etsi-119602-consultation   # Gradle project name (used in task path)
-      OUTPUT_DIR: 119602-consultation/build/XCFrameworks/release  # actual directory on disk
+      GRADLE_PROJECT: etsi-119602-consultation
+      OUTPUT_DIR: 119602-consultation/build/XCFrameworks/release
       FRAMEWORK_NAME: EudiEtsi1196x2
       PACKAGE_NAME: EudiEtsi1196x2
       ZIP_NAME: EudiEtsi1196x2.xcframework.zip
       VERSION: v0.0.0-test
- 
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
- 
+
       - name: Set up Java
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: 17
- 
+
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
- 
+
       - name: Build XCFramework
         run: ./gradlew :${GRADLE_PROJECT}:assemble${FRAMEWORK_NAME}ReleaseXCFramework
- 
+
       - name: Zip XCFramework
         run: |
           cd ${OUTPUT_DIR}
- 
+
           ditto -c -k --sequesterRsrc --keepParent \
             ${FRAMEWORK_NAME}.xcframework \
             ${ZIP_NAME}
- 
+
       - name: Compute checksum
         id: checksum
         run: |
           CHECKSUM=$(swift package compute-checksum ${OUTPUT_DIR}/${ZIP_NAME})
           echo "checksum=$CHECKSUM" >> "$GITHUB_OUTPUT"
           echo "Checksum: $CHECKSUM"
- 
+
       - name: Generate Package.swift
         run: |
           cat > Package.swift <<EOF
           // swift-tools-version: 5.9
           import PackageDescription
- 
+
           let package = Package(
               name: "${PACKAGE_NAME}",
               platforms: [
@@ -75,15 +75,15 @@ jobs:
               ]
           )
           EOF
- 
+
           cat Package.swift
- 
+
       - name: Upload XCFramework zip artifact
         uses: actions/upload-artifact@v4
         with:
           name: ${{ env.ZIP_NAME }}
           path: ${{ env.OUTPUT_DIR }}/${{ env.ZIP_NAME }}
- 
+
       - name: Upload Package.swift artifact
         uses: actions/upload-artifact@v4
         with:
