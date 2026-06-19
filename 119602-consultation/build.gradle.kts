@@ -96,6 +96,14 @@ kotlin {
 
     listOf(iosArm64(), iosX64(), iosSimulatorArm64()).forEach { target ->
         val frameworkSearchPath = pkixBridgeXcframework.resolve(pkixBridgeSlice(target.name)).absolutePath
+        target.compilations.getByName("main") {
+            cinterops {
+                create("PKIXBridge") {
+                    definitionFile.set(project.file("../consultation/src/nativeInterop/cinterop/PKIXBridge.def"))
+                    compilerOpts("-F$frameworkSearchPath", "-fmodules")
+                }
+            }
+        }
         target.binaries.framework {
             baseName = "EudiEtsi1196x2"
             isStatic = false
@@ -158,6 +166,7 @@ kotlin {
         @Suppress("UNUSED")
         val iosMain by getting {
             dependencies {
+                api(projects.etsi1196x2Consultation)
                 // Darwin (NSURLSession) HTTP engine, linked into the umbrella framework so
                 // HttpClient(Darwin) works at runtime on iOS.
                 implementation(libs.ktor.client.darwin)

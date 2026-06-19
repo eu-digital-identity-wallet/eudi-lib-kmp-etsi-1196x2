@@ -1,6 +1,5 @@
 import com.vanniktech.maven.publish.JavadocJar
 import com.vanniktech.maven.publish.KotlinMultiplatform
-import org.gradle.api.tasks.PathSensitivity
 import org.gradle.internal.os.OperatingSystem
 import org.jetbrains.dokka.gradle.engine.parameters.VisibilityModifier
 import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
@@ -148,6 +147,10 @@ kotlin {
                 implementation(libs.bouncy.castle)
                 implementation(libs.slf4j.api)
             }
+        }
+
+        @Suppress("UNUSED")
+        val iosMain by getting {
         }
 
         commonTest {

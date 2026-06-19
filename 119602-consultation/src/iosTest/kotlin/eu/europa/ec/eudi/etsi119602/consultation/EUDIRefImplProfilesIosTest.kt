@@ -28,7 +28,6 @@ import kotlin.io.encoding.Base64
 import kotlin.test.Test
 import kotlin.test.fail
 
-
 class EUDIRefImplProfilesIosTest {
 
     @Test
