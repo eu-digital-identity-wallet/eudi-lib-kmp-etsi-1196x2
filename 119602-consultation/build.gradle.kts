@@ -1,12 +1,11 @@
 import com.vanniktech.maven.publish.JavadocJar
 import com.vanniktech.maven.publish.KotlinMultiplatform
-import org.gradle.internal.os.OperatingSystem
 import org.jetbrains.dokka.gradle.engine.parameters.VisibilityModifier
 import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.dsl.KotlinVersion
-import org.jetbrains.kotlin.gradle.plugin.mpp.apple.XCFramework
 import org.jetbrains.kotlin.gradle.targets.native.tasks.KotlinNativeSimulatorTest
+import org.jetbrains.kotlin.gradle.tasks.CInteropProcess
 import java.net.URI
 
 plugins {
@@ -61,10 +60,10 @@ kotlin {
             }
     }
 
-    // iOS targets. This module links final iOS binaries (e.g. test executables) that transitively
-    // use the consultation module's PKIXBridge cinterop, so it must repeat the framework + Swift
-    // compatibility-shim linker options (cinterop linker options do not propagate transitively).
-    val pkixBridgeXcframework = rootProject.file("PKIXBridge/build/PKIXBridge.xcframework")
+    // iOS targets — cinterop into PKIXBridge.xcframework (produced by buildPKIXBridge below).
+    // Slice paths match the xcframework layout: device = ios-arm64; both simulators share
+    // the lipo'd ios-arm64_x86_64-simulator slice.
+    val pkixBridgeXcframework = rootProject.file("ios/cinterop/build/PKIXBridge.xcframework")
 
     fun pkixBridgeSlice(targetName: String): String =
         when (targetName) {
@@ -73,8 +72,10 @@ kotlin {
             else -> error("Unknown iOS target: $targetName")
         }
 
+    // Resolve the Swift toolchain's static-library directory so the Kotlin/Native linker can find
+    // the Swift ABI compatibility shims that PKIXBridge's objects force-load.
     val swiftLibBase: String? =
-        if (OperatingSystem.current().isMacOsX) {
+        if (org.gradle.internal.os.OperatingSystem.current().isMacOsX) {
             providers.exec { commandLine("xcode-select", "-p") }
                 .standardOutput.asText.get().trim() +
                 "/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift"
@@ -89,27 +90,17 @@ kotlin {
             else -> error("Unknown iOS target: $targetName")
         }
 
-    // Single umbrella framework for iOS consumers (SwiftPM). It re-exports the consultation
-    // and data-model APIs so Swift sees one module ("EudiEtsi1196x2") with the full surface,
-    // and statically links the PKIXBridge cinterop so the framework is self-contained.
-    val umbrella = XCFramework("EudiEtsi1196x2")
-
     listOf(iosArm64(), iosX64(), iosSimulatorArm64()).forEach { target ->
         val frameworkSearchPath = pkixBridgeXcframework.resolve(pkixBridgeSlice(target.name)).absolutePath
         target.compilations.getByName("main") {
             cinterops {
                 create("PKIXBridge") {
-                    definitionFile.set(project.file("../consultation/src/nativeInterop/cinterop/PKIXBridge.def"))
+                    definitionFile.set(rootProject.file("ios/cinterop/PKIXBridge.def"))
+                    // -fmodules: PKIXBridge.framework exposes its @objc surface via module.modulemap,
+                    // which requires clang module support.
                     compilerOpts("-F$frameworkSearchPath", "-fmodules")
                 }
             }
-        }
-        target.binaries.framework {
-            baseName = "EudiEtsi1196x2"
-            isStatic = false
-            export(projects.etsi1196x2Consultation)
-            export(projects.etsi119602DataModel)
-            umbrella.add(this)
         }
         target.binaries.all {
             linkerOpts("-framework", "PKIXBridge", "-F$frameworkSearchPath")
@@ -296,4 +287,10 @@ mavenPublishing {
 
 dependencyCheck {
     skip = true
+}
+
+tasks.withType<CInteropProcess>().configureEach {
+    if (interopName == "PKIXBridge") {
+        dependsOn(":etsi-1196x2-ios:buildPKIXBridge")
+    }
 }

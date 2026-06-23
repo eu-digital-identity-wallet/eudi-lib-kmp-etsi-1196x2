@@ -19,6 +19,7 @@ kotlinx-io = "0.8.2"
 slf4j = "2.0.17"
 jaxb = "4.0.7"
 eudiLibJvmSdjwtKt = "0.19.0"
+kmmBridge = "1.2.1"
 
 [libraries]
 kotlinx-serialization-core = { module = "org.jetbrains.kotlinx:kotlinx-serialization-core", version.ref = "kotlinx-serialization" }
@@ -57,3 +58,5 @@ dependency-check = { id = "org.owasp.dependencycheck", version.ref = "dependency
 kover = { id = "org.jetbrains.kotlinx.kover", version.ref = "kover" }
 dokka = { id = "org.jetbrains.dokka", version.ref = "dokka" }
 atomicfu = { id = "org.jetbrains.kotlinx.atomicfu", version.ref = "atomicfu" }
+kmmbridge = { id = "co.touchlab.kmmbridge", version.ref = "kmmBridge" }
+kmmbridge-github = { id = "co.touchlab.kmmbridge.github", version.ref = "kmmBridge" }
