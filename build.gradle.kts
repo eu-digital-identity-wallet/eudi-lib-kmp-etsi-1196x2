@@ -8,6 +8,8 @@ plugins {
     alias(libs.plugins.maven.publish) apply false
     alias(libs.plugins.atomicfu) apply false
     alias(libs.plugins.dependency.check) apply true
+    alias(libs.plugins.kmmbridge) apply false
+    alias(libs.plugins.kmmbridge.github) apply false
 }
 
 dependencyCheck {
