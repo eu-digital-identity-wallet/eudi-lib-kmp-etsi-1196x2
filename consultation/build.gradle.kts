@@ -4,6 +4,7 @@ import org.jetbrains.dokka.gradle.engine.parameters.VisibilityModifier
 import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.dsl.KotlinVersion
+import org.jetbrains.kotlin.gradle.targets.native.tasks.KotlinNativeSimulatorTest
 import org.jetbrains.kotlin.gradle.tasks.CInteropProcess
 import java.net.URI
 
@@ -252,6 +253,13 @@ mavenPublishing {
 
 dependencyCheck {
     skip = true
+}
+
+// SecTrust evaluation requires the trust daemon (trustd), which is only reliably available on a
+// fully-booted simulator. Run simulator tests against an already-booted device instead.
+tasks.withType<KotlinNativeSimulatorTest>().configureEach {
+    standalone.set(false)
+    device.set("booted")
 }
 
 tasks.withType<CInteropProcess>().configureEach {

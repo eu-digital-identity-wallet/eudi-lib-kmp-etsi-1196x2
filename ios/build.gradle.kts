@@ -1,5 +1,4 @@
 import org.gradle.internal.os.OperatingSystem
-import org.jetbrains.kotlin.gradle.targets.native.tasks.KotlinNativeSimulatorTest
 import org.jetbrains.kotlin.gradle.tasks.CInteropProcess
 
 plugins {
@@ -58,13 +57,6 @@ val buildPKIXBridge by tasks.registering(Exec::class) {
     outputs.dir(pkixBridgeDir.resolve("build/PKIXBridge.xcframework"))
 
     onlyIf { OperatingSystem.current().isMacOsX }
-}
-
-// SecTrust evaluation requires the trust daemon (trustd), which is only reliably available on a
-// fully-booted simulator. Run simulator tests against an already-booted device instead.
-tasks.withType<KotlinNativeSimulatorTest>().configureEach {
-    standalone.set(false)
-    device.set("booted")
 }
 
 tasks.withType<CInteropProcess>().configureEach {
