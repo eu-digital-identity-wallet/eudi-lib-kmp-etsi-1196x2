@@ -39,17 +39,6 @@ kotlin {
 
     listOf(iosArm64(), iosX64(), iosSimulatorArm64()).forEach { target ->
         val frameworkSearchPath = pkixBridgeXcframework.resolve(pkixBridgeSlice(target.name)).absolutePath
-
-        target.compilations.getByName("main") {
-            cinterops {
-                create("PKIXBridge") {
-                    definitionFile.set(project.file("cinterop/PKIXBridge.def"))
-                    // -fmodules: PKIXBridge.framework exposes its @objc surface via module.modulemap.
-                    compilerOpts("-F$frameworkSearchPath", "-fmodules")
-                }
-            }
-        }
-
         target.binaries.framework {
             baseName = frameworkName
             isStatic = false
@@ -87,6 +76,7 @@ kotlin {
 
 kmmbridge {
     gitHubReleaseArtifacts()
+    spm(swiftToolVersion = "5.9")
 }
 
 // Build PKIXBridge.xcframework before cinterop runs. The script invokes xcrun/swiftc/lipo
