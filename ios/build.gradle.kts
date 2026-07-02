@@ -48,6 +48,8 @@ kotlin {
         }
         target.binaries.all {
             linkerOpts("-framework", "PKIXBridge", "-F$frameworkSearchPath")
+            // Carry the iOS system Swift runtime location as an rpath so dyld can resolve
+            linkerOpts("-rpath", "/usr/lib/swift")
             if (swiftLibBase != null) {
                 linkerOpts("-L$swiftLibBase/${swiftLibPlatform(target.name)}")
             }
