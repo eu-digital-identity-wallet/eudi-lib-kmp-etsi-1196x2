@@ -53,8 +53,7 @@ jobs:
       - name: Checkout the repo with tags
         uses: actions/checkout@v6
         with:
-#          ref: main
-          ref: release/0.4.0-alpha.1
+          ref: main
           fetch-depth: 0
           fetch-tags: true
 
@@ -80,5 +79,5 @@ jobs:
         id: update-release-tag
         with:
           commitMessage: "KMP SPM package release for ${{ github.ref_name }}"
-          tagMessage: "KMP release version v${{ github.ref_name }}"
+          tagMessage: "KMP release version ${{ github.ref_name }}"
           tagVersion: ${{github.ref_name}}-SPM
