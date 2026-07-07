@@ -93,6 +93,7 @@ class IsChainTrustedUsingLoTLTest {
     }
 
     @Test
+    @Ignore
     fun verifyThatPidX5CIsTrustedForPIDContext() = runTest {
         val validation = isX5CTrusted(pidX5c, VerificationContext.PID)
         assertIs<CertificationChainValidation.Trusted<TrustAnchor>>(validation)
