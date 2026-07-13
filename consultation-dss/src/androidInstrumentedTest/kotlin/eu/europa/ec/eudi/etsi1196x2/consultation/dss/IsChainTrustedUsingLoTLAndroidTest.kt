@@ -86,14 +86,12 @@ class IsChainTrustedUsingLoTLAndroidTest {
 
     @Test
     fun verifyThatPidX5CIsTrustedForPIDContext() {
-
         // Certificate is old. Let's fix the date
         val validationTime =
             LocalDate.of(2025, 12, 20)
                 .atStartOfDay()
                 .atZone(ZoneId.systemDefault())
                 .toInstant()
-
 
         val isX5CTrusted = GetTrustAnchorsFromLoTL(dssOptions)
             .validator(supportedListsMap, pkixValidator(enableRevocation = false, validationTime))
