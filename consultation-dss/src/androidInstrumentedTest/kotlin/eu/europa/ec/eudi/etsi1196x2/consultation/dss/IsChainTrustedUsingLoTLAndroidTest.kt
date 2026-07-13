@@ -31,6 +31,11 @@ import java.io.ByteArrayInputStream
 import java.nio.file.Files.createTempDirectory
 import java.security.cert.CertificateFactory
 import java.security.cert.X509Certificate
+import java.time.Instant
+import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.ZoneId
+import java.util.Date
 import java.util.function.Predicate
 import kotlin.io.encoding.Base64
 import kotlin.time.Duration.Companion.hours
@@ -66,8 +71,11 @@ class IsChainTrustedUsingLoTLAndroidTest {
             isPivotSupport = false
         }
 
-        private fun pkixValidator(enableRevocation: Boolean) =
-            ValidateCertificateChainUsingPKIXJvm(customization = { isRevocationEnabled = enableRevocation })
+        private fun pkixValidator(enableRevocation: Boolean, instant: Instant) =
+            ValidateCertificateChainUsingPKIXJvm(customization = {
+                isRevocationEnabled = enableRevocation
+                date = Date.from(instant)
+            })
 
         private val dssOptions = DssOptions.usingFileCacheDataLoader(
             fileCacheExpiration = 24.hours,
@@ -79,8 +87,17 @@ class IsChainTrustedUsingLoTLAndroidTest {
 
     @Test
     fun verifyThatPidX5CIsTrustedForPIDContext() {
+
+        // Certificate is old. Let's fix the date
+        val validationTime =
+            LocalDate.of(2025, 12, 20)
+                .atStartOfDay()
+                .atZone(ZoneId.systemDefault())
+                .toInstant()
+
+
         val isX5CTrusted = GetTrustAnchorsFromLoTL(dssOptions)
-            .validator(supportedListsMap, pkixValidator(enableRevocation = false))
+            .validator(supportedListsMap, pkixValidator(enableRevocation = false, validationTime))
             .contraMap(::certsFromX5C)
 
         val validation = runBlocking { isX5CTrusted(pidX5c, VerificationContext.PID) }
