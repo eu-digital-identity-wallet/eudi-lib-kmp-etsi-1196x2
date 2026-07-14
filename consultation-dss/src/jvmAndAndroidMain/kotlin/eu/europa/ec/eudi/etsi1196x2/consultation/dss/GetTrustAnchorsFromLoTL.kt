@@ -22,9 +22,9 @@ import eu.europa.esig.dss.model.tsl.TLInfo
 import eu.europa.esig.dss.model.tsl.TLValidationJobSummary
 import eu.europa.esig.dss.model.x509.CertificateToken
 import eu.europa.esig.dss.spi.tsl.TrustedListsCertificateSource
-import eu.europa.esig.dss.tsl.cache.CacheCleaner
 import eu.europa.esig.dss.tsl.job.TLValidationJob
 import eu.europa.esig.dss.tsl.source.LOTLSource
+import eu.europa.esig.dss.validation.job.cache.CacheCleaner
 import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.withContext
 import org.slf4j.LoggerFactory
@@ -95,58 +95,67 @@ public class GetTrustAnchorsFromLoTL(
         }
 
     private fun logValidationSummary(summary: TLValidationJobSummary) {
-        log.info("=== LOTL/TL Validation Summary ===")
-
-        val lotlInfos = summary.lotlInfos
-        if (lotlInfos.isEmpty()) {
-            log.warn("No LOTLs were processed!")
-        } else {
-            log.info("Processed ${lotlInfos.size} LOTL(s):")
-            lotlInfos.forEach { logLOTLInfo(it) }
+        if (log.isInfoEnabled) {
+            log.info(logMsg(summary))
         }
-
-        val otherTLInfos = summary.otherTLInfos
-        if (otherTLInfos.isEmpty()) {
-            log.info("No standalone TLs (only LOTL-discovered TLs expected)")
-        } else {
-            log.info("Processed ${otherTLInfos.size} standalone TL(s):")
-            otherTLInfos.forEach { logTLInfo(it) }
-        }
-
-        log.info("Total processed LOTLs: ${summary.numberOfProcessedLOTLs}")
-        log.info("Total processed TLs: ${summary.numberOfProcessedTLs}")
-        log.info("=== End Validation Summary ===")
-    }
-
-    private fun logLOTLInfo(info: LOTLInfo) {
-        val parsing = info.parsingCacheInfo
-        log.info("  LOTL: ${info.url}")
-        log.info("    Download: ${info.downloadCacheInfo}")
-        log.info("    Parsing: ${info.parsingCacheInfo}")
-        log.info("    Validation: ${info.validationCacheInfo}")
-        log.info("    Territory: ${parsing?.territory}")
-        log.info("    Sequence: ${parsing?.sequenceNumber}")
-        log.info("    Version: ${parsing?.version}")
-        log.info("    TL pointers: ${parsing?.tlOtherPointers?.size}")
-        log.info("    LOTL pointers: ${parsing?.lotlOtherPointers?.size}")
-        log.info("    Certificates: ${parsing?.certNumber}")
-    }
-
-    private fun logTLInfo(info: TLInfo) {
-        val parsing = info.parsingCacheInfo
-        log.info("  TL: ${info.url}")
-        log.info("    Download: ${info.downloadCacheInfo}")
-        log.info("    Parsing: ${info.parsingCacheInfo}")
-        log.info("    Validation: ${info.validationCacheInfo}")
-        log.info("    Synchronized: ${parsing?.isSynchronized}")
-        log.info("    Territory: ${parsing?.territory}")
-        log.info("    Sequence: ${parsing?.sequenceNumber}")
-        log.info("    Version: ${parsing?.version}")
-        log.info("    TSPs: ${parsing?.tspNumber}")
-        log.info("    Services: ${parsing?.tsNumber}")
-        log.info("    Certificates: ${parsing?.certNumber}")
     }
 
     private fun CertificateToken.toTrustAnchor(): TrustAnchor =
         TrustAnchor(certificate, null)
 }
+
+private fun logMsg(summary: TLValidationJobSummary): String =
+    buildString {
+        appendLine("=== LOTL/TL Validation Summary ===")
+
+        val lotlInfos = summary.lotlInfos
+        if (lotlInfos.isEmpty()) {
+            appendLine("No LOTLs were processed!")
+        } else {
+            appendLine("Processed ${lotlInfos.size} LOTL(s):")
+            lotlInfos.forEach { appendLine(logMsg(it)) }
+        }
+
+        val otherTLInfos = summary.otherTLInfos
+        if (otherTLInfos.isEmpty()) {
+            appendLine("No standalone TLs (only LOTL-discovered TLs expected)")
+        } else {
+            appendLine("Processed ${otherTLInfos.size} standalone TL(s):")
+            otherTLInfos.forEach { logMsg(it) }
+        }
+
+        appendLine("Total processed LOTLs: ${summary.numberOfProcessedLOTLs}")
+        appendLine("Total processed TLs: ${summary.numberOfProcessedTLs}")
+        appendLine("=== End Validation Summary ===")
+    }
+
+private fun logMsg(lotl: LOTLInfo): String =
+    buildString {
+        val parsing = lotl.parsingCacheInfo
+        appendLine("  LOTL: ${lotl.url}")
+        appendLine("    Download: ${lotl.downloadCacheInfo}")
+        appendLine("    Parsing: ${lotl.parsingCacheInfo}")
+        appendLine("    Validation: ${lotl.validationCacheInfo}")
+        appendLine("    Territory: ${parsing?.territory}")
+        appendLine("    Sequence: ${parsing?.sequenceNumber}")
+        appendLine("    Version: ${parsing?.version}")
+        appendLine("    TL pointers: ${parsing?.tlOtherPointers?.size}")
+        appendLine("    LOTL pointers: ${parsing?.lotlOtherPointers?.size}")
+        appendLine("    Certificates: ${parsing?.certNumber}")
+    }
+
+private fun logMsg(tl: TLInfo): String =
+    buildString {
+        val parsing = tl.parsingCacheInfo
+        appendLine("  TL: ${tl.url}")
+        appendLine("    Download: ${tl.downloadCacheInfo}")
+        appendLine("    Parsing: ${tl.parsingCacheInfo}")
+        appendLine("    Validation: ${tl.validationCacheInfo}")
+        appendLine("    Synchronized: ${parsing?.isSynchronized}")
+        appendLine("    Territory: ${parsing?.territory}")
+        appendLine("    Sequence: ${parsing?.sequenceNumber}")
+        appendLine("    Version: ${parsing?.version}")
+        appendLine("    TSPs: ${parsing?.tspNumber}")
+        appendLine("    Services: ${parsing?.tsNumber}")
+        appendLine("    Certificates: ${parsing?.certNumber}")
+    }

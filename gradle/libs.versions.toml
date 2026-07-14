@@ -12,20 +12,20 @@ ktlint = "1.2.1"
 dependency-check = "12.2.0"
 kover = "0.9.8"
 dokka = "2.2.0"
-dss = "6.4"
+dss = "6.5.RC1"
 atomicfu = "0.28.0"
-bouncyCastle = "1.83"
+bouncyCastle = "1.84"
 kotlinx-io = "0.8.2"
-slf4j = "2.0.17"
+slf4j = "2.0.18"
 jaxb = "4.0.7"
-eudiLibJvmSdjwtKt = "0.19.0"
+eudiLibJvmSdjwtKt = "0.20.1"
 kmmBridge = "1.2.1"
 
 [libraries]
 kotlinx-serialization-core = { module = "org.jetbrains.kotlinx:kotlinx-serialization-core", version.ref = "kotlinx-serialization" }
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinx-serialization" }
 kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "kotlinx-coroutines" }
-kotlinx-datetime = {module="org.jetbrains.kotlinx:kotlinx-datetime", version.ref = "kotlinx-datetime"}
+kotlinx-datetime = { module = "org.jetbrains.kotlinx:kotlinx-datetime", version.ref = "kotlinx-datetime" }
 atomicfu = { module = "org.jetbrains.kotlinx:atomicfu", version.ref = "atomicfu" }
 kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "kotlinx-coroutines" }
 ktor-client-core = { module = "io.ktor:ktor-client-core", version.ref = "ktor" }
@@ -36,14 +36,14 @@ ktor-client-java = { module = "io.ktor:ktor-client-java", version.ref = "ktor" }
 ktor-client-darwin = { module = "io.ktor:ktor-client-darwin", version.ref = "ktor" }
 dss-bom = { module = "eu.europa.ec.joinup.sd-dss:dss-bom", version.ref = "dss" }
 dss-validation = { module = "eu.europa.ec.joinup.sd-dss:dss-validation" }
-dss-utils = { module = "eu.europa.ec.joinup.sd-dss:dss-utils"  }
+dss-utils = { module = "eu.europa.ec.joinup.sd-dss:dss-utils" }
 dss-service = { module = "eu.europa.ec.joinup.sd-dss:dss-service" }
 dss-tsl-validation = { module = "eu.europa.ec.joinup.sd-dss:dss-tsl-validation" }
 dss-utils-guava = { module = "eu.europa.ec.joinup.sd-dss:dss-utils-google-guava" }
 bouncy-castle = { module = "org.bouncycastle:bcpkix-jdk18on", version.ref = "bouncyCastle" }
 kotlinx-io-core = { module = "org.jetbrains.kotlinx:kotlinx-io-core", version.ref = "kotlinx-io" }
-slf4j-api = {module ="org.slf4j:slf4j-api", version.ref="slf4j"}
-slf4j-simple = {module ="org.slf4j:slf4j-simple", version.ref="slf4j"}
+slf4j-api = { module = "org.slf4j:slf4j-api", version.ref = "slf4j" }
+slf4j-simple = { module = "org.slf4j:slf4j-simple", version.ref = "slf4j" }
 jaxb-runtime = { module = "org.glassfish.jaxb:jaxb-runtime", version.ref = "jaxb" }
 jaxb-core = { module = "org.glassfish.jaxb:jaxb-core", version.ref = "jaxb" }
 eudi-lib-jvm-sdjwt = { module = "eu.europa.ec.eudi:eudi-lib-jvm-sdjwt-kt", version.ref = "eudiLibJvmSdjwtKt" }
