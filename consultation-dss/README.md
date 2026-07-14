@@ -565,7 +565,7 @@ Additional usage examples can be found in:
 
 ## Dependencies
 
-### JVM
+### JVM and Android
 
 > [!IMPORTANT]
 >
@@ -585,28 +585,6 @@ Additional usage examples can be found in:
 >
 > More information is
 > available [here](https://github.com/esig/dss/blob/master/dss-cookbook/src/main/asciidoc/_chapters/signature-validation.adoc#12-ades-validation-constraintspolicy).
-
-### Android
-
-> [!IMPORTANT]
->
-> Android requires an additional build-time patch. DSS 6.4 calls `XMLInputFactory.newFactory()` — a method added in Java 9 that does not exist on Android. A Gradle script patches the `dss-jaxb-common` JAR at build time, replacing `newFactory()` with `newInstance()`.
->
-> For technical details, see [PR #106](https://github.com/eu-digital-identity-wallet/eudi-lib-kmp-etsi-1196x2/pull/106).
-
-**Step 1:** Add the dependency:
-```kotlin
-dependencies {
-    implementation("eu.europa.ec.eudi:etsi-1196x2-consultation-dss:<version>")
-}
-```
-
-**Step 2:** Copy `gradle/dss-android-patch.gradle.kts` from this module into your project (e.g., into your app's `gradle/` directory) and apply it in your `build.gradle.kts`:
-```kotlin
-apply(from = "gradle/dss-android-patch.gradle.kts")
-```
-
-No other dependencies are required — JAXB RI 4.0.7, Xerces, and all other libraries are provided transitively. The default DSS version in the patch script is `6.4`; override it via `-PdssVersion` if needed.
 
 ---
 

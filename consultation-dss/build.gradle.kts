@@ -246,7 +246,3 @@ mavenPublishing {
 dependencyCheck {
     skip = true
 }
-
-// Patch DSS dss-jaxb-common JAR for Android compatibility.
-// See gradle/dss-android-patch.gradle.kts for implementation.
-apply(from = rootProject.file("gradle/dss-android-patch.gradle.kts"))
