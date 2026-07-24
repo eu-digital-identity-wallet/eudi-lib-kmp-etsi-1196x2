@@ -222,6 +222,28 @@ class EUDIRefImplEnvTest {
             -----END CERTIFICATE-----
         """.trimIndent()
 
+    private val wrprcProviderSigningCertificate =
+        """
+            -----BEGIN CERTIFICATE-----
+            MIIDADCCAqagAwIBAgIUUljqyaHD3IkeyD37S3leTe0DJSgwCgYIKoZIzj0EAwIwXD
+            EeMBwGA1UEAwwVUElEIElzc3VlciBDQSAtIFVUIDAyMS0wKwYDVQQKDCRFVURJIFdh
+            bGxldCBSZWZlcmVuY2UgSW1wbGVtZW50YXRpb24xCzAJBgNVBAYTAlVUMB4XDTI2MD
+            UyMTE1NTMzM1oXDTI4MDUyMDE1NTMzMlowUzEaMBgGA1UEAwwRUFkgUElEIElzc3Vl
+            ciBERVYxGDAWBgNVBGEMD0xFSUVVLTEyMzQ1Njc4OTEOMAwGA1UECgwFTmlzY3kxCz
+            AJBgNVBAYTAlVUMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE90J7U8sxIE61Lu8j
+            WqVqq3bXf3ra7poWY6381JFUyECN1NMlHqbj96mTvzvPC3PAhCumVWoi4l56KMd0lT
+            tXgqOCAU0wggFJMAwGA1UdEwEB/wQCMAAwHwYDVR0jBBgwFoAUYseURyi9D6IWIKea
+            wkmURPEB08cwWQYIKwYBBQUHAQEETTBLMEkGCCsGAQUFBzAChj1odHRwczovL3ByZX
+            Byb2QucGtpLmV1ZGl3LmRldi9haWEvUElESXNzdWVyQ0EwMi1VVC5jYWNlcnQucGVt
+            MC4GA1UdIAQnMCUwIwYDKgMEMBwwGgYIKwYBBQUHAgEWDmV4YW1wbGUucG9saWN5ME
+            MGA1UdHwQ8MDowOKA2oDSGMmh0dHBzOi8vcHJlcHJvZC5wa2kuZXVkaXcuZGV2L2Ny
+            bC9waWRfQ0FfVVRfMDIuY3JsMB0GA1UdDgQWBBRf4pfkwe1uZj/hPD8av9oh60QPij
+            AOBgNVHQ8BAf8EBAMCB4AwGQYIKwYBBQUHAQMEDTALMAkGBwQAi+xOAQEwCgYIKoZI
+            zj0EAwIDSAAwRQIhAKMSQDJufNWNw75kR6dmUB4RyT+EmUz0njYsN6fAV/cIAiB2BB
+            JRp0ZLucz19pBj2Qoo/BiUkhYDSiw3+lQ/dmCXgw==
+            -----END CERTIFICATE-----
+        """.trimIndent()
+
     @Test
     fun testPidProviderSigningCertificateProfile() = pidSigningCertificateProfile().testCertificate(pidProviderSigningCertificate)
 
@@ -255,6 +277,7 @@ class EUDIRefImplEnvTest {
             isChainTrustedForContext.testCertificate(walletProviderSigningCertificate, VerificationContext.WalletProviderAttestation)
             isChainTrustedForContext.testCertificate(issuerAccessCertificate, VerificationContext.WalletRelyingPartyAccessCertificate)
             isChainTrustedForContext.testCertificate(verifierAccessCertificate, VerificationContext.WalletRelyingPartyAccessCertificate)
+            isChainTrustedForContext.testCertificate(wrprcProviderSigningCertificate, VerificationContext.WalletRelyingPartyRegistrationCertificate)
         }
     }
 
