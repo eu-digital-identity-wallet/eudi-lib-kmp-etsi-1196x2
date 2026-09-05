@@ -98,6 +98,19 @@ public class BundledAnchors {
 }
 
 /**
+ * Swift-friendly [LoadLoTE], taking the LoTE location as a plain [String]; [EudiwIosTrust] adapts it
+ * internally.
+ *
+ * [LoadLoTE] itself is not implementable from Swift - its `uri` is a [Uri] value class, which
+ * Kotlin/Native erases to an untyped `id`. The method is `loadLoTE` rather than `operator invoke`
+ * because an `invoke` collides with [LoadLoTE.invoke] on the exported selector, and the
+ * `completionHandler_:` that Kotlin/Native mangles it to suppresses Swift's `async` import.
+ */
+public fun interface IosLoadLoTE {
+    public suspend fun loadLoTE(uri: String): LoadLoTE.Outcome<String>
+}
+
+/**
  * One-call assembly of the iOS LoTE-based trust validator, intended for Swift consumers.
  *
  * It wires together: a Darwin [io.ktor.client.HttpClient] → [DownloadSingleLoTE] →
@@ -106,8 +119,8 @@ public class BundledAnchors {
  * at the boundary — LoTE locations are passed via [TrustListUrls] and trust anchors come back as
  * a plain list of DER [NSData].
  *
- * [nonCached] and [cached] each have an overload taking a [LoadLoTE] of [String], for callers that
- * must fetch LoTEs through their own HTTP stack. Overloads rather than a defaulted parameter:
+ * [nonCached] and [cached] each have an overload taking an [IosLoadLoTE], for callers that must
+ * fetch LoTEs through their own HTTP stack. Overloads rather than a defaulted parameter:
  * Kotlin defaults are not carried into the generated Objective-C header, so a default would have
  * dropped the existing selectors from the Swift surface.
  */
@@ -133,7 +146,7 @@ public object EudiwIosTrust {
         urls: TrustListUrls,
         verifyJwtSignature: VerifyJwtSignature,
     ): ComposeChainTrust<List<NSData>, VerificationContext, NSData> =
-        nonCached(urls, verifyJwtSignature, defaultLoadLoTE())
+        buildNonCached(urls, verifyJwtSignature, defaultLoadLoTE())
 
     /**
      * As [nonCached] `(urls:verifyJwtSignature:)`, but each LoTE is obtained from [loadLoTE] instead
@@ -142,20 +155,15 @@ public object EudiwIosTrust {
      * @param urls the LoTE download URLs for each context; leave any context `null` to skip it
      * @param verifyJwtSignature verifies each downloaded LoTE JWT — supply a real implementation in
      *        production; this is a required, explicit choice so trust is never silently bypassed.
-     * @param loadLoTE resolves a LoTE URI to its raw JWT; a missing list must be reported as
+     * @param loadLoTE resolves a LoTE URL to its raw JWT; a missing list must be reported as
      *        [LoadLoTE.Outcome.NotFound] rather than thrown.
      */
     public fun nonCached(
         urls: TrustListUrls,
         verifyJwtSignature: VerifyJwtSignature,
-        loadLoTE: LoadLoTE<String>,
+        loadLoTE: IosLoadLoTE,
     ): ComposeChainTrust<List<NSData>, VerificationContext, NSData> =
-        ProvisionTrustAnchorsFromLoTEs
-            .eudiwIos(
-                loadLoTEAndPointers = buildLoadLoTEAndPointers(verifyJwtSignature, loadLoTE),
-                svcTypePerCtx = buildSvcTypePerCtx(urls.mdlProviders),
-            )
-            .nonCached(buildLocations(urls))
+        buildNonCached(urls, verifyJwtSignature, loadLoTE.asLoadLoTE())
 
     /**
      * Builds a **cached** validator, fetching each LoTE with the built-in Darwin (NSURLSession)
@@ -181,7 +189,7 @@ public object EudiwIosTrust {
         ttlHours: Double,
         verifyJwtSignature: VerifyJwtSignature,
     ): CachedTrustValidator =
-        cached(urls, ttlHours, verifyJwtSignature, defaultLoadLoTE())
+        buildCached(urls, ttlHours, verifyJwtSignature, defaultLoadLoTE())
 
     /**
      * As [cached]`(urls:ttlHours:verifyJwtSignature:)` — same ownership contract — but each LoTE is
@@ -192,28 +200,16 @@ public object EudiwIosTrust {
      *        `Duration` value class at the Swift boundary.
      * @param verifyJwtSignature verifies each downloaded LoTE JWT — supply a real implementation in
      *        production; this is a required, explicit choice so trust is never silently bypassed.
-     * @param loadLoTE resolves a LoTE URI to its raw JWT; a missing list must be reported as
+     * @param loadLoTE resolves a LoTE URL to its raw JWT; a missing list must be reported as
      *        [LoadLoTE.Outcome.NotFound] rather than thrown.
      */
     public fun cached(
         urls: TrustListUrls,
         ttlHours: Double,
         verifyJwtSignature: VerifyJwtSignature,
-        loadLoTE: LoadLoTE<String>,
-    ): CachedTrustValidator {
-        val scope = DisposableContainer()
-        val validator = ProvisionTrustAnchorsFromLoTEs
-            .eudiwIos(
-                loadLoTEAndPointers = buildLoadLoTEAndPointers(verifyJwtSignature, loadLoTE),
-                svcTypePerCtx = buildSvcTypePerCtx(urls.mdlProviders),
-            )
-            .cached(
-                disposableScope = scope,
-                loteLocationsSupported = buildLocations(urls),
-                ttl = ttlHours.hours,
-            )
-        return CachedTrustValidator(scope, validator)
-    }
+        loadLoTE: IosLoadLoTE,
+    ): CachedTrustValidator =
+        buildCached(urls, ttlHours, verifyJwtSignature, loadLoTE.asLoadLoTE())
 
     /**
      * Builds a validator backed by **bundled / hardcoded** certificate anchors instead of a
@@ -275,7 +271,41 @@ public object EudiwIosTrust {
             if (mdlProvidersUrl != null) baseline.copy(eaaProviders = mapOf(mdlUseCase to mdlMeta())) else baseline
         }
 
+    private fun buildNonCached(
+        urls: TrustListUrls,
+        verifyJwtSignature: VerifyJwtSignature,
+        loadLoTE: LoadLoTE<String>,
+    ): ComposeChainTrust<List<NSData>, VerificationContext, NSData> =
+        ProvisionTrustAnchorsFromLoTEs
+            .eudiwIos(
+                loadLoTEAndPointers = buildLoadLoTEAndPointers(verifyJwtSignature, loadLoTE),
+                svcTypePerCtx = buildSvcTypePerCtx(urls.mdlProviders),
+            )
+            .nonCached(buildLocations(urls))
+
+    private fun buildCached(
+        urls: TrustListUrls,
+        ttlHours: Double,
+        verifyJwtSignature: VerifyJwtSignature,
+        loadLoTE: LoadLoTE<String>,
+    ): CachedTrustValidator {
+        val scope = DisposableContainer()
+        val validator = ProvisionTrustAnchorsFromLoTEs
+            .eudiwIos(
+                loadLoTEAndPointers = buildLoadLoTEAndPointers(verifyJwtSignature, loadLoTE),
+                svcTypePerCtx = buildSvcTypePerCtx(urls.mdlProviders),
+            )
+            .cached(
+                disposableScope = scope,
+                loteLocationsSupported = buildLocations(urls),
+                ttl = ttlHours.hours,
+            )
+        return CachedTrustValidator(scope, validator)
+    }
+
     private fun defaultLoadLoTE(): LoadLoTE<String> = DownloadSingleLoTE(IosLoTEHttpClient.create())
+
+    private fun IosLoadLoTE.asLoadLoTE(): LoadLoTE<String> = LoadLoTE { uri -> loadLoTE(uri.value) }
 
     private fun buildLoadLoTEAndPointers(
         verifyJwtSignature: VerifyJwtSignature,

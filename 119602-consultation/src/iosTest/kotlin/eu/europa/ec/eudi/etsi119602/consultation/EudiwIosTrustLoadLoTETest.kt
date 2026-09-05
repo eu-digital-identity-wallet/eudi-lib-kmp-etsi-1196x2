@@ -29,7 +29,7 @@ import kotlin.time.Clock
 import kotlin.time.Duration.Companion.days
 
 /**
- * Covers the caller-supplied [LoadLoTE] overloads of [EudiwIosTrust.nonCached] / [EudiwIosTrust.cached]:
+ * Covers the caller-supplied [IosLoadLoTE] overloads of [EudiwIosTrust.nonCached] / [EudiwIosTrust.cached]:
  * the injected loader is the one asked for the LoTE, and the content it returns is what the trust
  * anchors are derived from. The mDL context is used because its metadata carries no end-entity
  * certificate profile.
@@ -41,10 +41,10 @@ class EudiwIosTrustLoadLoTETest {
 
     private val urls = TrustListUrls().apply { mdlProviders = mdlUrl }
 
-    private class RecordingLoadLoTE(private val jwt: String) : LoadLoTE<String> {
+    private class RecordingLoadLoTE(private val jwt: String) : IosLoadLoTE {
         val requestedUris: MutableList<String> = mutableListOf()
-        override suspend fun invoke(uri: Uri): LoadLoTE.Outcome<String> {
-            requestedUris += uri.value
+        override suspend fun loadLoTE(uri: String): LoadLoTE.Outcome<String> {
+            requestedUris += uri
             return LoadLoTE.Outcome.Loaded(jwt)
         }
     }
