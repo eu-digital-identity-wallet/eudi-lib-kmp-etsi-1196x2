@@ -20,12 +20,14 @@ import eu.europa.ec.eudi.etsi1196x2.consultation.dss.DssOptions.Companion.DEFAUL
 import eu.europa.ec.eudi.etsi1196x2.consultation.dss.DssOptions.Companion.DefaultFileCacheExpiration
 import eu.europa.ec.eudi.etsi1196x2.consultation.dss.DssOptions.Companion.DefaultHttpLoader
 import eu.europa.ec.eudi.etsi1196x2.consultation.dss.DssOptions.Companion.DefaultSynchronizationStrategy
+import eu.europa.esig.dss.model.tsl.LOTLInfo
+import eu.europa.esig.dss.model.tsl.TLInfo
 import eu.europa.esig.dss.service.http.commons.FileCacheDataLoader
 import eu.europa.esig.dss.spi.client.http.DSSCacheFileLoader
 import eu.europa.esig.dss.spi.client.http.DataLoader
 import eu.europa.esig.dss.spi.client.http.NativeHTTPDataLoader
 import eu.europa.esig.dss.tsl.sync.ExpirationAndSignatureCheckStrategy
-import eu.europa.esig.dss.tsl.sync.SynchronizationStrategy
+import eu.europa.esig.dss.validation.job.sync.SynchronizationStrategy
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import java.nio.file.Path
@@ -52,7 +54,7 @@ public data class DssOptions(
     val loader: DSSCacheFileLoader,
     val cleanMemory: Boolean = DEFAULT_CLEAN_MEMORY,
     val cleanFileSystem: Boolean = DEFAULT_CLEAN_FILE_SYSTEM,
-    val synchronizationStrategy: SynchronizationStrategy = DefaultSynchronizationStrategy,
+    val synchronizationStrategy: SynchronizationStrategy<TLInfo, LOTLInfo> = DefaultSynchronizationStrategy,
     val executorService: ExecutorService? = null,
     val validateJobDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) {
@@ -85,7 +87,7 @@ public data class DssOptions(
          * - Accept expired lists of trust lists: false
          * - Accept invalid lists of trust lists: false
          */
-        public val DefaultSynchronizationStrategy: SynchronizationStrategy
+        public val DefaultSynchronizationStrategy: SynchronizationStrategy<TLInfo, LOTLInfo>
             get() = ExpirationAndSignatureCheckStrategy().apply {
                 setAcceptExpiredTrustedList(false)
                 setAcceptInvalidTrustedList(false)
@@ -133,7 +135,7 @@ public data class DssOptions(
             cleanMemory: Boolean = DEFAULT_CLEAN_MEMORY,
             cleanFileSystem: Boolean = DEFAULT_CLEAN_FILE_SYSTEM,
             httpLoader: DataLoader = DefaultHttpLoader,
-            synchronizationStrategy: SynchronizationStrategy = DefaultSynchronizationStrategy,
+            synchronizationStrategy: SynchronizationStrategy<TLInfo, LOTLInfo> = DefaultSynchronizationStrategy,
             executorService: ExecutorService? = null,
             validateJobDispatcher: CoroutineDispatcher = Dispatchers.IO,
         ): DssOptions {
