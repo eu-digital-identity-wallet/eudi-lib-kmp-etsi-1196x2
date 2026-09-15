@@ -221,7 +221,7 @@ internal interface ListAndSchemeInformationAssertions {
     fun ListAndSchemeInformation.ensureNextUpdateIsWithinMonths(
         months: Int,
     ) {
-        val monthsUntilNextUpdate = nextUpdate.monthsUntil(listIssueDateTime, TimeZone.UTC)
+        val monthsUntilNextUpdate = listIssueDateTime.monthsUntil(nextUpdate, TimeZone.UTC)
         check(monthsUntilNextUpdate <= months) {
             "${ETSI19602.NEXT_UPDATE} must be within $months months from ${ETSI19602.LIST_ISSUE_DATE_TIME}, got $monthsUntilNextUpdate months"
         }
