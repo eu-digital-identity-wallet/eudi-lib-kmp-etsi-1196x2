@@ -359,6 +359,6 @@ private object InstantAsMillisSerializer : KSerializer<Instant> {
 
     override fun deserialize(decoder: Decoder): Instant {
         val str = decoder.decodeLong()
-        return Instant.fromEpochSeconds(str)
+        return Instant.fromEpochMilliseconds(str)
     }
 }
