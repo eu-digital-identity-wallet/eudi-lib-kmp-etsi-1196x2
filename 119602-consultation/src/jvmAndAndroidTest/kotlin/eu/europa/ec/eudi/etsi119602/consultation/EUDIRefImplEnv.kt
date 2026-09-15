@@ -267,6 +267,7 @@ class EUDIRefImplEnvTest {
     }
 
     @Test
+    @Ignore("Unstable network-based test")
     @OptIn(SensitiveApi::class)
     fun testCertificateTrust() = runTest {
         createHttpClient().use { httpClient ->
