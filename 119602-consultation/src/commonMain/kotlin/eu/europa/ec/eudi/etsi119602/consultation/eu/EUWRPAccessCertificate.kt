@@ -155,7 +155,10 @@ internal fun validateSubjectAltNameForWRPAC(
  * - Legal person certificates (NCP-l, QCP-l) MUST contain: countryName, organizationName,
  *   organizationIdentifier, and commonName
  *
- * The certificate policy OID determines which set of attributes is required.
+ * The subject is validated against the DN rules of every person-type policy present. Per
+ * GEN-6.6.1-03 a certificate may carry more than one policy identifier, so when both a
+ * natural-person and a legal-person policy are present the subject must satisfy both sets of
+ * requirements.
  */
 internal fun validateSubjectForWRPAC(
     policies: List<String>?,
@@ -165,14 +168,16 @@ internal fun validateSubjectForWRPAC(
 
     val isNaturalPerson = policies.any { it in listOf(NCP_N_EUDIWRP, QCP_N_EUDIWRP) }
     val isLegalPerson = policies.any { it in listOf(NCP_L_EUDIWRP, QCP_L_EUDIWRP) }
-    return when {
-        isNaturalPerson && !isLegalPerson ->
-            CertificateConstraintsEvaluations.naturalPersonDN("Subject", subject)
-        isLegalPerson && !isNaturalPerson ->
-            CertificateConstraintsEvaluations.legalPersonDN("Subject", subject)
-        else -> {
-            // Not a concern of this rule to enforce policy OIDs
-            CertificateConstraintEvaluation.Met
-        }
+    if (!isNaturalPerson && !isLegalPerson) {
+        // No WRPAC policy present; policy OIDs are enforced by policyOneOf()
+        return CertificateConstraintEvaluation.Met
     }
+
+    val legalPersonEvaluation =
+        if (isLegalPerson) CertificateConstraintsEvaluations.legalPersonDN("Subject", subject) else CertificateConstraintEvaluation.Met
+
+    val naturalPersonEvaluation =
+        if (isNaturalPerson) CertificateConstraintsEvaluations.naturalPersonDN("Subject", subject) else CertificateConstraintEvaluation.Met
+
+    return legalPersonEvaluation + naturalPersonEvaluation
 }
