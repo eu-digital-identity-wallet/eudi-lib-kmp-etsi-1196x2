@@ -122,6 +122,15 @@ public sealed interface CertificateConstraintEvaluation {
     }
 }
 
+public operator fun CertificateConstraintEvaluation.plus(other: CertificateConstraintEvaluation): CertificateConstraintEvaluation =
+    when (this) {
+        is CertificateConstraintEvaluation.Met -> other
+        is CertificateConstraintEvaluation.Violated -> when (other) {
+            CertificateConstraintEvaluation.Met -> this
+            is CertificateConstraintEvaluation.Violated -> CertificateConstraintEvaluation(this.violations + other.violations)
+        }
+    }
+
 @OptIn(ExperimentalContracts::class)
 public fun CertificateConstraintEvaluation.isMet(): Boolean {
     contract {
