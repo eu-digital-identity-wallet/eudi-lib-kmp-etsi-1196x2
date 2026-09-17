@@ -212,6 +212,50 @@ public object EudiwIosTrust {
         buildCached(urls, ttlHours, verifyJwtSignature, loadLoTE.asLoadLoTE())
 
     /**
+     * Swift-facing overload of [nonCached]`(urls:verifyJwtSignature:)` that accepts a
+     * [VerifyJwtSignatureCallback]
+     */
+    public fun nonCached(
+        urls: TrustListUrls,
+        verifyJwtSignature: VerifyJwtSignatureCallback,
+    ): ComposeChainTrust<List<NSData>, VerificationContext, NSData> =
+        nonCached(urls, verifyJwtSignature.asVerifyJwtSignature())
+
+    /**
+     * Swift-facing overload of [nonCached]`(urls:verifyJwtSignature:loadLoTE:)` that accepts a
+     * [VerifyJwtSignatureCallback].
+     */
+    public fun nonCached(
+        urls: TrustListUrls,
+        verifyJwtSignature: VerifyJwtSignatureCallback,
+        loadLoTE: IosLoadLoTE,
+    ): ComposeChainTrust<List<NSData>, VerificationContext, NSData> =
+        nonCached(urls, verifyJwtSignature.asVerifyJwtSignature(), loadLoTE)
+
+    /**
+     * Swift-facing overload of [cached]`(urls:ttlHours:verifyJwtSignature:)` that accepts a
+     * [VerifyJwtSignatureCallback].
+     */
+    public fun cached(
+        urls: TrustListUrls,
+        ttlHours: Double,
+        verifyJwtSignature: VerifyJwtSignatureCallback,
+    ): CachedTrustValidator =
+        cached(urls, ttlHours, verifyJwtSignature.asVerifyJwtSignature())
+
+    /**
+     * Swift-facing overload of [cached]`(urls:ttlHours:verifyJwtSignature:loadLoTE:)` that accepts
+     * a [VerifyJwtSignatureCallback].
+     */
+    public fun cached(
+        urls: TrustListUrls,
+        ttlHours: Double,
+        verifyJwtSignature: VerifyJwtSignatureCallback,
+        loadLoTE: IosLoadLoTE,
+    ): CachedTrustValidator =
+        cached(urls, ttlHours, verifyJwtSignature.asVerifyJwtSignature(), loadLoTE)
+
+    /**
      * Builds a validator backed by **bundled / hardcoded** certificate anchors instead of a
      * downloaded LoTE — no network, JWT, or LoTE is involved. This is the iOS counterpart of the
      * JVM `IsChainTrustedForContext.usingKeyStore(...)`.

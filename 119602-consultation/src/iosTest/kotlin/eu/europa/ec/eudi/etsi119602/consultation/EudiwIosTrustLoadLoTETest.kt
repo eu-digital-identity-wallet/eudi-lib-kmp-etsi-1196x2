@@ -13,10 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+@file:OptIn(SensitiveApi::class)
+
 package eu.europa.ec.eudi.etsi119602.consultation
 
 import eu.europa.ec.eudi.etsi119602.consultation.eu.EUMDLProvidersListSpec
 import eu.europa.ec.eudi.etsi119602.datamodel.*
+import eu.europa.ec.eudi.etsi1196x2.consultation.SensitiveApi
 import eu.europa.ec.eudi.etsi1196x2.consultation.VerificationContext
 import eu.europa.ec.eudi.etsi1196x2.consultation.toByteArray
 import kotlinx.coroutines.test.runTest
@@ -53,7 +56,7 @@ class EudiwIosTrustLoadLoTETest {
     fun nonCached_usesInjectedLoadLoTE_andDerivesAnchorsFromIt() = runTest {
         val loadLoTE = RecordingLoadLoTE(mdlLoTEJwt(E2eTestCerts.rootDer))
 
-        val validator = EudiwIosTrust.nonCached(urls, InsecureAcceptAllJwtSignature, loadLoTE)
+        val validator = EudiwIosTrust.nonCached(urls, NotValidating, loadLoTE)
         val anchors = EudiwIosTrust.trustAnchors(validator, mdlContext)
 
         assertEquals(listOf(mdlUrl), loadLoTE.requestedUris, "the injected loader must be the one consulted")
@@ -68,7 +71,7 @@ class EudiwIosTrustLoadLoTETest {
         val handle = EudiwIosTrust.cached(
             urls,
             ttlHours = 1.0,
-            verifyJwtSignature = InsecureAcceptAllJwtSignature,
+            verifyJwtSignature = NotValidating,
             loadLoTE = loadLoTE,
         )
         try {
@@ -91,8 +94,8 @@ class EudiwIosTrustLoadLoTETest {
     /** The overloads without a loader build the Darwin downloader, so only assembly is exercised. */
     @Test
     fun overloadsWithoutLoadLoTE_stillAssemble() {
-        EudiwIosTrust.nonCached(urls, InsecureAcceptAllJwtSignature)
-        EudiwIosTrust.cached(urls, ttlHours = 1.0, verifyJwtSignature = InsecureAcceptAllJwtSignature).dispose()
+        EudiwIosTrust.nonCached(urls, NotValidating)
+        EudiwIosTrust.cached(urls, ttlHours = 1.0, verifyJwtSignature = NotValidating).dispose()
     }
 
     /**
