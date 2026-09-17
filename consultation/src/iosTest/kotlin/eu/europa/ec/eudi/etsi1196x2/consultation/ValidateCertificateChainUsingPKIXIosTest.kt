@@ -15,6 +15,7 @@
  */
 package eu.europa.ec.eudi.etsi1196x2.consultation
 
+import eu.europa.ec.eudi.etsi1196x2.consultation.pkix.PKIXConfiguration
 import kotlinx.coroutines.test.runTest
 import platform.Foundation.NSData
 import kotlin.test.Test
@@ -27,9 +28,12 @@ class ValidateCertificateChainUsingPKIXIosTest {
     private val leaf: NSData get() = TestCertificates.leafDer
     private val other: NSData get() = TestCertificates.otherDer
 
+    // Test certificates have no AIA/OCSP URLs; disable revocation so tests run offline.
+    private val noRevocationConfig = PKIXConfiguration(isRevocationEnabled = false)
+
     @Test
     fun pkix_validChain_isTrusted() = runTest {
-        val validator = ValidateCertificateChainUsingPKIXIos()
+        val validator = ValidateCertificateChainUsingPKIXIos(noRevocationConfig)
         val result = validator(listOf(leaf), NonEmptyList(listOf(root)))
         if (result is CertificationChainValidation.NotTrusted) {
             kotlin.test.fail("expected Trusted, got NotTrusted: ${result.cause.message}")
@@ -43,7 +47,7 @@ class ValidateCertificateChainUsingPKIXIosTest {
 
     @Test
     fun pkix_unrelatedAnchor_isNotTrusted() = runTest {
-        val validator = ValidateCertificateChainUsingPKIXIos()
+        val validator = ValidateCertificateChainUsingPKIXIos(noRevocationConfig)
         // `other` is an unrelated CA that did not sign the leaf, so the chain cannot be anchored.
         // (Note: anchoring the leaf against itself WOULD be trusted — SecTrust trusts any cert
         // present in the anchor set, i.e. leaf pinning.)
@@ -53,7 +57,7 @@ class ValidateCertificateChainUsingPKIXIosTest {
 
     @Test
     fun pkix_invalidDer_isNotTrusted() = runTest {
-        val validator = ValidateCertificateChainUsingPKIXIos()
+        val validator = ValidateCertificateChainUsingPKIXIos(noRevocationConfig)
         val garbage = byteArrayOf(0xFF.toByte(), 0x00, 0x13, 0x37).toNSData()
         val result = validator(listOf(garbage), NonEmptyList(listOf(root)))
         assertIs<CertificationChainValidation.NotTrusted>(result)

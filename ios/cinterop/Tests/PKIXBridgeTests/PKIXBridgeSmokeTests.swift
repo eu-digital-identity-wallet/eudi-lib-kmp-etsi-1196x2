@@ -19,14 +19,14 @@ import XCTest
 
 final class PKIXBridgeSmokeTests: XCTestCase {
 
-    func test_PKIXConfiguration_defaultDisablesRevocation() {
+    func test_PKIXConfiguration_defaultEnablesRevocation() {
         let config = PKIXConfiguration()
-        XCTAssertFalse(config.isRevocationEnabled)
+        XCTAssertTrue(config.isRevocationEnabled)
     }
 
     func test_PKIXConfiguration_explicitInit() {
-        let config = PKIXConfiguration(isRevocationEnabled: true)
-        XCTAssertTrue(config.isRevocationEnabled)
+        let config = PKIXConfiguration(isRevocationEnabled: false)
+        XCTAssertFalse(config.isRevocationEnabled)
     }
 
     func test_PKIXValidator_canBeInstantiated() {

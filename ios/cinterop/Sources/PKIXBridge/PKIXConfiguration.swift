@@ -26,6 +26,6 @@ import Foundation
     }
 
     @objc public override convenience init() {
-        self.init(isRevocationEnabled: false)
+        self.init(isRevocationEnabled: true)
     }
 }

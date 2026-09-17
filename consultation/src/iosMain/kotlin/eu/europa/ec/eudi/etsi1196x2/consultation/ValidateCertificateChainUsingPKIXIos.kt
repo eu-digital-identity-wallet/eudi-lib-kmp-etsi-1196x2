@@ -92,8 +92,7 @@ public class ValidateCertificateChainUsingPKIXIos(
     public companion object {
         /**
          * Creates an instance using a native validator built from [configuration].
-         *
-         * @param configuration revocation and policy configuration (default: revocation disabled)
+         * @param configuration revocation and policy configuration (default: revocation enabled)
          */
         public operator fun invoke(
             configuration: PKIXConfiguration = PKIXConfiguration(),
