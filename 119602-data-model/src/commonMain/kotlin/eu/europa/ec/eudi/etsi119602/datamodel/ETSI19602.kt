@@ -77,6 +77,7 @@ public object ETSI19602 {
     public const val TE_INFORMATION_URI: String = "TEInformationURI"
     public const val TE_POSTAL_ADDRESS: String = "TEPostalAddress"
     public const val TE_ELECTRONIC_ADDRESS: String = "TEElectronicAddress"
+    public const val TE_INFORMATION_EXTENSIONS: String = "TEInformationExtensions"
     public const val TRUSTED_ENTITY_SERVICES: String = "TrustedEntityServices"
 
     public const val SERVICE_INFORMATION: String = "ServiceInformation"

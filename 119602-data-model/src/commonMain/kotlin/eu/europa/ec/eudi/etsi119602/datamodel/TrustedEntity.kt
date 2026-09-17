@@ -51,12 +51,14 @@ public constructor(
      * for the TE operates, in the specific context of the delivery of those of its services which are to be found in this LoTE.
      */
     @SerialName(ETSI19602.TE_TRADE_NAME) val tradeName: List<MultilanguageString>? = null,
+    @SerialName(ETSI19602.TE_INFORMATION_EXTENSIONS) val informationExtensions: JsonArray? = null,
 ) {
     init {
         with(Assertions) {
             requireNonEmpty(name, ETSI19602.TE_NAME)
             requireNonEmpty(informationURI, ETSI19602.TE_INFORMATION_URI)
             requireNullOrNonEmpty(tradeName, ETSI19602.TE_TRADE_NAME)
+            requireNullOrNonEmpty(informationExtensions, ETSI19602.TE_INFORMATION_EXTENSIONS)
         }
     }
 }
