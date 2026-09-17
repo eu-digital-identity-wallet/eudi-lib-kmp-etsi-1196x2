@@ -18,6 +18,7 @@ package eu.europa.ec.eudi.etsi119602.consultation
 import eu.europa.ec.eudi.etsi119602.datamodel.PKIObject
 import eu.europa.ec.eudi.etsi119602.datamodel.ServiceDigitalIdentity
 import eu.europa.ec.eudi.etsi1196x2.consultation.*
+import eu.europa.ec.eudi.etsi1196x2.consultation.pkix.PKIXConfiguration
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.runTest
@@ -50,7 +51,8 @@ class EudiwIosTest {
     @Test
     fun anchorsFromSdi_validateLeafChain_isTrusted() = runTest {
         val anchors = defaultCreateTrustAnchorsIos(rootSdi)
-        val pkix = ValidateCertificateChainUsingPKIXIos()
+        // Test certs have no AIA/OCSP URLs; disable revocation so the test runs offline.
+        val pkix = ValidateCertificateChainUsingPKIXIos(PKIXConfiguration(isRevocationEnabled = false))
         val leaf: NSData = E2eTestCerts.leafDer.toNSData()
 
         val result = pkix(listOf(leaf), NonEmptyList(anchors))

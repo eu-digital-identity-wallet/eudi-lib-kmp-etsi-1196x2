@@ -45,7 +45,7 @@ public fun defaultCreateTrustAnchorsIos(
  * @param svcTypePerCtx mapping of verification contexts to LoTE service types (default: EU)
  * @param continueOnProblem strategy for LoTE-loading problems (default: never)
  * @param directTrust direct-trust validator (default: DER byte comparison)
- * @param pkix PKIX validator (default: Security.framework, revocation disabled)
+ * @param pkix PKIX validator (default: Security.framework, revocation enabled)
  */
 public fun ProvisionTrustAnchorsFromLoTEs.Companion.eudiwIos(
     loadLoTEAndPointers: LoadLoTEAndPointers,
