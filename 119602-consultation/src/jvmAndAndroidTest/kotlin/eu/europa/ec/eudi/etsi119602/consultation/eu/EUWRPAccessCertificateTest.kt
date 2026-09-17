@@ -322,10 +322,10 @@ class EUWRPAccessCertificateTest {
     }
 
     @Test
-    fun `WRPAC should reject validity-assured certificate with long validity period`() = runTest {
+    fun `WRPAC should reject validity-assured short-term certificate`() = runTest {
         val (caKeyPair, caCert) = wrpacProvider()
         val notBefore = Date()
-        val notAfter = Date(notBefore.time + 8 * 24 * 60 * 60 * 1000L) // 8 days (> 7 days)
+        val notAfter = Date(notBefore.time + 6 * 24 * 60 * 60 * 1000L) // 6 days (<= 7 days)
 
         val (_, certHolder) = CertOps.genCAIssuedEndEntityCertificate(
             signerCert = caCert,
@@ -346,62 +346,7 @@ class EUWRPAccessCertificateTest {
         val certificate = certHolder.toX509Certificate()
         val evaluation = evaluateEndEntityCertificateConstraints(certificate)
 
-        assertFalse(evaluation.isMet(), "Should be rejected because validity period is > 7 days")
+        assertFalse(evaluation.isMet(), "WRPAC must not be a validity-assured short-term certificate")
         assertTrue(evaluation.violations.any { it.reason.contains("short-term", ignoreCase = true) })
-    }
-
-    @Test
-    fun `WRPAC should reject validity-assured certificate missing noRevocationAvail extension`() = runTest {
-        val (caKeyPair, caCert) = wrpacProvider()
-        val notBefore = Date()
-        val notAfter = Date(notBefore.time + 6 * 24 * 60 * 60 * 1000L) // 6 days (<= 7 days)
-
-        val (_, certHolder) = CertOps.genCAIssuedEndEntityCertificate(
-            signerCert = caCert,
-            signerKey = caKeyPair.private,
-            sigAlg = "SHA256withECDSA",
-            subject = legalPersonSubject,
-            policyOids = listOf(ETSI119411Part8.NCP_L_EUDIWRP),
-            qcStatements = listOf(ETSI319412Part1.EXT_ETSI_VAL_ASSURED_ST_CERTS),
-            notAfter = notAfter,
-            caIssuersUri = "http://ca.example.com/ca.crt",
-            ocspUri = "http://ocsp.example.com/",
-            subjectAltNameUri = "https://wallet-relying-party.example.com",
-            customExtensions = emptyList(), // missing noRevocationAvail
-        )
-
-        val certificate = certHolder.toX509Certificate()
-        val evaluation = evaluateEndEntityCertificateConstraints(certificate)
-
-        assertFalse(evaluation.isMet(), "Should be rejected because noRevocationAvail is missing")
-        assertTrue(evaluation.violations.any { it.reason.contains("noRevocationAvail", ignoreCase = true) })
-    }
-
-    @Test
-    fun `WRPAC should accept valid short-term validity-assured certificate`() = runTest {
-        val (caKeyPair, caCert) = wrpacProvider()
-        val notBefore = Date()
-        val notAfter = Date(notBefore.time + 6 * 24 * 60 * 60 * 1000L) // 6 days (<= 7 days)
-
-        val (_, certHolder) = CertOps.genCAIssuedEndEntityCertificate(
-            signerCert = caCert,
-            signerKey = caKeyPair.private,
-            sigAlg = "SHA256withECDSA",
-            subject = legalPersonSubject,
-            policyOids = listOf(ETSI119411Part8.NCP_L_EUDIWRP),
-            qcStatements = listOf(ETSI319412Part1.EXT_ETSI_VAL_ASSURED_ST_CERTS),
-            notAfter = notAfter,
-            caIssuersUri = "http://ca.example.com/ca.crt",
-            ocspUri = "http://ocsp.example.com/",
-            subjectAltNameUri = "https://wallet-relying-party.example.com",
-            customExtensions = listOf(
-                Triple(ETSI319412Part1.EXT_NO_REVOCATION_AVAIL, false, DERNull.INSTANCE),
-            ),
-        )
-
-        val certificate = certHolder.toX509Certificate()
-        val evaluation = evaluateEndEntityCertificateConstraints(certificate)
-
-        assertTrue(evaluation.isMet(), "Should be accepted: valid short-term cert with noRevocationAvail")
     }
 }
