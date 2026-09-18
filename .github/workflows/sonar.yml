@@ -28,10 +28,10 @@ jobs:
       - run: echo "ORGANIZATION=${{ github.repository_owner}}" >> $GITHUB_ENV
       - run: echo "PROJECT_KEY=${{ github.repository_owner}}_$(echo ${{ github.repository }} | sed 's/.*\///')" >> $GITHUB_ENV
       - run: echo "SCAN_DATE=$(TZ='EET' date '+%Y-%m-%d')" >> $GITHUB_ENV
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
-      - uses: actions/setup-java@v5
+      - uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: '17'
@@ -39,7 +39,7 @@ jobs:
         with:
           cache-provider: basic
       - run: ./gradlew test koverXmlReport
-      - uses: sonarsource/sonarqube-scan-action@v8.1.0
+      - uses: sonarsource/sonarqube-scan-action@v8.2.1
         if: (github.event_name == 'push'|| github.event_name == 'workflow_dispatch')
         with:
           projectBaseDir: ${{ github.workspace }}
@@ -55,7 +55,7 @@ jobs:
             -Dsonar.tests=consultation/src/jvmAndAndroidTest,consultation-dss/src/jvmAndAndroidTest,119602-data-model/src/jvmAndAndroidTest,119602-consultation/src/jvmAndAndroidTest,119602-consultation/src/commonTest
             -Dsonar.java.binaries=consultation/build/classes/kotlin/jvm,consultation-dss/build/classes/kotlin/jvm,119602-data-model/build/classes/kotlin/jvm,119602-consultation/build/classes/kotlin/jvm
             -Dsonar.kotlin.binaries=consultation/build/classes/kotlin/jvm,consultation-dss/build/classes/kotlin/jvm,119602-data-model/build/classes/kotlin/jvm,119602-consultation/build/classes/kotlin/jvm
-      - uses: sonarsource/sonarqube-scan-action@v8.1.0
+      - uses: sonarsource/sonarqube-scan-action@v8.2.1
         if: (github.event_name == 'pull_request_target')
         with:
           projectBaseDir: ${{ github.workspace }}
@@ -74,7 +74,7 @@ jobs:
             -Dsonar.tests=consultation/src/jvmAndAndroidTest,consultation-dss/src/jvmAndAndroidTest,119602-data-model/src/jvmAndAndroidTest,119602-consultation/src/jvmAndAndroidTest,119602-consultation/src/commonTest
             -Dsonar.java.binaries=consultation/build/classes/kotlin/jvm,consultation-dss/build/classes/kotlin/jvm,119602-data-model/build/classes/kotlin/jvm,119602-consultation/build/classes/kotlin/jvm
             -Dsonar.kotlin.binaries=consultation/build/classes/kotlin/jvm,consultation-dss/build/classes/kotlin/jvm,119602-data-model/build/classes/kotlin/jvm,119602-consultation/build/classes/kotlin/jvm
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         if: (github.repository_owner == 'eu-digital-identity-wallet' && github.ref_name == 'main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch'))
         with:
           node-version: 18
