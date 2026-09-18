@@ -15,15 +15,23 @@
  */
 package eu.europa.ec.eudi.etsi119602.consultation
 
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlin.coroutines.resume
+
 /**
- * A [VerifyJwtSignature] that performs NO verification — it accepts every LoTE JWT.
+ * Swift-implementable variant of [VerifyJwtSignature].
  *
- * **INSECURE. For local development and integration demos only.** It exists because a Kotlin
- * `suspend fun interface` is awkward to implement directly from Swift. A production wallet MUST
- * pass a real [VerifyJwtSignature] (verifying against the trusted scheme operator keys) instead;
- * using this in production defeats the entire trust model.
  */
-public object InsecureAcceptAllJwtSignature : VerifyJwtSignature {
-    override suspend fun invoke(jwt: String): VerifyJwtSignature.Outcome =
-        VerifyJwtSignature.Outcome.Verified(jwt)
+public fun interface VerifyJwtSignatureCallback {
+    public fun verify(jwt: String, onOutcome: (VerifyJwtSignature.Outcome) -> Unit)
 }
+
+/**
+ * Adapts a [VerifyJwtSignatureCallback] into a [VerifyJwtSignature].
+ */
+public fun VerifyJwtSignatureCallback.asVerifyJwtSignature(): VerifyJwtSignature =
+    VerifyJwtSignature { jwt ->
+        suspendCancellableCoroutine { cont ->
+            verify(jwt) { outcome -> cont.resume(outcome) }
+        }
+    }

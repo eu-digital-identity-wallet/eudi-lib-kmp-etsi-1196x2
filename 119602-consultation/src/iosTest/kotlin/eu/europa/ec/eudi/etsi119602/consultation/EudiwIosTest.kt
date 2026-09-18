@@ -177,7 +177,7 @@ class EudiwIosTest {
 //            qeaProvidersUrl = null,
 //            mdlProvidersUrl = null,
 //            ttlHours = 1.0,
-//            verifyJwtSignature = InsecureAcceptAllJwtSignature,
+//            verifyJwtSignature = NotValidating,
 //        )
 //        handle.dispose()
 //    }
