@@ -63,7 +63,7 @@ class ValidateCertificateChainUsingDirectTrustJvmTest {
         val chain = emptyList<X509Certificate>()
         val trustAnchors = NonEmptyList(listOf(TrustAnchor(root, null)))
 
-        assertFailsWith<IllegalStateException> {
+        assertFailsWith<IllegalArgumentException> {
             ValidateCertificateChainUsingDirectTrustJvm(chain, trustAnchors)
         }
     }
@@ -73,8 +73,26 @@ class ValidateCertificateChainUsingDirectTrustJvmTest {
         val chain = listOf(eeCertificate)
         val trustAnchors = NonEmptyList(listOf(TrustAnchor("CN=Test", eeCertificate.publicKey, null)))
 
-        assertFailsWith<IllegalStateException> {
+        assertFailsWith<IllegalArgumentException> {
             ValidateCertificateChainUsingDirectTrustJvm(chain, trustAnchors)
         }
+    }
+
+    @Test
+    fun `self-signed cert with same subject and serial as a trusted anchor is not trusted`() = runTest {
+        val forged = with(CertOps) {
+            createSelfSignedWithSameId(eeCertificate, "SHA256withECDSA").toX509Certificate()
+        }
+        // Sanity: collides on (subject, serial) but is a different certificate (different DER).
+        assertEquals(eeCertificate.subjectX500Principal, forged.subjectX500Principal)
+        assertEquals(eeCertificate.serialNumber, forged.serialNumber)
+        assertFalse(eeCertificate.encoded.contentEquals(forged.encoded))
+
+        val result = ValidateCertificateChainUsingDirectTrustJvm(
+            listOf(forged),
+            NonEmptyList(listOf(TrustAnchor(eeCertificate, null))),
+        )
+
+        assertIs<CertificationChainValidation.NotTrusted>(result)
     }
 }
