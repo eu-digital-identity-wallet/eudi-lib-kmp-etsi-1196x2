@@ -15,7 +15,9 @@
  */
 package eu.europa.ec.eudi.etsi119602.consultation
 
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withContext
 import kotlin.coroutines.resume
 
 /**
@@ -28,10 +30,16 @@ public fun interface VerifyJwtSignatureCallback {
 
 /**
  * Adapts a [VerifyJwtSignatureCallback] into a [VerifyJwtSignature].
+ *
+ * The [verify] call is hopped onto [Dispatchers.Default] because a Swift implementation may do
+ * CPU-heavy JAdES / JWS verification synchronously before firing the completion, mirroring the
+ * defensive pattern used by [ValidateCertificateChainUsingPKIXIos].
  */
 public fun VerifyJwtSignatureCallback.asVerifyJwtSignature(): VerifyJwtSignature =
     VerifyJwtSignature { jwt ->
-        suspendCancellableCoroutine { cont ->
-            verify(jwt) { outcome -> cont.resume(outcome) }
+        withContext(Dispatchers.Default) {
+            suspendCancellableCoroutine { cont ->
+                verify(jwt) { outcome -> cont.resume(outcome) }
+            }
         }
     }
