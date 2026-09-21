@@ -16,7 +16,6 @@
 package eu.europa.ec.eudi.etsi119602.consultation
 
 import eu.europa.ec.eudi.etsi119602.datamodel.ServiceDigitalIdentity
-import eu.europa.ec.eudi.etsi1196x2.consultation.ByteArrayKey
 import eu.europa.ec.eudi.etsi1196x2.consultation.SupportedLists
 import eu.europa.ec.eudi.etsi1196x2.consultation.ValidateCertificateChainUsingDirectTrust
 import eu.europa.ec.eudi.etsi1196x2.consultation.ValidateCertificateChainUsingDirectTrustIos
@@ -52,7 +51,7 @@ public fun ProvisionTrustAnchorsFromLoTEs.Companion.eudiwIos(
     loadLoTEAndPointers: LoadLoTEAndPointers,
     svcTypePerCtx: SupportedLists<LotEMeta<VerificationContext>> = SupportedLists.eu(),
     continueOnProblem: ContinueOnProblem = ContinueOnProblem.Never,
-    directTrust: ValidateCertificateChainUsingDirectTrust<List<NSData>, NSData, ByteArrayKey> =
+    directTrust: ValidateCertificateChainUsingDirectTrust<List<NSData>, NSData> =
         ValidateCertificateChainUsingDirectTrustIos,
     pkix: ValidateCertificateChainUsingPKIX<List<NSData>, NSData> =
         ValidateCertificateChainUsingPKIXIos(),
@@ -75,7 +74,7 @@ public fun <CTX : Any> ProvisionTrustAnchorsFromLoTEs.Companion.ios(
     svcTypePerCtx: SupportedLists<LotEMeta<CTX>>,
     createTrustAnchors: (ServiceDigitalIdentity) -> List<NSData> = ::defaultCreateTrustAnchorsIos,
     continueOnProblem: ContinueOnProblem = ContinueOnProblem.Never,
-    directTrust: ValidateCertificateChainUsingDirectTrust<List<NSData>, NSData, ByteArrayKey> =
+    directTrust: ValidateCertificateChainUsingDirectTrust<List<NSData>, NSData> =
         ValidateCertificateChainUsingDirectTrustIos,
     pkix: ValidateCertificateChainUsingPKIX<List<NSData>, NSData> =
         ValidateCertificateChainUsingPKIXIos(),

@@ -61,21 +61,42 @@ public fun interface ValidateCertificateChain<in CHAIN : Any, TRUST_ANCHOR : Any
 public fun interface ValidateCertificateChainUsingPKIX<in CHAIN : Any, TRUST_ANCHOR : Any> :
     ValidateCertificateChain<CHAIN, TRUST_ANCHOR>
 
-public class ValidateCertificateChainUsingDirectTrust<in CHAIN : Any, TRUST_ANCHOR : Any, in CERT_ID : Any>(
-    private val headCertificateId: (CHAIN) -> CERT_ID,
-    private val trustToCertificateId: (TRUST_ANCHOR) -> CERT_ID,
-) : ValidateCertificateChain<CHAIN, TRUST_ANCHOR> {
-    override suspend fun invoke(
-        chain: CHAIN,
-        trustAnchors: NonEmptyList<TRUST_ANCHOR>,
-    ): CertificationChainValidation<TRUST_ANCHOR> {
-        val head = headCertificateId(chain)
-        val trustAnchor = trustAnchors.list.firstOrNull { trustToCertificateId(it) == head }
-        return if (trustAnchor != null) {
-            CertificationChainValidation.Trusted(trustAnchor)
-        } else {
-            CertificationChainValidation.NotTrusted(IllegalStateException("Not trusted"))
-        }
+/**
+ *
+ *
+ *  @param CHAIN the type representing the certificate chain to validate
+ *  @param TRUST_ANCHOR the type representing a trust anchor
+ *
+ *  @see ValidateCertificateChain
+ */
+public fun interface ValidateCertificateChainUsingDirectTrust<in CHAIN : Any, TRUST_ANCHOR : Any> :
+    ValidateCertificateChain<CHAIN, TRUST_ANCHOR> {
+
+    public companion object {
+
+        /**
+         * Creates a [ValidateCertificateChainUsingDirectTrust] that compares the DER encoded representation of
+         * a certificate
+         *
+         * @param headDer a function extracting the DER encoding of the head of the [CHAIN]
+         * @param trustAnchorDer a function extracting the DER encoding of the [TRUST_ANCHOR]
+         */
+        public fun <CHAIN : Any, TRUST_ANCHOR : Any> comparingDER(
+            headDer: (CHAIN) -> ByteArray,
+            trustAnchorDer: (TRUST_ANCHOR) -> ByteArray,
+        ): ValidateCertificateChainUsingDirectTrust<CHAIN, TRUST_ANCHOR> =
+            ValidateCertificateChainUsingDirectTrust { chain, trustAnchors ->
+                val head = headDer(chain)
+                val trustAnchor = trustAnchors.list.firstOrNull { anchor ->
+                    val other = trustAnchorDer(anchor)
+                    head.contentEquals(other)
+                }
+                if (trustAnchor != null) {
+                    CertificationChainValidation.Trusted(trustAnchor)
+                } else {
+                    CertificationChainValidation.NotTrusted(IllegalStateException("Not trusted"))
+                }
+            }
     }
 }
 

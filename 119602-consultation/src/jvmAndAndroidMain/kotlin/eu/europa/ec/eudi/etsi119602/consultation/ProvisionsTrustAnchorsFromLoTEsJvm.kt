@@ -26,7 +26,7 @@ public fun ProvisionTrustAnchorsFromLoTEs.Companion.eudiwJvm(
     loadLoTEAndPointers: LoadLoTEAndPointers,
     svcTypePerCtx: SupportedLists<LotEMeta<VerificationContext>> = SupportedLists.eu(),
     continueOnProblem: ContinueOnProblem = ContinueOnProblem.Never,
-    directTrust: ValidateCertificateChainUsingDirectTrust<List<X509Certificate>, TrustAnchor, X509CertificateIdentify> = ValidateCertificateChainUsingDirectTrustJvm,
+    directTrust: ValidateCertificateChainUsingDirectTrust<List<X509Certificate>, TrustAnchor> = ValidateCertificateChainUsingDirectTrustJvm,
     pkix: ValidateCertificateChainUsingPKIX<List<X509Certificate>, TrustAnchor> = ValidateCertificateChainUsingPKIXJvm(),
 ): ProvisionTrustAnchorsFromLoTEs<List<X509Certificate>, VerificationContext, TrustAnchor, X509Certificate> =
     jvm(
@@ -43,7 +43,7 @@ public fun <CTX : Any> ProvisionTrustAnchorsFromLoTEs.Companion.jvm(
     svcTypePerCtx: SupportedLists<LotEMeta<CTX>>,
     createTrustAnchors: (ServiceDigitalIdentity) -> List<TrustAnchor> = ::defaultCreateTrustAnchors,
     continueOnProblem: ContinueOnProblem = ContinueOnProblem.Never,
-    directTrust: ValidateCertificateChainUsingDirectTrust<List<X509Certificate>, TrustAnchor, X509CertificateIdentify> = ValidateCertificateChainUsingDirectTrustJvm,
+    directTrust: ValidateCertificateChainUsingDirectTrust<List<X509Certificate>, TrustAnchor> = ValidateCertificateChainUsingDirectTrustJvm,
     pkix: ValidateCertificateChainUsingPKIX<List<X509Certificate>, TrustAnchor> = ValidateCertificateChainUsingPKIXJvm(),
 ): ProvisionTrustAnchorsFromLoTEs<List<X509Certificate>, CTX, TrustAnchor, X509Certificate> =
     ProvisionTrustAnchorsFromLoTEs(

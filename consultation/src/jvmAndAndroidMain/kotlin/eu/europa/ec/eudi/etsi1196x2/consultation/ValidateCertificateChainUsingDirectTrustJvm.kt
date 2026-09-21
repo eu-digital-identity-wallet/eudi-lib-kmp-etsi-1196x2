@@ -15,26 +15,25 @@
  */
 package eu.europa.ec.eudi.etsi1196x2.consultation
 
-import java.math.BigInteger
 import java.security.cert.TrustAnchor
 import java.security.cert.X509Certificate
-import javax.security.auth.x500.X500Principal
 
-public data class X509CertificateIdentify(val subject: X500Principal, val serialNumber: BigInteger)
-
-public fun X509Certificate.identity(): X509CertificateIdentify =
-    X509CertificateIdentify(subjectX500Principal, serialNumber)
-
-public val ValidateCertificateChainUsingDirectTrustJvm: ValidateCertificateChainUsingDirectTrust<List<X509Certificate>, TrustAnchor, X509CertificateIdentify> =
-    ValidateCertificateChainUsingDirectTrust(
-        headCertificateId = { chain ->
-            val head = chain.firstOrNull()
-            checkNotNull(head) { "Chain cannot be empty" }
-            head.identity()
+/**
+ * A default implementation of [ValidateCertificateChainUsingDirectTrust] for the JVM.
+ * Uses [X509Certificate.getEncoded] to get the DER representation of the certificate
+ * Compares the DER encoded form of the leaf certificate of the chain each trust anchor
+ */
+public val ValidateCertificateChainUsingDirectTrustJvm:
+    ValidateCertificateChainUsingDirectTrust<List<X509Certificate>, TrustAnchor> =
+    ValidateCertificateChainUsingDirectTrust.comparingDER(
+        headDer = { chain ->
+            val leaf = chain.firstOrNull()
+            requireNotNull(leaf) { "Chain cannot be empty" }
+            leaf.encoded
         },
-        trustToCertificateId = { trustAnchor ->
-            val trustedCert = trustAnchor.trustedCert
-            checkNotNull(trustedCert) { "Trust anchor missing certificate\n$trustAnchor" }
-            trustedCert.identity()
+        trustAnchorDer = { trustAnchor ->
+            val cert = trustAnchor.trustedCert
+            requireNotNull(cert) { "Trust anchor missing certificate\n$trustAnchor" }
+            cert.encoded
         },
     )

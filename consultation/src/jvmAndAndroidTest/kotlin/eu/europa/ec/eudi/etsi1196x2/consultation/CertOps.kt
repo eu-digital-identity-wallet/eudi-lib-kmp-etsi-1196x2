@@ -161,6 +161,28 @@ internal object CertOps {
         }.build(sigAlg, signerKey)
 
     /**
+     * Builds a self-signed V3 certificate that copies the subject and serial number of
+     * [reference] but carries a fresh, unrelated key. Models a self-signed forgery that
+     * collides on (subject, serial) with a trusted certificate.
+     */
+    fun createSelfSignedWithSameId(reference: X509Certificate, sigAlg: String): X509CertificateHolder {
+        val kp = Ctx.generateECPair()
+        val ref = X509CertificateHolder(reference.encoded)
+        return JcaX509v3CertificateBuilder(
+            ref.subject,
+            ref.serialNumber,
+            Date.from(notBefore().toJavaInstant()),
+            calculateDate(24 * 31),
+            ref.subject,
+            kp.public,
+        ).apply {
+            subjectKeyIdentifier(kp.public)
+            basicConstraints(BasicConstraints(false))
+            keyUsage(KeyUsage(KeyUsage.digitalSignature))
+        }.build(sigAlg, kp.private)
+    }
+
+    /**
      * Public extension function for converting [X509CertificateHolder] to [X509Certificate].
      */
     fun X509CertificateHolder.toX509Certificate(): X509Certificate {

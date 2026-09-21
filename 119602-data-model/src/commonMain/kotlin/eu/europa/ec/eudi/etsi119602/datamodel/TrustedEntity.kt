@@ -51,12 +51,14 @@ public constructor(
      * for the TE operates, in the specific context of the delivery of those of its services which are to be found in this LoTE.
      */
     @SerialName(ETSI19602.TE_TRADE_NAME) val tradeName: List<MultilanguageString>? = null,
+    @SerialName(ETSI19602.TE_INFORMATION_EXTENSIONS) val informationExtensions: JsonArray? = null,
 ) {
     init {
         with(Assertions) {
             requireNonEmpty(name, ETSI19602.TE_NAME)
             requireNonEmpty(informationURI, ETSI19602.TE_INFORMATION_URI)
             requireNullOrNonEmpty(tradeName, ETSI19602.TE_TRADE_NAME)
+            requireNullOrNonEmpty(informationExtensions, ETSI19602.TE_INFORMATION_EXTENSIONS)
         }
     }
 }
@@ -100,7 +102,7 @@ public constructor(
     @SerialName(ETSI19602.SCHEME_SERVICE_DEFINITION_URI) val schemeServiceDefinitionURI: List<MultiLanguageURI>? = null,
     @SerialName(ETSI19602.SERVICE_SUPPLY_POINTS) val supplyPoints: List<ServiceSupplyPointURI>? = null,
     @SerialName(ETSI19602.SERVICE_DEFINITION_URI) val definitionURI: List<MultiLanguageURI>? = null,
-    @SerialName(ETSI19602.SERVICE_INFORMATION_EXTENSIONS) val informationExtensions: ServiceInformationExtensions? = null,
+    @SerialName(ETSI19602.SERVICE_INFORMATION_EXTENSIONS) val informationExtensions: JsonArray? = null,
 ) {
     init {
         with(Assertions) {
@@ -122,7 +124,7 @@ public constructor(
     @SerialName(ETSI19602.SERVICE_STATUS) @Required val status: Uri,
     @SerialName(ETSI19602.STATUS_STARTING_TIME) @Required val statusStartingTime: LoTEDateTime,
     @SerialName(ETSI19602.SERVICE_TYPE_IDENTIFIER) val typeIdentifier: Uri? = null,
-    @SerialName(ETSI19602.SERVICE_INFORMATION_EXTENSIONS) val informationExtensions: ServiceInformationExtensions? = null,
+    @SerialName(ETSI19602.SERVICE_INFORMATION_EXTENSIONS) val informationExtensions: JsonArray? = null,
 ) {
     init {
         with(Assertions) {
@@ -131,9 +133,6 @@ public constructor(
         }
     }
 }
-
-// TODO Provide an explicit data model for ServiceInformationExtensions
-public typealias ServiceInformationExtensions = JsonArray
 
 @Serializable
 public data class ServiceSupplyPointURI

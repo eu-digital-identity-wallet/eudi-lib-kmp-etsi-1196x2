@@ -20,8 +20,6 @@ import eu.europa.ec.eudi.etsi119602.consultation.ETSI119411Part8.NCP_N_EUDIWRP
 import eu.europa.ec.eudi.etsi119602.consultation.ETSI119411Part8.QCP_L_EUDIWRP
 import eu.europa.ec.eudi.etsi119602.consultation.ETSI119411Part8.QCP_N_EUDIWRP
 import eu.europa.ec.eudi.etsi1196x2.consultation.certs.*
-import kotlin.time.Duration
-import kotlin.time.Duration.Companion.days
 import kotlin.time.Instant
 
 /**
@@ -31,7 +29,6 @@ import kotlin.time.Instant
  */
 public fun wrpAccessCertificateProfile(
     at: Instant? = null,
-    maxShortTermDuration: Duration = 7.days,
 ): CertificateProfile = certificateProfile {
     // Basic certificate requirements
     endEntity()
@@ -53,8 +50,9 @@ public fun wrpAccessCertificateProfile(
     // Authority Key Identifier required (EN 319 412-2)
     authorityKeyIdentifier()
 
-    // Validity-assured short-term certificate requirements
-    validityAssuredShortTerm(maxShortTermDuration)
+    // WRPAC must NOT be a validity-assured short-term certificate
+    // (ETSI TS 119 411-8, GEN-6.6.1-01 note)
+    wrpacMustNotBeValidityAssuredShortTerm()
 
     // Subject Alternative Name with contact info required (TS 119 411-8)
     wrpacSubjectAlternativeNames()
@@ -105,6 +103,31 @@ internal fun ProfileBuilder.wrpacSubjectAlternativeNames() =
     subjectAltNames { subjectAltNames ->
         validateSubjectAltNameForWRPAC(subjectAltNames)
     }
+
+/**
+ * WRPAC must not be a validity-assured short-term certificate.
+ *
+ * Per ETSI TS 119 411-8, GEN-6.6.1-01 note: "Neither website authentication
+ * certificates nor short-term certificates (validity assured) are applicable
+ * to wallet-relying party access certificates." A certificate is considered
+ * validity-assured short-term when it carries the ext-etsi-valassured-ST-certs
+ * QC statement (ETSI EN 319 412-1).
+ */
+internal fun ProfileBuilder.wrpacMustNotBeValidityAssuredShortTerm() {
+    qcStatements(ETSI319412Part1.EXT_ETSI_VAL_ASSURED_ST_CERTS) { valAssuredStatements ->
+        if (valAssuredStatements.isEmpty()) {
+            CertificateConstraintEvaluation.Met
+        } else {
+            CertificateConstraintEvaluation {
+                add(
+                    CertificateConstraintViolation(
+                        "WRPAC must not be a validity-assured short-term certificate (ETSI TS 119 411-8, GEN-6.6.1-01)",
+                    ),
+                )
+            }
+        }
+    }
+}
 
 internal fun ProfileBuilder.wrpacSubject() =
     combine(

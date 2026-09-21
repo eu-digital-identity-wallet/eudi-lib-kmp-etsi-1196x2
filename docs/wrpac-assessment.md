@@ -29,7 +29,9 @@ structural alignment** with all critical infrastructure components in place.
 - ✅ "Signing vs Sealing" is **not a certificate-level validation requirement** - WRPACs support both electronic
   signature and electronic seal per ETSI TS 119 475 clause 4.1, this is a policy-level distinction about the
   issuing provider type, not a certificate extension or key usage requirement
-- ✅ Validity-assured short-term certificates validated (≤ 7 days validity, noRevocationAvail extension)
+- ✅ Validity-assured short-term certificates **rejected** — per ETSI TS 119 411-8 GEN-6.6.1-01 note, short-term
+  (validity assured) certificates are not applicable to WRPACs, so a WRPAC carrying the
+  `ext-etsi-valassured-ST-certs` QC statement is rejected
 - ✅ **100% of ETSI mandatory requirements** for WRPAC now implemented and validated
 
 ---
@@ -52,7 +54,6 @@ structural alignment** with all critical infrastructure components in place.
 ```kotlin
 public fun wrpAccessCertificateProfile(
     at: Instant? = null,
-    maxShortTermDuration: Duration = 7.days,
 ): CertificateProfile = certificateProfile {
     // Basic certificate requirements
     endEntity()
@@ -74,8 +75,9 @@ public fun wrpAccessCertificateProfile(
     // Authority Key Identifier required (EN 319 412-2)
     authorityKeyIdentifier()
 
-    // Validity-assured short-term certificate requirements
-    validityAssuredShortTerm(maxShortTermDuration)
+    // WRPAC must NOT be a validity-assured short-term certificate
+    // (ETSI TS 119 411-8, GEN-6.6.1-01 note)
+    wrpacMustNotBeValidityAssuredShortTerm()
 
     // Subject Alternative Name with contact info required (TS 119 411-8)
     wrpacSubjectAlternativeNames()
@@ -168,8 +170,8 @@ internal fun ProfileBuilder.wrpacExplicitExtensionCriticality() {
 | CRLDistributionPoints             | EN 319 412-2 4.3.11                   | ✅      |                                                       |
 | CertificatePolicies criticality   | EN 319 412-1 4.2.1.4                  | ✅      | Not required by ETSI (GEN-4.1-2)                      |
 | SubjectAltName                    | RFC 5280 4.2.1.6 + TS 119 411-8 6.6.1 | ✅      |                                                       |
-| ext-etsi-valassured-ST-certs      | EN 319 412-1 5.2                      | ✅      | Fully validated (≤ 7 days validity period)           |
-| noRevocationAvail                 | RFC 9608 2                            | ✅      | Fully validated for validity-assured certificates    |
+| ext-etsi-valassured-ST-certs      | TS 119 411-8 GEN-6.6.1-01             | ⛔      | **NOT APPLICABLE** - rejected if present (short-term certs not applicable to WRPAC) |
+| noRevocationAvail                 | RFC 9608 2                            | ⛔      | **NOT APPLICABLE** - only relevant to validity-assured (short-term) certificates    |
 | **Subject Naming**                |
 | Natural person attributes         | EN 319 412-2 4.2.2                    | ✅      |                                                       |
 | Legal person attributes           | EN 319 412-3 4.2.1                    | ✅      |                                                       |
@@ -178,7 +180,7 @@ internal fun ProfileBuilder.wrpacExplicitExtensionCriticality() {
 | OCSP responder in AIA             | EN 319 412-2 4.4.1                    | ✅      | AIA enforced (includes caIssuers)                     |
 | QCStatements for QCP policies     | EN 319 412-5                          | ✅      |                                                       |
 | CRLDP if no OCSP/val-assured      | EN 319 412-1 4.3.11                   | ✅      |                                                       |
-| Validity assurance for short-term | EN 319 412-1 5.2                      | ✅      | Fully validated (including duration and noRevAvail)   |
+| Validity assurance for short-term | TS 119 411-8 GEN-6.6.1-01             | ⛔      | **NOT APPLICABLE** - WRPAC carrying val-assured ST-certs QC statement is rejected   |
 | Signature vs seal purpose         | TS 119 411-8 6.2                      | ✅      | **NOT APPLICABLE** - Policy-level distinction, not certificate validation |
 
 ---
@@ -208,8 +210,8 @@ internal fun ProfileBuilder.wrpacExplicitExtensionCriticality() {
 | AuthorityInfoAccess               | M              | NC          | ✅          | Enforced (caIssuers)                           |
 | CertificatePolicies               | M              | NC          | ✅          | OIDs validated (NOT required critical)         |
 | SubjectAltName                    | M              | NC          | ✅          | `wrpacSubjectAlternativeNames()` (URI, email, tel) |
-| ext-etsi-valassured-ST-certs      | R(C)           | NC          | ✅          | Fully validated (duration check)               |
-| noRevocationAvail                 | M(C)           | NC          | ✅          | Validated for validity-assured certs           |
+| ext-etsi-valassured-ST-certs      | Not allowed    | NC          | ⛔          | Rejected if present (GEN-6.6.1-01 note)        |
+| noRevocationAvail                 | Not allowed    | NC          | ⛔          | Not applicable (only for val-assured certs)    |
 | qcStatements (esi4-qcStatement-1) | M(C) for QCP   | NC          | ✅          | Validated for qualified (QcCompliance)         |
 | qcStatements (esi4-qcStatement-4) | M(C) for QCP   | NC          | ✅          | Validated for qualified (QcSSCD)               |
 | qcStatements (esi4-qcStatement-6) | M(C) for QCP-l | NC          | ✅          | Validated for qualified legal (QcType)         |
@@ -253,9 +255,10 @@ internal fun ProfileBuilder.wrpacExplicitExtensionCriticality() {
 
 **Breakdown by Implementation Status:**
 
-- ✅ **Fully Implemented (35 requirements)**: All core certificate validation, extensions (AIA, AKI, SAN, CRLDP, noRevocationAvail), 
+- ✅ **Fully Implemented (35 requirements)**: All core certificate validation, extensions (AIA, AKI, SAN, CRLDP), 
   public key, QCStatements, subject DN attributes (natural person & legal person), issuer DN attributes (legal person),
-  KeyUsage criticality, organizationIdentifier format, validity-assured short-term certs logic.
+  KeyUsage criticality, organizationIdentifier format, rejection of validity-assured short-term certificates
+  (GEN-6.6.1-01 note).
 
 ---
 
