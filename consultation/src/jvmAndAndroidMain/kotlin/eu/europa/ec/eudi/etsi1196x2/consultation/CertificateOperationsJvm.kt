@@ -397,7 +397,7 @@ public object CertificateOperationsJvm : CertificateOperations<X509Certificate> 
      * Per RFC 5280 Section 4.2.1.2, the keyIdentifier is an octet string.
      */
     private fun Extension.parseSubjectKeyIdentifier(): ByteArray? = try {
-        extnValue.octets.copyOf()
+        ASN1OctetString.getInstance(extnValue.octets).octets.copyOf()
     } catch (e: Exception) {
         logger.warn("Failed to parse SubjectKeyIdentifier: ${e.message}", e)
         null
