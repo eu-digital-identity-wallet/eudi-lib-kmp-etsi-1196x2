@@ -111,16 +111,18 @@ public class LoadSingleLoTEWithFileCache internal constructor(
         fun createMetadata(jwt: String): LoTEFileMetadata {
             val loadedAt = clock.now()
 
-            // Try to extract nextUpdate from JWT payload
-            val nextUpdate = runCatching {
+            // Try to extract nextUpdate and sequenceNumber from JWT payload
+            val (nextUpdate, sequenceNumber) = runCatching {
                 when (val result = parseJwt(jwt)) {
                     is ParseJwt.Outcome.Parsed -> {
-                        result.payload.listOfTrustedEntities.schemeInformation.nextUpdate
+                        with(result.payload.listOfTrustedEntities.schemeInformation) {
+                            nextUpdate to sequenceNumber
+                        }
                     }
 
-                    is ParseJwt.Outcome.ParseFailed -> null
+                    is ParseJwt.Outcome.ParseFailed -> null to null
                 }
-            }.getOrNull()
+            }.getOrElse { null to null }
 
             // Calculate expiration time
             val expiresAt = nextUpdate?.let {
@@ -132,6 +134,7 @@ public class LoadSingleLoTEWithFileCache internal constructor(
                 loadedAt = loadedAt,
                 expiresAt = expiresAt,
                 nextUpdate = nextUpdate,
+                sequenceNumber = sequenceNumber,
             )
         }
         return when (val httpResult = loadFromHttp(uri)) {
@@ -336,12 +339,14 @@ internal data class StoredLoTE(
  * @param loadedAt epoch milliseconds when the LoTE was loaded
  * @param expiresAt epoch milliseconds when the cache entry expires
  * @param nextUpdate epoch milliseconds when the LoTE should be updated (from LoTE metadata, optional)
+ * @param sequenceNumber sequence number of the published release of the LoTE (from LoTE metadata, optional)
  */
 @Serializable
 internal data class LoTEFileMetadata(
     @SerialName("loaded_at") val loadedAt: EpocMillis,
     @SerialName("expires_at") val expiresAt: EpocMillis,
     @SerialName("next_update") val nextUpdate: EpocMillis?,
+    @SerialName("sequence_number") val sequenceNumber: Int?,
 )
 
 private typealias EpocMillis =
