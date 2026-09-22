@@ -216,13 +216,13 @@ public class ProfileBuilder {
     /**
      * Defines a constraint on QCStatements of a specific type.
      *
-     * @param qcType the OID of the QC type to extract
+     * @param statementId the OID of the QC Statement to extract
      */
     public fun qcStatements(
-        qcType: String,
+        statementId: String,
         evaluate: (List<QCStatementInfo>) -> CertificateConstraintEvaluation,
     ) {
-        requirements += CertificateConstraint(CertificateOperationsAlgebra.GetQcStatements(qcType), evaluate)
+        requirements += CertificateConstraint(CertificateOperationsAlgebra.GetQcStatements(statementId), evaluate)
     }
 
     /**

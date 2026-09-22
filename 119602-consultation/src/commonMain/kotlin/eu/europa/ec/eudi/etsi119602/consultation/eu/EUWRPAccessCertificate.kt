@@ -73,8 +73,15 @@ public fun wrpAccessCertificateProfile(
     // NCP_N and NCP_L do not require QC statements; QCP_N and QCP_L do.
     requireQcStatementsForPolicy { policyOid ->
         when (policyOid) {
-            QCP_N_EUDIWRP -> listOf(ETSI319412.QC_COMPLIANCE, ETSI319412.QC_SSCD)
-            QCP_L_EUDIWRP -> listOf(ETSI319412.QC_COMPLIANCE, ETSI319412.QC_SSCD, ETSI319412.QC_TYPE)
+            QCP_N_EUDIWRP -> listOf(
+                QCStatementInfo.OtherQcStatement(ETSI319412.QC_COMPLIANCE),
+                QCStatementInfo.OtherQcStatement(ETSI319412.QC_SSCD),
+            )
+            QCP_L_EUDIWRP -> listOf(
+                QCStatementInfo.OtherQcStatement(ETSI319412.QC_COMPLIANCE),
+                QCStatementInfo.OtherQcStatement(ETSI319412.QC_SSCD),
+                QCStatementInfo.QcType(ETSI319412.ID_ETSI_QCT_ESEAL),
+            )
             else -> emptyList()
         }
     }

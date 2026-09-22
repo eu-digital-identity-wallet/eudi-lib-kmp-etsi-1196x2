@@ -62,4 +62,6 @@ public object ETSI319412 {
      * ```
      */
     public const val QC_TYPE: String = "0.4.0.1862.1.6"
+
+    public const val ID_ETSI_QCT_ESEAL: String = "0.4.0.1862.1.6.2"
 }

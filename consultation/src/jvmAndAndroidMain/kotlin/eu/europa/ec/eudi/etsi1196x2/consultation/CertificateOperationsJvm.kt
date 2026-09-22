@@ -208,7 +208,7 @@ public object CertificateOperationsJvm : CertificateOperations<X509Certificate> 
                     }
                 }
                 if (typeIdentifier != null) {
-                    QCStatementInfo.QcType(typeIdentifier = typeIdentifier)
+                    QCStatementInfo.QcType(innerIdentifier = typeIdentifier)
                 } else {
                     null
                 }

@@ -84,9 +84,9 @@ public sealed interface CertificateOperationsAlgebra<out T> {
     /**
      * Extract QCStatements of a specific type (ETSI EN 319 412-5).
      *
-     * @param qcType the OID identifying the QC type (e.g., "0.4.0.194126.1.1" for id-etsi-qct-pid)
+     * @param statementId the OID identifying the QC Stament
      */
-    public data class GetQcStatements(val qcType: String) : CertificateOperationsAlgebra<List<QCStatementInfo>>
+    public data class GetQcStatements(val statementId: String) : CertificateOperationsAlgebra<List<QCStatementInfo>>
 
     /**
      * Extract the subject Distinguished Name.
@@ -197,11 +197,10 @@ public data class KeyUsageBits(
  *
  * Two variants:
  * - [QcType]: a QcType statement whose [statementId] is always id-etsi-qcs-QcType
- *   and the semantic OID is the inner [typeIdentifier] (e.g., id-etsi-qct-pid).
+ *   and the semantic OID is the inner [QcType.innerIdentifier] (e.g., id-etsi-qct-pid).
  * - [OtherQcStatement]: any other QC statement whose [statementId] is itself the
  *   semantic OID.
  *
- * Use [semanticOid] for matching regardless of variant.
  */
 public sealed interface QCStatementInfo {
     /**
@@ -210,22 +209,13 @@ public sealed interface QCStatementInfo {
     public val statementId: String
 
     /**
-     * The OID that identifies the semantic type of this statement.
-     * For [QcType] this is the [QcType.typeIdentifier]; for [OtherQcStatement]
-     * this is the [OtherQcStatement.statementId].
-     */
-    public val semanticOid: String
-        get() = statementId
-
-    /**
      * A QcType statement (id-etsi-qcs-QcType).
-     * The meaningful payload is the [typeIdentifier] OID.
+     * The meaningful payload is the [innerIdentifier] OID.
      *
-     * @param typeIdentifier the type identifier OID (e.g., id-etsi-qct-pid)
+     * @param innerIdentifier the type identifier OID (e.g., id-etsi-qct-pid)
      */
-    public data class QcType(val typeIdentifier: String) : QCStatementInfo {
+    public data class QcType(val innerIdentifier: String) : QCStatementInfo {
         override val statementId: String get() = ETSI319412.QC_TYPE
-        override val semanticOid: String get() = typeIdentifier
     }
 
     /**

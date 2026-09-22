@@ -41,9 +41,15 @@ public fun ProfileBuilder.ca(maxPathLen: Int? = null) {
 //
 
 public fun ProfileBuilder.mandatoryQcType(
-    qcType: String,
+    innerIdentifier: String,
 ) {
-    qcStatements(qcType) { statements -> CertificateConstraintsEvaluations.mandatoryQcType(statements, qcType) }
+    qcStatements(statementId = ETSI319412.QC_TYPE) { statements ->
+        check(statements.all { it is QCStatementInfo.QcType }) {
+            "Invalid state. Non QcType QcStatements found"
+        }
+        val qcTypes = statements.map { it as QCStatementInfo.QcType }
+        CertificateConstraintsEvaluations.mandatoryQcType(qcTypes, innerIdentifier)
+    }
 }
 
 //
@@ -61,7 +67,12 @@ public fun ProfileBuilder.keyUsageCertSign() {
 public fun ProfileBuilder.mandatoryKeyUsage(
     requiredKeyUsage: String,
 ) {
-    keyUsage { keyUsageAndCritical -> CertificateConstraintsEvaluations.mandatoryKeyUsage(keyUsageAndCritical, requiredKeyUsage) }
+    keyUsage { keyUsageAndCritical ->
+        CertificateConstraintsEvaluations.mandatoryKeyUsage(
+            keyUsageAndCritical,
+            requiredKeyUsage,
+        )
+    }
 }
 
 //
@@ -212,11 +223,17 @@ public fun ProfileBuilder.requireCrlDistributionPoints() {
 // QC Statement Policy Constraints
 //
 
-public fun ProfileBuilder.requireQcStatementsForPolicy(rules: (String) -> List<String>) {
+public fun ProfileBuilder.requireQcStatementsForPolicy(rules: (String) -> List<QCStatementInfo>) {
     combine(
         CertificateOperationsAlgebra.GetPolicies,
         CertificateOperationsAlgebra.GetAllQcStatements,
-    ) { (policiesInfo, qcStatements) -> CertificateConstraintsEvaluations.evaluateQcStatementsForPolicy(policiesInfo, qcStatements, rules) }
+    ) { (policiesInfo, qcStatements) ->
+        CertificateConstraintsEvaluations.evaluateQcStatementsForPolicy(
+            policiesInfo,
+            qcStatements,
+            rules,
+        )
+    }
 }
 
 //
