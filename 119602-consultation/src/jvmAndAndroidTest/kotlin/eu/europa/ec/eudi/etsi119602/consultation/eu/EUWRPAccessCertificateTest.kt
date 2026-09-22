@@ -80,7 +80,7 @@ class EUWRPAccessCertificateTest {
 
     private fun genCAIssuedEndEntityCertificate(
         subject: X500Name = X500Name("C=EU,O=Test,CN=Test Wallet Relying Party"),
-        qcStatements: List<String>? = null,
+        qcStatements: List<QCStatementInfo>? = null,
         policyOids: List<String>? = listOf("0.4.0.194118.1.1"), // Default: NCP-n-eudiwrp
         caIssuersUri: String? = "http://ca.example.com/ca.crt",
         ocspUri: String? = "http://ocsp.example.com/",
@@ -139,14 +139,14 @@ class EUWRPAccessCertificateTest {
     fun shouldAcceptPolicy(policyOid: String, subject: X500Name) = runTest {
         val qcStatements = when (policyOid) {
             ETSI119411Part8.QCP_N_EUDIWRP -> listOf(
-                ETSI319412.QC_COMPLIANCE,
-                ETSI319412.QC_SSCD,
+                QCStatementInfo.OtherQcStatement(ETSI319412.QC_COMPLIANCE),
+                QCStatementInfo.OtherQcStatement(ETSI319412.QC_SSCD),
             )
 
             ETSI119411Part8.QCP_L_EUDIWRP -> listOf(
-                ETSI319412.QC_COMPLIANCE,
-                ETSI319412.QC_SSCD,
-                ETSI319412.QC_TYPE,
+                QCStatementInfo.OtherQcStatement(ETSI319412.QC_COMPLIANCE),
+                QCStatementInfo.OtherQcStatement(ETSI319412.QC_SSCD),
+                QCStatementInfo.QcType(ETSI319412.ID_ETSI_QCT_ESEAL),
             )
 
             else -> null
@@ -259,7 +259,7 @@ class EUWRPAccessCertificateTest {
         val certificate = genCAIssuedEndEntityCertificate(
             subject = naturalPersonSubject,
             policyOids = listOf(ETSI119411Part8.QCP_N_EUDIWRP),
-            qcStatements = listOf(ETSI319412.QC_COMPLIANCE), // Missing QcSSCD
+            qcStatements = listOf(QCStatementInfo.OtherQcStatement(ETSI319412.QC_COMPLIANCE)), // Missing QcSSCD
         )
         val evaluation = evaluateEndEntityCertificateConstraints(certificate)
         assertFalse(evaluation.isMet())
@@ -300,13 +300,15 @@ class EUWRPAccessCertificateTest {
             subject = legalPersonSubject,
             policyOids = listOf(ETSI119411Part8.QCP_L_EUDIWRP),
             qcStatements = listOf(
-                ETSI319412.QC_COMPLIANCE,
-                ETSI319412.QC_SSCD,
+                QCStatementInfo.OtherQcStatement(ETSI319412.QC_COMPLIANCE),
+                QCStatementInfo.OtherQcStatement(ETSI319412.QC_SSCD),
             ), // Missing QcType
         )
         val evaluation = evaluateEndEntityCertificateConstraints(certificate)
         assertFalse(evaluation.isMet())
-        evaluation.assertSingleViolation { it.contains("qcstatement", ignoreCase = true) }
+        evaluation.assertSingleViolation {
+            it.contains("required QcType identified by '${ETSI319412.ID_ETSI_QCT_ESEAL}'")
+        }
     }
 
     @Test
@@ -333,7 +335,7 @@ class EUWRPAccessCertificateTest {
             sigAlg = "SHA256withECDSA",
             subject = legalPersonSubject,
             policyOids = listOf(ETSI119411Part8.NCP_L_EUDIWRP),
-            qcStatements = listOf(ETSI319412Part1.EXT_ETSI_VAL_ASSURED_ST_CERTS),
+            qcStatements = listOf(QCStatementInfo.OtherQcStatement(ETSI319412Part1.EXT_ETSI_VAL_ASSURED_ST_CERTS)),
             notAfter = notAfter,
             caIssuersUri = "http://ca.example.com/ca.crt",
             ocspUri = "http://ocsp.example.com/",
