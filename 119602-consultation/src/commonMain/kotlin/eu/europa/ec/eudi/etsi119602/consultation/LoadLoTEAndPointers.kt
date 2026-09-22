@@ -15,6 +15,7 @@
  */
 package eu.europa.ec.eudi.etsi119602.consultation
 
+import eu.europa.ec.eudi.etsi119602.datamodel.ETSI19602
 import eu.europa.ec.eudi.etsi119602.datamodel.ListOfTrustedEntities
 import eu.europa.ec.eudi.etsi119602.datamodel.ListOfTrustedEntitiesClaims
 import eu.europa.ec.eudi.etsi119602.datamodel.Uri
@@ -28,6 +29,7 @@ import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.flow.takeWhile
 import kotlinx.serialization.json.JsonObject
 import kotlin.coroutines.cancellation.CancellationException
+import kotlin.time.Clock
 
 /**
  * Functional interface for loading a List of Trusted Entities (LoTE).
@@ -58,12 +60,14 @@ public fun interface LoadLoTE<out LOTE : Any> {
  * @param constraints limits for the recursive loading process
  * @param verifyJwtSignature service used to verify the JWT signature of each loaded LoTE
  * @param loadLoTE the underlying loader used to fetch the content for a specific URI
+ * @param clock the clock used to determine LoTE expiration
  * @param parseJwt the parser used to extract the payload from the JWT content
  */
 public class LoadLoTEAndPointers(
     private val constraints: Constraints,
     private val verifyJwtSignature: VerifyJwtSignature,
     private val loadLoTE: LoadLoTE<String>,
+    private val clock: Clock = Clock.System,
     private val parseJwt: ParseJwt<JsonObject, ListOfTrustedEntitiesClaims> = ParseJwt(),
 ) {
 
@@ -76,6 +80,7 @@ public class LoadLoTEAndPointers(
         public data class ResourceNotFound(val uri: Uri, val cause: Throwable?) : Problem
         public data class InvalidJWTSignature(val uri: Uri, val cause: Throwable?) : Problem
         public data class FailedToParseJwt(val uri: Uri, val cause: Throwable?) : Problem
+        public data class LoTEExpired(val uri: Uri, val cause: Throwable?) : Problem
         public data class MaxDepthReached(val uri: Uri, val maxDepth: Int) : Problem
         public data class MaxListsReached(val uri: Uri, val maxLists: Int) : Problem
         public data class CircularReferenceDetected(val uri: Uri) : Problem
@@ -172,11 +177,20 @@ public class LoadLoTEAndPointers(
         when (val result = parseJwt(verified.jwt)) {
             is ParseJwt.Outcome.Parsed<*, ListOfTrustedEntitiesClaims> -> {
                 val payload = result.payload
-                loadedInStep(step, payload.listOfTrustedEntities)
+                ensureNotExpiredInStep(step, payload.listOfTrustedEntities)
             }
 
             is ParseJwt.Outcome.ParseFailed -> parseFailedInStep(step, result.cause)
         }
+
+    private fun ensureNotExpiredInStep(step: Step, lote: ListOfTrustedEntities): Event {
+        val now = clock.now()
+        return if (now < lote.schemeInformation.nextUpdate) {
+            loadedInStep(step, lote)
+        } else {
+            expiredInStep(step, IllegalArgumentException("LoTE ${ETSI19602.NEXT_UPDATE} is in the past"))
+        }
+    }
 
     //
     // Event factories
@@ -214,6 +228,9 @@ public class LoadLoTEAndPointers(
 
     private fun parseFailedInStep(step: Step, cause: Throwable?) =
         Event.FailedToParseJwt(step.uri, cause)
+
+    private fun expiredInStep(step: Step, cause: Throwable?) =
+        Event.LoTEExpired(step.uri, cause)
 
     private fun errorInStep(step: Step, error: Throwable): Event.Error =
         Event.Error(step.uri, error)
