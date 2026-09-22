@@ -16,7 +16,6 @@
 package eu.europa.ec.eudi.etsi119602.consultation
 
 import eu.europa.ec.eudi.etsi1196x2.consultation.JvmSecurity
-import eu.europa.ec.eudi.etsi1196x2.consultation.certs.ETSI319412
 import eu.europa.ec.eudi.etsi1196x2.consultation.certs.QCStatementInfo
 import eu.europa.ec.eudi.etsi1196x2.consultation.certs.RFC3739
 import org.bouncycastle.asn1.*

@@ -107,9 +107,9 @@ class EUWalletProviderSigningCertificateTest {
         // Validate as Wallet Provider
         val constraintEvaluation = evaluateCertificateConstraints(certificate)
         assertFalse(constraintEvaluation.isMet())
-        // Should fail QCStatement check (end-entity cert without QCStatement)
+        // Should fail QCType check (end-entity cert without QCStatement)
         constraintEvaluation.assertSingleViolation {
-            it.contains("QCStatement")
+            it.contains("QCType")
         }
     }
 
@@ -295,7 +295,7 @@ class EUWalletProviderSigningCertificateTest {
         val constraintEvaluation = evaluateCertificateConstraints(certificate)
 
         assertFalse(constraintEvaluation.isMet(), "Certificate without QCStatement should fail")
-        constraintEvaluation.assertSingleViolation { it.contains("QCStatement", ignoreCase = true) }
+        constraintEvaluation.assertSingleViolation { it.contains("QCType", ignoreCase = true) }
     }
 
     @Test
@@ -310,7 +310,7 @@ class EUWalletProviderSigningCertificateTest {
         val constraintEvaluation = evaluateCertificateConstraints(certificate)
 
         assertFalse(constraintEvaluation.isMet(), "Certificate without QCStatement should fail")
-        constraintEvaluation.assertSingleViolation { it.contains("QCStatement", ignoreCase = true) }
+        constraintEvaluation.assertSingleViolation { it.contains("QCType", ignoreCase = true) }
     }
 
     @Test

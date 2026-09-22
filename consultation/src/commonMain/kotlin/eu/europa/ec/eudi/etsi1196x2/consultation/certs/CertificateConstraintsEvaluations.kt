@@ -58,7 +58,7 @@ public object CertificateConstraintsEvaluations {
     ): CertificateConstraintEvaluation = CertificateConstraintEvaluation {
         when {
             qcTypes.isEmpty() -> {
-                add(certificateDoesNotContainAnyQCStatement)
+                add(certificateDoesNotContainAnyQCType)
             }
 
             qcTypes.none { it.innerIdentifier == innerIdentifier } -> {
@@ -445,8 +445,8 @@ public object CertificateConstraintsEvaluations {
             reason = "CA certificate pathLenConstraint ($actualPathLen) exceeds maximum allowed ($maxPathLen)",
         )
 
-    public val certificateDoesNotContainAnyQCStatement: CertificateConstraintViolation
-        get() = CertificateConstraintViolation(reason = "Certificate does not contain any QCStatement")
+    public val certificateDoesNotContainAnyQCType: CertificateConstraintViolation
+        get() = CertificateConstraintViolation(reason = "Certificate does not contain any QCType")
 
     public fun certificateDoesNotContainRequiredQCType(
         innerIdentifier: String,
