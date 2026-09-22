@@ -16,6 +16,8 @@
 package eu.europa.ec.eudi.etsi1196x2.consultation
 
 import eu.europa.ec.eudi.etsi1196x2.consultation.certs.*
+import eu.europa.ec.eudi.etsi1196x2.consultation.certs.AuthorityInformationAccess
+import eu.europa.ec.eudi.etsi1196x2.consultation.certs.AuthorityKeyIdentifier
 import org.bouncycastle.asn1.ASN1ObjectIdentifier
 import org.bouncycastle.asn1.ASN1OctetString
 import org.bouncycastle.asn1.ASN1Sequence
@@ -199,7 +201,7 @@ public object CertificateOperationsJvm : CertificateOperations<X509Certificate> 
             if (statementId == ETSI319412.QC_TYPE) {
                 val typeIdentifier = qcStatement.statementInfo?.let { statementInfo ->
                     val qcTypeSeq = ASN1Sequence.getInstance(statementInfo)
-                    if (qcTypeSeq.size() > 0) {
+                    if (qcTypeSeq.size() == 1) {
                         ASN1ObjectIdentifier.getInstance(qcTypeSeq.getObjectAt(0)).id
                     } else {
                         null
@@ -208,7 +210,7 @@ public object CertificateOperationsJvm : CertificateOperations<X509Certificate> 
                 if (typeIdentifier != null) {
                     QCStatementInfo.QcType(typeIdentifier = typeIdentifier)
                 } else {
-                    QCStatementInfo.OtherQcStatement(statementId = statementId)
+                    null
                 }
             } else {
                 QCStatementInfo.OtherQcStatement(statementId = statementId)

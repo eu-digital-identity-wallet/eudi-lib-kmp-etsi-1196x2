@@ -15,10 +15,12 @@
  */
 package eu.europa.ec.eudi.etsi1196x2.consultation
 
+import org.bouncycastle.asn1.DERSequence
 import org.bouncycastle.asn1.x500.X500Name
 import org.bouncycastle.asn1.x509.BasicConstraints
 import org.bouncycastle.asn1.x509.Extension
 import org.bouncycastle.asn1.x509.KeyUsage
+import org.bouncycastle.asn1.x509.qualified.QCStatement
 import org.bouncycastle.cert.X509CertificateHolder
 import org.bouncycastle.cert.jcajce.JcaX509ExtensionUtils
 import org.bouncycastle.cert.jcajce.JcaX509v1CertificateBuilder
@@ -80,9 +82,10 @@ internal object CertOps {
         signerKey: PrivateKey,
         sigAlg: String,
         subject: X500Name,
+        qcStatements: List<QCStatement>? = null,
     ): Pair<KeyPair, X509CertificateHolder> {
         val eeKp = Ctx.generateECPair()
-        val eeCertHolder = createEndEntity(signerCert, signerKey, sigAlg, eeKp.public, subject)
+        val eeCertHolder = createEndEntity(signerCert, signerKey, sigAlg, eeKp.public, subject, qcStatements)
         return eeKp to eeCertHolder
     }
 
@@ -145,6 +148,7 @@ internal object CertOps {
         sigAlg: String,
         certKey: PublicKey,
         subject: X500Name,
+        qcStatements: List<QCStatement>? = null,
     ): X509CertificateHolder =
         JcaX509v3CertificateBuilder(
             signerCert.subject,
@@ -158,6 +162,9 @@ internal object CertOps {
             subjectKeyIdentifier(certKey)
             basicConstraints(BasicConstraints(false)) // do not allow this cert to sign other certs
             keyUsage(KeyUsage(KeyUsage.digitalSignature))
+            qcStatements?.let {
+                addExtension(Extension.qCStatements, false, DERSequence(it.toTypedArray()))
+            }
         }.build(sigAlg, signerKey)
 
     /**
