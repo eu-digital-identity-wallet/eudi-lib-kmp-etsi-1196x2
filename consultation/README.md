@@ -89,15 +89,15 @@ a high-level functional approach.
 
 📋 **Certificate Constraint Evaluation**
 
-- `CertificateOperation`: A sealed interface representing the algebra of certificate operations (the "functor" in a free
-  monad design). Each operation extracts specific information from a certificate:
+- `CertificateOperationsAlgebra`: A sealed interface representing the algebra of certificate operations (the "functor" in
+  a free monad design). Each operation extracts specific information from a certificate:
     - `GetBasicConstraints`: Extract CA/end-entity status and path length constraint
     - `GetKeyUsage`: Extract key usage bits (digitalSignature, keyCertSign, etc.)
     - `GetValidity`: Extract validity period (notBefore, notAfter)
     - `GetPolicies`: Extract certificate policy OIDs
     - `CheckSelfSigned`: Check if certificate is self-signed
     - `GetAia`: Extract Authority Information Access (AIA) extension
-    - `GetQcStatements(qcType)`: Extract QCStatements of a specific type
+    - `GetQcStatements(statementId)`: Extract QCStatements of a specific type
 
 - `CertificateProfile`: An immutable collection of `CertificateConstraint` instances that define a complete certificate
   profile
@@ -111,12 +111,12 @@ import eu.europa.ec.eudi.etsi1196x2.consultation.certs.*
 
 // Create a profile for PID Provider end-entity certificates
 val pidProviderProfile = certificateProfile {
-    requireEndEntityCertificate()
-    requireQcStatement(qcType = "0.4.0.194126.1.1", requireCompliance = true)
-    requireDigitalSignature()
-    requireValidAt()
-    requirePolicyPresence()
-    requireAiaForCaIssued()
+    endEntity()
+    mandatoryQcType(innerIdentifier = "0.4.0.194126.1.1")
+    keyUsageDigitalSignature()
+    validAt()
+    policyIsPresent()
+    authorityInformationAccessIfCAIssued()
 }
 
 // Create a validator using platform-specific operations
@@ -207,13 +207,13 @@ val universityFetcher = GetTrustAnchors { query ->
 val isChainTrustedForPID = IsChainTrustedForContext(
     supportedContexts = setOf(VerificationContext.PID),
     getTrustAnchors = nationalIdFetcher,
-    validateCertificateChain = VerifyCertificateChainUsingDirectTrust()
+    validateCertificateChain = ValidateCertificateChainUsingDirectTrust()
 )
 
 val isChainTrustedForUniversityDiploma = IsChainTrustedForContext(
     supportedContexts = setOf(VerificationContext.EAA("UniversityDiploma")),
     getTrustAnchors = universityFetcher,
-    validateCertificateChain = VerifyCertificateChainUsingDirectTrust()
+    validateCertificateChain = ValidateCertificateChainUsingDirectTrust()
 )
 
 // 3. Combine the validators using ComposeChainTrust
