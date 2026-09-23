@@ -84,7 +84,7 @@ public sealed interface CertificateOperationsAlgebra<out T> {
     /**
      * Extract QCStatements of a specific type (ETSI EN 319 412-5).
      *
-     * @param statementId the OID identifying the QC Stament
+     * @param statementId the OID identifying the QC Statement
      */
     public data class GetQcStatements(val statementId: String) : CertificateOperationsAlgebra<List<QCStatementInfo>>
 
