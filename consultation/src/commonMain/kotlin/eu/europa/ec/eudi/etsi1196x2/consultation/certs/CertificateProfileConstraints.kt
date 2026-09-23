@@ -44,10 +44,7 @@ public fun ProfileBuilder.mandatoryQcType(
     innerIdentifier: String,
 ) {
     qcStatements(statementId = ETSI319412.QC_TYPE) { statements ->
-        check(statements.all { it is QCStatementInfo.QcType }) {
-            "Invalid state. Non QcType QcStatements found"
-        }
-        val qcTypes = statements.map { it as QCStatementInfo.QcType }
+        val qcTypes = statements.filterIsInstance<QCStatementInfo.QcType>()
         CertificateConstraintsEvaluations.mandatoryQcType(qcTypes, innerIdentifier)
     }
 }
