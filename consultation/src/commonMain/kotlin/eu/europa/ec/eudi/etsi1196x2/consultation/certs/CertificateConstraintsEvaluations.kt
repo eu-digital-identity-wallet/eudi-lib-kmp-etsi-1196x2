@@ -303,18 +303,15 @@ public object CertificateConstraintsEvaluations {
     public fun evaluateCrlDistributionPointsIfNoOcspAndNotValAssured(
         crldp: List<CrlDistributionPoint>,
         aia: AuthorityInformationAccess?,
-        qcStatements: List<QCStatementInfo>,
+        hasValAssured: Boolean,
     ): CertificateConstraintEvaluation = CertificateConstraintEvaluation {
         // Exempt if OCSP responder is present in AIA
         val hasOcsp = aia?.ocspUri != null
         if (hasOcsp) return@CertificateConstraintEvaluation
 
-        // Exempt if validity-assured short-term certificate QC statement is present
-        // TODO Check this
-//        val isValAssured = qcStatements.any {
-//            it.semanticOid == ETSI319412Part1.EXT_ETSI_VAL_ASSURED_ST_CERTS
-//        }
-//        if (isValAssured) return@CertificateConstraintEvaluation
+        // Exempt if the certificate carries the validity-assured short-term
+        // extension (ETSI EN 319 412-1 clause 5.2, EN 319 412-2 GEN-4.3.11-2)
+        if (hasValAssured) return@CertificateConstraintEvaluation
 
         // Otherwise, CRLDP must be present with at least one valid URI
         if (crldp.isEmpty() || crldp.all { it.distributionPointUri.isNullOrBlank() }) {
@@ -404,14 +401,13 @@ public object CertificateConstraintsEvaluations {
     public fun evaluateValidityAssuredShortTerm(
         maxShortTermDuration: Duration = 7.days,
         validity: ValidityPeriod,
-        qcStatements: List<QCStatementInfo>,
+        hasValAssured: Boolean,
         hasNoRevAvail: Boolean,
+        hasRevocationInfo: Boolean,
     ): CertificateConstraintEvaluation = CertificateConstraintEvaluation {
-        // TODO Check this
-//        val isValAssured = qcStatements.any {
-//            it.semanticOid == ETSI319412Part1.EXT_ETSI_VAL_ASSURED_ST_CERTS
-//        }
-//        if (!isValAssured) return@CertificateConstraintEvaluation
+        // Only applies to certificates carrying the validity-assured short-term
+        // extension (ETSI EN 319 412-1 clause 5.2)
+        if (!hasValAssured) return@CertificateConstraintEvaluation
 
         // Check validity period (must be <= 7 days)
         val duration = validity.notAfter - validity.notBefore
@@ -419,8 +415,9 @@ public object CertificateConstraintsEvaluations {
             add(invalidValidityPeriodForValidityAssured(duration))
         }
 
-        // Check noRevocationAvail (must be present)
-        if (!hasNoRevAvail) {
+        // Per EN 319 412-2 GEN-4.3.11-2A, noRevocationAvail is required when the
+        // validity-assured certificate has neither a CRLDP nor an OCSP responder.
+        if (!hasRevocationInfo && !hasNoRevAvail) {
             add(missingNoRevocationAvailForValidityAssured)
         }
     }
@@ -432,7 +429,7 @@ public object CertificateConstraintsEvaluations {
 
     public val missingNoRevocationAvailForValidityAssured: CertificateConstraintViolation
         get() = CertificateConstraintViolation(
-            "Validity-assured certificate must include noRevocationAvail extension (RFC 9608)",
+            "Validity-assured certificate without CRLDP/OCSP must include noRevocationAvail extension (EN 319 412-2 GEN-4.3.11-2A, RFC 9608)",
         )
 
     public fun certificateTypeMismatch(expected: String, actual: String): CertificateConstraintViolation =

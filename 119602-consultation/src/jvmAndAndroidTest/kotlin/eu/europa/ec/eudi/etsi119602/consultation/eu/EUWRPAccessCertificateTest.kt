@@ -335,12 +335,12 @@ class EUWRPAccessCertificateTest {
             sigAlg = "SHA256withECDSA",
             subject = legalPersonSubject,
             policyOids = listOf(ETSI119411Part8.NCP_L_EUDIWRP),
-            qcStatements = listOf(QCStatementInfo.OtherQcStatement(ETSI319412Part1.EXT_ETSI_VAL_ASSURED_ST_CERTS)),
             notAfter = notAfter,
             caIssuersUri = "http://ca.example.com/ca.crt",
             ocspUri = "http://ocsp.example.com/",
             subjectAltNameUri = "https://wallet-relying-party.example.com",
             customExtensions = listOf(
+                Triple(ETSI319412Part1.EXT_ETSI_VAL_ASSURED_ST_CERTS, false, DERNull.INSTANCE),
                 Triple(ETSI319412Part1.EXT_NO_REVOCATION_AVAIL, false, DERNull.INSTANCE),
             ),
         )

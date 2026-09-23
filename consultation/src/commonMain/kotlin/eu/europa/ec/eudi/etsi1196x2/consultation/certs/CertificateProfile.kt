@@ -274,9 +274,21 @@ public class ProfileBuilder {
      * Defines a constraint on the Subject Key Identifier extension.
      */
     public fun subjectKeyIdentifier(
-        evaluate: (ByteArray?) -> CertificateConstraintEvaluation,
+        check: (ByteArray?) -> CertificateConstraintEvaluation,
     ) {
-        requirements += CertificateConstraint(CertificateOperationsAlgebra.GetSubjectKeyIdentifier, evaluate)
+        requirements += CertificateConstraint(CertificateOperationsAlgebra.GetSubjectKeyIdentifier, check)
+    }
+
+    /**
+     * Defines a constraint on the presence of a specific extension.
+     *
+     * @param oid the OID of the extension to check
+     */
+    public fun hasExtension(
+        oid: String,
+        check: (Boolean) -> CertificateConstraintEvaluation,
+    ) {
+        requirements += CertificateConstraint(CertificateOperationsAlgebra.HasExtension(oid), check)
     }
 
     /**

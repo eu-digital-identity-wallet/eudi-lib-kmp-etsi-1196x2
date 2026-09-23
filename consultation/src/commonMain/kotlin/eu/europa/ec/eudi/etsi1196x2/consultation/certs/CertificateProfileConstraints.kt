@@ -199,12 +199,12 @@ public fun ProfileBuilder.crlDistributionPointsIfNoOcspAndNotValAssured() {
     combine(
         CertificateOperationsAlgebra.GetCrlDistributionPoints,
         CertificateOperationsAlgebra.GetAia,
-        CertificateOperationsAlgebra.GetAllQcStatements,
-    ) { (crldp, aiaInfo, qcStatements) ->
+        CertificateOperationsAlgebra.HasExtension(ETSI319412Part1.EXT_ETSI_VAL_ASSURED_ST_CERTS),
+    ) { (crldp, aiaInfo, hasValAssured) ->
         CertificateConstraintsEvaluations.evaluateCrlDistributionPointsIfNoOcspAndNotValAssured(
             crldp,
             aiaInfo,
-            qcStatements,
+            hasValAssured,
         )
     }
 }
@@ -245,22 +245,47 @@ public fun ProfileBuilder.publicKey(options: PublicKeyAlgorithmOptions) {
  * Requires the certificate to follow short-term certificate requirements
  * if it contains the validity-assured extension.
  *
- * Requirements (ETSI EN 319 412-1 and RFC 9608):
+ * Requirements (ETSI EN 319 412-1 and EN 319 412-2):
  * - Validity period must be <= 7 days.
- * - Must contain noRevocationAvail extension (OID 2.5.29.56).
+ * - Must contain noRevocationAvail extension (OID 2.5.29.56) when the certificate
+ *   has neither a CRL distribution point nor an OCSP responder (GEN-4.3.11-2A).
  */
 public fun ProfileBuilder.validityAssuredShortTerm(maxShortTermDuration: Duration = 7.days) {
+    val revocationInfo: CertificateOperationsAlgebra<Boolean> =
+        CertificateOperationsAlgebra.GetCombined(
+            CertificateOperationsAlgebra.GetCrlDistributionPoints,
+            CertificateOperationsAlgebra.GetAia,
+        ) { crldp, aia -> crldp.isNotEmpty() || aia?.ocspUri != null }
+
+    val valAssuredContext: CertificateOperationsAlgebra<ValidityAssuredContext> =
+        CertificateOperationsAlgebra.GetCombined(
+            CertificateOperationsAlgebra.HasExtension(ETSI319412Part1.EXT_ETSI_VAL_ASSURED_ST_CERTS),
+            CertificateOperationsAlgebra.GetCombined(
+                CertificateOperationsAlgebra.HasExtension(ETSI319412Part1.EXT_NO_REVOCATION_AVAIL),
+                revocationInfo,
+            ) { hasNoRevAvail, hasRevocationInfo ->
+                hasNoRevAvail to hasRevocationInfo
+            },
+        ) { hasValAssured, (hasNoRevAvail, hasRevocationInfo) ->
+            ValidityAssuredContext(hasValAssured, hasNoRevAvail, hasRevocationInfo)
+        }
+
     combine(
         CertificateOperationsAlgebra.GetValidity,
-        CertificateOperationsAlgebra.GetAllQcStatements,
-        CertificateOperationsAlgebra.HasExtension(ETSI319412Part1.EXT_NO_REVOCATION_AVAIL),
-        ::Triple,
-    ) { (validity, qcStatements, hasNoRevAvail) ->
+        valAssuredContext,
+    ) { (validity, context) ->
         CertificateConstraintsEvaluations.evaluateValidityAssuredShortTerm(
-            maxShortTermDuration,
-            validity,
-            qcStatements,
-            hasNoRevAvail,
+            maxShortTermDuration = maxShortTermDuration,
+            validity = validity,
+            hasValAssured = context.hasValAssured,
+            hasNoRevAvail = context.hasNoRevAvail,
+            hasRevocationInfo = context.hasRevocationInfo,
         )
     }
 }
+
+private data class ValidityAssuredContext(
+    val hasValAssured: Boolean,
+    val hasNoRevAvail: Boolean,
+    val hasRevocationInfo: Boolean,
+)
