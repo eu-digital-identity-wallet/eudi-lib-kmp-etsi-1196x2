@@ -25,8 +25,9 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.ProducerScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.channelFlow
-import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.flow.takeWhile
 import kotlinx.serialization.json.JsonObject
+import kotlin.coroutines.cancellation.CancellationException
 
 /**
  * Functional interface for loading a List of Trusted Entities (LoTE).
@@ -128,6 +129,8 @@ public class LoadLoTEAndPointers(
             if (event is Event.LoTELoaded && constraints is Constraints.LoadOtherPointers) {
                 handleOtherPointers(constraints, state, step, event)
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             send(errorInStep(step, e))
         } finally {
@@ -245,23 +248,30 @@ public data class LoTELoadResult(
             var list: LoadLoTEAndPointers.Event.LoTELoaded? = null
             val otherLists = mutableListOf<LoadLoTEAndPointers.Event.LoTELoaded>()
             val problems = mutableListOf<LoadLoTEAndPointers.Event.Problem>()
-            eventsFlow.toList().forEach { event ->
-                when (event) {
-                    is LoadLoTEAndPointers.Event.LoTELoaded ->
-                        if (event.depth == 0) {
-                            check(list == null) { "Multiple LoTEs downloaded with depth 0" }
-                            list = event
-                        } else {
-                            otherLists.add(event)
-                        }
+            // `shouldContinue` starts true so the event that first triggers a problem is still
+            // processed; `takeWhile` then stops the upstream flow (cancelling any in-flight
+            // pointer downloads) before any further event is delivered, without cancelling the
+            // caller's own coroutine.
+            var shouldContinue = true
+            eventsFlow
+                .takeWhile { shouldContinue }
+                .collect { event ->
+                    when (event) {
+                        is LoadLoTEAndPointers.Event.LoTELoaded ->
+                            if (event.depth == 0) {
+                                check(list == null) { "Multiple LoTEs downloaded with depth 0" }
+                                list = event
+                            } else {
+                                otherLists.add(event)
+                            }
 
-                    is LoadLoTEAndPointers.Event.Problem -> {
-                        problems.add(event)
-                        if (!continueOnProblem(list != null, problems)) return@forEach
+                        is LoadLoTEAndPointers.Event.Problem -> {
+                            problems.add(event)
+                            shouldContinue = continueOnProblem(list != null, problems)
+                        }
                     }
                 }
-            }
-            if (!otherLists.isEmpty()) {
+            if (otherLists.isNotEmpty()) {
                 checkNotNull(list) { "Other LoTEs downloaded before main LoTE" }
             }
             return LoTELoadResult(list, otherLists.toList(), problems.toList())
