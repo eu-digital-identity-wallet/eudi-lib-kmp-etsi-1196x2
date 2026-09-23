@@ -31,104 +31,26 @@ import kotlin.test.fail
 class EUDIRefImplProfilesIosTest {
 
     @Test
-    fun testPidProviderProfile() = pidSigningCertificateProfile().testCertificate(
-        """
-            -----BEGIN CERTIFICATE-----
-            MIIDADCCAqWgAwIBAgIUPYqmwQevpl4zHH0kInP2kmjornYwCgYIKoZIzj0EAwIw
-            VzEZMBcGA1UEAwwQUElEIElzc3VlciBDQSAwMjEtMCsGA1UECgwkRVVESSBXYWxs
-            ZXQgUmVmZXJlbmNlIEltcGxlbWVudGF0aW9uMQswCQYDVQQGEwJFVTAeFw0yNjA1
-            MDcxMDQ1MDRaFw0yODA1MDYxMDQ1MDNaMFcxCzAJBgNVBAYTAkVVMQ4wDAYDVQQK
-            DAVOaXNjeTEeMBwGA1UEAwwVUElEIFByb3ZpZGVyIERFViBFWCAyMRgwFgYDVQRh
-            DA9MRUlFVS0xMjM0NTY3ODkwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAATGoyQ1
-            k+dsTicH9I/U7zYrnkujdyzBXPX+XzoSQzq3baTMLY3MWx6yj3jaeXAjz0ccWU0v
-            gDwo2bHKcQ/mkz4ao4IBTTCCAUkwDAYDVR0TAQH/BAIwADAfBgNVHSMEGDAWgBRC
-            UFC+ELgQ8J1EXI2/qxAI7ifcSTBZBggrBgEFBQcBAQRNMEswSQYIKwYBBQUHMAKG
-            PWh0dHBzOi8vcHJlcHJvZC5wa2kuZXVkaXcuZGV2L2FpYS9QSURJc3N1ZXJDQTAy
-            LUVVLmNhY2VydC5wZW0wLgYDVR0gBCcwJTAjBgMqAwQwHDAaBggrBgEFBQcCARYO
-            ZXhhbXBsZS5wb2xpY3kwQwYDVR0fBDwwOjA4oDagNIYyaHR0cHM6Ly9wcmVwcm9k
-            LnBraS5ldWRpdy5kZXYvY3JsL3BpZF9DQV9FVV8wMi5jcmwwHQYDVR0OBBYEFE+L
-            ZfV8VC4akQ2J1kXpjr6AdHQSMA4GA1UdDwEB/wQEAwIHgDAZBggrBgEFBQcBAwQN
-            MAswCQYHBACL7E4BATAKBggqhkjOPQQDAgNJADBGAiEA9eyUPSrnG84Q134rsSkH
-            vCVI5zOksUqGnJtB9HaVHNECIQDBeW4UUk8jptkef6JRkAK52QOMGmIQ4bWZOZSe
-            Twb1Ag==
-            -----END CERTIFICATE-----
-        """.trimIndent(),
-    )
+    fun testPidProviderProfile() =
+        pidSigningCertificateProfile().testCertificateExpectedToFail(
+            EUDIRefImplEnvTestFixtures.pidProviderSigningCertificateNotCompliant,
+            "does not contain any QCType",
+        )
 
     @Test
-    fun testWalletProviderProfile() = walletProviderSigningCertificateProfile().testCertificate(
-        """
-            -----BEGIN CERTIFICATE-----
-            MIIDAjCCAqigAwIBAgIUWclZqMVuu3Er5tgW7exeSm1ibAkwCgYIKoZIzj0EAwIw
-            VzEZMBcGA1UEAwwQUElEIElzc3VlciBDQSAwMjEtMCsGA1UECgwkRVVESSBXYWxs
-            ZXQgUmVmZXJlbmNlIEltcGxlbWVudGF0aW9uMQswCQYDVQQGEwJFVTAeFw0yNjA1
-            MDcxMDQ2MDVaFw0yODA1MDYxMDQ2MDRaMFoxCzAJBgNVBAYTAkVVMQ4wDAYDVQQK
-            DAVOaXNjeTEhMB8GA1UEAwwYV2FsbGV0IFByb3ZpZGVyIERFViBFWCAyMRgwFgYD
-            VQRhDA9MRUlFVS0xMjM0NTY3ODkwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAAQm
-            +N+6Cj8/4B59z1Fw/+iLXb+AG2BKIsBWMG1UZNJ7rdcxrXuaGEsVHWZL2vXBUGdx
-            E8gr5Kkc6725Eh+spPyho4IBTTCCAUkwDAYDVR0TAQH/BAIwADAfBgNVHSMEGDAW
-            gBRCUFC+ELgQ8J1EXI2/qxAI7ifcSTBZBggrBgEFBQcBAQRNMEswSQYIKwYBBQUH
-            MAKGPWh0dHBzOi8vcHJlcHJvZC5wa2kuZXVkaXcuZGV2L2FpYS9QSURJc3N1ZXJD
-            QTAyLUVVLmNhY2VydC5wZW0wLgYDVR0gBCcwJTAjBgMqAwQwHDAaBggrBgEFBQcC
-            ARYOZXhhbXBsZS5wb2xpY3kwQwYDVR0fBDwwOjA4oDagNIYyaHR0cHM6Ly9wcmVw
-            cm9kLnBraS5ldWRpdy5kZXYvY3JsL3BpZF9DQV9FVV8wMi5jcmwwHQYDVR0OBBYE
-            FPlYls0Eintao0UtQeopc5Cs+EhIMA4GA1UdDwEB/wQEAwIHgDAZBggrBgEFBQcB
-            AwQNMAswCQYHBACL7E4BAjAKBggqhkjOPQQDAgNIADBFAiB89GW6rJmzKDi/AbLG
-            JLfFee9FJntiQAT4Qh6rnuAhigIhAPhddtIl9ZpNxoVT0deASmgzeTv6lv6aRpAB
-            xoZ/gbin
-            -----END CERTIFICATE-----
-        """.trimIndent(),
-    )
+    fun testWalletProviderProfile() =
+        walletProviderSigningCertificateProfile().testCertificateExpectedToFail(
+            EUDIRefImplEnvTestFixtures.walletProviderSigningCertificateNotCompliant,
+            "does not contain any QCType",
+        )
 
     @Test
-    fun testIssuerAccessCertificate() = wrpAccessCertificateProfile().testCertificate(
-        """
-            -----BEGIN CERTIFICATE-----
-            MIIDAzCCAqqgAwIBAgIURqZMwltm47FnrUuswJZawUAjTtEwCgYIKoZIzj0EAwIw
-            VzEZMBcGA1UEAwwQUElEIElzc3VlciBDQSAwMjEtMCsGA1UECgwkRVVESSBXYWxs
-            ZXQgUmVmZXJlbmNlIEltcGxlbWVudGF0aW9uMQswCQYDVQQGEwJFVTAeFw0yNjA1
-            MDcxMzM3MzBaFw0yODA1MDYxMzM3MjlaMFoxITAfBgNVBAMMGEtvdGxpbiBJc3N1
-            ZXIgU2lnbmVyIERldjELMAkGA1UEBhMCRVUxDjAMBgNVBAoMBU5pc2N5MRgwFgYD
-            VQRhDA9MRUlFVS0xMjM0NTY3ODkwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAAQD
-            sy1vqh8TI7SUYY7OyZ0Tn08TaZPn+Zdw5BilTEVzXc6SSu0gAFkcaNKunRZB4JAk
-            luQ5YKi6DRPa3s8fcYGWo4IBTzCCAUswDAYDVR0TAQH/BAIwADAfBgNVHSMEGDAW
-            gBRCUFC+ELgQ8J1EXI2/qxAI7ifcSTBZBggrBgEFBQcBAQRNMEswSQYIKwYBBQUH
-            MAKGPWh0dHBzOi8vcHJlcHJvZC5wa2kuZXVkaXcuZGV2L2FpYS9QSURJc3N1ZXJD
-            QTAyLUVVLmNhY2VydC5wZW0wNQYDVR0RBC4wLIYqaHR0cHM6Ly9kZXYua290bGlu
-            SXNzdWVyU2lnbmVyLmNvbS9zdXBwb3J0MBQGA1UdIAQNMAswCQYHBACL7EYBAjBD
-            BgNVHR8EPDA6MDigNqA0hjJodHRwczovL3ByZXByb2QucGtpLmV1ZGl3LmRldi9j
-            cmwvcGlkX0NBX0VVXzAyLmNybDAdBgNVHQ4EFgQUwu8/c7hdHHi6rGE75pg3f4Yf
-            JSswDgYDVR0PAQH/BAQDAgeAMAoGCCqGSM49BAMCA0cAMEQCIDjAxHdaaRIc1CG3
-            oqbvYRbzIbMHoqNh2EUfLjLfsezLAiBPVXyUJQyJ/rE43aVgjB4tX5h8oAuQNEBS
-            G9WdPfYDrg==
-            -----END CERTIFICATE-----
-        """.trimIndent(),
-    )
+    fun testIssuerAccessCertificate() =
+        wrpAccessCertificateProfile().testCertificate(EUDIRefImplEnvTestFixtures.issuerAccessCertificate)
 
     @Test
-    fun testVerifierAccessCertificate() = wrpAccessCertificateProfile().testCertificate(
-        """
-            -----BEGIN CERTIFICATE-----
-            MIIC/TCCAqKgAwIBAgIUK/6I3nrQOiMq/aIqMF7D7vv+xA4wCgYIKoZIzj0EAwIw
-            VzEZMBcGA1UEAwwQUElEIElzc3VlciBDQSAwMjEtMCsGA1UECgwkRVVESSBXYWxs
-            ZXQgUmVmZXJlbmNlIEltcGxlbWVudGF0aW9uMQswCQYDVQQGEwJFVTAeFw0yNjA1
-            MDcxMzM4MzhaFw0yODA1MDYxMzM4MzdaMFUxHDAaBgNVBAMME1ZlcmlmaWVyIFNp
-            Z25lciBkZXYxCzAJBgNVBAYTAkVVMQ4wDAYDVQQKDAVOaXNjeTEYMBYGA1UEYQwP
-            TEVJRVUtMTIzNDU2Nzg5MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEvZPdm4oz
-            0rYYexoyJSYU5YG0ZBMTUQRzSVZjo2y0gZYU2jpxwb8/Rk1Aeb2rcc98CfJONqky
-            a9p/wae5k7fChaOCAUwwggFIMAwGA1UdEwEB/wQCMAAwHwYDVR0jBBgwFoAUQlBQ
-            vhC4EPCdRFyNv6sQCO4n3EkwWQYIKwYBBQUHAQEETTBLMEkGCCsGAQUFBzAChj1o
-            dHRwczovL3ByZXByb2QucGtpLmV1ZGl3LmRldi9haWEvUElESXNzdWVyQ0EwMi1F
-            VS5jYWNlcnQucGVtMDIGA1UdEQQrMCmGJ2h0dHBzOi8vZGV2LnZlcmlmaWVyLWJh
-            Y2tlbmQuZXVkaXcuZGV2LzAUBgNVHSAEDTALMAkGBwQAi+xGAQIwQwYDVR0fBDww
-            OjA4oDagNIYyaHR0cHM6Ly9wcmVwcm9kLnBraS5ldWRpdy5kZXYvY3JsL3BpZF9D
-            QV9FVV8wMi5jcmwwHQYDVR0OBBYEFO+X15taOVBhkGJTBBt50FSN0zMPMA4GA1Ud
-            DwEB/wQEAwIHgDAKBggqhkjOPQQDAgNJADBGAiEApj2PCZqVuQwq/Wy6y5gf2tm4
-            XXYfyjgJS2jl6poPBK0CIQDOrjRS9rPbEK3MbUnQdcfZpRHCMeaT5+Fhqb+nrb89
-            cw==
-            -----END CERTIFICATE-----
-        """.trimIndent(),
-    )
+    fun testVerifierAccessCertificate() =
+        wrpAccessCertificateProfile().testCertificate(EUDIRefImplEnvTestFixtures.verifierAccessCertificate)
 
     // Runs the profile evaluation via the iOS validator (CertificateProfileValidatorIos →
     // CertificateOperationsIos → PKIXCertificateInspector → in-house ASN.1/X.509 parser).
@@ -140,6 +62,20 @@ class EUDIRefImplProfilesIosTest {
             fail(
                 "Certificate validation failed:\n" +
                     evaluation.violations.joinToString("\n") { it.reason },
+            )
+        }
+    }
+
+    private fun CertificateProfile.testCertificateExpectedToFail(pem: String, expectedReasonSubstring: String) = runTest {
+        val cert: NSData = pemToDer(pem).toNSData()
+        val validator = CertificateProfileValidatorIos()
+        val evaluation = validator.validate(this@testCertificateExpectedToFail, cert)
+        val violated = evaluation as? CertificateConstraintEvaluation.Violated
+            ?: fail("Certificate was expected to fail validation, but it passed")
+        if (violated.violations.none { it.reason.contains(expectedReasonSubstring) }) {
+            fail(
+                "Expected a violation containing '$expectedReasonSubstring', got:\n" +
+                    violated.violations.joinToString("\n") { it.reason },
             )
         }
     }
