@@ -201,16 +201,15 @@ public object CertificateOperationsJvm : CertificateOperations<X509Certificate> 
             if (statementId == ETSI319412.QC_TYPE) {
                 val typeIdentifier = qcStatement.statementInfo?.let { statementInfo ->
                     val qcTypeSeq = ASN1Sequence.getInstance(statementInfo)
-                    if (qcTypeSeq.size() == 1) {
-                        ASN1ObjectIdentifier.getInstance(qcTypeSeq.getObjectAt(0)).id
-                    } else {
-                        null
+                    if (qcTypeSeq.size() != 1) {
+                        throw IllegalStateException("Invalid QCType sequence length. Expected length to be 1 but was: ${qcTypeSeq.size()}")
                     }
+                    ASN1ObjectIdentifier.getInstance(qcTypeSeq.getObjectAt(0)).id
                 }
                 if (typeIdentifier != null) {
                     QCStatementInfo.QcType(innerIdentifier = typeIdentifier)
                 } else {
-                    null
+                    throw IllegalStateException("Invalid QCType, missing inner identifier")
                 }
             } else {
                 QCStatementInfo.OtherQcStatement(statementId = statementId)

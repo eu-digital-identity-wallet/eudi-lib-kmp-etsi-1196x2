@@ -25,31 +25,24 @@ final class QcTypeDecoderTests: XCTestCase {
         XCTAssertEqual(statements, [.qcType(typeIdentifier: "0.4.0.194126.1.1")])
     }
 
-    func test_qcTypeWithMultipleOids_isExcludedWhileSiblingStatementRemains() throws {
-        let statements = try X509ExtensionDecoder.decodeQcStatements(
-            qcStatements(qcType([pidQcType, walletQcType]), otherStatement)
+    func test_qcTypeWithMultipleOids_throws() {
+        XCTAssertThrowsError(
+            try X509ExtensionDecoder.decodeQcStatements(qcStatements(qcType([pidQcType, walletQcType])))
         )
-
-        XCTAssertEqual(statements, [.other(statementId: "0.4.0.1862.1.1")])
     }
 
-    func test_qcTypeWithNoOids_isExcluded() throws {
-        let statements = try X509ExtensionDecoder.decodeQcStatements(qcStatements(qcType([])))
-
-        XCTAssertTrue(statements.isEmpty)
+    func test_qcTypeWithNoOids_throws() {
+        XCTAssertThrowsError(try X509ExtensionDecoder.decodeQcStatements(qcStatements(qcType([]))))
     }
 
-    func test_qcTypeWithNonOidValue_isExcluded() throws {
-        let statements = try X509ExtensionDecoder.decodeQcStatements(
-            qcStatements(qcType([Data([0x05, 0x00])]))
+    func test_qcTypeWithNonOidValue_throws() {
+        XCTAssertThrowsError(
+            try X509ExtensionDecoder.decodeQcStatements(qcStatements(qcType([Data([0x05, 0x00])])))
         )
-
-        XCTAssertTrue(statements.isEmpty)
     }
 
     private let pidQcType = Data([0x06, 0x07, 0x04, 0x00, 0x8B, 0xEC, 0x4E, 0x01, 0x01])
     private let walletQcType = Data([0x06, 0x07, 0x04, 0x00, 0x8B, 0xEC, 0x4E, 0x01, 0x02])
-    private let otherStatement = Data([0x30, 0x05, 0x06, 0x03, 0x04, 0x00, 0x01])
 
     private func qcStatements(_ statements: Data...) -> Data {
         derSequence(statements)

@@ -38,7 +38,7 @@ class QcTypeParsingTest {
     }
 
     @Test
-    fun `QcType with multiple OIDs is excluded while sibling statements remain`() {
+    fun `QcType with multiple OIDs fails parsing and no statements returned`() {
         val statements = CertificateOperationsJvm.getQcStatements(
             certificateWithQcStatements(
                 qcTypeStatement(listOf(PID_QC_TYPE, WALLET_QC_TYPE)),
@@ -46,11 +46,11 @@ class QcTypeParsingTest {
             ),
         )
 
-        assertEquals(listOf(QCStatementInfo.OtherQcStatement(ETSI319412.QC_COMPLIANCE)), statements)
+        assertTrue(statements.isEmpty())
     }
 
     @Test
-    fun `QcType with no OIDs is excluded`() {
+    fun `QcType with no OIDs fails parsing and no statements returned`() {
         val statements = CertificateOperationsJvm.getQcStatements(
             certificateWithQcStatements(qcTypeStatement(emptyList())),
         )

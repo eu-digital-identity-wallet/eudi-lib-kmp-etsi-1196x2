@@ -208,12 +208,14 @@ internal enum X509ExtensionDecoder {
             guard let stmtId = try children.first?.objectIdentifier() else { continue }
             if stmtId == X509Oids.etsiQcsQcType {
                 // QcType ::= SEQUENCE SIZE (1) OF OBJECT IDENTIFIER.
-                guard children.count == 2,
-                      let typeSeq = try? children[1].requireConstructed(),
-                      typeSeq.count == 1,
-                      let typeOid = try? typeSeq[0].objectIdentifier() else {
-                    continue
+                guard children.count == 2 else {
+                    throw ASN1Error.invalidPrimitive(reason: "QcType must contain exactly one type identifier")
                 }
+                let typeSeq = try children[1].requireConstructed()
+                guard typeSeq.count == 1 else {
+                    throw ASN1Error.invalidPrimitive(reason: "QcType must contain exactly one type identifier")
+                }
+                let typeOid = try typeSeq[0].objectIdentifier()
                 result.append(.qcType(typeIdentifier: typeOid))
             } else {
                 result.append(.other(statementId: stmtId))
