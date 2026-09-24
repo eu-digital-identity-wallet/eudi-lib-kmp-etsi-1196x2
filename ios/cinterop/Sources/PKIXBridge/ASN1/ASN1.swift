@@ -93,6 +93,7 @@ internal enum ASN1Error: Error, Equatable {
     case nonCanonicalLength
     case tagNumberTooLarge
     case lengthTooLarge
+    case nestingTooDeep
     case unexpectedTag(expected: String, actual: String)
     case invalidPrimitive(reason: String)
     case invalidString(reason: String)

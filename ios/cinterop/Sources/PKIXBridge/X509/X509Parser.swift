@@ -52,7 +52,10 @@ internal enum X509Parser {
             throw ASN1Error.invalidPrimitive(reason: "Missing signatureAlgorithm")
         }
         let sigAlgChildren = try tbsChildren[idx].sequence()
-        let sigAlgOid = try sigAlgChildren[0].objectIdentifier()
+        guard let sigAlgFirst = sigAlgChildren.first else {
+            throw ASN1Error.invalidPrimitive(reason: "Empty signatureAlgorithm SEQUENCE")
+        }
+        let sigAlgOid = try sigAlgFirst.objectIdentifier()
         idx += 1
 
         // issuer Name

@@ -18,9 +18,11 @@ import Foundation
 
 internal enum ASN1Parser {
 
+    static let maxDepth = 64
+
     static func parse(_ data: Data) throws -> ASN1Element {
         var cursor = Cursor(data: data, offset: data.startIndex)
-        let element = try parseElement(&cursor)
+        let element = try parseElement(&cursor, depth: 0)
         guard cursor.offset == data.endIndex else {
             throw ASN1Error.trailingBytes(data.endIndex - cursor.offset)
         }
@@ -28,10 +30,14 @@ internal enum ASN1Parser {
     }
 
     static func parseAll(_ data: Data) throws -> [ASN1Element] {
+        try parseAll(data, depth: 0)
+    }
+
+    private static func parseAll(_ data: Data, depth: Int) throws -> [ASN1Element] {
         var cursor = Cursor(data: data, offset: data.startIndex)
         var elements: [ASN1Element] = []
         while cursor.offset < data.endIndex {
-            elements.append(try parseElement(&cursor))
+            elements.append(try parseElement(&cursor, depth: depth))
         }
         return elements
     }
@@ -41,10 +47,12 @@ internal enum ASN1Parser {
         var offset: Int
     }
 
-    private static func parseElement(_ cursor: inout Cursor) throws -> ASN1Element {
+    private static func parseElement(_ cursor: inout Cursor, depth: Int) throws -> ASN1Element {
+        guard depth <= maxDepth else { throw ASN1Error.nestingTooDeep }
         let (tag, constructed) = try parseTag(&cursor)
         let length = try parseLength(&cursor)
-        guard cursor.offset + length <= cursor.data.endIndex else {
+        let remaining = cursor.data.endIndex - cursor.offset
+        guard length <= remaining else {
             throw ASN1Error.unexpectedEnd
         }
         let valueRange = cursor.offset..<(cursor.offset + length)
@@ -53,7 +61,7 @@ internal enum ASN1Parser {
 
         let content: ASN1Element.Content
         if constructed {
-            content = .constructed(try parseAll(valueBytes))
+            content = .constructed(try parseAll(valueBytes, depth: depth + 1))
         } else {
             content = .primitive(valueBytes)
         }
@@ -109,15 +117,19 @@ internal enum ASN1Parser {
         guard cursor.offset + byteCount <= cursor.data.endIndex else {
             throw ASN1Error.unexpectedEnd
         }
-        var length: Int = 0
+        var length: UInt64 = 0
         for _ in 0..<byteCount {
-            length = (length << 8) | Int(cursor.data[cursor.offset])
+            length = (length << 8) | UInt64(cursor.data[cursor.offset])
             cursor.offset += 1
         }
+        guard length <= UInt64(Int.max) else {
+            throw ASN1Error.lengthTooLarge
+        }
+        let intLength = Int(length)
         // DER canonical length: long form must encode at least 128
-        if byteCount == 1 && length < 128 {
+        if byteCount == 1 && intLength < 128 {
             throw ASN1Error.nonCanonicalLength
         }
-        return length
+        return intLength
     }
 }
