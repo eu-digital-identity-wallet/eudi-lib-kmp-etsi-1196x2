@@ -138,5 +138,6 @@ public class GetTrustAnchorsFromLoTE<out TRUST_ANCHOR : Any>(
         is LoadLoTEAndPointers.Event.MaxDepthReached -> null
         is LoadLoTEAndPointers.Event.MaxListsReached -> null
         is LoadLoTEAndPointers.Event.ResourceNotFound -> null
+        is LoadLoTEAndPointers.Event.LoTEExpired -> cause
     }
 }

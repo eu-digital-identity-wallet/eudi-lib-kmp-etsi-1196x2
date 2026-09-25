@@ -21,7 +21,7 @@ import kotlin.test.assertEquals
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.seconds
 
-class LoTEFileStoreTetst {
+class LoTEFileStoreTest {
 
     @Test
     fun testFileMetadataSerialization() {
@@ -30,6 +30,7 @@ class LoTEFileStoreTetst {
             loadedAt = now,
             expiresAt = now.plus(20.seconds),
             nextUpdate = now.plus(10.seconds),
+            sequenceNumber = 10,
         )
 
         val metadataSerialized = Json.encodeToString(metadata)
@@ -38,5 +39,6 @@ class LoTEFileStoreTetst {
         assertEquals(now.toEpochMilliseconds(), metadataDeserialized.loadedAt.toEpochMilliseconds())
         assertEquals(now.plus(20.seconds).toEpochMilliseconds(), metadataDeserialized.expiresAt.toEpochMilliseconds())
         assertEquals(now.plus(10.seconds).toEpochMilliseconds(), metadataDeserialized.nextUpdate?.toEpochMilliseconds())
+        assertEquals(10, metadataDeserialized.sequenceNumber)
     }
 }
