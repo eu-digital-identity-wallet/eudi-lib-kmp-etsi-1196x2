@@ -78,6 +78,57 @@ implementation("eu.europa.ec.joinup.sd-dss:dss-policy-jaxb:$dssVersion")
 > Replace `$version` with the latest release version from the [releases page](https://github.com/eu-digital-identity-wallet/eudi-lib-kmp-etsi-1196x2/releases).
 > All modules share the same version number.
 
+### iOS
+
+The library supports iOS through two distinct channels:
+
+**Swift apps — Swift Package Manager (recommended).** Use the `EudiEtsi1196x2`
+XCFramework published alongside each
+[release](https://github.com/eu-digital-identity-wallet/eudi-lib-kmp-etsi-1196x2/releases)
+(`v<version>-SPM`). The artifact is self-contained: the internal `PKIXBridge`
+framework that powers iOS trust validation is already linked into the binary,
+so Swift apps need no additional setup.
+
+**Kotlin Multiplatform consumers — Maven/Gradle.** When an iOS target pulls the
+library from Maven, `PKIXBridge` is **not** bundled. Kotlin/Native's cinterop
+declares the Swift API surface and expects the consumer to supply the
+implementation at link time — the same contract as `androidx.sqlite` expecting
+`-lsqlite3`. The library does not propagate its own linker settings.
+
+You must therefore build `PKIXBridge` once, on macOS, and link it into your
+iOS targets:
+
+```bash
+./gradlew :etsi-1196x2-ios:buildPKIXBridge
+# Output: ios/cinterop/build/PKIXBridge.xcframework
+```
+
+Then configure the linking in `build.gradle.kts`:
+
+```kotlin
+kotlin {
+    val pkix = "<path-to>/PKIXBridge.xcframework"
+    val swiftShims = "<xcode-select -p>/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift"
+
+    // Device (iosArm64)
+    iosArm64().binaries.withType<TestExecutable>().configureEach {
+        linkerOpts("-framework", "PKIXBridge", "-F${pkix}/ios-arm64")
+        linkerOpts("-L${swiftShims}/iphoneos")
+    }
+
+    // Simulators (iosX64, iosSimulatorArm64) — shared fat slice (arm64 + x86_64)
+    listOf(iosX64(), iosSimulatorArm64()).forEach { target ->
+        target.binaries.withType<TestExecutable>().configureEach {
+            linkerOpts("-framework", "PKIXBridge", "-F${pkix}/ios-arm64_x86_64-simulator")
+            linkerOpts("-L${swiftShims}/iphonesimulator")
+        }
+    }
+}
+```
+
+See [docs/iOS-PKIXBridge.md](./docs/iOS-PKIXBridge.md) for the full slice table,
+Xcode (app) integration, and troubleshooting.
+
 ---
 
 ## Project Structure
@@ -88,13 +139,13 @@ The library is divided into four modules:
 
 Implements certificate chain validation against ETSI TS 119 602 Lists of Trusted Entities (LoTE).
 - **Features**: LoTE document fetching, trust anchor extraction, profile-specific certificate constraints for PID/Wallet/WRPAC/WRPRC providers.
-- **Platform Support**: KMP (common + JVM/Android).
+- **Platform Support**: KMP (common + JVM/Android + iOS).
 
 ### 2. [119602-data-model](./119602-data-model/README.md)
 
 Data model implementation for ETSI TS 119 602 Lists of Trusted Entities (LoTE).
 - **Features**: Kotlinx serialization, JSON schema compliance, validation for LoTE documents.
-- **Platform Support**: KMP (common + JVM/Android).
+- **Platform Support**: KMP (common + JVM/Android + iOS).
 
 #### Core Data Types
 
@@ -109,7 +160,7 @@ Data model implementation for ETSI TS 119 602 Lists of Trusted Entities (LoTE).
 
 The core module providing the **unified abstractions** for Trusted List-based certificate validation.
 - **Features**: Functional architecture for trust discovery, attestation classification, and certificate chain validation.
-- **Platform Support**: KMP (common + JVM/Android).
+- **Platform Support**: KMP (common + JVM/Android + iOS).
 
 #### Key Abstractions
 
