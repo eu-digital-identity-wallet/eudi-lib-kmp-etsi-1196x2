@@ -72,9 +72,10 @@ final class ASN1ParserTrapRegressionTests: XCTestCase {
         }
     }
 
-    /// The depth cap is inclusive: exactly `maxDepth` levels of nesting must still parse.
+    /// The deepest permitted call is at `depth = maxDepth - 1`, so exactly `maxDepth`
+    /// nesting levels must still parse.
     func test_nestingAtDepthCap_parses() throws {
-        _ = try ASN1Parser.parse(nestedSequences(depth: ASN1Parser.maxDepth))
+        _ = try ASN1Parser.parse(nestedSequences(depth: ASN1Parser.maxDepth - 1))
     }
 
     /// Builds `depth+1` levels: an innermost empty SEQUENCE wrapped `depth` times.

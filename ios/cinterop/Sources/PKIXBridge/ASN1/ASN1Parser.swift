@@ -48,7 +48,7 @@ internal enum ASN1Parser {
     }
 
     private static func parseElement(_ cursor: inout Cursor, depth: Int) throws -> ASN1Element {
-        guard depth <= maxDepth else { throw ASN1Error.nestingTooDeep }
+        guard depth < maxDepth else { throw ASN1Error.nestingTooDeep }
         let (tag, constructed) = try parseTag(&cursor)
         let length = try parseLength(&cursor)
         let remaining = cursor.data.endIndex - cursor.offset
