@@ -214,6 +214,13 @@ The 119602-consultation module is a **Kotlin Multiplatform (KMP)** module.
 
 - **commonMain**: Core logic and abstractions.
 - **jvmAndAndroidMain**: Specific implementations for JVM and Android.
+- **iosMain**: iOS implementations backed by the internal `PKIXBridge` framework (SecTrust-based validation).
+
+> [!IMPORTANT]
+> **iOS Maven/Gradle consumers must link `PKIXBridge` themselves.** The published
+> cinterop klib declares the Swift API but does not bundle the implementation.
+> See [iOS support in the root README](../README.md#ios) and
+> [docs/iOS-PKIXBridge.md](../docs/iOS-PKIXBridge.md) for the linker setup.
 
 ---
 

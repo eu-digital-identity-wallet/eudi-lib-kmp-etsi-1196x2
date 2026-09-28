@@ -1,0 +1,40 @@
+name: Verify iOS consumer linking
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify-docs-ios-consumer:
+    name: Verify iOS consumer linking (docs recipe)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v6
+      - name: Extract code version from gradle.properties
+        id: extract
+        run: echo "CODE_VERSION=$(awk -F= '$1~/version/{print $2}' gradle.properties)" >> "$GITHUB_OUTPUT"
+      - name: Build PKIXBridge and publish klibs to Maven Local
+        # The consumer resolves the library from Maven Local, as if it were a published
+        # release. This mirrors the documented recipe (build PKIXBridge once on macOS);
+        # any change affecting the ios klibs or the PKIXBridge build is exercised here.
+        run: >
+          ./gradlew
+          :etsi-1196x2-ios:buildPKIXBridge
+          :etsi-119602-data-model:publishToMavenLocal
+          :etsi-1196x2-consultation:publishToMavenLocal
+          :etsi-119602-consultation:publishToMavenLocal
+          --full-stacktrace
+      - name: Link consumer test binaries using the documented snippet
+        run: >
+          ./gradlew -p verification/ios-consumer
+          linkDebugTestIosSimulatorArm64 linkDebugTestIosX64 linkDebugTestIosArm64
+          -PeudiVersion=${{ steps.extract.outputs.CODE_VERSION }}
+          -PpkixXcframework=${{ github.workspace }}/ios/cinterop/build/PKIXBridge.xcframework
+          --full-stacktrace
