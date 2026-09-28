@@ -1,5 +1,3 @@
-import org.jetbrains.kotlin.gradle.plugin.mpp.TestExecutable
-
 plugins {
     kotlin("multiplatform") version "2.2.21"
 }
@@ -41,14 +39,14 @@ kotlin {
     // If either side changes without the other, this build fails: that is the point.
 
     // Device (iosArm64)
-    iosArm64().binaries.withType<TestExecutable>().configureEach {
+    iosArm64().binaries.all {
         linkerOpts("-framework", "PKIXBridge", "-F${pkix}/ios-arm64")
         linkerOpts("-L${swiftShims}/iphoneos")
     }
 
     // Simulators (iosX64, iosSimulatorArm64) — shared fat slice (arm64 + x86_64)
     listOf(iosX64(), iosSimulatorArm64()).forEach { target ->
-        target.binaries.withType<TestExecutable>().configureEach {
+        target.binaries.all {
             linkerOpts("-framework", "PKIXBridge", "-F${pkix}/ios-arm64_x86_64-simulator")
             linkerOpts("-L${swiftShims}/iphonesimulator")
         }

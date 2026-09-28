@@ -38,8 +38,8 @@ ld: symbol(s) not found for architecture arm64
 
 Cinterop works like JNI with the native library not bundled:
 
-- At build time, Kotlin/Native reads `PKIXBridge`'s Objective-C header and generates
-  **Kotlin bindings** — the API surface (`PKIXValidator`, `PKIXConfiguration`,
+- At build time, Kotlin/Native reads `PKIXBridge`'s Objective-C header and generates **Kotlin bindings** — the API
+  surface (`PKIXValidator`, `PKIXConfiguration`,
   `PKIXCertificateInspector`, …) referencing the underlying Swift symbols.
 - These bindings are compiled into the published klib. **The klib is a declaration +
   stub layer.** It does not contain the `libPKIXBridge` archive, and it does not carry
@@ -49,8 +49,8 @@ Cinterop works like JNI with the native library not bundled:
   provided, you get the undefined-symbol error above.
 
 This is the normal, intended shape of cinterop — the same contract as `androidx.sqlite`
-expecting consumers to link `-lsqlite3`. The library's own build wires PKIXBridge in
-(`consultation/build.gradle.kts`); **that wiring is never propagated to consumers.**
+expecting consumers to link `-lsqlite3`. The library's own build wires PKIXBridge in (`consultation/build.gradle.kts`);
+**that wiring is never propagated to consumers.**
 
 ### Why it is easy to be surprised
 
@@ -58,18 +58,18 @@ expecting consumers to link `-lsqlite3`. The library's own build wires PKIXBridg
   `PKIXBridge` is never named in your build files — the cinterop klib arrives through the
   transitive dependency `etsi-1196x2-consultation`. The failure therefore reads like a
   packaging bug rather than a missing step.
-- **It's invisible until exercised.** Kotlin/Native dead-strips unreferenced code. Merely
-  *adding* the dependency links fine; the first test that reaches a trust decision is what
+- **It's invisible until exercised.** Kotlin/Native dead-strips unreferenced code. Merely *adding* the dependency links
+  fine; the first test that reaches a trust decision is what
   surfaces the missing framework.
 
 ---
 
 ## The SPM/Maven asymmetry
 
-| Channel | Artifact | `PKIXBridge` inside? |
-|---|---|---|
-| Swift Package Manager | `EudiEtsi1196x2.xcframework` (release asset / `v<version>-SPM` tag) | ✅ statically linked in (self-contained) |
-| Maven Central | `...-iosarm64/*.klib`, `...-iossimulatorarm64/*.klib`, `...-iosx64/*.klib` | ❌ declarations/stubs only |
+| Channel               | Artifact                                                                   | `PKIXBridge` inside?                     |
+|-----------------------|----------------------------------------------------------------------------|------------------------------------------|
+| Swift Package Manager | `EudiEtsi1196x2.xcframework` (release asset / `v<version>-SPM` tag)        | ✅ statically linked in (self-contained) |
+| Maven Central         | `...-iosarm64/*.klib`, `...-iossimulatorarm64/*.klib`, `...-iosx64/*.klib` | ❌ declarations/stubs only               |
 
 You can verify this yourself against the release artifact:
 
@@ -114,11 +114,13 @@ All of the following require macOS with Xcode. Pick one:
 
 ## Linking `PKIXBridge`
 
-### Kotlin/Native test binaries (Gradle)
+### Kotlin/Native binaries (Gradle)
 
 The most common failure point is a Kotlin/Native test executable (`iosSimulatorArm64Test`,
-`iosX64Test`, `iosArm64Test`). A test binary has **no Xcode target** to borrow a framework
-from — Gradle must pass the linker options explicitly.
+`iosX64Test`, `iosArm64Test`): a test binary has **no Xcode target** to borrow a framework
+from, so Gradle must pass the linker options explicitly. The snippet below applies the
+options to **every binary** of each target — test executables *and* frameworks (static or
+dynamic) — so dynamic-framework consumers need nothing extra.
 
 ```kotlin
 kotlin {
@@ -127,14 +129,14 @@ kotlin {
     val swiftShims = "<xcode-select -p>/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift"
 
     // Device (iosArm64)
-    iosArm64().binaries.withType<TestExecutable>().configureEach {
+    iosArm64().binaries.all {
         linkerOpts("-framework", "PKIXBridge", "-F${pkix}/ios-arm64")
         linkerOpts("-L${swiftShims}/iphoneos")
     }
 
     // Simulators (iosX64, iosSimulatorArm64) — shared fat slice (arm64 + x86_64)
     listOf(iosX64(), iosSimulatorArm64()).forEach { target ->
-        target.binaries.withType<TestExecutable>().configureEach {
+        target.binaries.all {
             linkerOpts("-framework", "PKIXBridge", "-F${pkix}/ios-arm64_x86_64-simulator")
             linkerOpts("-L${swiftShims}/iphonesimulator")
         }
@@ -142,17 +144,19 @@ kotlin {
 }
 ```
 
-The `-L${swiftShims}/…` lines carry the Swift ABI-compatibility shims that `PKIXBridge`'s
-Swift objects force-load; they mirror the library's own build
-(`consultation/build.gradle.kts`).
+`binaries.all` mirrors the library's own build (`consultation/build.gradle.kts`). When a framework is built from these
+klibs, `PKIXBridge`
+(a static archive) is merged into the framework binary, so there is no runtime dependency
+on a separate `PKIXBridge` framework — the `-L${swiftShims}/…` lines carry the Swift
+ABI-compatibility shims that its objects force-load.
 
 ### App targets (Xcode)
 
 An app whose Kotlin framework is embedded from these klibs must resolve the `PKIXBridge`
 symbols in the final app link. Two routes:
 
-- **Link the framework:** add `-framework PKIXBridge -F<path-to-slice>` to the app target's
-  *Other Linker Flags* (or the `<path>` to the whole xcframework and use the matching slice
+- **Link the framework:** add `-framework PKIXBridge -F<path-to-slice>` to the app target's *Other Linker Flags* (or the
+  `<path>` to the whole xcframework and use the matching slice
   from the table below). The Swift runtime is handled by Xcode automatically for any target
   containing Swift; a pure Objective-C target additionally needs *Always Embed Swift
   Standard Libraries*.
@@ -164,11 +168,11 @@ symbols in the final app link. Two routes:
 
 ## XCFramework slice table
 
-| Kotlin target | Slice inside `PKIXBridge.xcframework` | `-L` Swift shim platform |
-|---|---|---|
-| `iosArm64` (device) | `ios-arm64` | `iphoneos` |
-| `iosX64` (Intel simulator) | `ios-arm64_x86_64-simulator` (fat: arm64 + x86_64) | `iphonesimulator` |
-| `iosSimulatorArm64` (Apple Silicon simulator) | `ios-arm64_x86_64-simulator` (fat: arm64 + x86_64) | `iphonesimulator` |
+| Kotlin target                                 | Slice inside `PKIXBridge.xcframework`              | `-L` Swift shim platform |
+|-----------------------------------------------|----------------------------------------------------|--------------------------|
+| `iosArm64` (device)                           | `ios-arm64`                                        | `iphoneos`               |
+| `iosX64` (Intel simulator)                    | `ios-arm64_x86_64-simulator` (fat: arm64 + x86_64) | `iphonesimulator`        |
+| `iosSimulatorArm64` (Apple Silicon simulator) | `ios-arm64_x86_64-simulator` (fat: arm64 + x86_64) | `iphonesimulator`        |
 
 `-F` points at the **directory containing** `PKIXBridge.framework` — i.e. the slice path,
 not the framework path itself.
@@ -180,12 +184,14 @@ not the framework path itself.
 - **`Undefined symbols for architecture arm64: "_OBJC_CLASS_$__TtC10PKIXBridge…"`** —
   `PKIXBridge` is not on the link line. Apply the recipe above for the target you are
   building (device vs simulator slice).
-- **`This declaration needs opt-in ... ExperimentalForeignApi`** — the cinterop
-  (`PKIXValidator`, `PKIXConfiguration`, …) API is experimental. Mark the using file or
+- **`This declaration needs opt-in ... ExperimentalForeignApi`** — the cinterop (`PKIXValidator`,
+  `PKIXConfiguration`, …) API is experimental. Mark the using file or
   class with `@OptIn(kotlinx.cinterop.ExperimentalForeignApi::class)` (or add
   `kotlinx.cinterop.ExperimentalForeignApi` to the target's `compilerOptions.optIn`).
-- **The error appears only in one task** (e.g. `iosSimulatorArm64Test` but not the debug
-  framework) — expected. Configure `linkerOpts` per binary type/target as shown.
+- **The error appears only in one task** (e.g. `iosSimulatorArm64Test` links fine but the
+  framework task does not) — the target is configured with `binaries.all`, which covers
+  test executables and frameworks (static or dynamic); if a specific binary still fails,
+  the `linkerOpts` are not reaching it (check the slice path corresponds to that target).
 - **The build succeeded until I added a test that calls the trust API** — expected.
   Kotlin/Native drops unreferenced code, so the missing framework only surfaces once the
   PKIX path is actually referenced.
