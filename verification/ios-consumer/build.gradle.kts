@@ -4,9 +4,12 @@ plugins {
     kotlin("multiplatform") version "2.2.21"
 }
 
-// Version of the library under test. CI passes the version it published to Maven Local;
-// the default mirrors gradle.properties and is only a convenience for local runs.
-val eudiVersion: String = providers.gradleProperty("eudiVersion").getOrElse("0.4.0-alpha.2-SNAPSHOT")
+// Version of the library under test. Always required — pass -PeudiVersion=<version>.
+// CI and the local-run command in verification/README.md both extract it from
+// gradle.properties, so there is no version to maintain here.
+val eudiVersion: String = providers.gradleProperty("eudiVersion")
+    .orNull
+    ?: error("Property 'eudiVersion' is required. Pass -PeudiVersion=<version> (see verification/README.md).")
 
 kotlin {
     // Stand-in for the "<path-to>/PKIXBridge.xcframework" placeholder in the docs.
