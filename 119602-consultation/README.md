@@ -50,7 +50,7 @@ This module implements certificate validation according to the following ETSI sp
 
 ## Quick Start
 
-### 1. Add dependency
+### 1. Add dependencies
 
 Add the following to your `build.gradle.kts`:
 
@@ -66,74 +66,145 @@ dependencies {
 > Replace `$version` with the latest release version from
 > the [releases page](https://github.com/eu-digital-identity-wallet/eudi-lib-kmp-etsi-1196x2/releases).
 
+The EUDI ETSI TS 119 602 Consultation module uses Ktor Client. It depends on and exports `io.ktor:ktor-client-core`. Integrator are
+required to provide their preferred [Ktor Client Engine](https://ktor.io/docs/client-engines.html). 
+
+For instance, to use the [Java Engine](https://ktor.io/docs/client-engines.html#java) add the following dependency:
+
+```kotlin
+dependencies {
+  // Replace $ktor_version with the Ktor version used by the library version you use 
+  implementation("io.ktor:ktor-client-java:$ktor_version")
+}
+```
+
 ### 2. Configure and use ProvisionTrustAnchorsFromLoTEs
 
 ```kotlin
 import eu.europa.ec.eudi.etsi119602.consultation.*
 import eu.europa.ec.eudi.etsi119602.consultation.eu.*
+import eu.europa.ec.eudi.etsi119602.datamodel.*
 import eu.europa.ec.eudi.etsi1196x2.consultation.*
-import eu.europa.ec.eudi.etsi1196x2.consultation.VerificationContext
 
 import io.ktor.client.*
 import io.ktor.client.engine.java.*
-import kotlinx.coroutines.*
 import kotlinx.io.files.Path
 import java.nio.file.Files
-import java.security.cert.TrustAnchor
-import java.security.cert.X509Certificate
 import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.minutes
 
 // 1. Setup HTTP client and file cache
 val httpClient = HttpClient(Java)
-val fileStore = LoTEFileStore(
-    cacheDirectory = Path(Files.createTempDirectory("lote-cache").toString())
-)
+
 val loadLoTE = LoadSingleLoTEWithFileCache(
-    fileStore = fileStore,
-    downloadSingleLoTE = DownloadSingleLoTE(httpClient),
-    fileCacheExpiration = 24.hours
+  cacheDirectory = Path(Files.createTempDirectory("lote-cache").toString()),
+  downloadSingleLoTE = DownloadSingleLoTE(httpClient),
+  fileCacheExpiration = 24.hours
 )
 
 // 2. Configure LoTE locations and service types
 val loteLocations = SupportedLists(
-    pidProviders = Uri.parse("https://example.com/pid-providers.json"),
-    walletProviders = Uri.parse("https://example.com/wallet-providers.json")
+  pidProviders = Uri.parse("https://example.com/pid-providers.json"),
+  walletProviders = Uri.parse("https://example.com/wallet-providers.json")
 )
 
-// 3. Create the main entry point
-val provisionTrustAnchors = ProvisionTrustAnchorsFromLoTEs.eudiwJvm(loadLoTEAndPointers = loadLoTE)
+// 3. Configure download constraints and LoTE signature verification
+val constraints = LoadLoTEAndPointers.Constraints.LoadOtherPointers(
+  otherLoTEParallelism = 2, // Number other LoTE pointers to downloads concurrently
+  maxDepth = 3, // Maximum allowed depth to reach (for other LoTE pointers containing other LoTE pointers containing other LoTE pointers...)
+  maxLists = 4, // Maximum allowed number of LoTEs to download
+)
 
-// 4a. Use nonCached() for simple/low-concurrency scenarios
+val verifyJwtSignature = VerifyJwtSignature { jwt: String ->
+  // Verify the JWT signature is valid according to ecosystem requirements,
+  // for instance validate a JAdES B-B signature.
+  // Returning VerifyJwtSignature.Outcome.Verified indicates the signature has been successfully verified.
+  // Returning VerifyJwtSignature.Outcome.NotVerified indicates the signature is not valid, and the LoTE will be rejected.
+  VerifyJwtSignature.Outcome.Verified(jwt)
+}
+
+val loadLoTEAndPointers = LoadLoTEAndPointers(
+  constraints = constraints,
+  verifyJwtSignature = verifyJwtSignature,
+  loadLoTE = loadLoTE
+)
+
+// 4. Configure and create the main entry point
+val serviceTypePerContext: SupportedLists<LotEMeta<VerificationContext>> =
+  SupportedLists(
+    pidProviders = LotEMeta(
+      svcTypePerCtx = mapOf(
+        VerificationContext.PID to LotEMeta.SvcAndEEProfile(
+          svcTypeIdentifier = Uri.parse("http://uri.etsi.org/19602/SvcType/PID/Issuance"),
+          endEntityProfile = pidSigningCertificateProfile(),
+        ),
+        VerificationContext.PIDStatus to LotEMeta.SvcAndEEProfile(
+          svcTypeIdentifier = Uri.parse("http://uri.etsi.org/19602/SvcType/PID/Revocation"),
+          endEntityProfile = null,
+        )
+      ),
+      serviceDigitalIdentityCertificateType = ServiceDigitalIdentityCertificateType.EndEntityOrCA
+    ),
+    walletProviders = LotEMeta(
+      svcTypePerCtx = mapOf(
+        VerificationContext.WalletProviderAttestation to LotEMeta.SvcAndEEProfile(
+          svcTypeIdentifier = Uri.parse("http://uri.etsi.org/19602/SvcType/WalletSolution/Issuance"),
+          endEntityProfile = walletProviderSigningCertificateProfile(),
+        ),
+        VerificationContext.WalletOrKeyStorageStatus to LotEMeta.SvcAndEEProfile(
+          svcTypeIdentifier = Uri.parse("http://uri.etsi.org/19602/SvcType/WalletSolution/Revocation"),
+          endEntityProfile = null,
+        )
+      ),
+      serviceDigitalIdentityCertificateType = ServiceDigitalIdentityCertificateType.EndEntityOrCA
+    )
+  )
+
+val provisionTrustAnchors = ProvisionTrustAnchorsFromLoTEs.eudiwJvm(
+  loadLoTEAndPointers = loadLoTEAndPointers,
+  svcTypePerCtx = serviceTypePerContext,
+  continueOnProblem = ContinueOnProblem.Never // Custom policies can be provided based on the use-case
+)
+
+// 5a. Use nonCached() for simple/low-concurrency scenarios
 val isChainTrustedForContext = provisionTrustAnchors.nonCached(loteLocations)
 
-// 4b. Use cached() for high-concurrency scenarios (e.g., server-side)
-useResources { scope ->
-    val cachedValidator = provisionTrustAnchors.cached(
-        disposableScope = scope,
-        loteLocationsSupported = loteLocations,
-        ttl = 10.minutes
-    )
-    // Use cachedValidator for concurrent requests
+// 5b. Use cached() for high-concurrency scenarios (e.g., server-side)
+useResources {
+  val cachedValidator = provisionTrustAnchors.cached(
+    disposableScope = this,
+    loteLocationsSupported = loteLocations,
+    ttl = 10.minutes
+  )
+  // Use cachedValidator for concurrent requests
 }
 ```
 
 ### 3. Validate certificate chains
 
 ```kotlin
+import eu.europa.ec.eudi.etsi1196x2.consultation.*
+
 import kotlinx.coroutines.runBlocking
 
 runBlocking {
-    // Using nonCached validator
-    val result = isChainTrustedForContext(certificateChain, VerificationContext.PID)
-    println("Trusted: ${result.isTrusted()}")
+  // Using nonCached validator
+  val result = isChainTrustedForContext(certificateChain, VerificationContext.PID)
+  println("Trusted: ${result?.trusted}")
     
-    // Or using cached validator
-    useResources {
-        //..
-        val cachedResult = cachedValidator(certificateChain, VerificationContext.PID)
-        println("Trusted (cached): ${cachedResult.isTrusted()}")
-    }  
+  // Or using cached validator
+  useResources {
+      //..
+      val cachedResult = cachedValidator(certificateChain, VerificationContext.PID)
+      println("Trusted (cached): ${cachedResult?.trusted}")
+  }
+  
+  // Alternatively check what type of result was returned
+  when (result) {
+    null -> println("VerificationContext.PID is not currently configured")
+    is CertificationChainValidation.NotTrusted -> println("Certificate chain is not trusted. Reason: ${result.cause}")
+    is CertificationChainValidation.Trusted -> println("Certificate chain is trusted. Trust anchor: ${result.trustAnchor}")
+  }
 }
 ```
 
