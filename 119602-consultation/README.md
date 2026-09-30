@@ -111,8 +111,8 @@ val loteLocations = SupportedLists(
 // 3. Configure download constraints and LoTE signature verification
 val constraints = LoadLoTEAndPointers.Constraints.LoadOtherPointers(
   otherLoTEParallelism = 2, // Number other LoTE pointers to downloads concurrently
-  maxDepth = 3, // Maximum allowed depth to reach (for other LoTE pointers containing other LoTE pointers containing other LoTE pointers...)
-  maxLists = 4, // Maximum allowed number of LoTEs to download
+  maxDepth = 1, // Maximum allowed depth to reach (for other LoTE pointers containing other LoTE pointers containing other LoTE pointers...)
+  maxLists = 1, // Maximum allowed number of LoTEs to download
 )
 
 val verifyJwtSignature = VerifyJwtSignature { jwt: String ->
