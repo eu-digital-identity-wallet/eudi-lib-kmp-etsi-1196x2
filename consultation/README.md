@@ -194,6 +194,40 @@ The consultation module is a **Kotlin Multiplatform (KMP)** module.
 > See [iOS support in the root README](../README.md#ios) and
 > [docs/iOS-PKIXBridge.md](../docs/iOS-PKIXBridge.md) for the linker setup.
 
+### Revocation checking
+
+Revocation checking is delegated to the platform's PKIX implementation and is **enabled by default** on
+both platforms. A chain whose revocation status cannot be established is reported as `NotTrusted`.
+
+| Platform      | Mechanism                                                                                                                                   | How to configure                                                                                       |
+|---------------|---------------------------------------------------------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------|
+| JVM / Android | Whatever the JDK `PKIX` `CertPathValidator` is configured for (OCSP and/or CRL, see `ocsp.enable`, `com.sun.security.enableCRLDP`)          | `ValidateCertificateChainUsingPKIXJvm(customization = { ... })` — e.g. add a `PKIXRevocationChecker`   |
+| iOS           | `Security.framework` (`SecPolicyCreateRevocation`): OCSP (default), CRL, or both with either preferred; a positive response is required     | `ValidateCertificateChainUsingPKIXIos(IosRevocationMethod.CRL)` or a `PKIXConfiguration` instance      |
+
+```kotlin
+// iOS: use CRLs instead of OCSP
+val validator = ValidateCertificateChainUsingPKIXIos(IosRevocationMethod.CRL)
+
+// iOS: accept whichever of OCSP/CRL the certificate advertises, trying CRL first
+val anyPreferCrl = ValidateCertificateChainUsingPKIXIos(IosRevocationMethod.ANY_PREFER_CRL)
+
+// iOS: disable revocation checking entirely (e.g. offline tests)
+val noRevocation = ValidateCertificateChainUsingPKIXIos(IosRevocationMethod.CRL, isRevocationEnabled = false)
+// or via the native configuration
+val noRevocationConfig = ValidateCertificateChainUsingPKIXIos(PKIXConfiguration(isRevocationEnabled = false))
+```
+
+Swift consumers of the `PKIXBridge` framework use the same options directly:
+
+```swift
+let config = PKIXConfiguration(isRevocationEnabled: true, revocationMethod: .crl)
+let validator = PKIXValidator(configuration: config)
+```
+
+> [!NOTE]
+> Direct-trust validation (`IsChainTrustedForEUDIW` / `IsChainTrustedForAttestation` matching the head certificate
+> against a trust anchor) performs no revocation checking on any platform.
+
 ## Examples
 
 ### Combining trust anchors from multiple sources

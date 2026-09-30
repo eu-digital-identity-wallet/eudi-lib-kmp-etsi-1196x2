@@ -16,9 +16,12 @@
 package eu.europa.ec.eudi.etsi1196x2.consultation
 
 import eu.europa.ec.eudi.etsi1196x2.consultation.pkix.PKIXConfiguration
+import eu.europa.ec.eudi.etsi1196x2.consultation.pkix.PKIXRevocationMethodCRL
+import eu.europa.ec.eudi.etsi1196x2.consultation.pkix.PKIXRevocationMethodOCSP
 import kotlinx.coroutines.test.runTest
 import platform.Foundation.NSData
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertTrue
 
@@ -30,6 +33,39 @@ class ValidateCertificateChainUsingPKIXIosTest {
 
     // Test certificates have no AIA/OCSP URLs; disable revocation so tests run offline.
     private val noRevocationConfig = PKIXConfiguration(isRevocationEnabled = false)
+
+    @Test
+    fun pkix_configuration_defaultsToOcsp() {
+        assertEquals(PKIXRevocationMethodOCSP, PKIXConfiguration().revocationMethod())
+        assertEquals(PKIXRevocationMethodOCSP, noRevocationConfig.revocationMethod())
+        assertEquals(PKIXRevocationMethodOCSP, IosRevocationMethod.OCSP.native)
+    }
+
+    @Test
+    fun pkix_configuration_acceptsCrlMethod() {
+        val config = PKIXConfiguration(
+            isRevocationEnabled = true,
+            revocationMethod = IosRevocationMethod.CRL.native,
+        )
+        assertTrue(config.isRevocationEnabled())
+        assertEquals(PKIXRevocationMethodCRL, config.revocationMethod())
+        ValidateCertificateChainUsingPKIXIos(config)
+        ValidateCertificateChainUsingPKIXIos(IosRevocationMethod.CRL)
+    }
+
+    @Test
+    fun pkix_crlRevocation_offlineChainWithoutCrlDistributionPoint_isNotTrusted() = runTest {
+        val validator = ValidateCertificateChainUsingPKIXIos(IosRevocationMethod.CRL)
+        val result = validator(listOf(leaf), NonEmptyList(listOf(root)))
+        assertIs<CertificationChainValidation.NotTrusted>(result)
+    }
+
+    @Test
+    fun pkix_crlRevocationDisabled_offlineChain_isTrusted() = runTest {
+        val validator = ValidateCertificateChainUsingPKIXIos(IosRevocationMethod.CRL, isRevocationEnabled = false)
+        val result = validator(listOf(leaf), NonEmptyList(listOf(root)))
+        assertIs<CertificationChainValidation.Trusted<NSData>>(result)
+    }
 
     @Test
     fun pkix_validChain_isTrusted() = runTest {
