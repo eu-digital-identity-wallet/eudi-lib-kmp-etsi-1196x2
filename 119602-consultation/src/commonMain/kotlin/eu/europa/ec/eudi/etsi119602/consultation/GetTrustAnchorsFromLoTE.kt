@@ -51,7 +51,8 @@ public data class LoadedLoTE(
  * @param TRUST_ANCHOR the type of the trust anchor to produce
  * @param loTEDownloadUrl the URI where the LoTE is located
  * @param loadLoTEAndPointers the service used to load the LoTE and its pointers
- * @param continueOnProblem strategy for handling errors during the loading process
+ * @param continueOnProblem strategy for handling errors during the loading process of other LoTE pointers.
+ * Failing to load a main LoTE is always an unrecoverable error.
  * @param createTrustAnchors factory function to create trust anchors from digital identities
  */
 public class GetTrustAnchorsFromLoTE<out TRUST_ANCHOR : Any>(
