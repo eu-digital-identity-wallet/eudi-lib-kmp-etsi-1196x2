@@ -66,8 +66,8 @@ public data class LotEMeta<CTX>(
  * @property createTrustAnchors A function that creates a list of trust anchors from a service digital identity.
  * @property directTrust A certificate chain validator based on direct trust.
  * @property pkix A certificate chain validator based on PKIX.
- * @property continueOnProblem Strategy indicating whether to continue on specific problems while loading a LoTE.
- * Defaults to [ContinueOnProblem.Never]
+ * @property continueOnProblem Strategy indicating whether to continue on specific problems while loading other LoTE pointers.
+ * Defaults to [ContinueOnProblem.Never]. Failing to load a main LoTE is always an unrecoverable error.
  * @property certificateProfileValidator an abstraction for certificate operations. It will be used to thread validation
  * of end-entity certificate of a chain to the chain validation.
  * @param endEntityCertificateOf A way to obtain the end entity certificate from a chain.
