@@ -126,6 +126,12 @@ public sealed interface CertificationChainValidation<out TRUST_ANCHOR : Any> {
 }
 
 /**
+ * Whether [this] contains a Trust Anchor for a trusted Certificate Chain.
+ */
+public val CertificationChainValidation<*>.trusted: Boolean
+    get() = this is CertificationChainValidation.Trusted
+
+/**
  * Changes the representation of the certificate chain
  *
  * @param transform the transformation function
