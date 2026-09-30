@@ -23,10 +23,13 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.runTest
 import platform.Foundation.NSData
+import kotlin.io.encoding.Base64
+import kotlin.test.Ignore
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertTrue
+import kotlin.test.fail
 import kotlin.time.Duration.Companion.hours
 
 /**
@@ -183,4 +186,93 @@ class EudiwIosTest {
 //        )
 //        handle.dispose()
 //    }
+
+    /**
+     * iOS counterpart of `EUDIRefImplEnvTest.testCertificateTrust`. Downloads the EUDI reference
+     * LoTEs over the network, then validates a set of PEM fixtures against the iOS trust-chain
+     * pipeline (`EudiwIosTrust.nonCached` → Security.framework via PKIXBridge). Used to reproduce
+     * client-side `.byCertificateChain` failures (e.g. "PID Issuer CA 02" pinning) locally.
+     *
+     * `@Ignore`d for CI (network-dependent); remove the annotation to run locally.
+     */
+    @Test
+    @Ignore
+    @OptIn(SensitiveApi::class)
+    fun testCertificateTrust() = runTest {
+        val urls = TrustListUrls().apply {
+            pidProviders = "https://trustedlist.serviceproviders.eudiw.dev/LOTE/json/PIDProviders.jwt"
+            walletProviders = "https://trustedlist.serviceproviders.eudiw.dev/LOTE/json/WalletProviders.jwt"
+            wrpacProviders = "https://trustedlist.serviceproviders.eudiw.dev/LOTE/json/WRPACProviders.jwt"
+            wrprcProviders = "https://trustedlist.serviceproviders.eudiw.dev/LOTE/json/WRPRCProviders.jwt"
+        }
+        val validator = EudiwIosTrust.nonCached(urls, NotValidating, isRevocationEnabled = true)
+        runTrustCases(label = "default (revocation ON)") { chain, ctx ->
+            EudiwIosTrust.validate(validator, chain, ctx)
+        }
+    }
+
+    /**
+     * Same as [testCertificateTrust] but disables revocation via the new
+     * `pkixConfiguration` parameter on the facade. Confirms the alpha.1 → alpha.2 regression
+     * (commit `2fd24463` flipped `PKIXConfiguration()`'s default from `false` to `true`, so
+     * `SecTrust`'s `kSecRevocationRequirePositiveResponse` policy hard-fails when OCSP is
+     * unavailable) and validates the workaround exposed to Swift consumers.
+     */
+    @Test
+    @Ignore
+    @OptIn(SensitiveApi::class)
+    fun testCertificateTrust_revocationDisabled() = runTest {
+        val urls = TrustListUrls().apply {
+            pidProviders = "https://trustedlist.serviceproviders.eudiw.dev/LOTE/json/PIDProviders.jwt"
+            walletProviders = "https://trustedlist.serviceproviders.eudiw.dev/LOTE/json/WalletProviders.jwt"
+            wrpacProviders = "https://trustedlist.serviceproviders.eudiw.dev/LOTE/json/WRPACProviders.jwt"
+            wrprcProviders = "https://trustedlist.serviceproviders.eudiw.dev/LOTE/json/WRPRCProviders.jwt"
+        }
+        val validator = EudiwIosTrust.nonCached(
+            urls,
+            NotValidating,
+            isRevocationEnabled = false,
+        )
+        runTrustCases(label = "revocation OFF") { chain, ctx ->
+            EudiwIosTrust.validate(validator, chain, ctx)
+        }
+    }
+
+    private suspend fun runTrustCases(
+        label: String,
+        validate: suspend (chain: List<NSData>, context: VerificationContext) -> IosValidationResult,
+    ) {
+        val cases: List<Triple<String, String, VerificationContext>> = listOf(
+            Triple("pidProviderSigningCertificateNotCompliant", EUDIRefImplEnvTestFixtures.pidProviderSigningCertificateNotCompliant, VerificationContext.PID),
+            Triple("walletProviderSigningCertificateNotCompliant", EUDIRefImplEnvTestFixtures.walletProviderSigningCertificateNotCompliant, VerificationContext.WalletProviderAttestation),
+            Triple("issuerAccessCertificate", EUDIRefImplEnvTestFixtures.issuerAccessCertificate, VerificationContext.WalletRelyingPartyAccessCertificate),
+            Triple("verifierAccessCertificate", EUDIRefImplEnvTestFixtures.verifierAccessCertificate, VerificationContext.WalletRelyingPartyAccessCertificate),
+            Triple("wrprcProviderSigningCertificate", EUDIRefImplEnvTestFixtures.wrprcProviderSigningCertificate, VerificationContext.WalletRelyingPartyRegistrationCertificate),
+        )
+
+        val failures = mutableListOf<String>()
+        for ((caseLabel, pem, context) in cases) {
+            val cert: NSData = pemToDer(pem).toNSData()
+            val result = validate(listOf(cert), context)
+            if (result.isTrusted) {
+                println("[$label] TRUSTED     $caseLabel vs $context")
+            } else {
+                val line = "[$label] NOT TRUSTED $caseLabel vs $context: ${result.failureReason}"
+                println(line)
+                failures += line
+            }
+        }
+
+        if (failures.isNotEmpty()) {
+            fail(failures.joinToString(separator = "\n"))
+        }
+    }
+
+    private fun pemToDer(pem: String): ByteArray {
+        val body = pem.lineSequence()
+            .map { it.trim() }
+            .filter { it.isNotEmpty() && !it.startsWith("-----") }
+            .joinToString(separator = "")
+        return Base64.decode(body)
+    }
 }

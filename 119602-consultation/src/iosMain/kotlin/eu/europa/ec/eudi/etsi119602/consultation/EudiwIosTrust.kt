@@ -21,6 +21,7 @@ import eu.europa.ec.eudi.etsi119602.consultation.eu.EUMDLProvidersListSpec
 import eu.europa.ec.eudi.etsi119602.consultation.eu.ServiceDigitalIdentityCertificateType
 import eu.europa.ec.eudi.etsi119602.datamodel.Uri
 import eu.europa.ec.eudi.etsi1196x2.consultation.*
+import eu.europa.ec.eudi.etsi1196x2.consultation.pkix.PKIXConfiguration
 import platform.Foundation.NSData
 import kotlin.time.Duration.Companion.hours
 
@@ -119,10 +120,13 @@ public fun interface IosLoadLoTE {
  * at the boundary — LoTE locations are passed via [TrustListUrls] and trust anchors come back as
  * a plain list of DER [NSData].
  *
- * [nonCached] and [cached] each have an overload taking an [IosLoadLoTE], for callers that must
- * fetch LoTEs through their own HTTP stack. Overloads rather than a defaulted parameter:
- * Kotlin defaults are not carried into the generated Objective-C header, so a default would have
- * dropped the existing selectors from the Swift surface.
+ * [nonCached] and [cached] each have overloads for two orthogonal axes: (a) an [IosLoadLoTE]
+ * variant for callers that must fetch LoTEs through their own HTTP stack, and (b) a
+ * [VerifyJwtSignatureCallback] variant (named `verifyJwtSignatureCallback:`) for Swift consumers
+ * that can't implement Kotlin's `suspend fun interface` [VerifyJwtSignature] directly. Overloads
+ * rather than defaulted parameters: Kotlin defaults are not carried into the generated
+ * Objective-C header, so a default would have dropped the existing selectors from the Swift
+ * surface.
  */
 public object EudiwIosTrust {
 
@@ -141,29 +145,34 @@ public object EudiwIosTrust {
      * @param urls the LoTE download URLs for each context; leave any context `null` to skip it
      * @param verifyJwtSignature verifies each downloaded LoTE JWT — supply a real implementation in
      *        production; this is a required, explicit choice so trust is never silently bypassed.
+     * @param isRevocationEnabled when `true`, `SecTrust` runs a strict OCSP revocation policy
+     *        (`kSecRevocationRequirePositiveResponse`)
      */
     public fun nonCached(
         urls: TrustListUrls,
         verifyJwtSignature: VerifyJwtSignature,
+        isRevocationEnabled: Boolean,
     ): ComposeChainTrust<List<NSData>, VerificationContext, NSData> =
-        buildNonCached(urls, verifyJwtSignature, defaultLoadLoTE())
+        buildNonCached(urls, verifyJwtSignature, defaultLoadLoTE(), isRevocationEnabled)
 
     /**
-     * As [nonCached] `(urls:verifyJwtSignature:)`, but each LoTE is obtained from [loadLoTE] instead
-     * of the built-in downloader.
+     * As [nonCached] `(urls:verifyJwtSignature:isRevocationEnabled:)`, but each LoTE is obtained from
+     * [loadLoTE] instead of the built-in downloader.
      *
      * @param urls the LoTE download URLs for each context; leave any context `null` to skip it
      * @param verifyJwtSignature verifies each downloaded LoTE JWT — supply a real implementation in
      *        production; this is a required, explicit choice so trust is never silently bypassed.
      * @param loadLoTE resolves a LoTE URL to its raw JWT; a missing list must be reported as
      *        [LoadLoTE.Outcome.NotFound] rather than thrown.
+     * @param isRevocationEnabled see the sibling overload; `false` disables the strict OCSP policy.
      */
     public fun nonCached(
         urls: TrustListUrls,
         verifyJwtSignature: VerifyJwtSignature,
         loadLoTE: IosLoadLoTE,
+        isRevocationEnabled: Boolean,
     ): ComposeChainTrust<List<NSData>, VerificationContext, NSData> =
-        buildNonCached(urls, verifyJwtSignature, loadLoTE.asLoadLoTE())
+        buildNonCached(urls, verifyJwtSignature, loadLoTE.asLoadLoTE(), isRevocationEnabled)
 
     /**
      * Builds a **cached** validator, fetching each LoTE with the built-in Darwin (NSURLSession)
@@ -183,17 +192,20 @@ public object EudiwIosTrust {
      *        `Duration` value class at the Swift boundary.
      * @param verifyJwtSignature verifies each downloaded LoTE JWT — supply a real implementation in
      *        production; this is a required, explicit choice so trust is never silently bypassed.
+     * @param isRevocationEnabled see the sibling overload; `false` disables the strict OCSP policy.
      */
     public fun cached(
         urls: TrustListUrls,
         ttlHours: Double,
         verifyJwtSignature: VerifyJwtSignature,
+        isRevocationEnabled: Boolean,
     ): CachedTrustValidator =
-        buildCached(urls, ttlHours, verifyJwtSignature, defaultLoadLoTE())
+        buildCached(urls, ttlHours, verifyJwtSignature, defaultLoadLoTE(), isRevocationEnabled)
 
     /**
-     * As [cached]`(urls:ttlHours:verifyJwtSignature:)` — same ownership contract — but each LoTE is
-     * obtained from [loadLoTE] instead of the built-in downloader, and only on a cache miss.
+     * As [cached]`(urls:ttlHours:verifyJwtSignature:isRevocationEnabled:)` — same ownership contract —
+     * but each LoTE is obtained from [loadLoTE] instead of the built-in downloader, and only on a
+     * cache miss.
      *
      * @param urls the LoTE download URLs for each context; leave any context `null` to skip it
      * @param ttlHours cache time-to-live in hours (e.g. `24.0`); a plain `Double` to avoid Kotlin's
@@ -202,58 +214,65 @@ public object EudiwIosTrust {
      *        production; this is a required, explicit choice so trust is never silently bypassed.
      * @param loadLoTE resolves a LoTE URL to its raw JWT; a missing list must be reported as
      *        [LoadLoTE.Outcome.NotFound] rather than thrown.
+     * @param isRevocationEnabled see the sibling overload; `false` disables the strict OCSP policy.
      */
     public fun cached(
         urls: TrustListUrls,
         ttlHours: Double,
         verifyJwtSignature: VerifyJwtSignature,
         loadLoTE: IosLoadLoTE,
+        isRevocationEnabled: Boolean,
     ): CachedTrustValidator =
-        buildCached(urls, ttlHours, verifyJwtSignature, loadLoTE.asLoadLoTE())
+        buildCached(urls, ttlHours, verifyJwtSignature, loadLoTE.asLoadLoTE(), isRevocationEnabled)
 
     /**
-     * Swift-facing overload of [nonCached]`(urls:verifyJwtSignature:)` that accepts a
-     * [VerifyJwtSignatureCallback]
+     * Swift-facing overload of [nonCached]`(urls:verifyJwtSignature:isRevocationEnabled:)` that
+     * accepts a [VerifyJwtSignatureCallback].
      */
     public fun nonCached(
         urls: TrustListUrls,
-        verifyJwtSignature: VerifyJwtSignatureCallback,
+        verifyJwtSignatureCallback: VerifyJwtSignatureCallback,
+        isRevocationEnabled: Boolean,
     ): ComposeChainTrust<List<NSData>, VerificationContext, NSData> =
-        nonCached(urls, verifyJwtSignature.asVerifyJwtSignature())
+        nonCached(urls, verifyJwtSignatureCallback.asVerifyJwtSignature(), isRevocationEnabled)
 
     /**
-     * Swift-facing overload of [nonCached]`(urls:verifyJwtSignature:loadLoTE:)` that accepts a
-     * [VerifyJwtSignatureCallback].
+     * Swift-facing overload of [nonCached]`(urls:verifyJwtSignature:loadLoTE:isRevocationEnabled:)`
+     * that accepts a [VerifyJwtSignatureCallback].
      */
     public fun nonCached(
         urls: TrustListUrls,
-        verifyJwtSignature: VerifyJwtSignatureCallback,
+        verifyJwtSignatureCallback: VerifyJwtSignatureCallback,
         loadLoTE: IosLoadLoTE,
+        isRevocationEnabled: Boolean,
     ): ComposeChainTrust<List<NSData>, VerificationContext, NSData> =
-        nonCached(urls, verifyJwtSignature.asVerifyJwtSignature(), loadLoTE)
+        nonCached(urls, verifyJwtSignatureCallback.asVerifyJwtSignature(), loadLoTE, isRevocationEnabled)
 
     /**
-     * Swift-facing overload of [cached]`(urls:ttlHours:verifyJwtSignature:)` that accepts a
+     * Swift-facing overload of [cached]`(urls:ttlHours:verifyJwtSignature:isRevocationEnabled:)` that
+     * accepts a [VerifyJwtSignatureCallback].
+     */
+    public fun cached(
+        urls: TrustListUrls,
+        ttlHours: Double,
+        verifyJwtSignatureCallback: VerifyJwtSignatureCallback,
+        isRevocationEnabled: Boolean,
+    ): CachedTrustValidator =
+        cached(urls, ttlHours, verifyJwtSignatureCallback.asVerifyJwtSignature(), isRevocationEnabled)
+
+    /**
+     * Swift-facing overload of
+     * [cached]`(urls:ttlHours:verifyJwtSignature:loadLoTE:isRevocationEnabled:)` that accepts a
      * [VerifyJwtSignatureCallback].
      */
     public fun cached(
         urls: TrustListUrls,
         ttlHours: Double,
-        verifyJwtSignature: VerifyJwtSignatureCallback,
-    ): CachedTrustValidator =
-        cached(urls, ttlHours, verifyJwtSignature.asVerifyJwtSignature())
-
-    /**
-     * Swift-facing overload of [cached]`(urls:ttlHours:verifyJwtSignature:loadLoTE:)` that accepts
-     * a [VerifyJwtSignatureCallback].
-     */
-    public fun cached(
-        urls: TrustListUrls,
-        ttlHours: Double,
-        verifyJwtSignature: VerifyJwtSignatureCallback,
+        verifyJwtSignatureCallback: VerifyJwtSignatureCallback,
         loadLoTE: IosLoadLoTE,
+        isRevocationEnabled: Boolean,
     ): CachedTrustValidator =
-        cached(urls, ttlHours, verifyJwtSignature.asVerifyJwtSignature(), loadLoTE)
+        cached(urls, ttlHours, verifyJwtSignatureCallback.asVerifyJwtSignature(), loadLoTE, isRevocationEnabled)
 
     /**
      * Builds a validator backed by **bundled / hardcoded** certificate anchors instead of a
@@ -269,10 +288,14 @@ public object EudiwIosTrust {
      * @param method [BundledAnchorMethod.PKIX] for chain-to-anchor path validation (anchors are CA
      *        certificates) or [BundledAnchorMethod.DIRECT_TRUST] for leaf pinning (anchors are the
      *        exact end-entity certificates).
+     * @param isRevocationEnabled only applies when [method] is [BundledAnchorMethod.PKIX]; see
+     *        [nonCached] for the semantics. `false` disables the strict OCSP policy so offline /
+     *        no-OCSP PKIs still validate.
      */
     public fun usingBundledAnchors(
         anchors: BundledAnchors,
         method: BundledAnchorMethod,
+        isRevocationEnabled: Boolean,
     ): ComposeChainTrust<List<NSData>, VerificationContext, NSData> {
         val anchorsByContext: Map<VerificationContext, List<NSData>> = buildMap {
             anchors.pid?.let { put(VerificationContext.PID, it) }
@@ -289,7 +312,9 @@ public object EudiwIosTrust {
         }
 
         val validateChain: ValidateCertificateChain<List<NSData>, NSData> = when (method) {
-            BundledAnchorMethod.PKIX -> ValidateCertificateChainUsingPKIXIos()
+            BundledAnchorMethod.PKIX -> ValidateCertificateChainUsingPKIXIos(
+                PKIXConfiguration(isRevocationEnabled = isRevocationEnabled),
+            )
             BundledAnchorMethod.DIRECT_TRUST -> ValidateCertificateChainUsingDirectTrustIos
         }
 
@@ -319,11 +344,13 @@ public object EudiwIosTrust {
         urls: TrustListUrls,
         verifyJwtSignature: VerifyJwtSignature,
         loadLoTE: LoadLoTE<String>,
+        isRevocationEnabled: Boolean,
     ): ComposeChainTrust<List<NSData>, VerificationContext, NSData> =
         ProvisionTrustAnchorsFromLoTEs
             .eudiwIos(
                 loadLoTEAndPointers = buildLoadLoTEAndPointers(verifyJwtSignature, loadLoTE),
                 svcTypePerCtx = buildSvcTypePerCtx(urls.mdlProviders),
+                pkix = ValidateCertificateChainUsingPKIXIos(PKIXConfiguration(isRevocationEnabled = isRevocationEnabled)),
             )
             .nonCached(buildLocations(urls))
 
@@ -332,12 +359,14 @@ public object EudiwIosTrust {
         ttlHours: Double,
         verifyJwtSignature: VerifyJwtSignature,
         loadLoTE: LoadLoTE<String>,
+        isRevocationEnabled: Boolean,
     ): CachedTrustValidator {
         val scope = DisposableContainer()
         val validator = ProvisionTrustAnchorsFromLoTEs
             .eudiwIos(
                 loadLoTEAndPointers = buildLoadLoTEAndPointers(verifyJwtSignature, loadLoTE),
                 svcTypePerCtx = buildSvcTypePerCtx(urls.mdlProviders),
+                pkix = ValidateCertificateChainUsingPKIXIos(PKIXConfiguration(isRevocationEnabled = isRevocationEnabled)),
             )
             .cached(
                 disposableScope = scope,
