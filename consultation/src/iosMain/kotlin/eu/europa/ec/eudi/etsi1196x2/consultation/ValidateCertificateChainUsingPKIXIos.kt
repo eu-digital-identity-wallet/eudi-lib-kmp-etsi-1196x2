@@ -97,6 +97,10 @@ public class ValidateCertificateChainUsingPKIXIos(
         public operator fun invoke(
             configuration: PKIXConfiguration = PKIXConfiguration(),
         ): ValidateCertificateChainUsingPKIXIos =
-            ValidateCertificateChainUsingPKIXIos(PKIXValidator(configuration = configuration))
+            ValidateCertificateChainUsingPKIXIos(nativeValidator = PKIXValidator(configuration = configuration))
+
+        public operator fun invoke(
+            isRevocationEnabled: Boolean,
+        ): ValidateCertificateChainUsingPKIXIos = invoke(configuration = PKIXConfiguration(isRevocationEnabled = isRevocationEnabled))
     }
 }

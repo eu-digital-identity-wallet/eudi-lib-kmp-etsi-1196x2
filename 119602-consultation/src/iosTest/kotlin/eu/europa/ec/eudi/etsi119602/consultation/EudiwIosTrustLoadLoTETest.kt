@@ -19,9 +19,7 @@ package eu.europa.ec.eudi.etsi119602.consultation
 
 import eu.europa.ec.eudi.etsi119602.consultation.eu.EUMDLProvidersListSpec
 import eu.europa.ec.eudi.etsi119602.datamodel.*
-import eu.europa.ec.eudi.etsi1196x2.consultation.SensitiveApi
-import eu.europa.ec.eudi.etsi1196x2.consultation.VerificationContext
-import eu.europa.ec.eudi.etsi1196x2.consultation.toByteArray
+import eu.europa.ec.eudi.etsi1196x2.consultation.*
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
 import kotlin.io.encoding.Base64
@@ -56,7 +54,13 @@ class EudiwIosTrustLoadLoTETest {
     fun nonCached_usesInjectedLoadLoTE_andDerivesAnchorsFromIt() = runTest {
         val loadLoTE = RecordingLoadLoTE(mdlLoTEJwt(E2eTestCerts.rootDer))
 
-        val validator = EudiwIosTrust.nonCached(urls, NotValidating, loadLoTE)
+        val validator = EudiwIosTrust.nonCached(
+            urls = urls,
+            verifyJwtSignature = NotValidating,
+            loadLoTE = loadLoTE,
+            directTrust = ValidateCertificateChainUsingDirectTrustIos,
+            pkix = ValidateCertificateChainUsingPKIXIos.invoke(isRevocationEnabled = false),
+        )
         val anchors = EudiwIosTrust.trustAnchors(validator, mdlContext)
 
         assertEquals(listOf(mdlUrl), loadLoTE.requestedUris, "the injected loader must be the one consulted")
@@ -73,6 +77,8 @@ class EudiwIosTrustLoadLoTETest {
             ttlHours = 1.0,
             verifyJwtSignature = NotValidating,
             loadLoTE = loadLoTE,
+            directTrust = ValidateCertificateChainUsingDirectTrustIos,
+            pkix = ValidateCertificateChainUsingPKIXIos.invoke(isRevocationEnabled = false),
         )
         try {
             val first = handle.trustAnchors(mdlContext)
@@ -94,8 +100,21 @@ class EudiwIosTrustLoadLoTETest {
     /** The overloads without a loader build the Darwin downloader, so only assembly is exercised. */
     @Test
     fun overloadsWithoutLoadLoTE_stillAssemble() {
-        EudiwIosTrust.nonCached(urls, NotValidating)
-        EudiwIosTrust.cached(urls, ttlHours = 1.0, verifyJwtSignature = NotValidating).dispose()
+        val loadLoTE = RecordingLoadLoTE(mdlLoTEJwt(E2eTestCerts.rootDer))
+        EudiwIosTrust.nonCached(
+            urls = urls,
+            verifyJwtSignature = NotValidating,
+            loadLoTE = loadLoTE,
+            directTrust = ValidateCertificateChainUsingDirectTrustIos,
+            pkix = ValidateCertificateChainUsingPKIXIos.invoke(isRevocationEnabled = false),
+        )
+        EudiwIosTrust.cached(
+            urls = urls,
+            ttlHours = 1.0,
+            verifyJwtSignature = NotValidating,
+            directTrust = ValidateCertificateChainUsingDirectTrustIos,
+            pkix = ValidateCertificateChainUsingPKIXIos.invoke(isRevocationEnabled = false),
+        ).dispose()
     }
 
     /**
