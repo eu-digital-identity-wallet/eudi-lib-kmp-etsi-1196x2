@@ -19,7 +19,10 @@ package eu.europa.ec.eudi.etsi119602.consultation
 
 import eu.europa.ec.eudi.etsi119602.consultation.eu.EUMDLProvidersListSpec
 import eu.europa.ec.eudi.etsi119602.datamodel.*
-import eu.europa.ec.eudi.etsi1196x2.consultation.*
+import eu.europa.ec.eudi.etsi1196x2.consultation.SensitiveApi
+import eu.europa.ec.eudi.etsi1196x2.consultation.ValidateCertificateChainUsingPKIXIos
+import eu.europa.ec.eudi.etsi1196x2.consultation.VerificationContext
+import eu.europa.ec.eudi.etsi1196x2.consultation.toByteArray
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
 import kotlin.io.encoding.Base64
@@ -58,7 +61,6 @@ class EudiwIosTrustLoadLoTETest {
             urls = urls,
             verifyJwtSignature = NotValidating,
             loadLoTE = loadLoTE,
-            directTrust = ValidateCertificateChainUsingDirectTrustIos,
             pkix = ValidateCertificateChainUsingPKIXIos.invoke(isRevocationEnabled = false),
         )
         val anchors = EudiwIosTrust.trustAnchors(validator, mdlContext)
@@ -77,7 +79,6 @@ class EudiwIosTrustLoadLoTETest {
             ttlHours = 1.0,
             verifyJwtSignature = NotValidating,
             loadLoTE = loadLoTE,
-            directTrust = ValidateCertificateChainUsingDirectTrustIos,
             pkix = ValidateCertificateChainUsingPKIXIos.invoke(isRevocationEnabled = false),
         )
         try {
@@ -105,14 +106,12 @@ class EudiwIosTrustLoadLoTETest {
             urls = urls,
             verifyJwtSignature = NotValidating,
             loadLoTE = loadLoTE,
-            directTrust = ValidateCertificateChainUsingDirectTrustIos,
             pkix = ValidateCertificateChainUsingPKIXIos.invoke(isRevocationEnabled = false),
         )
         EudiwIosTrust.cached(
             urls = urls,
             ttlHours = 1.0,
             verifyJwtSignature = NotValidating,
-            directTrust = ValidateCertificateChainUsingDirectTrustIos,
             pkix = ValidateCertificateChainUsingPKIXIos.invoke(isRevocationEnabled = false),
         ).dispose()
     }

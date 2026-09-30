@@ -143,8 +143,10 @@ public object EudiwIosTrust {
     public fun nonCached(
         urls: TrustListUrls,
         verifyJwtSignature: VerifyJwtSignature,
-        directTrust: ValidateCertificateChainUsingDirectTrust<List<NSData>, NSData>,
-        pkix: ValidateCertificateChainUsingPKIX<List<NSData>, NSData>,
+        directTrust: ValidateCertificateChainUsingDirectTrust<List<NSData>, NSData> =
+            ValidateCertificateChainUsingDirectTrustIos,
+        pkix: ValidateCertificateChainUsingPKIX<List<NSData>, NSData> =
+            ValidateCertificateChainUsingPKIXIos.invoke(isRevocationEnabled = true),
     ): ComposeChainTrust<List<NSData>, VerificationContext, NSData> =
         buildNonCached(urls, verifyJwtSignature, defaultLoadLoTE(), directTrust, pkix)
 
@@ -162,8 +164,10 @@ public object EudiwIosTrust {
         urls: TrustListUrls,
         verifyJwtSignature: VerifyJwtSignature,
         loadLoTE: IosLoadLoTE,
-        directTrust: ValidateCertificateChainUsingDirectTrust<List<NSData>, NSData>,
-        pkix: ValidateCertificateChainUsingPKIX<List<NSData>, NSData>,
+        directTrust: ValidateCertificateChainUsingDirectTrust<List<NSData>, NSData> =
+            ValidateCertificateChainUsingDirectTrustIos,
+        pkix: ValidateCertificateChainUsingPKIX<List<NSData>, NSData> =
+            ValidateCertificateChainUsingPKIXIos.invoke(isRevocationEnabled = true),
     ): ComposeChainTrust<List<NSData>, VerificationContext, NSData> =
         buildNonCached(urls, verifyJwtSignature, loadLoTE.asLoadLoTE(), directTrust, pkix)
 
@@ -190,8 +194,10 @@ public object EudiwIosTrust {
         urls: TrustListUrls,
         ttlHours: Double,
         verifyJwtSignature: VerifyJwtSignature,
-        directTrust: ValidateCertificateChainUsingDirectTrust<List<NSData>, NSData>,
-        pkix: ValidateCertificateChainUsingPKIX<List<NSData>, NSData>,
+        directTrust: ValidateCertificateChainUsingDirectTrust<List<NSData>, NSData> =
+            ValidateCertificateChainUsingDirectTrustIos,
+        pkix: ValidateCertificateChainUsingPKIX<List<NSData>, NSData> =
+            ValidateCertificateChainUsingPKIXIos.invoke(isRevocationEnabled = true),
     ): CachedTrustValidator =
         buildCached(urls, ttlHours, verifyJwtSignature, defaultLoadLoTE(), directTrust, pkix)
 
@@ -212,8 +218,10 @@ public object EudiwIosTrust {
         ttlHours: Double,
         verifyJwtSignature: VerifyJwtSignature,
         loadLoTE: IosLoadLoTE,
-        directTrust: ValidateCertificateChainUsingDirectTrust<List<NSData>, NSData>,
-        pkix: ValidateCertificateChainUsingPKIX<List<NSData>, NSData>,
+        directTrust: ValidateCertificateChainUsingDirectTrust<List<NSData>, NSData> =
+            ValidateCertificateChainUsingDirectTrustIos,
+        pkix: ValidateCertificateChainUsingPKIX<List<NSData>, NSData> =
+            ValidateCertificateChainUsingPKIXIos.invoke(isRevocationEnabled = true),
     ): CachedTrustValidator =
         buildCached(urls, ttlHours, verifyJwtSignature, loadLoTE.asLoadLoTE(), directTrust, pkix)
 
@@ -224,8 +232,10 @@ public object EudiwIosTrust {
     public fun nonCached(
         urls: TrustListUrls,
         verifyJwtSignature: VerifyJwtSignatureCallback,
-        directTrust: ValidateCertificateChainUsingDirectTrust<List<NSData>, NSData>,
-        pkix: ValidateCertificateChainUsingPKIX<List<NSData>, NSData>,
+        directTrust: ValidateCertificateChainUsingDirectTrust<List<NSData>, NSData> =
+            ValidateCertificateChainUsingDirectTrustIos,
+        pkix: ValidateCertificateChainUsingPKIX<List<NSData>, NSData> =
+            ValidateCertificateChainUsingPKIXIos.invoke(isRevocationEnabled = true),
     ): ComposeChainTrust<List<NSData>, VerificationContext, NSData> =
         nonCached(urls, verifyJwtSignature.asVerifyJwtSignature(), directTrust, pkix)
 
@@ -237,8 +247,10 @@ public object EudiwIosTrust {
         urls: TrustListUrls,
         verifyJwtSignature: VerifyJwtSignatureCallback,
         loadLoTE: IosLoadLoTE,
-        directTrust: ValidateCertificateChainUsingDirectTrust<List<NSData>, NSData>,
-        pkix: ValidateCertificateChainUsingPKIX<List<NSData>, NSData>,
+        directTrust: ValidateCertificateChainUsingDirectTrust<List<NSData>, NSData> =
+            ValidateCertificateChainUsingDirectTrustIos,
+        pkix: ValidateCertificateChainUsingPKIX<List<NSData>, NSData> =
+            ValidateCertificateChainUsingPKIXIos.invoke(isRevocationEnabled = true),
     ): ComposeChainTrust<List<NSData>, VerificationContext, NSData> =
         nonCached(urls, verifyJwtSignature.asVerifyJwtSignature(), loadLoTE, directTrust, pkix)
 
@@ -250,8 +262,10 @@ public object EudiwIosTrust {
         urls: TrustListUrls,
         ttlHours: Double,
         verifyJwtSignature: VerifyJwtSignatureCallback,
-        directTrust: ValidateCertificateChainUsingDirectTrust<List<NSData>, NSData>,
-        pkix: ValidateCertificateChainUsingPKIX<List<NSData>, NSData>,
+        directTrust: ValidateCertificateChainUsingDirectTrust<List<NSData>, NSData> =
+            ValidateCertificateChainUsingDirectTrustIos,
+        pkix: ValidateCertificateChainUsingPKIX<List<NSData>, NSData> =
+            ValidateCertificateChainUsingPKIXIos.invoke(isRevocationEnabled = true),
     ): CachedTrustValidator =
         cached(urls, ttlHours, verifyJwtSignature.asVerifyJwtSignature(), directTrust, pkix)
 
@@ -264,8 +278,10 @@ public object EudiwIosTrust {
         ttlHours: Double,
         verifyJwtSignature: VerifyJwtSignatureCallback,
         loadLoTE: IosLoadLoTE,
-        directTrust: ValidateCertificateChainUsingDirectTrust<List<NSData>, NSData>,
-        pkix: ValidateCertificateChainUsingPKIX<List<NSData>, NSData>,
+        directTrust: ValidateCertificateChainUsingDirectTrust<List<NSData>, NSData> =
+            ValidateCertificateChainUsingDirectTrustIos,
+        pkix: ValidateCertificateChainUsingPKIX<List<NSData>, NSData> =
+            ValidateCertificateChainUsingPKIXIos.invoke(isRevocationEnabled = true),
     ): CachedTrustValidator =
         cached(urls, ttlHours, verifyJwtSignature.asVerifyJwtSignature(), loadLoTE, directTrust, pkix)
 
