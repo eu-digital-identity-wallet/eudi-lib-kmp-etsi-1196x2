@@ -116,11 +116,8 @@ val constraints = LoadLoTEAndPointers.Constraints.LoadOtherPointers(
 )
 
 val verifyJwtSignature = VerifyJwtSignature { jwt: String ->
-  // Verify the JWT signature is valid according to ecosystem requirements,
-  // for instance validate a JAdES B-B signature.
-  // Returning VerifyJwtSignature.Outcome.Verified indicates the signature has been successfully verified.
-  // Returning VerifyJwtSignature.Outcome.NotVerified indicates the signature is not valid, and the LoTE will be rejected.
-  VerifyJwtSignature.Outcome.Verified(jwt)
+  // Verify the JWT signature is valid according to ecosystem requirements.
+  ...
 }
 
 val loadLoTEAndPointers = LoadLoTEAndPointers(
