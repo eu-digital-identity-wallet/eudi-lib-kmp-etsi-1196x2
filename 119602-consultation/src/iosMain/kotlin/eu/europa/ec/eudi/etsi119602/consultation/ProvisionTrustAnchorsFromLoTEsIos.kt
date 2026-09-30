@@ -16,14 +16,8 @@
 package eu.europa.ec.eudi.etsi119602.consultation
 
 import eu.europa.ec.eudi.etsi119602.datamodel.ServiceDigitalIdentity
-import eu.europa.ec.eudi.etsi1196x2.consultation.SupportedLists
-import eu.europa.ec.eudi.etsi1196x2.consultation.ValidateCertificateChainUsingDirectTrust
-import eu.europa.ec.eudi.etsi1196x2.consultation.ValidateCertificateChainUsingDirectTrustIos
-import eu.europa.ec.eudi.etsi1196x2.consultation.ValidateCertificateChainUsingPKIX
-import eu.europa.ec.eudi.etsi1196x2.consultation.ValidateCertificateChainUsingPKIXIos
-import eu.europa.ec.eudi.etsi1196x2.consultation.VerificationContext
+import eu.europa.ec.eudi.etsi1196x2.consultation.*
 import eu.europa.ec.eudi.etsi1196x2.consultation.certs.CertificateProfileValidatorIos
-import eu.europa.ec.eudi.etsi1196x2.consultation.toNSData
 import platform.Foundation.NSData
 
 /**
@@ -51,10 +45,8 @@ public fun ProvisionTrustAnchorsFromLoTEs.Companion.eudiwIos(
     loadLoTEAndPointers: LoadLoTEAndPointers,
     svcTypePerCtx: SupportedLists<LotEMeta<VerificationContext>> = SupportedLists.eu(),
     continueOnProblem: ContinueOnProblem = ContinueOnProblem.Never,
-    directTrust: ValidateCertificateChainUsingDirectTrust<List<NSData>, NSData> =
-        ValidateCertificateChainUsingDirectTrustIos,
-    pkix: ValidateCertificateChainUsingPKIX<List<NSData>, NSData> =
-        ValidateCertificateChainUsingPKIXIos(),
+    directTrust: ValidateCertificateChainUsingDirectTrust<List<NSData>, NSData>,
+    pkix: ValidateCertificateChainUsingPKIX<List<NSData>, NSData>,
 ): ProvisionTrustAnchorsFromLoTEs<List<NSData>, VerificationContext, NSData, NSData> =
     ios(
         loadLoTEAndPointers,

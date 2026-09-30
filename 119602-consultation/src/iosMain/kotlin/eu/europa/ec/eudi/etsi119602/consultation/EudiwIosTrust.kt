@@ -15,8 +15,6 @@
  */
 package eu.europa.ec.eudi.etsi119602.consultation
 
-import eu.europa.ec.eudi.etsi119602.consultation.EudiwIosTrust.mdlUseCase
-import eu.europa.ec.eudi.etsi119602.consultation.EudiwIosTrust.trustAnchors
 import eu.europa.ec.eudi.etsi119602.consultation.eu.EUMDLProvidersListSpec
 import eu.europa.ec.eudi.etsi119602.consultation.eu.ServiceDigitalIdentityCertificateType
 import eu.europa.ec.eudi.etsi119602.datamodel.Uri
@@ -145,8 +143,12 @@ public object EudiwIosTrust {
     public fun nonCached(
         urls: TrustListUrls,
         verifyJwtSignature: VerifyJwtSignature,
+        directTrust: ValidateCertificateChainUsingDirectTrust<List<NSData>, NSData> =
+            ValidateCertificateChainUsingDirectTrustIos,
+        pkix: ValidateCertificateChainUsingPKIX<List<NSData>, NSData> =
+            ValidateCertificateChainUsingPKIXIos.invoke(isRevocationEnabled = true),
     ): ComposeChainTrust<List<NSData>, VerificationContext, NSData> =
-        buildNonCached(urls, verifyJwtSignature, defaultLoadLoTE())
+        buildNonCached(urls, verifyJwtSignature, defaultLoadLoTE(), directTrust, pkix)
 
     /**
      * As [nonCached] `(urls:verifyJwtSignature:)`, but each LoTE is obtained from [loadLoTE] instead
@@ -162,8 +164,12 @@ public object EudiwIosTrust {
         urls: TrustListUrls,
         verifyJwtSignature: VerifyJwtSignature,
         loadLoTE: IosLoadLoTE,
+        directTrust: ValidateCertificateChainUsingDirectTrust<List<NSData>, NSData> =
+            ValidateCertificateChainUsingDirectTrustIos,
+        pkix: ValidateCertificateChainUsingPKIX<List<NSData>, NSData> =
+            ValidateCertificateChainUsingPKIXIos.invoke(isRevocationEnabled = true),
     ): ComposeChainTrust<List<NSData>, VerificationContext, NSData> =
-        buildNonCached(urls, verifyJwtSignature, loadLoTE.asLoadLoTE())
+        buildNonCached(urls, verifyJwtSignature, loadLoTE.asLoadLoTE(), directTrust, pkix)
 
     /**
      * Builds a **cached** validator, fetching each LoTE with the built-in Darwin (NSURLSession)
@@ -188,8 +194,12 @@ public object EudiwIosTrust {
         urls: TrustListUrls,
         ttlHours: Double,
         verifyJwtSignature: VerifyJwtSignature,
+        directTrust: ValidateCertificateChainUsingDirectTrust<List<NSData>, NSData> =
+            ValidateCertificateChainUsingDirectTrustIos,
+        pkix: ValidateCertificateChainUsingPKIX<List<NSData>, NSData> =
+            ValidateCertificateChainUsingPKIXIos.invoke(isRevocationEnabled = true),
     ): CachedTrustValidator =
-        buildCached(urls, ttlHours, verifyJwtSignature, defaultLoadLoTE())
+        buildCached(urls, ttlHours, verifyJwtSignature, defaultLoadLoTE(), directTrust, pkix)
 
     /**
      * As [cached]`(urls:ttlHours:verifyJwtSignature:)` — same ownership contract — but each LoTE is
@@ -208,8 +218,12 @@ public object EudiwIosTrust {
         ttlHours: Double,
         verifyJwtSignature: VerifyJwtSignature,
         loadLoTE: IosLoadLoTE,
+        directTrust: ValidateCertificateChainUsingDirectTrust<List<NSData>, NSData> =
+            ValidateCertificateChainUsingDirectTrustIos,
+        pkix: ValidateCertificateChainUsingPKIX<List<NSData>, NSData> =
+            ValidateCertificateChainUsingPKIXIos.invoke(isRevocationEnabled = true),
     ): CachedTrustValidator =
-        buildCached(urls, ttlHours, verifyJwtSignature, loadLoTE.asLoadLoTE())
+        buildCached(urls, ttlHours, verifyJwtSignature, loadLoTE.asLoadLoTE(), directTrust, pkix)
 
     /**
      * Swift-facing overload of [nonCached]`(urls:verifyJwtSignature:)` that accepts a
@@ -218,8 +232,12 @@ public object EudiwIosTrust {
     public fun nonCached(
         urls: TrustListUrls,
         verifyJwtSignature: VerifyJwtSignatureCallback,
+        directTrust: ValidateCertificateChainUsingDirectTrust<List<NSData>, NSData> =
+            ValidateCertificateChainUsingDirectTrustIos,
+        pkix: ValidateCertificateChainUsingPKIX<List<NSData>, NSData> =
+            ValidateCertificateChainUsingPKIXIos.invoke(isRevocationEnabled = true),
     ): ComposeChainTrust<List<NSData>, VerificationContext, NSData> =
-        nonCached(urls, verifyJwtSignature.asVerifyJwtSignature())
+        nonCached(urls, verifyJwtSignature.asVerifyJwtSignature(), directTrust, pkix)
 
     /**
      * Swift-facing overload of [nonCached]`(urls:verifyJwtSignature:loadLoTE:)` that accepts a
@@ -229,8 +247,12 @@ public object EudiwIosTrust {
         urls: TrustListUrls,
         verifyJwtSignature: VerifyJwtSignatureCallback,
         loadLoTE: IosLoadLoTE,
+        directTrust: ValidateCertificateChainUsingDirectTrust<List<NSData>, NSData> =
+            ValidateCertificateChainUsingDirectTrustIos,
+        pkix: ValidateCertificateChainUsingPKIX<List<NSData>, NSData> =
+            ValidateCertificateChainUsingPKIXIos.invoke(isRevocationEnabled = true),
     ): ComposeChainTrust<List<NSData>, VerificationContext, NSData> =
-        nonCached(urls, verifyJwtSignature.asVerifyJwtSignature(), loadLoTE)
+        nonCached(urls, verifyJwtSignature.asVerifyJwtSignature(), loadLoTE, directTrust, pkix)
 
     /**
      * Swift-facing overload of [cached]`(urls:ttlHours:verifyJwtSignature:)` that accepts a
@@ -240,8 +262,12 @@ public object EudiwIosTrust {
         urls: TrustListUrls,
         ttlHours: Double,
         verifyJwtSignature: VerifyJwtSignatureCallback,
+        directTrust: ValidateCertificateChainUsingDirectTrust<List<NSData>, NSData> =
+            ValidateCertificateChainUsingDirectTrustIos,
+        pkix: ValidateCertificateChainUsingPKIX<List<NSData>, NSData> =
+            ValidateCertificateChainUsingPKIXIos.invoke(isRevocationEnabled = true),
     ): CachedTrustValidator =
-        cached(urls, ttlHours, verifyJwtSignature.asVerifyJwtSignature())
+        cached(urls, ttlHours, verifyJwtSignature.asVerifyJwtSignature(), directTrust, pkix)
 
     /**
      * Swift-facing overload of [cached]`(urls:ttlHours:verifyJwtSignature:loadLoTE:)` that accepts
@@ -252,8 +278,12 @@ public object EudiwIosTrust {
         ttlHours: Double,
         verifyJwtSignature: VerifyJwtSignatureCallback,
         loadLoTE: IosLoadLoTE,
+        directTrust: ValidateCertificateChainUsingDirectTrust<List<NSData>, NSData> =
+            ValidateCertificateChainUsingDirectTrustIos,
+        pkix: ValidateCertificateChainUsingPKIX<List<NSData>, NSData> =
+            ValidateCertificateChainUsingPKIXIos.invoke(isRevocationEnabled = true),
     ): CachedTrustValidator =
-        cached(urls, ttlHours, verifyJwtSignature.asVerifyJwtSignature(), loadLoTE)
+        cached(urls, ttlHours, verifyJwtSignature.asVerifyJwtSignature(), loadLoTE, directTrust, pkix)
 
     /**
      * Builds a validator backed by **bundled / hardcoded** certificate anchors instead of a
@@ -319,11 +349,15 @@ public object EudiwIosTrust {
         urls: TrustListUrls,
         verifyJwtSignature: VerifyJwtSignature,
         loadLoTE: LoadLoTE<String>,
+        directTrust: ValidateCertificateChainUsingDirectTrust<List<NSData>, NSData>,
+        pkix: ValidateCertificateChainUsingPKIX<List<NSData>, NSData>,
     ): ComposeChainTrust<List<NSData>, VerificationContext, NSData> =
         ProvisionTrustAnchorsFromLoTEs
             .eudiwIos(
                 loadLoTEAndPointers = buildLoadLoTEAndPointers(verifyJwtSignature, loadLoTE),
                 svcTypePerCtx = buildSvcTypePerCtx(urls.mdlProviders),
+                directTrust = directTrust,
+                pkix = pkix,
             )
             .nonCached(buildLocations(urls))
 
@@ -332,12 +366,16 @@ public object EudiwIosTrust {
         ttlHours: Double,
         verifyJwtSignature: VerifyJwtSignature,
         loadLoTE: LoadLoTE<String>,
+        directTrust: ValidateCertificateChainUsingDirectTrust<List<NSData>, NSData>,
+        pkix: ValidateCertificateChainUsingPKIX<List<NSData>, NSData>,
     ): CachedTrustValidator {
         val scope = DisposableContainer()
         val validator = ProvisionTrustAnchorsFromLoTEs
             .eudiwIos(
                 loadLoTEAndPointers = buildLoadLoTEAndPointers(verifyJwtSignature, loadLoTE),
                 svcTypePerCtx = buildSvcTypePerCtx(urls.mdlProviders),
+                directTrust = directTrust,
+                pkix = pkix,
             )
             .cached(
                 disposableScope = scope,
