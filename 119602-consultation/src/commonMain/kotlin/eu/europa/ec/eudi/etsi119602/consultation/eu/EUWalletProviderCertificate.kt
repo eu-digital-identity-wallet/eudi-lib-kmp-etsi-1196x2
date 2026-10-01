@@ -66,9 +66,8 @@ public fun walletProviderSigningCertificateProfile(at: Instant? = null): Certifi
 internal fun ProfileBuilder.walletProviderExplicitExtensionCriticality() {
     fun basicConstraintOrKeyUsage(oid: String) =
         oid == RFC5280.EXT_BASIC_CONSTRAINTS || oid == RFC5280.EXT_KEY_USAGE
-    extensionCriticality(mustBeCritical = true) { oid ->
-        basicConstraintOrKeyUsage(oid)
-    }
+    // basicConstraints and keyUsage may be either: RFC 5280 recommends a critical keyUsage and allows either for
+    // basicConstraints in an end-entity certificate.
     extensionCriticality(mustBeCritical = false) { oid ->
         !basicConstraintOrKeyUsage(oid)
     }

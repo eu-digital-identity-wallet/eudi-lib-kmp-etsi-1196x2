@@ -86,6 +86,8 @@ class EUWRPAccessCertificateTest {
         ocspUri: String? = "http://ocsp.example.com/",
         crlDistributionPointUri: String? = null,
         subjectAltNameUri: String? = "https://wallet-relying-party.example.com",
+        keyUsageCritical: Boolean = true,
+        basicConstraintsCritical: Boolean = true,
     ): X509Certificate {
         val (caKeyPair, caCert) = wrpacProvider()
         val (_, certHolder) = CertOps.genCAIssuedEndEntityCertificate(
@@ -99,6 +101,8 @@ class EUWRPAccessCertificateTest {
             ocspUri = ocspUri,
             crlDistributionPointUri = crlDistributionPointUri,
             subjectAltNameUri = subjectAltNameUri,
+            keyUsageCritical = keyUsageCritical,
+            basicConstraintsCritical = basicConstraintsCritical,
         )
         return certHolder.toX509Certificate()
     }
@@ -158,6 +162,45 @@ class EUWRPAccessCertificateTest {
         )
         val constraintEvaluation = evaluateEndEntityCertificateConstraints(certificate)
         assertTrue(constraintEvaluation.isMet())
+    }
+
+    // RFC 5280 §4.2.1.3: "When present, conforming CAs SHOULD mark this extension as critical." §4.2.1.9: basicConstraints
+    // "MAY appear as a critical or non-critical extension in end entity certificates." EN 319 412-2 GEN-4.1-2 allows
+    // criticality where RFC 5280 allows or requires it, and requires none for either extension.
+
+    private fun CertificateConstraintEvaluation.reasons(): String =
+        (this as? CertificateConstraintEvaluation.Violated)?.violations.orEmpty().joinToString { it.reason }
+
+    @Test
+    fun `WRPAC with critical keyUsage and basicConstraints is accepted`() = runTest {
+        val certificate = genCAIssuedEndEntityCertificate(
+            subject = legalPersonSubject,
+            policyOids = listOf(ETSI119411Part8.NCP_L_EUDIWRP),
+        )
+        val evaluation = evaluateEndEntityCertificateConstraints(certificate)
+        assertTrue(evaluation.isMet(), evaluation.reasons())
+    }
+
+    @Test
+    fun `WRPAC with a non-critical keyUsage is accepted`() = runTest {
+        val certificate = genCAIssuedEndEntityCertificate(
+            subject = legalPersonSubject,
+            policyOids = listOf(ETSI119411Part8.NCP_L_EUDIWRP),
+            keyUsageCritical = false,
+        )
+        val evaluation = evaluateEndEntityCertificateConstraints(certificate)
+        assertTrue(evaluation.isMet(), evaluation.reasons())
+    }
+
+    @Test
+    fun `WRPAC with a non-critical basicConstraints is accepted`() = runTest {
+        val certificate = genCAIssuedEndEntityCertificate(
+            subject = legalPersonSubject,
+            policyOids = listOf(ETSI119411Part8.NCP_L_EUDIWRP),
+            basicConstraintsCritical = false,
+        )
+        val evaluation = evaluateEndEntityCertificateConstraints(certificate)
+        assertTrue(evaluation.isMet(), evaluation.reasons())
     }
 
     @Test

@@ -74,6 +74,8 @@ class EUWalletProviderSigningCertificateTest {
         subjectAltNameUri: String? = null,
         keyUsage: KeyUsage,
         withSKI: Boolean = true,
+        keyUsageCritical: Boolean = true,
+        basicConstraintsCritical: Boolean = true,
     ): X509Certificate {
         val sigAlg = "SHA256withECDSA"
         val (caKeyPair, caCert) = ca
@@ -89,6 +91,8 @@ class EUWalletProviderSigningCertificateTest {
             ocspUri = ocspUri,
             subjectAltNameUri = subjectAltNameUri,
             withSKI = withSKI,
+            keyUsageCritical = keyUsageCritical,
+            basicConstraintsCritical = basicConstraintsCritical,
         )
         return certHolder.toX509Certificate()
     }
@@ -407,5 +411,32 @@ class EUWalletProviderSigningCertificateTest {
         val constraintEvaluation = evaluateCertificateConstraints(certificate)
         assertFalse(constraintEvaluation.isMet())
         constraintEvaluation.assertSingleViolation { it.contains("subjectKeyIdentifier", ignoreCase = true) }
+    }
+
+    // PID-4.1-02 (TS 119 412-6), like EN 319 412-2 GEN-4.1-2, allows criticality where RFC 5280 allows or requires it.
+    // RFC 5280 §4.2.1.3: keyUsage "SHOULD" be critical; §4.2.1.9: basicConstraints "MAY" be either in end entity certificates.
+
+    private fun validCertificate(keyUsageCritical: Boolean = true, basicConstraintsCritical: Boolean = true) =
+        genCAIssuedEndEntityCertificate(
+            qcStatements = listOf(QCStatementInfo.QcType(ETSI119412Part6.ID_ETSI_QCT_WAL)),
+            policyOids = listOf("1.2.3.4.5"),
+            caIssuersUri = "http://example.com/ca.crt",
+            ocspUri = "http://example.com/ocsp",
+            keyUsage = KeyUsage(KeyUsage.digitalSignature),
+            subject = legalEntityWalletProviderName,
+            keyUsageCritical = keyUsageCritical,
+            basicConstraintsCritical = basicConstraintsCritical,
+        )
+
+    @Test
+    fun `Wallet Provider certificate with a non-critical keyUsage is accepted`() = runTest {
+        val evaluation = evaluateCertificateConstraints(validCertificate(keyUsageCritical = false))
+        assertTrue(evaluation.isMet(), "$evaluation")
+    }
+
+    @Test
+    fun `Wallet Provider certificate with a non-critical basicConstraints is accepted`() = runTest {
+        val evaluation = evaluateCertificateConstraints(validCertificate(basicConstraintsCritical = false))
+        assertTrue(evaluation.isMet(), "$evaluation")
     }
 }
