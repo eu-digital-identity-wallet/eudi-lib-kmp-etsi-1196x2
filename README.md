@@ -90,12 +90,15 @@ framework that powers iOS trust validation is already linked into the binary,
 so Swift apps need no additional setup.
 
 **Kotlin Multiplatform consumers — Maven/Gradle.** When an iOS target pulls the
-library from Maven, `PKIXBridge` is **not** bundled. Kotlin/Native's cinterop
-declares the Swift API surface and expects the consumer to supply the
+library from Maven, `PKIXBridge` is **not** bundled but is published under each release as a release artifact named `PKIXBridge.xcframework.zip`.
+Kotlin/Native's cinterop declares the Swift API surface and expects the consumer to supply the
 implementation at link time — the same contract as `androidx.sqlite` expecting
 `-lsqlite3`. The library does not propagate its own linker settings.
-
-You must therefore build `PKIXBridge` once, on macOS, and link it into your
+Consumers are urged to link the `PKIXBridge.xcframework` published as part of the official release, available as an
+ artifact under
+> https://github.com/eu-digital-identity-wallet/eudi-lib-kmp-etsi-1196x2/releases/download/$version/PKIXBridge.xcframework.zip
+> _**[replace `$version` with the release version]**_
+ 
 iOS targets:
 
 ```bash
