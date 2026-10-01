@@ -29,6 +29,54 @@ final class PKIXBridgeSmokeTests: XCTestCase {
         XCTAssertFalse(config.isRevocationEnabled)
     }
 
+    func test_PKIXConfiguration_defaultRevocationMethodIsOCSP() {
+        XCTAssertEqual(PKIXConfiguration().revocationMethod, .ocsp)
+        XCTAssertEqual(PKIXConfiguration(isRevocationEnabled: true).revocationMethod, .ocsp)
+    }
+
+    func test_PKIXConfiguration_revocationMethodInit() {
+        let config = PKIXConfiguration(isRevocationEnabled: true, revocationMethod: .crl)
+        XCTAssertTrue(config.isRevocationEnabled)
+        XCTAssertEqual(config.revocationMethod, .crl)
+    }
+
+    func test_PKIXRevocationMethod_ocspFlags() {
+        let flags = PKIXRevocationMethod.ocsp.secRevocationFlags
+        XCTAssertEqual(flags, CFOptionFlags(kSecRevocationOCSPMethod | kSecRevocationRequirePositiveResponse))
+    }
+
+    func test_PKIXRevocationMethod_crlFlags() {
+        let flags = PKIXRevocationMethod.crl.secRevocationFlags
+        XCTAssertEqual(flags, CFOptionFlags(kSecRevocationCRLMethod | kSecRevocationRequirePositiveResponse))
+        XCTAssertEqual(flags & CFOptionFlags(kSecRevocationOCSPMethod), 0)
+    }
+
+    func test_PKIXRevocationMethod_anyPreferOCSPFlags() {
+        let flags = PKIXRevocationMethod.anyPreferOCSP.secRevocationFlags
+        XCTAssertEqual(
+            flags,
+            CFOptionFlags(kSecRevocationOCSPMethod | kSecRevocationCRLMethod | kSecRevocationRequirePositiveResponse)
+        )
+        XCTAssertEqual(flags & CFOptionFlags(kSecRevocationPreferCRL), 0)
+    }
+
+    func test_PKIXRevocationMethod_anyPreferCRLFlags() {
+        let flags = PKIXRevocationMethod.anyPreferCRL.secRevocationFlags
+        XCTAssertEqual(
+            flags,
+            CFOptionFlags(
+                kSecRevocationOCSPMethod | kSecRevocationCRLMethod
+                    | kSecRevocationPreferCRL | kSecRevocationRequirePositiveResponse
+            )
+        )
+    }
+
+    func test_PKIXValidator_acceptsCRLConfiguration() {
+        let config = PKIXConfiguration(isRevocationEnabled: true, revocationMethod: .crl)
+        let validator = PKIXValidator(configuration: config)
+        XCTAssertNotNil(validator)
+    }
+
     func test_PKIXValidator_canBeInstantiated() {
         let validator = PKIXValidator()
         XCTAssertNotNil(validator)

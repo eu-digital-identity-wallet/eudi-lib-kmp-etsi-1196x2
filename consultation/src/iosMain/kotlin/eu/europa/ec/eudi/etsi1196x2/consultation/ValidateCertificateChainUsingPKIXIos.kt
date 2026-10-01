@@ -16,12 +16,38 @@
 package eu.europa.ec.eudi.etsi1196x2.consultation
 
 import eu.europa.ec.eudi.etsi1196x2.consultation.pkix.PKIXConfiguration
+import eu.europa.ec.eudi.etsi1196x2.consultation.pkix.PKIXRevocationMethod
+import eu.europa.ec.eudi.etsi1196x2.consultation.pkix.PKIXRevocationMethodAnyPreferCRL
+import eu.europa.ec.eudi.etsi1196x2.consultation.pkix.PKIXRevocationMethodAnyPreferOCSP
+import eu.europa.ec.eudi.etsi1196x2.consultation.pkix.PKIXRevocationMethodCRL
+import eu.europa.ec.eudi.etsi1196x2.consultation.pkix.PKIXRevocationMethodOCSP
 import eu.europa.ec.eudi.etsi1196x2.consultation.pkix.PKIXValidator
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import platform.Foundation.NSData
 import kotlin.coroutines.resume
+
+/**
+ * Revocation mechanism(s) `Security.framework` may use when checking a chain on iOS.
+ *
+ * Typed Kotlin view of the native `PKIXRevocationMethod`, which cinterop exposes as a plain
+ * [PKIXRevocationMethod] integer with `PKIXRevocationMethod*` constants.
+ * Whatever the method, a definitive revocation response is required.
+ */
+public enum class IosRevocationMethod(public val native: PKIXRevocationMethod) {
+    /** OCSP only (the default). */
+    OCSP(PKIXRevocationMethodOCSP),
+
+    /** CRL only, fetched from the certificate's CRL Distribution Points. */
+    CRL(PKIXRevocationMethodCRL),
+
+    /** OCSP or CRL, whichever is advertised; OCSP is tried first when both are. */
+    ANY_PREFER_OCSP(PKIXRevocationMethodAnyPreferOCSP),
+
+    /** OCSP or CRL, whichever is advertised; CRL is tried first when both are. */
+    ANY_PREFER_CRL(PKIXRevocationMethodAnyPreferCRL),
+}
 
 /**
  * iOS implementation of [ValidateCertificateChainUsingPKIX] backed by Apple's
@@ -92,7 +118,13 @@ public class ValidateCertificateChainUsingPKIXIos(
     public companion object {
         /**
          * Creates an instance using a native validator built from [configuration].
-         * @param configuration revocation and policy configuration (default: revocation enabled)
+         *
+         * Revocation checking is controlled by the configuration's `isRevocationEnabled` switch and
+         * `revocationMethod`. The default is OCSP; see [IosRevocationMethod] for CRL and mixed modes.
+         * Whatever the method, `Security.framework` requires a definitive revocation response, so a
+         * chain whose status cannot be established is reported as [CertificationChainValidation.NotTrusted].
+         *
+         * @param configuration revocation and policy configuration (default: revocation enabled, OCSP)
          */
         public operator fun invoke(
             configuration: PKIXConfiguration = PKIXConfiguration(),
@@ -102,5 +134,22 @@ public class ValidateCertificateChainUsingPKIXIos(
         public operator fun invoke(
             isRevocationEnabled: Boolean,
         ): ValidateCertificateChainUsingPKIXIos = invoke(configuration = PKIXConfiguration(isRevocationEnabled = isRevocationEnabled))
+
+        /**
+         * Creates an instance using [revocationMethod] for revocation checking.
+         *
+         * @param revocationMethod the revocation mechanism(s) `Security.framework` may use
+         * @param isRevocationEnabled whether revocation checking is performed at all (default: `true`)
+         */
+        public operator fun invoke(
+            revocationMethod: IosRevocationMethod,
+            isRevocationEnabled: Boolean = true,
+        ): ValidateCertificateChainUsingPKIXIos =
+            invoke(
+                configuration = PKIXConfiguration(
+                    isRevocationEnabled = isRevocationEnabled,
+                    revocationMethod = revocationMethod.native,
+                ),
+            )
     }
 }

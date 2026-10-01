@@ -129,7 +129,7 @@ import Security
     private func buildPolicies() -> [SecPolicy] {
         var policies: [SecPolicy] = [SecPolicyCreateBasicX509()]
         if configuration.isRevocationEnabled {
-            let flags = kSecRevocationOCSPMethod | kSecRevocationRequirePositiveResponse
+            let flags = configuration.revocationMethod.secRevocationFlags
             if let revocation = SecPolicyCreateRevocation(flags) {
                 policies.append(revocation)
             }
