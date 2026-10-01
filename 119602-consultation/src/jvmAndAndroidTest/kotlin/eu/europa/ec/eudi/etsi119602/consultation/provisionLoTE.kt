@@ -16,13 +16,12 @@
 package eu.europa.ec.eudi.etsi119602.consultation
 
 import eu.europa.ec.eudi.etsi119602.datamodel.ListOfTrustedEntitiesClaims
-import eu.europa.ec.eudi.etsi1196x2.consultation.SensitiveApi
-import eu.europa.ec.eudi.etsi1196x2.consultation.SupportedLists
-import eu.europa.ec.eudi.etsi1196x2.consultation.ValidateCertificateChainUsingPKIXJvm
-import eu.europa.ec.eudi.etsi1196x2.consultation.VerificationContext
+import eu.europa.ec.eudi.etsi1196x2.consultation.*
 import kotlinx.serialization.json.JsonObject
+import java.security.cert.PKIXRevocationChecker
 import java.security.cert.TrustAnchor
 import java.security.cert.X509Certificate
+import java.util.*
 
 @SensitiveApi
 fun getTrustAnchorsProvisioner(
@@ -38,5 +37,7 @@ fun getTrustAnchorsProvisioner(
             parseJwt = parseJwt,
         ),
         svcTypePerCtx = svcTypePerCtx,
-        pkix = ValidateCertificateChainUsingPKIXJvm(customization = { isRevocationEnabled = false }),
+        pkix = ValidateCertificateChainUsingPKIXJvm.withRevocationChecker {
+            options = EnumSet.of(PKIXRevocationChecker.Option.PREFER_CRLS)
+        },
     )

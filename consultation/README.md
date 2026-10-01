@@ -205,11 +205,27 @@ both platforms. A chain whose revocation status cannot be established is reporte
 | iOS           | `Security.framework` (`SecPolicyCreateRevocation`): OCSP (default), CRL, or both with either preferred; a positive response is required     | `ValidateCertificateChainUsingPKIXIos(IosRevocationMethod.CRL)` or a `PKIXConfiguration` instance      |
 
 ```kotlin
-// iOS: use CRLs instead of OCSP
-val validator = ValidateCertificateChainUsingPKIXIos(IosRevocationMethod.CRL)
+//
+// accept whichever of OCSP/CRL the certificate advertises, trying CRL first
+//
 
-// iOS: accept whichever of OCSP/CRL the certificate advertises, trying CRL first
+// jvm 
+val anyPreferCrl = ValidateCertificateChainUsingPKIXJvm.withRevocationChecker {
+  options = EnumSet.of(PKIXRevocationChecker.Option.PREFER_CRLS)
+}
+// iOS
 val anyPreferCrl = ValidateCertificateChainUsingPKIXIos(IosRevocationMethod.ANY_PREFER_CRL)
+
+//
+// use CRLs instead of OCSP
+//
+
+// jvm
+val validator = ValidateCertificateChainUsingPKIXJvm.withRevocationChecker {
+  options = EnumSet.of(PKIXRevocationChecker.Option.NO_FALLBACK) // OSCP is the default
+}
+// iOS
+val validator = ValidateCertificateChainUsingPKIXIos(IosRevocationMethod.CRL)
 
 // iOS: disable revocation checking entirely (e.g. offline tests)
 val noRevocation = ValidateCertificateChainUsingPKIXIos(IosRevocationMethod.CRL, isRevocationEnabled = false)
