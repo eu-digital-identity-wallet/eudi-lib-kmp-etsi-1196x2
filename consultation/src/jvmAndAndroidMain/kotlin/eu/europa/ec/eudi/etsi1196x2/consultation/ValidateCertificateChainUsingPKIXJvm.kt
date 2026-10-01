@@ -174,7 +174,7 @@ public class ValidateCertificateChainUsingPKIXJvm(
 
         /**
          * A convenience factory method creates an instance of [ValidateCertificateChainUsingDirectTrustJvm]
-         * with enabled revocation checking, that can be fine-tuned via [customization]
+         * with enabled revocation checking, that can be fine-tuned via [revocationCheckerCustomization]
          *
          * An example, that firstly check OSCP (allowing soft fail) having as fallback the CRL
          *
@@ -191,7 +191,7 @@ public class ValidateCertificateChainUsingPKIXJvm(
          *        Defaults to [JvmSecurity.DefaultX509Factory]
          * @param certPathValidator the certification path validator to use for validating certificate chains.
          *        Defaults to [JvmSecurity.DefaultPKIXValidator]
-         * @param customization customization for PKIX revocation checker
+         * @param revocationCheckerCustomization customization for PKIX revocation checker
          *
          * @see [PKIXRevocationChecker]
          */
@@ -199,7 +199,7 @@ public class ValidateCertificateChainUsingPKIXJvm(
             dispatcher: CoroutineDispatcher = DEFAULT_DISPATCHER,
             certificateFactory: CertificateFactory = JvmSecurity.DefaultX509Factory,
             certPathValidator: CertPathValidator = JvmSecurity.DefaultPKIXValidator,
-            customization: PKIXRevocationChecker.() -> Unit,
+            revocationCheckerCustomization: PKIXRevocationChecker.() -> Unit,
         ): ValidateCertificateChainUsingPKIXJvm =
             ValidateCertificateChainUsingPKIXJvm(
                 dispatcher = dispatcher,
@@ -208,7 +208,7 @@ public class ValidateCertificateChainUsingPKIXJvm(
                 customization = {
                     isRevocationEnabled = true
                     val revocationChecker = certPathValidator.revocationChecker as? PKIXRevocationChecker
-                    checkNotNull(revocationChecker).apply(customization)
+                    checkNotNull(revocationChecker).apply(revocationCheckerCustomization)
                     addCertPathChecker(revocationChecker)
                 },
             )
