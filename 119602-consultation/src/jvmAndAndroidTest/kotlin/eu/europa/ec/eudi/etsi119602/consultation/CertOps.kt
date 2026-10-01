@@ -120,6 +120,8 @@ object CertOps {
         notAfter: Date? = null,
         customExtensions: List<Triple<String, Boolean, ASN1Encodable>> = emptyList(),
         withSKI: Boolean = true,
+        keyUsageCritical: Boolean = true,
+        basicConstraintsCritical: Boolean = true,
     ): Pair<KeyPair, X509CertificateHolder> {
         val eeKp = Ctx.generateKeyPair(subjectKeyPairAlg, subjectKeySize)
         val eeCertHolder = createEndEntity(
@@ -138,6 +140,8 @@ object CertOps {
             notAfter,
             customExtensions,
             withSKI,
+            keyUsageCritical,
+            basicConstraintsCritical,
         )
         return eeKp to eeCertHolder
     }
@@ -212,6 +216,8 @@ object CertOps {
         notAfter: Date? = null,
         customExtensions: List<Triple<String, Boolean, ASN1Encodable>> = emptyList(),
         withSKI: Boolean = true,
+        keyUsageCritical: Boolean = true,
+        basicConstraintsCritical: Boolean = true,
     ): X509CertificateHolder =
         JcaX509v3CertificateBuilder(
             signerCert.subject,
@@ -225,8 +231,8 @@ object CertOps {
             if (withSKI) {
                 subjectKeyIdentifier(certKey)
             }
-            basicConstraints(BasicConstraints(false)) // do not allow this cert to sign other certs
-            keyUsage(keyUsage)
+            basicConstraints(BasicConstraints(false), basicConstraintsCritical) // do not allow this cert to sign other certs
+            keyUsage(keyUsage, keyUsageCritical)
             qcStatements?.let { qcStatements(it) }
             certificatePolicies(policyOids ?: listOf())
             authorityInformationAccess(caIssuersUri, ocspUri)
@@ -270,8 +276,8 @@ private fun JcaX509v3CertificateBuilder.subjectKeyIdentifier(certKey: PublicKey)
     addExtension(Extension.subjectKeyIdentifier, false, extUtils.createSubjectKeyIdentifier(certKey))
 }
 
-private fun JcaX509v3CertificateBuilder.keyUsage(keyUsage: KeyUsage) {
-    addExtension(Extension.keyUsage, true, keyUsage)
+private fun JcaX509v3CertificateBuilder.keyUsage(keyUsage: KeyUsage, critical: Boolean = true) {
+    addExtension(Extension.keyUsage, critical, keyUsage)
 }
 
 private fun JcaX509v3CertificateBuilder.qcStatements(statements: List<QCStatementInfo>) {
@@ -384,8 +390,8 @@ private fun JcaX509v3CertificateBuilder.subjectAlternativeName(uri: String) {
  * the chain.
  *
  */
-private fun JcaX509v3CertificateBuilder.basicConstraints(c: BasicConstraints) {
-    addExtension(Extension.basicConstraints, true, c)
+private fun JcaX509v3CertificateBuilder.basicConstraints(c: BasicConstraints, critical: Boolean = true) {
+    addExtension(Extension.basicConstraints, critical, c)
 }
 
 private val extUtils = JcaX509ExtensionUtils()
