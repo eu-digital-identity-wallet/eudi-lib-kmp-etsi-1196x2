@@ -15,8 +15,6 @@
  */
 package eu.europa.ec.eudi.etsi1196x2.consultation
 
-import eu.europa.ec.eudi.etsi1196x2.consultation.ValidateCertificateChainUsingPKIXJvm.Companion.DEFAULT_CUSTOMIZATION
-import eu.europa.ec.eudi.etsi1196x2.consultation.ValidateCertificateChainUsingPKIXJvm.Companion.DEFAULT_DISPATCHER
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.Dispatchers
@@ -27,6 +25,38 @@ import java.security.cert.*
 
 /**
  * A JVM-specific implementation of [ValidateCertificateChain]
+ *
+ * Example
+ *
+ * ```kotlin
+ * // A chain validator with revocation checks enabled, favoring CRLs.
+ * fun pkixPreferringCRL(): ValidateCertificateChainUsingPKIXJvm {
+ *     val validator = JvmSecurity.DefaultPKIXValidator
+ *
+ *     return ValidateCertificateChainUsingPKIXJvm(
+ *         dispatcher = ValidateCertificateChainUsingPKIXJvm.DEFAULT_DISPATCHER,
+ *         certificateFactory = JvmSecurity.DefaultX509Factory,
+ *         certPathValidator = validator,
+ *         customization = {
+ *             isRevocationEnabled = true
+ *             val revocationChecker = checkNotNull(validator.revocationChecker as? PKIXRevocationChecker).apply {
+ *                options = EnumSet.of(
+ *                   PKIXRevocationChecker.Option.PREFER_CRLS, // Try CRL first
+ *                )
+ *             }
+ *             addCertPathChecker(revocationChecker)
+ *         },
+ *     )
+ * }
+ * ```
+ * There is also a [convenience factory method][withRevocationChecker] that simplifies the above
+ *
+ * ```kotlin
+ * ValidateCertificateChainUsingPKIXJvm.withRevocationChecker {
+ *    options = EnumSet.of(PKIXRevocationChecker.Option.PREFER_CRLS)
+ * }
+ * ```
+ *
  *
  * @param dispatcher the coroutine dispatcher to use for validating certificate chains.
  *        Defaults to [ValidateCertificateChainUsingPKIXJvm.DEFAULT_DISPATCHER]
@@ -79,7 +109,7 @@ public class ValidateCertificateChainUsingPKIXJvm(
 
     /**
      * Alternative constructor that uses the default [Provider]s
-     * @param customization customization for PKIX parameters. Defaults to [DEFAULT_CUSTOMIZATION]
+     * @paramprivate val  customization customization for PKIX parameters. Defaults to [DEFAULT_CUSTOMIZATION]
      * @param dispatcher the coroutine dispatcher to use for validating certificate chains. Defaults to [DEFAULT_DISPATCHER]
      * @param provider the provider name to use for certificate factory and certification path validator.
      */
@@ -136,10 +166,52 @@ public class ValidateCertificateChainUsingPKIXJvm(
          * [JvmSecurity.DefaultX509Factory] and
          * [JvmSecurity.DefaultPKIXValidator]
          */
-        public val Default: ValidateCertificateChainUsingPKIXJvm get() = ValidateCertificateChainUsingPKIXJvm(
-            customization = DEFAULT_CUSTOMIZATION,
-            dispatcher = DEFAULT_DISPATCHER,
-        )
+        public val Default: ValidateCertificateChainUsingPKIXJvm =
+            ValidateCertificateChainUsingPKIXJvm(
+                customization = DEFAULT_CUSTOMIZATION,
+                dispatcher = DEFAULT_DISPATCHER,
+            )
+
+        /**
+         * A convenience factory method creates an instance of [ValidateCertificateChainUsingDirectTrustJvm]
+         * with enabled revocation checking, that can be fine-tuned via [customization]
+         *
+         * An example, that firstly check OSCP (allowing soft fail) having as fallback the CRL
+         *
+         * ```kotlin
+         * ValidateCertificateChainUsingPKIXJvm.withRevocationChecker {
+         *   options = EnumSet.of(PKIXRevocationChecker.Option.SOFT_FAIL)
+         * }
+         *
+         * ```
+         *
+         * @param dispatcher the coroutine dispatcher to use for validating certificate chains.
+         *        Defaults to [ValidateCertificateChainUsingPKIXJvm.DEFAULT_DISPATCHER]
+         * @param certificateFactory the certificate factory to use for validating certificate chains.
+         *        Defaults to [JvmSecurity.DefaultX509Factory]
+         * @param certPathValidator the certification path validator to use for validating certificate chains.
+         *        Defaults to [JvmSecurity.DefaultPKIXValidator]
+         * @param customization customization for PKIX revocation checker
+         *
+         * @see [PKIXRevocationChecker]
+         */
+        public fun withRevocationChecker(
+            dispatcher: CoroutineDispatcher = DEFAULT_DISPATCHER,
+            certificateFactory: CertificateFactory = JvmSecurity.DefaultX509Factory,
+            certPathValidator: CertPathValidator = JvmSecurity.DefaultPKIXValidator,
+            customization: PKIXRevocationChecker.() -> Unit,
+        ): ValidateCertificateChainUsingPKIXJvm =
+            ValidateCertificateChainUsingPKIXJvm(
+                dispatcher = dispatcher,
+                certificateFactory = certificateFactory,
+                certPathValidator = certPathValidator,
+                customization = {
+                    isRevocationEnabled = true
+                    val revocationChecker = certPathValidator.revocationChecker as? PKIXRevocationChecker
+                    checkNotNull(revocationChecker).apply(customization)
+                    addCertPathChecker(revocationChecker)
+                },
+            )
 
         private fun CertPathValidatorResult.trusted(): CertificationChainValidation.Trusted<TrustAnchor> {
             check(this is PKIXCertPathValidatorResult) { "Unexpected result type: ${this::class}" }
