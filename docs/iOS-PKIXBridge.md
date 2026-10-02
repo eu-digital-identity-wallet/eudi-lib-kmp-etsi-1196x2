@@ -93,23 +93,25 @@ is why its binary carries the merged `PKIXBridge` objects.
 
 All of the following require macOS with Xcode. Pick one:
 
-1. **From this repository (recommended):** the Gradle task builds the framework locally.
+1. **From sources:** build the framwork locally via:
 
+- gradle command:
    ```bash
    ./gradlew :etsi-1196x2-ios:buildPKIXBridge
    # Output: ios/cinterop/build/PKIXBridge.xcframework
    ```
 
-2. **The build script directly:**
+ - directly from the build script: 
 
    ```bash
    ios/cinterop/scripts/build-xcframework.sh
    ```
 
-3. **The standalone SwiftPM package** in this repo (`ios/cinterop/Package.swift`)
-   builds the same sources; copy `ios/cinterop/Sources/PKIXBridge` into your project and
-   add it as a local Swift package, or build with `swift build`.
-
+2. **Download from the respective published release** that is made available as a release artifact. It 
+   can be located in github release page's assets, directly accessible via 
+  https://github.com/eu-digital-identity-wallet/eudi-lib-kmp-etsi-1196x2/releases/download/$version/PKIXBridge.xcframework.zip
+  (replace `$version` with the release version)
+  
 ---
 
 ## Linking `PKIXBridge`
