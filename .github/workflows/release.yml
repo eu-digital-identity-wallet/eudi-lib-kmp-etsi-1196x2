@@ -74,6 +74,33 @@ jobs:
       - name: Build XCFramework
         run: ./gradlew kmmBridgePublish -PENABLE_PUBLISHING=true -PNATIVE_BUILD_TYPE=RELEASE -PGITHUB_PUBLISH_TOKEN="${{ secrets.GITHUB_TOKEN }}" -PGITHUB_REPO="${{ github.repository }}" -PGITHUB_ARTIFACT_RELEASE_ID="${{ steps.release.outputs.id }}" --no-daemon --info --stacktrace
 
+      - name: Package PKIXBridge.xcframework
+        id: checksum
+        run: |
+          set -euo pipefail
+
+          XCFRAMEWORK_DIR="ios/cinterop/build/PKIXBridge.xcframework"
+          ZIP_NAME="PKIXBridge.xcframework.zip"
+          ZIP_PATH="$GITHUB_WORKSPACE/$ZIP_NAME"
+
+          if [[ ! -d "$XCFRAMEWORK_DIR" ]]; then
+            echo "ERROR: $XCFRAMEWORK_DIR not found. Was it built as part of kmmBridgePublish?" >&2
+            exit 1
+          fi
+
+          ditto -c -k --keepParent "$XCFRAMEWORK_DIR" "$ZIP_PATH"
+
+          CHECKSUM=$(swift package compute-checksum "$ZIP_PATH")
+          echo "checksum=$CHECKSUM" >> "$GITHUB_OUTPUT"
+          echo "PKIXBridge.xcframework.zip SHA-256: $CHECKSUM"
+
+      - name: Upload PKIXBridge.xcframework.zip to release
+        uses: softprops/action-gh-release@v3
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          tag_name: ${{ github.ref_name }}
+          files: PKIXBridge.xcframework.zip
+
       - name: Update release tag
         uses: touchlab/ga-update-release-tag@v1
         id: update-release-tag
