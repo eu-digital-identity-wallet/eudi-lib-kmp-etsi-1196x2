@@ -89,13 +89,12 @@ XCFramework published alongside each
 framework that powers iOS trust validation is already linked into the binary,
 so Swift apps need no additional setup.
 
-**Kotlin Multiplatform consumers — Maven/Gradle.** When an iOS target pulls the
-library from Maven, `PKIXBridge` is **not** bundled. Kotlin/Native's cinterop
-declares the Swift API surface and expects the consumer to supply the
+**Kotlin Multiplatform consumers — Maven/Gradle.** When an iOS target pulls the library from Maven, `PKIXBridge` is **not** bundled.
+Kotlin/Native's cinterop declares the Swift API surface and expects the consumer to supply the
 implementation at link time — the same contract as `androidx.sqlite` expecting
 `-lsqlite3`. The library does not propagate its own linker settings.
-
-You must therefore build `PKIXBridge` once, on macOS, and link it into your
+See [docs/iOS-PKIXBridge.md](./docs/iOS-PKIXBridge.md#obtaining-pkixbridgexcframework) for options on how to obtain the PKIXBridge.xcframework.
+ 
 iOS targets:
 
 ```bash
