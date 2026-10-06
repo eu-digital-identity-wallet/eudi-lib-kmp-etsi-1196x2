@@ -14,7 +14,6 @@ plugins {
     alias(libs.plugins.spotless)
     alias(libs.plugins.dokka)
     alias(libs.plugins.maven.publish)
-    alias(libs.plugins.dependency.check)
 }
 
 repositories {
@@ -241,8 +240,4 @@ mavenPublishing {
             url = "${project.properties["POM_SCM_URL"]}/actions"
         }
     }
-}
-
-dependencyCheck {
-    skip = true
 }

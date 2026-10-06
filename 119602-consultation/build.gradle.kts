@@ -16,7 +16,6 @@ plugins {
     alias(libs.plugins.spotless)
     alias(libs.plugins.dokka)
     alias(libs.plugins.maven.publish)
-    alias(libs.plugins.dependency.check)
     alias(libs.plugins.atomicfu)
 }
 
@@ -283,10 +282,6 @@ mavenPublishing {
             url = "${project.properties["POM_SCM_URL"]}/actions"
         }
     }
-}
-
-dependencyCheck {
-    skip = true
 }
 
 tasks.withType<CInteropProcess>().configureEach {
