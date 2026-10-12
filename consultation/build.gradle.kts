@@ -53,7 +53,7 @@ kotlin {
     // Android target
     android {
         namespace = "eu.europa.ec.eudi.etsi1196x2.consultation"
-        compileSdk = findProperty("android.targetSdk")!!.toString().toInt()
+        compileSdk = findProperty("android.compileSdk")!!.toString().toInt()
         minSdk = findProperty("android.minSdk")!!.toString().toInt()
 
         // Set JVM target to 17 to match Java compatibility
