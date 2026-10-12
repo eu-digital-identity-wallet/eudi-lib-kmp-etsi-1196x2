@@ -27,29 +27,28 @@ import kotlin.time.Instant
  * Source are the list profiles specified in [ETSI19602],
  * except the PUB EAA Providers List
  */
-public fun SupportedLists.Companion.eu(): SupportedLists<LotEMeta<VerificationContext>> =
-    SupportedLists(
-        pidProviders = UseCase.PID.loteMeta(
-            issuance = VerificationContext.PID,
-            revocation = VerificationContext.PIDStatus,
-        ),
-        walletProviders = UseCase.WalletAttestation.loteMeta(
-            issuance = VerificationContext.WalletProviderAttestation,
-            revocation = VerificationContext.WalletOrKeyStorageStatus,
-        ),
+public fun SupportedLists.Companion.eu(): SupportedLists<LotEMeta<VerificationContext>> = SupportedLists(
+    pidProviders = UseCase.PID.loteMeta(
+        issuance = VerificationContext.PID,
+        revocation = VerificationContext.PIDStatus,
+    ),
+    walletProviders = UseCase.WalletAttestation.loteMeta(
+        issuance = VerificationContext.WalletProviderAttestation,
+        revocation = VerificationContext.WalletOrKeyStorageStatus,
+    ),
 
-        wrpacProviders = UseCase.WRPAC.loteMeta(
-            issuance = VerificationContext.WalletRelyingPartyAccessCertificate,
-            revocation = null,
-        ),
+    wrpacProviders = UseCase.WRPAC.loteMeta(
+        issuance = VerificationContext.WalletRelyingPartyAccessCertificate,
+        revocation = null,
+    ),
 
-        wrprcProviders = UseCase.WRPC.loteMeta(
-            issuance = VerificationContext.WalletRelyingPartyRegistrationCertificate,
-            revocation = VerificationContext.WalletRelyingPartyRegistrationCertificateStatus,
-        ),
-        pubEaaProviders = null,
-        qeaProviders = null,
-    )
+    wrprcProviders = UseCase.WRPC.loteMeta(
+        issuance = VerificationContext.WalletRelyingPartyRegistrationCertificate,
+        revocation = VerificationContext.WalletRelyingPartyRegistrationCertificateStatus,
+    ),
+    pubEaaProviders = null,
+    qeaProviders = null,
+)
 
 private data class UseCase(
     val loteProfile: EUListOfTrustedEntitiesProfile,
@@ -64,35 +63,29 @@ private data class UseCase(
         val PUBEAA = pubEAAUseCase()
         val MDL = mdlUseCase()
 
-        private fun pidUseCase(at: Instant? = null): UseCase =
-            UseCase(
-                loteProfile = EUPIDProvidersList,
-                issuanceCertificateProfile = pidSigningCertificateProfile(at = at),
-                null,
-            )
+        private fun pidUseCase(at: Instant? = null): UseCase = UseCase(
+            loteProfile = EUPIDProvidersList,
+            issuanceCertificateProfile = pidSigningCertificateProfile(at = at),
+            null,
+        )
 
-        private fun pubEAAUseCase(): UseCase =
-            UseCase(EUPubEAAProvidersList, issuanceCertificateProfile = null, revocationCertificateProfile = null)
+        private fun pubEAAUseCase(): UseCase = UseCase(EUPubEAAProvidersList, issuanceCertificateProfile = null, revocationCertificateProfile = null)
 
-        private fun walletAttestationUseCase(at: Instant? = null): UseCase =
-            UseCase(
-                EUWalletProvidersList,
-                issuanceCertificateProfile = walletProviderSigningCertificateProfile(at = at),
-                revocationCertificateProfile = null,
-            )
+        private fun walletAttestationUseCase(at: Instant? = null): UseCase = UseCase(
+            EUWalletProvidersList,
+            issuanceCertificateProfile = walletProviderSigningCertificateProfile(at = at),
+            revocationCertificateProfile = null,
+        )
 
-        private fun wrpacUseCase(at: Instant? = null): UseCase =
-            UseCase(
-                EUWRPACProvidersList,
-                issuanceCertificateProfile = wrpAccessCertificateProfile(at = at),
-                revocationCertificateProfile = null,
-            )
+        private fun wrpacUseCase(at: Instant? = null): UseCase = UseCase(
+            EUWRPACProvidersList,
+            issuanceCertificateProfile = wrpAccessCertificateProfile(at = at),
+            revocationCertificateProfile = null,
+        )
 
-        private fun wrpcUseCase(): UseCase =
-            UseCase(EUWRPRCProvidersList, issuanceCertificateProfile = null, revocationCertificateProfile = null)
+        private fun wrpcUseCase(): UseCase = UseCase(EUWRPRCProvidersList, issuanceCertificateProfile = null, revocationCertificateProfile = null)
 
-        private fun mdlUseCase(): UseCase =
-            UseCase(EUMDLProvidersList, issuanceCertificateProfile = null, revocationCertificateProfile = null)
+        private fun mdlUseCase(): UseCase = UseCase(EUMDLProvidersList, issuanceCertificateProfile = null, revocationCertificateProfile = null)
     }
 }
 
@@ -107,25 +100,25 @@ private fun <CTX : Any> UseCase.loteMeta(
 private fun <CTX : Any> UseCase.svcTypePerCtx(
     issuanceCtx: CTX?,
     revocationCtx: CTX?,
-): Map<CTX, LotEMeta.SvcAndEEProfile> =
-    when (val serviceTypeIdentifiers = loteProfile.trustedEntities.serviceTypeIdentifiers) {
-        is ServiceTypeIdentifiers.OneOrMore -> error("Not supported")
-        is ServiceTypeIdentifiers.IssuanceAndRevocation -> {
-            buildMap {
-                issuanceCtx?.let { ctx ->
-                    val value = LotEMeta.SvcAndEEProfile(
-                        serviceTypeIdentifiers.issuance,
-                        issuanceCertificateProfile,
-                    )
-                    put(ctx, value)
-                }
-                revocationCtx?.let { ctx ->
-                    val value = LotEMeta.SvcAndEEProfile(
-                        serviceTypeIdentifiers.revocation,
-                        revocationCertificateProfile,
-                    )
-                    put(ctx, value)
-                }
+): Map<CTX, LotEMeta.SvcAndEEProfile> = when (val serviceTypeIdentifiers = loteProfile.trustedEntities.serviceTypeIdentifiers) {
+    is ServiceTypeIdentifiers.OneOrMore -> error("Not supported")
+
+    is ServiceTypeIdentifiers.IssuanceAndRevocation -> {
+        buildMap {
+            issuanceCtx?.let { ctx ->
+                val value = LotEMeta.SvcAndEEProfile(
+                    serviceTypeIdentifiers.issuance,
+                    issuanceCertificateProfile,
+                )
+                put(ctx, value)
+            }
+            revocationCtx?.let { ctx ->
+                val value = LotEMeta.SvcAndEEProfile(
+                    serviceTypeIdentifiers.revocation,
+                    revocationCertificateProfile,
+                )
+                put(ctx, value)
             }
         }
     }
+}

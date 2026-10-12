@@ -68,8 +68,7 @@ class EUWRPAccessCertificateTest {
 
     private suspend fun evaluateEndEntityCertificateConstraints(
         certificate: X509Certificate,
-    ): CertificateConstraintEvaluation =
-        CertificateProfileValidatorJVM.validate(wrpAccessCertificateProfile(), certificate)
+    ): CertificateConstraintEvaluation = CertificateProfileValidatorJVM.validate(wrpAccessCertificateProfile(), certificate)
 
     private fun wrpacProvider(subject: X500Name = wrpacProviderName) = CertOps.genTrustAnchor(
         sigAlg = "SHA256withECDSA",
@@ -125,20 +124,16 @@ class EUWRPAccessCertificateTest {
     }
 
     @Test
-    fun `WRPAC should accept NCP-n policy`() =
-        shouldAcceptPolicy(ETSI119411Part8.NCP_N_EUDIWRP, naturalPersonSubject)
+    fun `WRPAC should accept NCP-n policy`() = shouldAcceptPolicy(ETSI119411Part8.NCP_N_EUDIWRP, naturalPersonSubject)
 
     @Test
-    fun `WRPAC should accept NCP-l policy`() =
-        shouldAcceptPolicy(ETSI119411Part8.NCP_L_EUDIWRP, legalPersonSubject)
+    fun `WRPAC should accept NCP-l policy`() = shouldAcceptPolicy(ETSI119411Part8.NCP_L_EUDIWRP, legalPersonSubject)
 
     @Test
-    fun `WRPAC should accept QCP-n policy`() =
-        shouldAcceptPolicy(ETSI119411Part8.QCP_N_EUDIWRP, naturalPersonSubject)
+    fun `WRPAC should accept QCP-n policy`() = shouldAcceptPolicy(ETSI119411Part8.QCP_N_EUDIWRP, naturalPersonSubject)
 
     @Test
-    fun `WRPAC should accept QCP-l policy`() =
-        shouldAcceptPolicy(ETSI119411Part8.QCP_L_EUDIWRP, legalPersonSubject)
+    fun `WRPAC should accept QCP-l policy`() = shouldAcceptPolicy(ETSI119411Part8.QCP_L_EUDIWRP, legalPersonSubject)
 
     fun shouldAcceptPolicy(policyOid: String, subject: X500Name) = runTest {
         val qcStatements = when (policyOid) {
@@ -168,8 +163,7 @@ class EUWRPAccessCertificateTest {
     // "MAY appear as a critical or non-critical extension in end entity certificates." EN 319 412-2 GEN-4.1-2 allows
     // criticality where RFC 5280 allows or requires it, and requires none for either extension.
 
-    private fun CertificateConstraintEvaluation.reasons(): String =
-        (this as? CertificateConstraintEvaluation.Violated)?.violations.orEmpty().joinToString { it.reason }
+    private fun CertificateConstraintEvaluation.reasons(): String = (this as? CertificateConstraintEvaluation.Violated)?.violations.orEmpty().joinToString { it.reason }
 
     @Test
     fun `WRPAC with critical keyUsage and basicConstraints is accepted`() = runTest {

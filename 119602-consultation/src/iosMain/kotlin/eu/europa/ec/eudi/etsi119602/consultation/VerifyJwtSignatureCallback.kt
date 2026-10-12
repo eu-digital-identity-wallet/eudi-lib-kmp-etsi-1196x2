@@ -35,11 +35,10 @@ public fun interface VerifyJwtSignatureCallback {
  * CPU-heavy JAdES / JWS verification synchronously before firing the completion, mirroring the
  * defensive pattern used by [ValidateCertificateChainUsingPKIXIos].
  */
-public fun VerifyJwtSignatureCallback.asVerifyJwtSignature(): VerifyJwtSignature =
-    VerifyJwtSignature { jwt ->
-        withContext(Dispatchers.Default) {
-            suspendCancellableCoroutine { cont ->
-                verify(jwt) { outcome -> cont.resume(outcome) }
-            }
+public fun VerifyJwtSignatureCallback.asVerifyJwtSignature(): VerifyJwtSignature = VerifyJwtSignature { jwt ->
+    withContext(Dispatchers.Default) {
+        suspendCancellableCoroutine { cont ->
+            verify(jwt) { outcome -> cont.resume(outcome) }
         }
     }
+}
