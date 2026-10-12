@@ -31,13 +31,12 @@ import kotlinx.serialization.json.Json
  *
  * @return a configured [HttpClient] instance
  */
-fun createHttpClient(): HttpClient =
-    HttpClient {
-        install(ContentNegotiation) {
-            json(JsonSupportDebug)
-        }
-        install(HttpCookies)
+fun createHttpClient(): HttpClient = HttpClient {
+    install(ContentNegotiation) {
+        json(JsonSupportDebug)
     }
+    install(HttpCookies)
+}
 
 private const val TWO_SPACES = "  "
 internal val JsonSupportDebug: Json =

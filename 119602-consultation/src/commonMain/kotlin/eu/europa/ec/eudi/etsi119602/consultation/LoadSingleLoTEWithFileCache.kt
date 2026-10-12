@@ -184,33 +184,32 @@ internal class LoTEFileStore(
      * @param uri the URI of the LoTE to read. That's a HTTP URI
      * @return the cached LoTE with JWT and metadata, or null if not found or corrupted
      */
-    suspend fun read(uri: Uri): StoredLoTE? =
-        useFileSystem { fileSystem ->
-            val (jwtPath, metaPath) = fileNames.jwtAndMetaFilePath(uri)
+    suspend fun read(uri: Uri): StoredLoTE? = useFileSystem { fileSystem ->
+        val (jwtPath, metaPath) = fileNames.jwtAndMetaFilePath(uri)
 
-            // Both files must exist
-            if (!fileSystem.exists(jwtPath) || !fileSystem.exists(metaPath)) {
+        // Both files must exist
+        if (!fileSystem.exists(jwtPath) || !fileSystem.exists(metaPath)) {
+            return@useFileSystem null
+        }
+
+        // Read JWT content
+        val jwt = fileSystem.source(jwtPath).buffered().use { source ->
+            source.readString()
+        }
+
+        // Read metadata
+        val metadata = fileSystem.source(metaPath).buffered().use { source ->
+            val content = source.readString()
+            try {
+                json.decodeFromString<LoTEFileMetadata>(content)
+            } catch (_: SerializationException) {
+                // Metadata corrupted, treat as cache miss
                 return@useFileSystem null
             }
-
-            // Read JWT content
-            val jwt = fileSystem.source(jwtPath).buffered().use { source ->
-                source.readString()
-            }
-
-            // Read metadata
-            val metadata = fileSystem.source(metaPath).buffered().use { source ->
-                val content = source.readString()
-                try {
-                    json.decodeFromString<LoTEFileMetadata>(content)
-                } catch (_: SerializationException) {
-                    // Metadata corrupted, treat as cache miss
-                    return@useFileSystem null
-                }
-            }
-
-            StoredLoTE(jwt, metadata)
         }
+
+        StoredLoTE(jwt, metadata)
+    }
 
     /**
      * Writes a LoTE JWT and its metadata to the file store.
@@ -223,18 +222,17 @@ internal class LoTEFileStore(
      * @param metadata the metadata to store
      * @return [Result.success] if write was successful, [Result.failure] otherwise
      */
-    suspend fun write(uri: Uri, jwt: String, metadata: LoTEFileMetadata): Result<Unit> =
-        useFileSystem.runCatchingIO { fileSystem ->
+    suspend fun write(uri: Uri, jwt: String, metadata: LoTEFileMetadata): Result<Unit> = useFileSystem.runCatchingIO { fileSystem ->
 
-            fun write(path: Path, content: String) {
-                fileSystem.sink(path).buffered().use { sink ->
-                    sink.writeString(content)
-                }
+        fun write(path: Path, content: String) {
+            fileSystem.sink(path).buffered().use { sink ->
+                sink.writeString(content)
             }
-            val (jwtPath, metaPath) = fileNames.jwtAndMetaFilePath(uri)
-            write(jwtPath, jwt)
-            write(metaPath, json.encodeToString(metadata))
         }
+        val (jwtPath, metaPath) = fileNames.jwtAndMetaFilePath(uri)
+        write(jwtPath, jwt)
+        write(metaPath, json.encodeToString(metadata))
+    }
 
     /**
      * Deletes a cached LoTE from the file store.
@@ -242,31 +240,29 @@ internal class LoTEFileStore(
      * @param uri the URI of the LoTE to delete. That's a HTTP URI
      * @return [Result.success] if deletion was successful (or file didn't exist), [Result.failure] otherwise
      */
-    suspend fun delete(uri: Uri): Result<Unit> =
-        useFileSystem.runCatchingIO { fileSystem ->
-            val (jwtPath, metaPath) = fileNames.jwtAndMetaFilePath(uri)
-            fileSystem.delete(jwtPath, mustExist = false)
-            fileSystem.delete(metaPath, mustExist = false)
-        }
+    suspend fun delete(uri: Uri): Result<Unit> = useFileSystem.runCatchingIO { fileSystem ->
+        val (jwtPath, metaPath) = fileNames.jwtAndMetaFilePath(uri)
+        fileSystem.delete(jwtPath, mustExist = false)
+        fileSystem.delete(metaPath, mustExist = false)
+    }
 
     /**
      * Clears all cached LoTEs from the file store.
      *
      * @return [Result.success] if clear was successful, [Result.failure] otherwise
      */
-    suspend fun clear(): Result<Unit> =
-        useFileSystem.runCatchingIO { fileSystem ->
-            fun deleteIgnoringIOExceptions(f: Path) = try {
-                fileSystem.delete(f, mustExist = false)
-            } catch (_: IOException) {
-                // Ignore individual deletion failures
-            }
-
-            // Delete all files in cache directory
-            fileSystem.list(cacheDirectory).forEach {
-                deleteIgnoringIOExceptions(it)
-            }
+    suspend fun clear(): Result<Unit> = useFileSystem.runCatchingIO { fileSystem ->
+        fun deleteIgnoringIOExceptions(f: Path) = try {
+            fileSystem.delete(f, mustExist = false)
+        } catch (_: IOException) {
+            // Ignore individual deletion failures
         }
+
+        // Delete all files in cache directory
+        fileSystem.list(cacheDirectory).forEach {
+            deleteIgnoringIOExceptions(it)
+        }
+    }
 }
 
 internal class FileOperation(
@@ -276,19 +272,17 @@ internal class FileOperation(
 
     private val actualIoDispatcher = ioDispatcher.limitedParallelism(1)
 
-    suspend operator fun <R> invoke(block: suspend (FileSystem) -> R): R =
-        withContext(actualIoDispatcher) {
-            block(fileSystem)
-        }
+    suspend operator fun <R> invoke(block: suspend (FileSystem) -> R): R = withContext(actualIoDispatcher) {
+        block(fileSystem)
+    }
 
-    suspend fun <R> runCatchingIO(block: suspend (FileSystem) -> R): Result<R> =
-        withContext(actualIoDispatcher) {
-            try {
-                Result.success(block(fileSystem))
-            } catch (e: IOException) {
-                Result.failure(e)
-            }
+    suspend fun <R> runCatchingIO(block: suspend (FileSystem) -> R): Result<R> = withContext(actualIoDispatcher) {
+        try {
+            Result.success(block(fileSystem))
+        } catch (e: IOException) {
+            Result.failure(e)
         }
+    }
 }
 
 internal class FileNames(val baseDir: Path) {
@@ -299,22 +293,19 @@ internal class FileNames(val baseDir: Path) {
         return Pair(jwtPath, metaPath)
     }
 
-    fun jwtFilePath(uri: Uri): Path =
-        Path(baseDir, "${uriToFilename(uri)}.$JWT")
+    fun jwtFilePath(uri: Uri): Path = Path(baseDir, "${uriToFilename(uri)}.$JWT")
 
-    fun metadataFilePath(uri: Uri): Path =
-        Path(baseDir, "${uriToFilename(uri)}.${META_JSON}")
+    fun metadataFilePath(uri: Uri): Path = Path(baseDir, "${uriToFilename(uri)}.${META_JSON}")
 
     /**
      * Converts a URI to a safe filename by replacing special characters.
      */
-    private fun uriToFilename(uri: Uri): String =
-        uri.toString()
-            .replace(':', '_')
-            .replace('/', '_')
-            .replace('?', '_')
-            .replace('&', '_')
-            .replace('=', '_')
+    private fun uriToFilename(uri: Uri): String = uri.toString()
+        .replace(':', '_')
+        .replace('/', '_')
+        .replace('?', '_')
+        .replace('&', '_')
+        .replace('=', '_')
 
     companion object {
         const val JWT = "jwt"

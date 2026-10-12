@@ -167,21 +167,19 @@ public class LoadLoTEAndPointers(
         }
     }
 
-    private suspend fun verifySignatureAndParseJwt(step: Step, unverifiedJwt: LoadLoTE.Outcome.Loaded<String>): Event =
-        when (val verification = verifyJwtSignature(unverifiedJwt.content)) {
-            is VerifyJwtSignature.Outcome.Verified -> parseJwtInStep(step, verification)
-            is VerifyJwtSignature.Outcome.NotVerified -> invalidJwtSignatureInStep(step, verification.cause)
+    private suspend fun verifySignatureAndParseJwt(step: Step, unverifiedJwt: LoadLoTE.Outcome.Loaded<String>): Event = when (val verification = verifyJwtSignature(unverifiedJwt.content)) {
+        is VerifyJwtSignature.Outcome.Verified -> parseJwtInStep(step, verification)
+        is VerifyJwtSignature.Outcome.NotVerified -> invalidJwtSignatureInStep(step, verification.cause)
+    }
+
+    private fun parseJwtInStep(step: Step, verified: VerifyJwtSignature.Outcome.Verified): Event = when (val result = parseJwt(verified.jwt)) {
+        is ParseJwt.Outcome.Parsed<*, ListOfTrustedEntitiesClaims> -> {
+            val payload = result.payload
+            ensureNotExpiredInStep(step, payload.listOfTrustedEntities)
         }
 
-    private fun parseJwtInStep(step: Step, verified: VerifyJwtSignature.Outcome.Verified): Event =
-        when (val result = parseJwt(verified.jwt)) {
-            is ParseJwt.Outcome.Parsed<*, ListOfTrustedEntitiesClaims> -> {
-                val payload = result.payload
-                ensureNotExpiredInStep(step, payload.listOfTrustedEntities)
-            }
-
-            is ParseJwt.Outcome.ParseFailed -> parseFailedInStep(step, result.cause)
-        }
+        is ParseJwt.Outcome.ParseFailed -> parseFailedInStep(step, result.cause)
+    }
 
     private fun ensureNotExpiredInStep(step: Step, lote: ListOfTrustedEntities): Event {
         val now = clock.now()
@@ -205,35 +203,32 @@ public class LoadLoTEAndPointers(
         val (sourceUri, depth) = currentStep
         return when {
             depth > maxDepth -> Event.MaxDepthReached(sourceUri, maxDepth)
+
             state.downloadsCounter.value >= maxDownloads -> Event.MaxListsReached(
                 sourceUri,
                 maxDownloads,
             )
 
             sourceUri in state.visitedUris -> Event.CircularReferenceDetected(sourceUri)
+
             else -> null
         }
     }
 
-    private fun resourceNotFoundInStep(step: Step, cause: Throwable?): Event.ResourceNotFound =
-        Event.ResourceNotFound(step.uri, cause)
+    private fun resourceNotFoundInStep(step: Step, cause: Throwable?): Event.ResourceNotFound = Event.ResourceNotFound(step.uri, cause)
 
     private fun loadedInStep(step: Step, lote: ListOfTrustedEntities): Event.LoTELoaded {
         val (sourceUri, depth) = step
         return Event.LoTELoaded(lote, sourceUri, depth)
     }
 
-    private fun invalidJwtSignatureInStep(step: Step, cause: Throwable?) =
-        Event.InvalidJWTSignature(step.uri, cause)
+    private fun invalidJwtSignatureInStep(step: Step, cause: Throwable?) = Event.InvalidJWTSignature(step.uri, cause)
 
-    private fun parseFailedInStep(step: Step, cause: Throwable?) =
-        Event.FailedToParseJwt(step.uri, cause)
+    private fun parseFailedInStep(step: Step, cause: Throwable?) = Event.FailedToParseJwt(step.uri, cause)
 
-    private fun expiredInStep(step: Step, cause: Throwable?) =
-        Event.LoTEExpired(step.uri, cause)
+    private fun expiredInStep(step: Step, cause: Throwable?) = Event.LoTEExpired(step.uri, cause)
 
-    private fun errorInStep(step: Step, error: Throwable): Event.Error =
-        Event.Error(step.uri, error)
+    private fun errorInStep(step: Step, error: Throwable): Event.Error = Event.Error(step.uri, error)
 
     public sealed interface Constraints {
         public data object DoNotLoadOtherPointers : Constraints

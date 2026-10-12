@@ -1,3 +1,4 @@
+import com.android.build.api.withAndroid
 import com.vanniktech.maven.publish.JavadocJar
 import com.vanniktech.maven.publish.KotlinMultiplatform
 import org.jetbrains.dokka.gradle.engine.parameters.VisibilityModifier
@@ -10,13 +11,12 @@ import java.net.URI
 
 plugins {
     alias(libs.plugins.kotlin.multiplatform)
-    alias(libs.plugins.android.library)
+    alias(libs.plugins.android.kotlin.multiplatform.library)
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.kover)
     alias(libs.plugins.spotless)
     alias(libs.plugins.dokka)
     alias(libs.plugins.maven.publish)
-    alias(libs.plugins.atomicfu)
 }
 
 repositories {
@@ -24,11 +24,16 @@ repositories {
     google()
 }
 
+group = findProperty("group")!!.toString()
+
 kotlin {
     explicitApiWarning()
-    jvmToolchain(libs.versions.java.get().toInt())
+    jvmToolchain(
+        libs.versions.java
+            .get()
+            .toInt(),
+    )
 
-    @OptIn(ExperimentalKotlinGradlePluginApi::class)
     compilerOptions {
         apiVersion = KotlinVersion.KOTLIN_2_2
         optIn =
@@ -46,17 +51,15 @@ kotlin {
     jvm()
 
     // Android target
-    androidTarget {
+    android {
+        namespace = "eu.europa.ec.eudi.etsi119602.consultation"
+        compileSdk = findProperty("android.targetSdk")!!.toString().toInt()
+        minSdk = findProperty("android.minSdk")!!.toString().toInt()
+
         // Set JVM target to 17 to match Java compatibility
-        // Using direct property access instead of deprecated kotlinOptions
-        JvmTarget.fromTarget(libs.versions.java.get())
-            .let { javaTarget ->
-                compilations.all {
-                    compileTaskProvider.configure {
-                        compilerOptions.jvmTarget.set(javaTarget)
-                    }
-                }
-            }
+        compilerOptions {
+            jvmTarget = JvmTarget.fromTarget(libs.versions.java.get())
+        }
     }
 
     // iOS targets — cinterop into PKIXBridge.xcframework (produced by buildPKIXBridge below).
@@ -74,9 +77,15 @@ kotlin {
     // Resolve the Swift toolchain's static-library directory so the Kotlin/Native linker can find
     // the Swift ABI compatibility shims that PKIXBridge's objects force-load.
     val swiftLibBase: String? =
-        if (org.gradle.internal.os.OperatingSystem.current().isMacOsX) {
-            providers.exec { commandLine("xcode-select", "-p") }
-                .standardOutput.asText.get().trim() +
+        if (org.gradle.internal.os.OperatingSystem
+                .current()
+                .isMacOsX
+        ) {
+            providers
+                .exec { commandLine("xcode-select", "-p") }
+                .standardOutput.asText
+                .get()
+                .trim() +
                 "/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift"
         } else {
             null
@@ -119,7 +128,7 @@ kotlin {
             group("jvmAndAndroid") {
                 // Provide which targets would be part of this group
                 withJvm()
-                withAndroidTarget()
+                withAndroid()
             }
         }
     }
@@ -147,35 +156,41 @@ kotlin {
         }
 
         @Suppress("UNUSED")
-        val jvmAndAndroidMain by getting {
-            dependencies {
-                implementation(libs.bouncy.castle)
+        val jvmAndAndroidMain =
+            getByName("jvmAndAndroidMain") {
+                dependencies {
+                    implementation(libs.bouncy.castle)
+                }
             }
-        }
 
         @Suppress("UNUSED")
-        val iosMain by getting {
-            dependencies {
-                api(projects.etsi1196x2Consultation)
-                // Darwin (NSURLSession) HTTP engine, linked into the umbrella framework so
-                // HttpClient(Darwin) works at runtime on iOS.
-                implementation(libs.ktor.client.darwin)
+        val jvmAndAndroidTest =
+            getByName("jvmAndAndroidTest") {
+                resources.srcDirs("src/jvmAndAndroidTest/resources")
+
+                dependencies {
+                    implementation(libs.ktor.client.java)
+                    implementation(libs.eudi.lib.jvm.sdjwt)
+                }
             }
-        }
 
         @Suppress("UNUSED")
-        val jvmAndAndroidTest by getting {
-            dependencies {
-                implementation(libs.ktor.client.java)
-                implementation(libs.eudi.lib.jvm.sdjwt)
-            }
-        }
-
         androidUnitTest {
             dependencies {
                 implementation(libs.ktor.client.okhttp)
             }
         }
+
+        @Suppress("UNUSED")
+        val iosMain =
+            getByName("iosMain") {
+                dependencies {
+                    api(projects.etsi1196x2Consultation)
+                    // Darwin (NSURLSession) HTTP engine, linked into the umbrella framework so
+                    // HttpClient(Darwin) works at runtime on iOS.
+                    implementation(libs.ktor.client.darwin)
+                }
+            }
     }
 }
 
@@ -186,31 +201,6 @@ kotlin {
 tasks.withType<KotlinNativeSimulatorTest>().configureEach {
     standalone.set(false)
     device.set("booted")
-}
-
-// Android configuration
-android {
-    namespace = "eu.europa.ec.eudi.etsi119602.consultation"
-    group = properties["group"].toString()
-    compileSdk = properties["android.targetSdk"].toString().toInt()
-
-    defaultConfig {
-        minSdk = properties["android.minSdk"].toString().toInt()
-    }
-
-    sourceSets {
-        getByName("test") {
-            resources.srcDirs("src/jvmAndAndroidTest/resources")
-        }
-    }
-
-    compileOptions {
-        JavaVersion.toVersion(libs.versions.java.get().toInt())
-            .let { javaVersion ->
-                sourceCompatibility = javaVersion
-                targetCompatibility = javaVersion
-            }
-    }
 }
 
 spotless {
@@ -241,7 +231,7 @@ spotless {
 //
 dokka {
     // used as project name in the header
-    moduleName = properties["POM_NAME"].toString()
+    moduleName = findProperty("POM_NAME")!!.toString()
     moduleVersion = project.version.toString()
 
     dokkaSourceSets.configureEach {
@@ -249,7 +239,7 @@ dokka {
 
         val remoteSourceUrl =
             System.getenv()["GIT_REF_NAME"]?.let {
-                URI.create("${properties["POM_SCM_URL"]}/tree/$it/${project.layout.projectDirectory.asFile.name}/src")
+                URI.create("${findProperty("POM_SCM_URL")!!}/tree/$it/${project.layout.projectDirectory.asFile.name}/src")
             }
         remoteSourceUrl
             ?.let {
@@ -279,7 +269,7 @@ mavenPublishing {
     pom {
         ciManagement {
             system = "github"
-            url = "${project.properties["POM_SCM_URL"]}/actions"
+            url = "${findProperty("POM_SCM_URL")!!}/actions"
         }
     }
 }

@@ -50,18 +50,16 @@ public fun interface GetTrustAnchors<in QUERY : Any, out TRUST_ANCHOR : Any> {
 public fun <C : Any, Q : Any, TA : Any> GetTrustAnchors<Q, TA>.validator(
     supportedQueries: Set<Q>,
     validateCertificateChain: ValidateCertificateChain<C, TA>,
-): IsChainTrustedForContext<C, Q, TA> =
-    IsChainTrustedForContext(supportedQueries, this, validateCertificateChain)
+): IsChainTrustedForContext<C, Q, TA> = IsChainTrustedForContext(supportedQueries, this, validateCertificateChain)
 
 public fun <C : Any, Q : Any, TA : Any, Q1 : Any> GetTrustAnchors<Q, TA>.validator(
     transformation: Map<Q1, Q>,
     validateCertificateChain: ValidateCertificateChain<C, TA>,
-): IsChainTrustedForContext<C, Q1, TA> =
-    IsChainTrustedForContext(
-        transformation.keys,
-        contraMap { checkNotNull(transformation[it]) },
-        validateCertificateChain,
-    )
+): IsChainTrustedForContext<C, Q1, TA> = IsChainTrustedForContext(
+    transformation.keys,
+    contraMap { checkNotNull(transformation[it]) },
+    validateCertificateChain,
+)
 
 /**
  * Combines this source with [other] to create a fallback chain.
@@ -79,8 +77,7 @@ public fun <C : Any, Q : Any, TA : Any, Q1 : Any> GetTrustAnchors<Q, TA>.validat
 @SensitiveApi
 public infix fun <Q : Any, TA : Any> GetTrustAnchors<Q, TA>.or(
     other: GetTrustAnchors<Q, TA>,
-): GetTrustAnchorsWithAlternative<Q, TA> =
-    GetTrustAnchorsWithAlternative(this, other)
+): GetTrustAnchorsWithAlternative<Q, TA> = GetTrustAnchorsWithAlternative(this, other)
 
 /**
  * Adapts this source to a different query type [Q2].
@@ -98,8 +95,7 @@ public infix fun <Q : Any, TA : Any> GetTrustAnchors<Q, TA>.or(
  */
 public fun <Q : Any, TA : Any, Q2 : Any> GetTrustAnchors<Q, TA>.contraMap(
     transformation: (Q2) -> Q,
-): GetTrustAnchorsTransformingQuery<Q2, Q, TA> =
-    GetTrustAnchorsTransformingQuery(this, transformation)
+): GetTrustAnchorsTransformingQuery<Q2, Q, TA> = GetTrustAnchorsTransformingQuery(this, transformation)
 
 /**
  * Decorates this source with transparent caching of results.
@@ -131,8 +127,7 @@ public fun <Q : Any, TA : Any> GetTrustAnchors<Q, TA>.cached(
     clock: Clock = Clock.System,
     ttl: Duration,
     expectedQueries: Int,
-): GetTrustAnchorsCachedSource<Q, TA> =
-    GetTrustAnchorsCachedSource(cacheDispatcher, clock, ttl, expectedQueries, this)
+): GetTrustAnchorsCachedSource<Q, TA> = GetTrustAnchorsCachedSource(cacheDispatcher, clock, ttl, expectedQueries, this)
 
 /**
  * A cached implementation of [GetTrustAnchors] that stores results in memory for performance optimization.
@@ -162,7 +157,8 @@ public class GetTrustAnchorsCachedSource<in QUERY : Any, out TRUST_ANCHOR : Any>
         ttl,
         expectedQueries,
     ) { query -> delegate(query) },
-) : GetTrustAnchors<QUERY, TRUST_ANCHOR>, Disposable by cached {
+) : GetTrustAnchors<QUERY, TRUST_ANCHOR>,
+    Disposable by cached {
 
     override suspend fun invoke(query: QUERY): NonEmptyList<TRUST_ANCHOR>? = cached(query)
 }
@@ -173,8 +169,7 @@ public class GetTrustAnchorsWithAlternative<in QUERY : Any, out TRUST_ANCHOR : A
     private val alternative: GetTrustAnchors<QUERY, TRUST_ANCHOR>,
 ) : GetTrustAnchors<QUERY, TRUST_ANCHOR> {
 
-    override suspend fun invoke(query: QUERY): NonEmptyList<TRUST_ANCHOR>? =
-        delegate.invoke(query) ?: alternative.invoke(query)
+    override suspend fun invoke(query: QUERY): NonEmptyList<TRUST_ANCHOR>? = delegate.invoke(query) ?: alternative.invoke(query)
 }
 
 public class GetTrustAnchorsTransformingQuery<in QUERY2 : Any, in QUERY : Any, out TRUST_ANCHOR : Any>(
@@ -182,6 +177,5 @@ public class GetTrustAnchorsTransformingQuery<in QUERY2 : Any, in QUERY : Any, o
     private val transformation: (QUERY2) -> QUERY,
 ) : GetTrustAnchors<QUERY2, TRUST_ANCHOR> {
 
-    override suspend fun invoke(query: QUERY2): NonEmptyList<TRUST_ANCHOR>? =
-        delegate.invoke(transformation(query))
+    override suspend fun invoke(query: QUERY2): NonEmptyList<TRUST_ANCHOR>? = delegate.invoke(transformation(query))
 }

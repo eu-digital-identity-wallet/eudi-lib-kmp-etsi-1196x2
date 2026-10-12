@@ -31,8 +31,9 @@ import kotlin.collections.plus
  * @param TRUST_ANCHOR the type of the trust anchor to be used for validation
  */
 public class ComposeChainTrust<in CHAIN : Any, CTX : Any, TRUST_ANCHOR : Any>
-private constructor(private val sources: Map<Set<CTX>, IsChainTrustedForContext<CHAIN, CTX, TRUST_ANCHOR>>) :
-    IsChainTrustedForContextF<CHAIN, CTX, TRUST_ANCHOR> {
+private constructor(
+    private val sources: Map<Set<CTX>, IsChainTrustedForContext<CHAIN, CTX, TRUST_ANCHOR>>,
+) : IsChainTrustedForContextF<CHAIN, CTX, TRUST_ANCHOR> {
 
     /**
      * The contexts supported
@@ -46,18 +47,15 @@ private constructor(private val sources: Map<Set<CTX>, IsChainTrustedForContext<
         @Suppress("ObjectLiteralToLambda")
         object : GetTrustAnchors<CTX, TRUST_ANCHOR> {
             // Do not convert to lamda. Crashes in JVM due to NonEmptyList being a value class
-            override suspend fun invoke(query: CTX): NonEmptyList<TRUST_ANCHOR>? =
-                findSource(query)?.getTrustAnchors(query)
+            override suspend fun invoke(query: CTX): NonEmptyList<TRUST_ANCHOR>? = findSource(query)?.getTrustAnchors(query)
         }
 
     override suspend fun invoke(
         chain: CHAIN,
         verificationContext: CTX,
-    ): CertificationChainValidation<TRUST_ANCHOR>? =
-        findSource(verificationContext)?.invoke(chain, verificationContext)
+    ): CertificationChainValidation<TRUST_ANCHOR>? = findSource(verificationContext)?.invoke(chain, verificationContext)
 
-    private fun findSource(ctx: CTX): IsChainTrustedForContext<CHAIN, CTX, TRUST_ANCHOR>? =
-        sources.values.firstOrNull { ctx in it }
+    private fun findSource(ctx: CTX): IsChainTrustedForContext<CHAIN, CTX, TRUST_ANCHOR>? = sources.values.firstOrNull { ctx in it }
 
     /**
      * Combines two instances of [ComposeChainTrust] into one.
@@ -99,28 +97,23 @@ private constructor(private val sources: Map<Set<CTX>, IsChainTrustedForContext<
     @SensitiveApi
     public fun recoverWith(
         recovery: (CTX, CertificationChainValidation.NotTrusted) -> IsChainTrustedForContext<@UnsafeVariance CHAIN, CTX, TRUST_ANCHOR>?,
-    ): IsChainTrustedForContextF<CHAIN, CTX, TRUST_ANCHOR> =
-        UnsafeIsChainTrustedForContext(this, recovery)
+    ): IsChainTrustedForContextF<CHAIN, CTX, TRUST_ANCHOR> = UnsafeIsChainTrustedForContext(this, recovery)
 
-    public fun <C2 : Any> contraMap(transformation: (C2) -> CHAIN): ComposeChainTrust<C2, CTX, TRUST_ANCHOR> =
-        ComposeChainTrust(
-            sources.mapValues { (_, src) -> src.contraMap(transformation) },
-        )
+    public fun <C2 : Any> contraMap(transformation: (C2) -> CHAIN): ComposeChainTrust<C2, CTX, TRUST_ANCHOR> = ComposeChainTrust(
+        sources.mapValues { (_, src) -> src.contraMap(transformation) },
+    )
 
     public companion object {
 
-        public fun <CHAIN : Any, CTX : Any, TA : Any> empty(): ComposeChainTrust<CHAIN, CTX, TA> =
-            ComposeChainTrust(emptyMap())
+        public fun <CHAIN : Any, CTX : Any, TA : Any> empty(): ComposeChainTrust<CHAIN, CTX, TA> = ComposeChainTrust(emptyMap())
 
         public operator fun <CHAIN : Any, CTX : Any, TRUST_ANCHOR : Any> invoke(
             source: IsChainTrustedForContext<CHAIN, CTX, TRUST_ANCHOR>,
-        ): ComposeChainTrust<CHAIN, CTX, TRUST_ANCHOR> =
-            ComposeChainTrust(mapOf(source.supportedContexts to source))
+        ): ComposeChainTrust<CHAIN, CTX, TRUST_ANCHOR> = ComposeChainTrust(mapOf(source.supportedContexts to source))
 
         @Throws(IllegalArgumentException::class)
         public fun <CHAIN : Any, CTX : Any, TA : Any> of(
             vararg sources: IsChainTrustedForContext<CHAIN, CTX, TA>,
-        ): ComposeChainTrust<CHAIN, CTX, TA> =
-            sources.fold(empty()) { acc, next -> acc + next }
+        ): ComposeChainTrust<CHAIN, CTX, TA> = sources.fold(empty()) { acc, next -> acc + next }
     }
 }

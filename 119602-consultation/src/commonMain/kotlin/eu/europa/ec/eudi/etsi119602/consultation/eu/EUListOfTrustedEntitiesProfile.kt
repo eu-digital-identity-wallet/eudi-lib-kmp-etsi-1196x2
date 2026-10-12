@@ -280,12 +280,10 @@ internal interface TrustedEntityAssertions {
      * @throws IllegalStateException if the service type identifier is not any of the expected service types
      */
     @Throws(IllegalStateException::class)
-    fun ServiceInformation.ensureServiceTypeIsAnyOf(expectedServiceTypes: ServiceTypeIdentifiers) =
-        ensureServiceTypeIsAnyOf(typeIdentifier, expectedServiceTypes)
+    fun ServiceInformation.ensureServiceTypeIsAnyOf(expectedServiceTypes: ServiceTypeIdentifiers) = ensureServiceTypeIsAnyOf(typeIdentifier, expectedServiceTypes)
 
     @Throws(IllegalStateException::class)
-    fun ServiceHistoryInstance.ensureServiceTypeIsAnyOf(expectedServiceTypes: ServiceTypeIdentifiers) =
-        ensureServiceTypeIsAnyOf(typeIdentifier, expectedServiceTypes)
+    fun ServiceHistoryInstance.ensureServiceTypeIsAnyOf(expectedServiceTypes: ServiceTypeIdentifiers) = ensureServiceTypeIsAnyOf(typeIdentifier, expectedServiceTypes)
 
     @Throws(IllegalStateException::class)
     private fun ensureServiceTypeIsAnyOf(typeIdentifier: Uri?, expectedServiceTypes: ServiceTypeIdentifiers) {
