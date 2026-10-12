@@ -1,7 +1,6 @@
 [versions]
 java = "17"
 kotlin = "2.2.21"
-android-library = "8.12.2"
 android-kotlin-multiplatform-library = "9.1.1"
 kotlinx-serialization = "1.9.0"
 kotlinx-coroutines = "1.10.2"
@@ -50,7 +49,6 @@ eudi-lib-jvm-sdjwt = { module = "eu.europa.ec.eudi:eudi-lib-jvm-sdjwt-kt", versi
 
 [plugins]
 kotlin-multiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
-android-library = { id = "com.android.library", version.ref = "android-library" }
 android-kotlin-multiplatform-library = { id = "com.android.kotlin.multiplatform.library", version.ref = "android-kotlin-multiplatform-library" }
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
 maven-publish = { id = "com.vanniktech.maven.publish", version.ref = "maven-publish" }
