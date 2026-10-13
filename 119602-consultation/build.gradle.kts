@@ -180,11 +180,12 @@ kotlin {
             }
 
         @Suppress("UNUSED")
-        val androidHostTest = getByName("androidHostTest") {
-            dependencies {
-                implementation(libs.ktor.client.okhttp)
+        val androidHostTest =
+            getByName("androidHostTest") {
+                dependencies {
+                    implementation(libs.ktor.client.okhttp)
+                }
             }
-        }
 
         @Suppress("UNUSED")
         val iosMain =

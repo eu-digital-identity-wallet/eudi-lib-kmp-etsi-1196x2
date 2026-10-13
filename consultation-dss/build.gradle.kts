@@ -152,14 +152,15 @@ kotlin {
             }
 
         @Suppress("UNUSED")
-        val androidDeviceTest = getByName("androidDeviceTest") {
-            dependencies {
-                implementation("androidx.test:runner:1.6.2")
-                implementation("androidx.test.ext:junit:1.2.1")
-                implementation(libs.dss.utils.guava)
-                implementation(libs.slf4j.simple)
+        val androidDeviceTest =
+            getByName("androidDeviceTest") {
+                dependencies {
+                    implementation("androidx.test:runner:1.6.2")
+                    implementation("androidx.test.ext:junit:1.2.1")
+                    implementation(libs.dss.utils.guava)
+                    implementation(libs.slf4j.simple)
+                }
             }
-        }
     }
 }
 
