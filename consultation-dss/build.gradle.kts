@@ -83,6 +83,7 @@ kotlin {
 
         withDeviceTest {
             instrumentationRunner = "eu.europa.ec.eudi.etsi1196x2.consultation.dss.DssAndroidJUnitRunner"
+            execution = "HOST"
         }
     }
 
@@ -151,7 +152,7 @@ kotlin {
             }
 
         @Suppress("UNUSED")
-        androidInstrumentedTest {
+        val androidDeviceTest = getByName("androidDeviceTest") {
             dependencies {
                 implementation("androidx.test:runner:1.6.2")
                 implementation("androidx.test.ext:junit:1.2.1")
