@@ -61,6 +61,10 @@ kotlin {
         compilerOptions {
             jvmTarget = JvmTarget.fromTarget(libs.versions.java.get())
         }
+
+        withHostTest {
+            isIncludeAndroidResources = true
+        }
     }
 
     // iOS targets — cinterop into PKIXBridge.xcframework (produced by buildPKIXBridge below).
@@ -176,7 +180,7 @@ kotlin {
             }
 
         @Suppress("UNUSED")
-        androidUnitTest {
+        val androidHostTest = getByName("androidHostTest") {
             dependencies {
                 implementation(libs.ktor.client.okhttp)
             }
