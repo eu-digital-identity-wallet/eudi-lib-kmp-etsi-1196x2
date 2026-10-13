@@ -27,5 +27,4 @@ import platform.Foundation.NSData
 @Suppress("ktlint:standard:function-naming")
 public fun CertificateProfileValidatorIos(
     operations: CertificateOperations<NSData> = CertificateOperationsIos(),
-): CertificateProfileValidator<NSData> =
-    CertificateProfileValidator(operations)
+): CertificateProfileValidator<NSData> = CertificateProfileValidator(operations)

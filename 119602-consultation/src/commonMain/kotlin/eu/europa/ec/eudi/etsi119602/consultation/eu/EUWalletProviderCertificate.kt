@@ -34,38 +34,36 @@ import eu.europa.ec.eudi.etsi1196x2.consultation.certs.validAt
 import eu.europa.ec.eudi.etsi1196x2.consultation.certs.version3
 import kotlin.time.Instant
 
-public fun walletProviderSigningCertificateProfile(at: Instant? = null): CertificateProfile =
-    certificateProfile {
-        endEntity()
-        version3()
-        mandatoryQcType(innerIdentifier = ETSI119412Part6.ID_ETSI_QCT_WAL)
-        keyUsageDigitalSignature()
-        walletProviderExplicitExtensionCriticality()
-        validAt(at)
-        policyIsPresent()
-        authorityInformationAccessIfCAIssued()
-        // Serial number must be positive (RFC 5280)
-        positiveSerialNumber()
-        // Public key requirements (TS 119 312)
-        publicKey(
-            options = PublicKeyAlgorithmOptions.of(
-                PublicKeyAlgorithmOptions.AlgorithmRequirement.RSA_2048,
-                PublicKeyAlgorithmOptions.AlgorithmRequirement.EC_256,
-                PublicKeyAlgorithmOptions.AlgorithmRequirement.ECDSA_256,
-            ),
-        )
-        // (TS 119 412-6, WAL-5.1-01, PID-4.2 and PID-4.3)
-        // Same as PID Provider
-        pidProviderIssuerAndSubject()
+public fun walletProviderSigningCertificateProfile(at: Instant? = null): CertificateProfile = certificateProfile {
+    endEntity()
+    version3()
+    mandatoryQcType(innerIdentifier = ETSI119412Part6.ID_ETSI_QCT_WAL)
+    keyUsageDigitalSignature()
+    walletProviderExplicitExtensionCriticality()
+    validAt(at)
+    policyIsPresent()
+    authorityInformationAccessIfCAIssued()
+    // Serial number must be positive (RFC 5280)
+    positiveSerialNumber()
+    // Public key requirements (TS 119 312)
+    publicKey(
+        options = PublicKeyAlgorithmOptions.of(
+            PublicKeyAlgorithmOptions.AlgorithmRequirement.RSA_2048,
+            PublicKeyAlgorithmOptions.AlgorithmRequirement.EC_256,
+            PublicKeyAlgorithmOptions.AlgorithmRequirement.ECDSA_256,
+        ),
+    )
+    // (TS 119 412-6, WAL-5.1-01, PID-4.2 and PID-4.3)
+    // Same as PID Provider
+    pidProviderIssuerAndSubject()
 
-        // Subject Key Identifier required (TS 119 412-6,WAL-5.1-01, PID-4.4.2-01)
-        // Same as PID Provider
-        subjectKeyIdentifier()
-    }
+    // Subject Key Identifier required (TS 119 412-6,WAL-5.1-01, PID-4.4.2-01)
+    // Same as PID Provider
+    subjectKeyIdentifier()
+}
 
 internal fun ProfileBuilder.walletProviderExplicitExtensionCriticality() {
-    fun basicConstraintOrKeyUsage(oid: String) =
-        oid == RFC5280.EXT_BASIC_CONSTRAINTS || oid == RFC5280.EXT_KEY_USAGE
+    fun basicConstraintOrKeyUsage(oid: String) = oid == RFC5280.EXT_BASIC_CONSTRAINTS || oid == RFC5280.EXT_KEY_USAGE
     // basicConstraints and keyUsage may be either: RFC 5280 recommends a critical keyUsage and allows either for
     // basicConstraints in an end-entity certificate.
     extensionCriticality(mustBeCritical = false) { oid ->

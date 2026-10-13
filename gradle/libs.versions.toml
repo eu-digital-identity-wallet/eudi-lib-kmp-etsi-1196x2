@@ -1,14 +1,14 @@
 [versions]
 java = "17"
 kotlin = "2.2.21"
-android-library = "8.12.2"
+android-kotlin-multiplatform-library = "9.1.1"
 kotlinx-serialization = "1.9.0"
 kotlinx-coroutines = "1.10.2"
 kotlinx-datetime = "0.7.1"
 ktor = "3.3.3"
-maven-publish = "0.35.0"
-spotless = "8.2.1"
-ktlint = "1.2.1"
+maven-publish = "0.37.0"
+spotless = "8.10.4"
+ktlint = "1.8.0"
 kover = "0.9.8"
 dokka = "2.2.0"
 dss = "6.5"
@@ -49,12 +49,11 @@ eudi-lib-jvm-sdjwt = { module = "eu.europa.ec.eudi:eudi-lib-jvm-sdjwt-kt", versi
 
 [plugins]
 kotlin-multiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
-android-library = { id = "com.android.library", version.ref = "android-library" }
+android-kotlin-multiplatform-library = { id = "com.android.kotlin.multiplatform.library", version.ref = "android-kotlin-multiplatform-library" }
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
 maven-publish = { id = "com.vanniktech.maven.publish", version.ref = "maven-publish" }
 spotless = { id = "com.diffplug.spotless", version.ref = "spotless" }
 kover = { id = "org.jetbrains.kotlinx.kover", version.ref = "kover" }
 dokka = { id = "org.jetbrains.dokka", version.ref = "dokka" }
-atomicfu = { id = "org.jetbrains.kotlinx.atomicfu", version.ref = "atomicfu" }
 kmmbridge = { id = "co.touchlab.kmmbridge", version.ref = "kmmBridge" }
 kmmbridge-github = { id = "co.touchlab.kmmbridge.github", version.ref = "kmmBridge" }

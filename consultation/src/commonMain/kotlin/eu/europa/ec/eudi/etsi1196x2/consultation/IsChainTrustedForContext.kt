@@ -31,26 +31,22 @@ public class IsChainTrustedForContext<in CHAIN : Any, CTX : Any, TRUST_ANCHOR : 
     public val getTrustAnchors: GetTrustAnchors<CTX, TRUST_ANCHOR> =
         @Suppress("ObjectLiteralToLambda")
         object : GetTrustAnchors<CTX, TRUST_ANCHOR> by getTrustAnchors {
-            override suspend fun invoke(query: CTX): NonEmptyList<TRUST_ANCHOR>? =
-                when (query) {
-                    in supportedContexts -> getTrustAnchors(query)
-                    else -> null
-                }
+            override suspend fun invoke(query: CTX): NonEmptyList<TRUST_ANCHOR>? = when (query) {
+                in supportedContexts -> getTrustAnchors(query)
+                else -> null
+            }
         }
 
-    override suspend fun invoke(chain: CHAIN, verificationContext: CTX): CertificationChainValidation<TRUST_ANCHOR>? =
-        getTrustAnchors(verificationContext)?.let { validateCertificateChain(chain, it) }
+    override suspend fun invoke(chain: CHAIN, verificationContext: CTX): CertificationChainValidation<TRUST_ANCHOR>? = getTrustAnchors(verificationContext)?.let { validateCertificateChain(chain, it) }
 
     public operator fun contains(ctx: CTX): Boolean = ctx in supportedContexts
 
     @Throws(IllegalArgumentException::class)
     public infix operator fun plus(
         other: IsChainTrustedForContext<@UnsafeVariance CHAIN, CTX, TRUST_ANCHOR>,
-    ): ComposeChainTrust<CHAIN, CTX, TRUST_ANCHOR> =
-        ComposeChainTrust.of(this, other)
+    ): ComposeChainTrust<CHAIN, CTX, TRUST_ANCHOR> = ComposeChainTrust.of(this, other)
 
-    public fun <C1 : Any> contraMap(transformation: (C1) -> CHAIN): IsChainTrustedForContext<C1, CTX, TRUST_ANCHOR> =
-        IsChainTrustedForContext(supportedContexts, getTrustAnchors, validateCertificateChain.contraMap(transformation))
+    public fun <C1 : Any> contraMap(transformation: (C1) -> CHAIN): IsChainTrustedForContext<C1, CTX, TRUST_ANCHOR> = IsChainTrustedForContext(supportedContexts, getTrustAnchors, validateCertificateChain.contraMap(transformation))
 
     public companion object {
 
@@ -65,5 +61,4 @@ public class IsChainTrustedForContext<in CHAIN : Any, CTX : Any, TRUST_ANCHOR : 
 
 @Throws(IllegalArgumentException::class)
 public fun <CHAIN, CTX, TA> Iterable<IsChainTrustedForContext<CHAIN, CTX, TA>>.compose(): ComposeChainTrust<CHAIN, CTX, TA>
-        where CHAIN : Any, CTX : Any, TA : Any =
-    fold(ComposeChainTrust.empty()) { acc, next -> acc + next }
+        where CHAIN : Any, CTX : Any, TA : Any = fold(ComposeChainTrust.empty()) { acc, next -> acc + next }

@@ -171,26 +171,25 @@ internal constructor(
             nextUpdate: LoTEDateTime,
             distributionPoints: List<Uri>? = null,
             schemeExtensions: JsonArray? = null,
-        ): ListAndSchemeInformation =
-            ListAndSchemeInformation(
-                versionIdentifier = ETSI19602.LOTE_VERSION,
-                sequenceNumber = sequenceNumber,
-                type = type,
-                schemeOperatorName = schemeOperatorName,
-                schemeOperatorAddress = schemeOperatorAddress,
-                schemeName = null,
-                schemeInformationURI = null,
-                statusDeterminationApproach = null,
-                schemeTypeCommunityRules = null,
-                schemeTerritory = schemeTerritory,
-                policyOrLegalNotice = null,
-                historicalInformationPeriod = historicalInformationPeriod,
-                pointersToOtherLists = pointerToOtherLote,
-                listIssueDateTime = listIssueDateTime,
-                nextUpdate = nextUpdate,
-                distributionPoints = distributionPoints,
-                schemeExtensions = schemeExtensions,
-            )
+        ): ListAndSchemeInformation = ListAndSchemeInformation(
+            versionIdentifier = ETSI19602.LOTE_VERSION,
+            sequenceNumber = sequenceNumber,
+            type = type,
+            schemeOperatorName = schemeOperatorName,
+            schemeOperatorAddress = schemeOperatorAddress,
+            schemeName = null,
+            schemeInformationURI = null,
+            statusDeterminationApproach = null,
+            schemeTypeCommunityRules = null,
+            schemeTerritory = schemeTerritory,
+            policyOrLegalNotice = null,
+            historicalInformationPeriod = historicalInformationPeriod,
+            pointersToOtherLists = pointerToOtherLote,
+            listIssueDateTime = listIssueDateTime,
+            nextUpdate = nextUpdate,
+            distributionPoints = distributionPoints,
+            schemeExtensions = schemeExtensions,
+        )
 
         /**
          * Factory method for creating an explicit list
@@ -215,42 +214,39 @@ internal constructor(
             nextUpdate: LoTEDateTime,
             distributionPoints: List<Uri>? = null,
             schemeExtensions: JsonArray? = null,
-        ): ListAndSchemeInformation =
-            ListAndSchemeInformation(
-                versionIdentifier = ETSI19602.LOTE_VERSION,
-                sequenceNumber = sequenceNumber,
-                type = type,
-                schemeOperatorName = schemeOperatorName,
-                schemeOperatorAddress = schemeOperatorAddress,
-                schemeName = schemeName,
-                schemeInformationURI = schemeInformationURI,
-                statusDeterminationApproach = statusDeterminationApproach,
-                schemeTypeCommunityRules = schemeTypeCommunityRules,
-                schemeTerritory = schemeTerritory,
-                policyOrLegalNotice = policyOrLegalNotice,
-                historicalInformationPeriod = historicalInformationPeriod,
-                pointersToOtherLists = pointerToOtherLote,
-                listIssueDateTime = listIssueDateTime,
-                nextUpdate = nextUpdate,
-                distributionPoints = distributionPoints,
-                schemeExtensions = schemeExtensions,
-            )
+        ): ListAndSchemeInformation = ListAndSchemeInformation(
+            versionIdentifier = ETSI19602.LOTE_VERSION,
+            sequenceNumber = sequenceNumber,
+            type = type,
+            schemeOperatorName = schemeOperatorName,
+            schemeOperatorAddress = schemeOperatorAddress,
+            schemeName = schemeName,
+            schemeInformationURI = schemeInformationURI,
+            statusDeterminationApproach = statusDeterminationApproach,
+            schemeTypeCommunityRules = schemeTypeCommunityRules,
+            schemeTerritory = schemeTerritory,
+            policyOrLegalNotice = policyOrLegalNotice,
+            historicalInformationPeriod = historicalInformationPeriod,
+            pointersToOtherLists = pointerToOtherLote,
+            listIssueDateTime = listIssueDateTime,
+            nextUpdate = nextUpdate,
+            distributionPoints = distributionPoints,
+            schemeExtensions = schemeExtensions,
+        )
 
         @Throws(IllegalArgumentException::class)
-        public fun Int.requireValidVersionIdentifier(): Int =
-            apply {
-                require(this == ETSI19602.LOTE_VERSION) {
-                    "Invalid ${ETSI19602.LOTE_VERSION_IDENTIFIER}. Expected ${ETSI19602.LOTE_VERSION}, got $this"
-                }
+        public fun Int.requireValidVersionIdentifier(): Int = apply {
+            require(this == ETSI19602.LOTE_VERSION) {
+                "Invalid ${ETSI19602.LOTE_VERSION_IDENTIFIER}. Expected ${ETSI19602.LOTE_VERSION}, got $this"
             }
+        }
 
         @Throws(IllegalArgumentException::class)
-        public fun Int.requireValidSequenceNumber(): Int =
-            apply {
-                require(this >= ETSI19602.INITIAL_SEQUENCE_NUMBER) {
-                    "${ETSI19602.LOTE_SEQUENCE_NUMBER} must be equal or greater than ${ETSI19602.INITIAL_SEQUENCE_NUMBER}, got $this"
-                }
+        public fun Int.requireValidSequenceNumber(): Int = apply {
+            require(this >= ETSI19602.INITIAL_SEQUENCE_NUMBER) {
+                "${ETSI19602.LOTE_SEQUENCE_NUMBER} must be equal or greater than ${ETSI19602.INITIAL_SEQUENCE_NUMBER}, got $this"
             }
+        }
     }
 }
 
@@ -291,12 +287,11 @@ public sealed interface PolicyOrLegalNotice {
 
 public object PolicyOrLegalNoticeSerializer :
     JsonContentPolymorphicSerializer<PolicyOrLegalNotice>(PolicyOrLegalNotice::class) {
-    override fun selectDeserializer(element: JsonElement): DeserializationStrategy<PolicyOrLegalNotice> =
-        when {
-            ETSI19602.LOTE_POLICY in element.jsonObject -> PolicyOrLegalNotice.Policy.serializer()
-            ETSI19602.LOTE_LEGAL_NOTICE in element.jsonObject -> PolicyOrLegalNotice.LegalNotice.serializer()
-            else -> throw IllegalArgumentException("Invalid policy or legal notice")
-        }
+    override fun selectDeserializer(element: JsonElement): DeserializationStrategy<PolicyOrLegalNotice> = when {
+        ETSI19602.LOTE_POLICY in element.jsonObject -> PolicyOrLegalNotice.Policy.serializer()
+        ETSI19602.LOTE_LEGAL_NOTICE in element.jsonObject -> PolicyOrLegalNotice.LegalNotice.serializer()
+        else -> throw IllegalArgumentException("Invalid policy or legal notice")
+    }
 }
 
 @Serializable

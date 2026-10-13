@@ -51,8 +51,7 @@ object CertOps {
         return Date((secs + (hoursInFuture * 60 * 60)) * 1000)
     }
 
-    private fun notBefore(d: Duration = Duration.ZERO): Instant =
-        (clock.now() + d)
+    private fun notBefore(d: Duration = Duration.ZERO): Instant = (clock.now() + d)
 
     fun genTrustAnchor(
         sigAlg: String,
@@ -80,28 +79,26 @@ object CertOps {
         qcStatements: List<QCStatementInfo>?,
         policyOids: List<String>? = null,
         pathLenConstraint: Int? = null,
-    ): X509CertificateHolder {
-        return JcaX509v3CertificateBuilder(
-            name,
-            calculateSerialNumber(),
-            Date.from(notBefore().toJavaInstant()),
-            calculateDate(24 * 31),
-            name,
-            keyPair.public,
-        ).apply {
-            subjectKeyIdentifier(keyPair.public)
-            if (pathLenConstraint != null) {
-                basicConstraints(BasicConstraints(pathLenConstraint))
-            } else {
-                basicConstraints(BasicConstraints(true))
-            }
-            keyUsage(keyUsage)
-            if (policyOids != null) {
-                certificatePolicies(policyOids)
-            }
-            qcStatements?.let { qcStatements(it) }
-        }.build(sigAlg, keyPair.private)
-    }
+    ): X509CertificateHolder = JcaX509v3CertificateBuilder(
+        name,
+        calculateSerialNumber(),
+        Date.from(notBefore().toJavaInstant()),
+        calculateDate(24 * 31),
+        name,
+        keyPair.public,
+    ).apply {
+        subjectKeyIdentifier(keyPair.public)
+        if (pathLenConstraint != null) {
+            basicConstraints(BasicConstraints(pathLenConstraint))
+        } else {
+            basicConstraints(BasicConstraints(true))
+        }
+        keyUsage(keyUsage)
+        if (policyOids != null) {
+            certificatePolicies(policyOids)
+        }
+        qcStatements?.let { qcStatements(it) }
+    }.build(sigAlg, keyPair.private)
 
     fun genCAIssuedEndEntityCertificate(
         signerCert: X509CertificateHolder,
@@ -179,26 +176,24 @@ object CertOps {
         qcStatements: List<QCStatementInfo>?,
         policyOids: List<String>?,
         withSKI: Boolean = true,
-    ): X509CertificateHolder {
-        return JcaX509v3CertificateBuilder(
-            name,
-            calculateSerialNumber(),
-            Date.from(notBefore().toJavaInstant()),
-            calculateDate(24 * 31),
-            name,
-            keyPair.public,
-        ).apply {
-            if (withSKI) {
-                subjectKeyIdentifier(keyPair.public)
-            }
-            basicConstraints(BasicConstraints(false)) // end-entity (cA=FALSE)
-            keyUsage(keyUsage)
-            qcStatements?.let { qcStatements(it) }
-            if (policyOids != null) {
-                certificatePolicies(policyOids)
-            }
-        }.build(sigAlg, keyPair.private)
-    }
+    ): X509CertificateHolder = JcaX509v3CertificateBuilder(
+        name,
+        calculateSerialNumber(),
+        Date.from(notBefore().toJavaInstant()),
+        calculateDate(24 * 31),
+        name,
+        keyPair.public,
+    ).apply {
+        if (withSKI) {
+            subjectKeyIdentifier(keyPair.public)
+        }
+        basicConstraints(BasicConstraints(false)) // end-entity (cA=FALSE)
+        keyUsage(keyUsage)
+        qcStatements?.let { qcStatements(it) }
+        if (policyOids != null) {
+            certificatePolicies(policyOids)
+        }
+    }.build(sigAlg, keyPair.private)
 
     private fun createEndEntity(
         signerCert: X509CertificateHolder,
@@ -218,34 +213,33 @@ object CertOps {
         withSKI: Boolean = true,
         keyUsageCritical: Boolean = true,
         basicConstraintsCritical: Boolean = true,
-    ): X509CertificateHolder =
-        JcaX509v3CertificateBuilder(
-            signerCert.subject,
-            calculateSerialNumber(),
-            Date.from(notBefore().toJavaInstant()),
-            notAfter ?: calculateDate(24 * 31),
-            subject,
-            certKey,
-        ).apply {
-            authorityKeyIdentifier(signerCert)
-            if (withSKI) {
-                subjectKeyIdentifier(certKey)
-            }
-            basicConstraints(BasicConstraints(false), basicConstraintsCritical) // do not allow this cert to sign other certs
-            keyUsage(keyUsage, keyUsageCritical)
-            qcStatements?.let { qcStatements(it) }
-            certificatePolicies(policyOids ?: listOf())
-            authorityInformationAccess(caIssuersUri, ocspUri)
-            if (crlDistributionPointUri != null) {
-                crlDistributionPoints(crlDistributionPointUri)
-            }
-            if (subjectAltNameUri != null) {
-                subjectAlternativeName(subjectAltNameUri)
-            }
-            customExtensions.forEach { (oid, critical, value) ->
-                addExtension(ASN1ObjectIdentifier(oid), critical, value)
-            }
-        }.build(sigAlg, signerKey)
+    ): X509CertificateHolder = JcaX509v3CertificateBuilder(
+        signerCert.subject,
+        calculateSerialNumber(),
+        Date.from(notBefore().toJavaInstant()),
+        notAfter ?: calculateDate(24 * 31),
+        subject,
+        certKey,
+    ).apply {
+        authorityKeyIdentifier(signerCert)
+        if (withSKI) {
+            subjectKeyIdentifier(certKey)
+        }
+        basicConstraints(BasicConstraints(false), basicConstraintsCritical) // do not allow this cert to sign other certs
+        keyUsage(keyUsage, keyUsageCritical)
+        qcStatements?.let { qcStatements(it) }
+        certificatePolicies(policyOids ?: listOf())
+        authorityInformationAccess(caIssuersUri, ocspUri)
+        if (crlDistributionPointUri != null) {
+            crlDistributionPoints(crlDistributionPointUri)
+        }
+        if (subjectAltNameUri != null) {
+            subjectAlternativeName(subjectAltNameUri)
+        }
+        customExtensions.forEach { (oid, critical, value) ->
+            addExtension(ASN1ObjectIdentifier(oid), critical, value)
+        }
+    }.build(sigAlg, signerKey)
 
     /**
      * Public extension function for converting [X509CertificateHolder] to [X509Certificate].
@@ -255,8 +249,7 @@ object CertOps {
         return cFact.generateCertificate(encoded.inputStream()) as X509Certificate
     }
 
-    private fun signer(sigAlg: String, privateKey: PrivateKey): ContentSigner =
-        Ctx.jcaContentSignerBuilder(sigAlg).build(privateKey)
+    private fun signer(sigAlg: String, privateKey: PrivateKey): ContentSigner = Ctx.jcaContentSignerBuilder(sigAlg).build(privateKey)
 
     private fun JcaX509v3CertificateBuilder.build(sigAlg: String, privateKey: PrivateKey): X509CertificateHolder {
         val signer = signer(sigAlg, privateKey)
@@ -291,6 +284,7 @@ private fun JcaX509v3CertificateBuilder.qcStatements(statements: List<QCStatemen
                     DERSequence(ASN1ObjectIdentifier(statement.innerIdentifier)),
                 ),
             )
+
             is QCStatementInfo.OtherQcStatement -> DERSequence(
                 arrayOf(ASN1ObjectIdentifier(statement.statementId)),
             )
@@ -398,33 +392,29 @@ private val extUtils = JcaX509ExtensionUtils()
 
 private class SecCtx(val provider: Provider? = null) {
 
-    fun certFactory(): CertificateFactory =
-        provider
-            ?.let { JvmSecurity.x509CertFactory(it) }
-            ?: JvmSecurity.DefaultX509Factory
+    fun certFactory(): CertificateFactory = provider
+        ?.let { JvmSecurity.x509CertFactory(it) }
+        ?: JvmSecurity.DefaultX509Factory
 
-    fun kpGenerator(): KeyPairGenerator =
-        provider
-            ?.let { KeyPairGenerator.getInstance("EC", provider) }
-            ?: KeyPairGenerator.getInstance("EC")
+    fun kpGenerator(): KeyPairGenerator = provider
+        ?.let { KeyPairGenerator.getInstance("EC", provider) }
+        ?: KeyPairGenerator.getInstance("EC")
 
     fun generateECPair(): KeyPair = kpGenerator().genKeyPair()
 
-    fun generateKeyPair(algorithm: String, keySize: Int? = null): KeyPair =
-        if (algorithm.uppercase() == "EC") {
-            generateECPair()
-        } else {
-            val kpg = provider
-                ?.let { KeyPairGenerator.getInstance(algorithm, it) }
-                ?: KeyPairGenerator.getInstance(algorithm)
-            if (keySize != null) kpg.initialize(keySize)
-            kpg.genKeyPair()
-        }
+    fun generateKeyPair(algorithm: String, keySize: Int? = null): KeyPair = if (algorithm.uppercase() == "EC") {
+        generateECPair()
+    } else {
+        val kpg = provider
+            ?.let { KeyPairGenerator.getInstance(algorithm, it) }
+            ?: KeyPairGenerator.getInstance(algorithm)
+        if (keySize != null) kpg.initialize(keySize)
+        kpg.genKeyPair()
+    }
 
-    fun jcaContentSignerBuilder(sigAlg: String) =
-        JcaContentSignerBuilder(sigAlg).apply {
-            if (provider != null) {
-                setProvider(provider)
-            }
+    fun jcaContentSignerBuilder(sigAlg: String) = JcaContentSignerBuilder(sigAlg).apply {
+        if (provider != null) {
+            setProvider(provider)
         }
+    }
 }
