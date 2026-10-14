@@ -36,8 +36,7 @@ class EUPIDSigningCertificateProfileTests {
 
     private suspend fun evaluateCertificateConstraints(
         certificate: X509Certificate,
-    ): CertificateConstraintEvaluation =
-        CertificateProfileValidatorJVM.validate(pidSigningCertificateProfile(), certificate)
+    ): CertificateConstraintEvaluation = CertificateProfileValidatorJVM.validate(pidSigningCertificateProfile(), certificate)
 
     private val legalEntityPidProviderName = X500NameBuilder(BCStyle.INSTANCE).apply {
         addRDN(BCStyle.C, "EU")
@@ -417,17 +416,16 @@ class EUPIDSigningCertificateProfileTests {
     // PID-4.1-02 (TS 119 412-6), like EN 319 412-2 GEN-4.1-2, allows criticality where RFC 5280 allows or requires it.
     // RFC 5280 §4.2.1.3: keyUsage "SHOULD" be critical; §4.2.1.9: basicConstraints "MAY" be either in end entity certificates.
 
-    private fun validCertificate(keyUsageCritical: Boolean = true, basicConstraintsCritical: Boolean = true) =
-        genCAIssuedEndEntityCertificate(
-            qcStatements = listOf(QCStatementInfo.QcType(ETSI119412Part6.ID_ETSI_QCT_PID)),
-            policyOids = listOf("1.2.3.4.5"),
-            caIssuersUri = "http://example.com/ca.crt",
-            ocspUri = "http://example.com/ocsp",
-            keyUsage = KeyUsage(KeyUsage.digitalSignature),
-            subject = legalEntityPidProviderName,
-            keyUsageCritical = keyUsageCritical,
-            basicConstraintsCritical = basicConstraintsCritical,
-        )
+    private fun validCertificate(keyUsageCritical: Boolean = true, basicConstraintsCritical: Boolean = true) = genCAIssuedEndEntityCertificate(
+        qcStatements = listOf(QCStatementInfo.QcType(ETSI119412Part6.ID_ETSI_QCT_PID)),
+        policyOids = listOf("1.2.3.4.5"),
+        caIssuersUri = "http://example.com/ca.crt",
+        ocspUri = "http://example.com/ocsp",
+        keyUsage = KeyUsage(KeyUsage.digitalSignature),
+        subject = legalEntityPidProviderName,
+        keyUsageCritical = keyUsageCritical,
+        basicConstraintsCritical = basicConstraintsCritical,
+    )
 
     @Test
     fun `PID Provider certificate with a non-critical keyUsage is accepted`() = runTest {

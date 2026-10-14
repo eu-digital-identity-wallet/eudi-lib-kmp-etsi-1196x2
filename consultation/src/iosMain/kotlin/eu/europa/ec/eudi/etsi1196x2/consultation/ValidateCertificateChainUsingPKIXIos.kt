@@ -128,8 +128,7 @@ public class ValidateCertificateChainUsingPKIXIos(
          */
         public operator fun invoke(
             configuration: PKIXConfiguration = PKIXConfiguration(),
-        ): ValidateCertificateChainUsingPKIXIos =
-            ValidateCertificateChainUsingPKIXIos(nativeValidator = PKIXValidator(configuration = configuration))
+        ): ValidateCertificateChainUsingPKIXIos = ValidateCertificateChainUsingPKIXIos(nativeValidator = PKIXValidator(configuration = configuration))
 
         public operator fun invoke(
             isRevocationEnabled: Boolean,
@@ -144,12 +143,11 @@ public class ValidateCertificateChainUsingPKIXIos(
         public operator fun invoke(
             revocationMethod: IosRevocationMethod,
             isRevocationEnabled: Boolean = true,
-        ): ValidateCertificateChainUsingPKIXIos =
-            invoke(
-                configuration = PKIXConfiguration(
-                    isRevocationEnabled = isRevocationEnabled,
-                    revocationMethod = revocationMethod.native,
-                ),
-            )
+        ): ValidateCertificateChainUsingPKIXIos = invoke(
+            configuration = PKIXConfiguration(
+                isRevocationEnabled = isRevocationEnabled,
+                revocationMethod = revocationMethod.native,
+            ),
+        )
     }
 }

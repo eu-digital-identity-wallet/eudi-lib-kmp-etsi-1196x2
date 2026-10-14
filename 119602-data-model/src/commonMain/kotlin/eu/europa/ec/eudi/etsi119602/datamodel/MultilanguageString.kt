@@ -95,10 +95,9 @@ public value class MultilingualStringValue(public val value: String) {
             return false
         }
 
-        private fun isCodePointValid(cp: Int): Boolean =
-            with(ISO6429) {
-                !(cp.isControlFunction() || cp.isPrivateUseZone() || cp.isTag())
-            }
+        private fun isCodePointValid(cp: Int): Boolean = with(ISO6429) {
+            !(cp.isControlFunction() || cp.isPrivateUseZone() || cp.isTag())
+        }
 
         /**
          * Helper to get Unicode Code Point.
@@ -127,15 +126,12 @@ internal object ISO6429 {
     /**
      * Control Functions (C0 and C1 sets), No TAB (9), LF (10), CR (13)
      */
-    fun Int.isControlFunction(): Boolean =
-        this in CONTROL_FUNCTIONS_C0 || this in CONTROL_FUNCTIONS_C1
+    fun Int.isControlFunction(): Boolean = this in CONTROL_FUNCTIONS_C0 || this in CONTROL_FUNCTIONS_C1
 
     /**
      * True if in the range of Tag Characters (U+E0000 to U+E007F)
      */
-    fun Int.isTag(): Boolean =
-        this in TAG_CHARACTERS
+    fun Int.isTag(): Boolean = this in TAG_CHARACTERS
 
-    fun Int.isPrivateUseZone(): Boolean =
-        this in PRIVATE_USE_ZONE_BMP || this in PRIVATE_USE_ZONE_PLANE_15 || this in PRIVATE_USE_ZONE_PLANE_16
+    fun Int.isPrivateUseZone(): Boolean = this in PRIVATE_USE_ZONE_BMP || this in PRIVATE_USE_ZONE_PLANE_15 || this in PRIVATE_USE_ZONE_PLANE_16
 }
