@@ -296,6 +296,11 @@ public object EudiwIosTrust {
      * No ETSI end-entity profile is applied — these contexts validate purely by [method] — so bundled
      * CA anchors are not rejected by the strict EUDI end-entity profiles.
      *
+     * Chains are validated with the library defaults: [ValidateCertificateChainUsingPKIXIos] with
+     * revocation checking enabled via OCSP for [BundledAnchorMethod.PKIX], and
+     * [ValidateCertificateChainUsingDirectTrustIos] for [BundledAnchorMethod.DIRECT_TRUST]. To check
+     * CRLs instead, or to disable revocation checking, use the overload that takes the validators.
+     *
      * @param method [BundledAnchorMethod.PKIX] for chain-to-anchor path validation (anchors are CA
      *        certificates) or [BundledAnchorMethod.DIRECT_TRUST] for leaf pinning (anchors are the
      *        exact end-entity certificates).
@@ -303,6 +308,51 @@ public object EudiwIosTrust {
     public fun usingBundledAnchors(
         anchors: BundledAnchors,
         method: BundledAnchorMethod,
+    ): ComposeChainTrust<List<NSData>, VerificationContext, NSData> =
+        usingBundledAnchors(
+            anchors = anchors,
+            method = method,
+            directTrust = ValidateCertificateChainUsingDirectTrustIos,
+            pkix = ValidateCertificateChainUsingPKIXIos(),
+        )
+
+    /**
+     * As [usingBundledAnchors]`(anchors:method:)`, but with the chain validators supplied by the
+     * caller, mirroring [cached] and [nonCached].
+     *
+     * This is how revocation checking is configured on the bundled-anchor path. The default PKIX
+     * validator checks revocation via OCSP and requires a positive response, which rejects chains
+     * whose certificates only publish CRL distribution points:
+     *
+     * ```kotlin
+     * // check CRLs instead of OCSP
+     * EudiwIosTrust.usingBundledAnchors(
+     *     anchors = anchors,
+     *     method = BundledAnchorMethod.PKIX,
+     *     pkix = ValidateCertificateChainUsingPKIXIos(IosRevocationMethod.CRL),
+     * )
+     * // no revocation checking at all (e.g. offline tests)
+     * EudiwIosTrust.usingBundledAnchors(
+     *     anchors = anchors,
+     *     method = BundledAnchorMethod.PKIX,
+     *     pkix = ValidateCertificateChainUsingPKIXIos(isRevocationEnabled = false),
+     * )
+     * ```
+     *
+     * This is a separate overload rather than default arguments on
+     * [usingBundledAnchors]`(anchors:method:)` because Kotlin default arguments are not exported to
+     * Objective-C: adding them would change the selector existing Swift consumers compile against.
+     *
+     * @param directTrust the validator used when [method] is [BundledAnchorMethod.DIRECT_TRUST]
+     * @param pkix the validator used when [method] is [BundledAnchorMethod.PKIX]
+     */
+    public fun usingBundledAnchors(
+        anchors: BundledAnchors,
+        method: BundledAnchorMethod,
+        directTrust: ValidateCertificateChainUsingDirectTrust<List<NSData>, NSData> =
+            ValidateCertificateChainUsingDirectTrustIos,
+        pkix: ValidateCertificateChainUsingPKIX<List<NSData>, NSData> =
+            ValidateCertificateChainUsingPKIXIos(),
     ): ComposeChainTrust<List<NSData>, VerificationContext, NSData> {
         val anchorsByContext: Map<VerificationContext, List<NSData>> = buildMap {
             anchors.pid?.let { put(VerificationContext.PID, it) }
@@ -319,8 +369,8 @@ public object EudiwIosTrust {
         }
 
         val validateChain: ValidateCertificateChain<List<NSData>, NSData> = when (method) {
-            BundledAnchorMethod.PKIX -> ValidateCertificateChainUsingPKIXIos()
-            BundledAnchorMethod.DIRECT_TRUST -> ValidateCertificateChainUsingDirectTrustIos
+            BundledAnchorMethod.PKIX -> pkix
+            BundledAnchorMethod.DIRECT_TRUST -> directTrust
         }
 
         return ComposeChainTrust(getTrustAnchors.validator(anchorsByContext.keys, validateChain))
