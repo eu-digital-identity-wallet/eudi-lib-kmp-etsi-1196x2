@@ -233,6 +233,22 @@ val noRevocation = ValidateCertificateChainUsingPKIXIos(IosRevocationMethod.CRL,
 val noRevocationConfig = ValidateCertificateChainUsingPKIXIos(PKIXConfiguration(isRevocationEnabled = false))
 ```
 
+The `119602-consultation` iOS entry points take the PKIX validator as a parameter, so the same
+choice applies whether anchors come from downloaded LoTEs (`EudiwIosTrust.cached` / `nonCached`)
+or from certificates bundled with the app (`EudiwIosTrust.usingBundledAnchors`). The overloads
+without validator parameters keep the default (OCSP):
+
+```kotlin
+val anchors = BundledAnchors().apply { wrpac = listOf(wrpacCaDer) }
+
+// bundled anchors, CRL-only revocation checking
+val bundledCrl = EudiwIosTrust.usingBundledAnchors(
+    anchors = anchors,
+    method = BundledAnchorMethod.PKIX,
+    pkix = ValidateCertificateChainUsingPKIXIos(IosRevocationMethod.CRL),
+)
+```
+
 Swift consumers of the `PKIXBridge` framework use the same options directly:
 
 ```swift

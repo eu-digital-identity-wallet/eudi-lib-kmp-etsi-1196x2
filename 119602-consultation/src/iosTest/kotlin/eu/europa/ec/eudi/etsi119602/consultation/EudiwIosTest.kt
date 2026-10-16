@@ -25,6 +25,7 @@ import kotlinx.coroutines.test.runTest
 import platform.Foundation.NSData
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.hours
@@ -64,73 +65,116 @@ class EudiwIosTest {
         assertTrue(result.trustAnchor.toByteArray().contentEquals(E2eTestCerts.rootDer))
     }
 
-//    @Test
-//    fun usingBundledAnchors_pkix_validatesAgainstBundledRoot_isTrusted() = runTest {
-//        val validator = EudiwIosTrust.usingBundledAnchors(
-//            pidAnchors = listOf(E2eTestCerts.rootDer.toNSData()),
-//            walletAnchors = null,
-//            wrpacAnchors = null,
-//            wrprcAnchors = null,
-//            pubEaaAnchors = null,
-//            qeaAnchors = null,
-//            mdlAnchors = null,
-//            method = BundledAnchorMethod.PKIX,
-//        )
-//
-//        val result = EudiwIosTrust.validate(
-//            validator = validator,
-//            chain = listOf(E2eTestCerts.leafDer.toNSData()),
-//            context = VerificationContext.PID,
-//        )
-//
-//        assertTrue(result.isTrusted, "expected trusted, got: ${result.failureReason}")
-//    }
+    // Test certs have no AIA/OCSP/CRL URLs; the default PKIX validator requires a positive
+    // revocation response, so the bundled-anchor tests inject one with revocation disabled.
+    private val offlinePkix = ValidateCertificateChainUsingPKIXIos(PKIXConfiguration(isRevocationEnabled = false))
 
-//    @Test
-//    fun usingBundledAnchors_directTrust_pinsLeaf_isTrusted() = runTest {
-//        val leaf = E2eTestCerts.leafDer.toNSData()
-//        val validator = EudiwIosTrust.usingBundledAnchors(
-//            pidAnchors = null,
-//            walletAnchors = null,
-//            wrpacAnchors = null,
-//            wrprcAnchors = null,
-//            pubEaaAnchors = null,
-//            qeaAnchors = null,
-//            mdlAnchors = listOf(leaf),
-//            method = BundledAnchorMethod.DIRECT_TRUST,
-//        )
-//
-//        val result = EudiwIosTrust.validate(
-//            validator = validator,
-//            chain = listOf(leaf),
-//            context = VerificationContext.EAA(EudiwIosTrust.mdlUseCase),
-//        )
-//
-//        assertTrue(result.isTrusted, "expected trusted (pinned leaf), got: ${result.failureReason}")
-//    }
+    private fun pidRootAnchors(): BundledAnchors =
+        BundledAnchors().apply { pid = listOf(E2eTestCerts.rootDer.toNSData()) }
 
-//    @Test
-//    fun usingBundledAnchors_unconfiguredContext_isNotTrusted() = runTest {
-//        val validator = EudiwIosTrust.usingBundledAnchors(
-//            pidAnchors = listOf(E2eTestCerts.rootDer.toNSData()),
-//            walletAnchors = null,
-//            wrpacAnchors = null,
-//            wrprcAnchors = null,
-//            pubEaaAnchors = null,
-//            qeaAnchors = null,
-//            mdlAnchors = null,
-//            method = BundledAnchorMethod.PKIX,
-//        )
-//
-//        // QEAA has no bundled anchors, so it is rejected without ever invoking SecTrust.
-//        val result = EudiwIosTrust.validate(
-//            validator = validator,
-//            chain = listOf(E2eTestCerts.leafDer.toNSData()),
-//            context = VerificationContext.QEAA,
-//        )
-//
-//        assertFalse(result.isTrusted)
-//    }
+    @Test
+    fun usingBundledAnchors_withCustomPkix_validatesAgainstBundledRoot_isTrusted() = runTest {
+        val validator = EudiwIosTrust.usingBundledAnchors(
+            anchors = pidRootAnchors(),
+            method = BundledAnchorMethod.PKIX,
+            directTrust = ValidateCertificateChainUsingDirectTrustIos,
+            pkix = offlinePkix,
+        )
+
+        val result = EudiwIosTrust.validate(
+            validator = validator,
+            chain = listOf(E2eTestCerts.leafDer.toNSData()),
+            context = VerificationContext.PID,
+        )
+
+        assertTrue(result.isTrusted, "expected trusted, got: ${result.failureReason}")
+        assertTrue(result.matchedAnchor?.toByteArray()?.contentEquals(E2eTestCerts.rootDer) == true)
+    }
+
+    @Test
+    fun usingBundledAnchors_pkixMethod_usesSuppliedPkixValidator() = runTest {
+        var pkixInvocations = 0
+        var directTrustInvocations = 0
+        val recordingPkix = ValidateCertificateChainUsingPKIX<List<NSData>, NSData> { chain, anchors ->
+            pkixInvocations++
+            offlinePkix(chain, anchors)
+        }
+        val recordingDirectTrust = ValidateCertificateChainUsingDirectTrust<List<NSData>, NSData> { chain, anchors ->
+            directTrustInvocations++
+            ValidateCertificateChainUsingDirectTrustIos(chain, anchors)
+        }
+        val validator = EudiwIosTrust.usingBundledAnchors(
+            anchors = pidRootAnchors(),
+            method = BundledAnchorMethod.PKIX,
+            directTrust = recordingDirectTrust,
+            pkix = recordingPkix,
+        )
+
+        EudiwIosTrust.validate(validator, listOf(E2eTestCerts.leafDer.toNSData()), VerificationContext.PID)
+
+        assertEquals(1, pkixInvocations)
+        assertEquals(0, directTrustInvocations)
+    }
+
+    @Test
+    fun usingBundledAnchors_directTrustMethod_usesSuppliedDirectTrustValidator() = runTest {
+        var pkixInvocations = 0
+        var directTrustInvocations = 0
+        val leaf = E2eTestCerts.leafDer.toNSData()
+        val recordingPkix = ValidateCertificateChainUsingPKIX<List<NSData>, NSData> { chain, anchors ->
+            pkixInvocations++
+            offlinePkix(chain, anchors)
+        }
+        val recordingDirectTrust = ValidateCertificateChainUsingDirectTrust<List<NSData>, NSData> { chain, anchors ->
+            directTrustInvocations++
+            ValidateCertificateChainUsingDirectTrustIos(chain, anchors)
+        }
+        val validator = EudiwIosTrust.usingBundledAnchors(
+            anchors = BundledAnchors().apply { mdl = listOf(leaf) },
+            method = BundledAnchorMethod.DIRECT_TRUST,
+            directTrust = recordingDirectTrust,
+            pkix = recordingPkix,
+        )
+
+        val result = EudiwIosTrust.validate(validator, listOf(leaf), VerificationContext.EAA(EudiwIosTrust.mdlUseCase))
+
+        assertTrue(result.isTrusted, "expected trusted (pinned leaf), got: ${result.failureReason}")
+        assertEquals(1, directTrustInvocations)
+        assertEquals(0, pkixInvocations)
+    }
+
+    @Test
+    fun usingBundledAnchors_defaultOverload_directTrust_pinsLeaf_isTrusted() = runTest {
+        val leaf = E2eTestCerts.leafDer.toNSData()
+        // Direct trust performs no revocation checking, so the default overload runs offline.
+        val validator = EudiwIosTrust.usingBundledAnchors(
+            anchors = BundledAnchors().apply { mdl = listOf(leaf) },
+            method = BundledAnchorMethod.DIRECT_TRUST,
+        )
+
+        val result = EudiwIosTrust.validate(validator, listOf(leaf), VerificationContext.EAA(EudiwIosTrust.mdlUseCase))
+
+        assertTrue(result.isTrusted, "expected trusted (pinned leaf), got: ${result.failureReason}")
+    }
+
+    @Test
+    fun usingBundledAnchors_unconfiguredContext_isNotTrusted() = runTest {
+        val validator = EudiwIosTrust.usingBundledAnchors(
+            anchors = pidRootAnchors(),
+            method = BundledAnchorMethod.PKIX,
+            directTrust = ValidateCertificateChainUsingDirectTrustIos,
+            pkix = offlinePkix,
+        )
+
+        // QEAA has no bundled anchors, so it is rejected without ever invoking SecTrust.
+        val result = EudiwIosTrust.validate(
+            validator = validator,
+            chain = listOf(E2eTestCerts.leafDer.toNSData()),
+            context = VerificationContext.QEAA,
+        )
+
+        assertFalse(result.isTrusted)
+    }
 
     @OptIn(ExperimentalCoroutinesApi::class)
     @Test
