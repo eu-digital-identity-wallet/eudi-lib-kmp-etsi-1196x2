@@ -30,6 +30,9 @@ jobs:
           - language: java-kotlin
             build-mode: manual
             os: ubuntu-latest
+          - language: swift
+            build-mode: manual
+            os: macos-latest
 
     steps:
       - name: Checkout repository
@@ -48,8 +51,13 @@ jobs:
           languages: ${{ matrix.language }}
           build-mode: ${{ matrix.build-mode }}
 
+      - name: Build Swift package
+        if: matrix.language == 'swift'
+        working-directory: ios/cinterop
+        run: swift build
+
       - name: Build with Gradle
-        if: matrix.build-mode == 'manual'
+        if: matrix.language == 'java-kotlin'
         env:
           CI: true
         run: ./gradlew build --full-stacktrace -x test -x check
