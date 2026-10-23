@@ -300,13 +300,12 @@ public object EudiwIosTrust {
     public fun usingBundledAnchors(
         anchors: BundledAnchors,
         method: BundledAnchorMethod,
-    ): ComposeChainTrust<List<NSData>, VerificationContext, NSData> =
-        usingBundledAnchors(
-            anchors = anchors,
-            method = method,
-            directTrust = ValidateCertificateChainUsingDirectTrustIos,
-            pkix = ValidateCertificateChainUsingPKIXIos(),
-        )
+    ): ComposeChainTrust<List<NSData>, VerificationContext, NSData> = usingBundledAnchors(
+        anchors = anchors,
+        method = method,
+        directTrust = ValidateCertificateChainUsingDirectTrustIos,
+        pkix = ValidateCertificateChainUsingPKIXIos(),
+    )
 
     /**
      * As [usingBundledAnchors]`(anchors:method:)`, but with the chain validators supplied by the
