@@ -44,8 +44,7 @@ class EUWalletProviderSigningCertificateTest {
 
     private suspend fun evaluateCertificateConstraints(
         certificate: X509Certificate,
-    ): CertificateConstraintEvaluation =
-        CertificateProfileValidatorJVM.validate(walletProviderSigningCertificateProfile(), certificate)
+    ): CertificateConstraintEvaluation = CertificateProfileValidatorJVM.validate(walletProviderSigningCertificateProfile(), certificate)
 
     private val legalEntityWalletProviderName = X500NameBuilder(BCStyle.INSTANCE).apply {
         addRDN(BCStyle.C, "EU")
@@ -539,21 +538,20 @@ class EUWalletProviderSigningCertificateTest {
         caIssuersUri: String? = "http://example.com/ca.crt",
         ocspUri: String? = "http://example.com/ocsp",
         customExtensions: List<Triple<String, Boolean, ASN1Encodable>> = emptyList(),
-    ) =
-        genCAIssuedEndEntityCertificate(
-            qcStatements = listOf(QCStatementInfo.QcType(ETSI119412Part6.ID_ETSI_QCT_WAL)),
-            policyOids = listOf("1.2.3.4.5"),
-            caIssuersUri = caIssuersUri,
-            ocspUri = ocspUri,
-            subjectAltNameUri = subjectAltNameUri,
-            keyUsage = KeyUsage(KeyUsage.digitalSignature),
-            subject = legalEntityWalletProviderName,
-            keyUsageCritical = keyUsageCritical,
-            basicConstraintsCritical = basicConstraintsCritical,
-            subjectAltNameCritical = subjectAltNameCritical,
-            certificatePoliciesCritical = certificatePoliciesCritical,
-            customExtensions = customExtensions,
-        )
+    ) = genCAIssuedEndEntityCertificate(
+        qcStatements = listOf(QCStatementInfo.QcType(ETSI119412Part6.ID_ETSI_QCT_WAL)),
+        policyOids = listOf("1.2.3.4.5"),
+        caIssuersUri = caIssuersUri,
+        ocspUri = ocspUri,
+        subjectAltNameUri = subjectAltNameUri,
+        keyUsage = KeyUsage(KeyUsage.digitalSignature),
+        subject = legalEntityWalletProviderName,
+        keyUsageCritical = keyUsageCritical,
+        basicConstraintsCritical = basicConstraintsCritical,
+        subjectAltNameCritical = subjectAltNameCritical,
+        certificatePoliciesCritical = certificatePoliciesCritical,
+        customExtensions = customExtensions,
+    )
 
     @Test
     fun `Wallet Provider certificate with a non-critical keyUsage is accepted`() = runTest {

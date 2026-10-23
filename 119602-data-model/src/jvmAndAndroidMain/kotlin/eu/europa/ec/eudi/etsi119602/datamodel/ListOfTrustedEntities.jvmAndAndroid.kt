@@ -21,14 +21,12 @@ import java.security.cert.X509Certificate
 public fun ListOfTrustedEntities.certificatesOf(
     serviceTypeIdentifier: Uri,
     provider: String? = null,
-): List<X509Certificate> =
-    pkiObjsOf(serviceOfType(serviceTypeIdentifier)) { pkiObj -> pkiObj.x509Certificate(provider) }
+): List<X509Certificate> = pkiObjsOf(serviceOfType(serviceTypeIdentifier)) { pkiObj -> pkiObj.x509Certificate(provider) }
 
 public fun ListOfTrustedEntities.certificatesOf(
     serviceTypeIdentifier: Uri,
     provider: Provider,
-): List<X509Certificate> =
-    pkiObjsOf(serviceOfType(serviceTypeIdentifier)) { pkiObj -> pkiObj.x509Certificate(provider) }
+): List<X509Certificate> = pkiObjsOf(serviceOfType(serviceTypeIdentifier)) { pkiObj -> pkiObj.x509Certificate(provider) }
 
 private typealias ServiceInformationPredicate = (ServiceInformation) -> Boolean
 private fun serviceOfType(serviceTypeIdentifier: Uri): ServiceInformationPredicate = { serviceInformation ->
@@ -38,16 +36,15 @@ private fun serviceOfType(serviceTypeIdentifier: Uri): ServiceInformationPredica
 private fun <T> ListOfTrustedEntities.pkiObjsOf(
     serviceInformationPredicate: ServiceInformationPredicate,
     mapper: (PKIObject) -> T,
-): List<T> =
-    buildList {
-        entities?.forEach { entity ->
-            entity.services.forEach { service ->
-                val srvInformation = service.information
-                if (serviceInformationPredicate(srvInformation)) {
-                    srvInformation.digitalIdentity.x509Certificates?.forEach { pkiObj ->
-                        add(mapper(pkiObj))
-                    }
+): List<T> = buildList {
+    entities?.forEach { entity ->
+        entity.services.forEach { service ->
+            val srvInformation = service.information
+            if (serviceInformationPredicate(srvInformation)) {
+                srvInformation.digitalIdentity.x509Certificates?.forEach { pkiObj ->
+                    add(mapper(pkiObj))
                 }
             }
         }
     }
+}

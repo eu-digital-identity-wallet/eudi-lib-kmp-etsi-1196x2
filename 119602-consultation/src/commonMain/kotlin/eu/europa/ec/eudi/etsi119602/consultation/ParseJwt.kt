@@ -72,30 +72,30 @@ public fun interface ParseJwt<out Header : Any, out Payload : Any> {
     }
 }
 
-private infix fun <H : Any, P : Any> ParseJwt<H, P>.or(that: ParseJwt<H, P>): ParseJwt<H, P> =
-    ParseWithAlternative(this, that)
+private infix fun <H : Any, P : Any> ParseJwt<H, P>.or(that: ParseJwt<H, P>): ParseJwt<H, P> = ParseWithAlternative(this, that)
 
 private class ParseWithAlternative<H : Any, P : Any>(
     val first: ParseJwt<H, P>,
     val second: ParseJwt<H, P>,
 
 ) : ParseJwt<H, P> {
-    override fun invoke(jwt: String): Outcome<H, P> =
-        when (val o1 = first.invoke(jwt)) {
-            is Outcome.Parsed -> Outcome.Parsed(o1.header, o1.payload)
-            is Outcome.ParseFailed -> when (
-                val o2 =
-                    second.invoke(jwt)
-            ) {
-                is Outcome.Parsed -> Outcome.Parsed(o2.header, o2.payload)
-                is Outcome.ParseFailed -> {
-                    val cause = IllegalArgumentException("Failed to parse JWT to the expected payload")
-                    o1.cause?.let { cause.addSuppressed(it) }
-                    o2.cause?.let { cause.addSuppressed(it) }
-                    Outcome.ParseFailed(cause)
-                }
+    override fun invoke(jwt: String): Outcome<H, P> = when (val o1 = first.invoke(jwt)) {
+        is Outcome.Parsed -> Outcome.Parsed(o1.header, o1.payload)
+
+        is Outcome.ParseFailed -> when (
+            val o2 =
+                second.invoke(jwt)
+        ) {
+            is Outcome.Parsed -> Outcome.Parsed(o2.header, o2.payload)
+
+            is Outcome.ParseFailed -> {
+                val cause = IllegalArgumentException("Failed to parse JWT to the expected payload")
+                o1.cause?.let { cause.addSuppressed(it) }
+                o2.cause?.let { cause.addSuppressed(it) }
+                Outcome.ParseFailed(cause)
             }
         }
+    }
 }
 
 private class ParseCompactJwt<H : Any, P : Any>(
@@ -105,18 +105,17 @@ private class ParseCompactJwt<H : Any, P : Any>(
 ) : ParseJwt<H, P> {
     private val decode: Decode = Decode(json)
 
-    override fun invoke(jwt: String): Outcome<H, P> =
-        try {
-            require(jwt.isNotBlank()) { "Input must not be empty" }
-            jwt.split(".").let { parts ->
-                require(parts.size == 3) { "Input must be a JWS in compact form" }
-                val header = decode(headerSerializer, parts[0])
-                val payload = decode(payloadSerializer, parts[1])
-                Outcome.Parsed(header, payload)
-            }
-        } catch (e: Exception) {
-            Outcome.ParseFailed(e)
+    override fun invoke(jwt: String): Outcome<H, P> = try {
+        require(jwt.isNotBlank()) { "Input must not be empty" }
+        jwt.split(".").let { parts ->
+            require(parts.size == 3) { "Input must be a JWS in compact form" }
+            val header = decode(headerSerializer, parts[0])
+            val payload = decode(payloadSerializer, parts[1])
+            Outcome.Parsed(header, payload)
         }
+    } catch (e: Exception) {
+        Outcome.ParseFailed(e)
+    }
 }
 
 private class ParseJwsJson<H : Any, P : Any>(
@@ -144,16 +143,15 @@ private class ParseJwsJson<H : Any, P : Any>(
 
     val decode: Decode = Decode(json)
 
-    override fun invoke(jwt: String): Outcome<H, P> =
-        try {
-            val jwsJson = json.decodeFromString<JwsJson>(jwt)
-            val (_, protected, _) = jwsJson.signatures.first()
-            val header = decode(headerSerializer, protected)
-            val payload = decode(payloadSerializer, jwsJson.payload)
-            Outcome.Parsed(header, payload)
-        } catch (e: Exception) {
-            Outcome.ParseFailed(e)
-        }
+    override fun invoke(jwt: String): Outcome<H, P> = try {
+        val jwsJson = json.decodeFromString<JwsJson>(jwt)
+        val (_, protected, _) = jwsJson.signatures.first()
+        val header = decode(headerSerializer, protected)
+        val payload = decode(payloadSerializer, jwsJson.payload)
+        Outcome.Parsed(header, payload)
+    } catch (e: Exception) {
+        Outcome.ParseFailed(e)
+    }
 }
 
 private class Decode(val json: Json) {

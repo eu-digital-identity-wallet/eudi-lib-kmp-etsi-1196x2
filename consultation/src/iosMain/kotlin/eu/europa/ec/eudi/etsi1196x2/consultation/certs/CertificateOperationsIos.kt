@@ -78,11 +78,9 @@ public class CertificateOperationsIos(
         return ValidityPeriod(notBefore, notAfter)
     }
 
-    override fun getCertificatePolicies(certificate: NSData): List<String>? =
-        inspector.getCertificatePolicies(certificate)?.mapNotNull { it as? String }
+    override fun getCertificatePolicies(certificate: NSData): List<String>? = inspector.getCertificatePolicies(certificate)?.mapNotNull { it as? String }
 
-    override fun isSelfSigned(certificate: NSData): Boolean =
-        inspector.isSelfSigned(certificate)
+    override fun isSelfSigned(certificate: NSData): Boolean = inspector.isSelfSigned(certificate)
 
     override fun getAiaExtension(certificate: NSData): AuthorityInformationAccess? {
         val raw = inspector.getAuthorityInfoAccess(certificate) ?: return null
@@ -92,11 +90,9 @@ public class CertificateOperationsIos(
         )
     }
 
-    override fun getSubject(certificate: NSData): DistinguishedName? =
-        inspector.getSubject(certificate)?.let { DistinguishedName(it.toStringMap()) }
+    override fun getSubject(certificate: NSData): DistinguishedName? = inspector.getSubject(certificate)?.let { DistinguishedName(it.toStringMap()) }
 
-    override fun getIssuer(certificate: NSData): DistinguishedName? =
-        inspector.getIssuer(certificate)?.let { DistinguishedName(it.toStringMap()) }
+    override fun getIssuer(certificate: NSData): DistinguishedName? = inspector.getIssuer(certificate)?.let { DistinguishedName(it.toStringMap()) }
 
     override fun getSubjectAltNames(certificate: NSData): List<SubjectAlternativeName>? {
         val raw = inspector.getSubjectAltNames(certificate) ?: return null
@@ -141,8 +137,7 @@ public class CertificateOperationsIos(
         )
     }
 
-    override fun getSubjectKeyIdentifier(certificate: NSData): ByteArray? =
-        (inspector.getSubjectKeyIdentifier(certificate) as? NSData)?.toByteArray()
+    override fun getSubjectKeyIdentifier(certificate: NSData): ByteArray? = (inspector.getSubjectKeyIdentifier(certificate) as? NSData)?.toByteArray()
 
     override fun getSerialNumber(certificate: NSData): SerialNumber {
         val raw = (inspector.getSerialNumber(certificate) as? NSData)
@@ -150,8 +145,7 @@ public class CertificateOperationsIos(
         return SerialNumber(raw.toByteArray())
     }
 
-    override fun getVersion(certificate: NSData): Version =
-        Version(inspector.getVersion(certificate).toInt())
+    override fun getVersion(certificate: NSData): Version = Version(inspector.getVersion(certificate).toInt())
 
     override fun getSubjectPublicKeyInfo(certificate: NSData): PublicKeyInfo {
         val raw = inspector.getPublicKeyInfo(certificate)
@@ -162,25 +156,20 @@ public class CertificateOperationsIos(
         )
     }
 
-    override fun hasExtension(certificate: NSData, oid: String): Boolean =
-        inspector.hasExtension(certificate, oid = oid)
+    override fun hasExtension(certificate: NSData, oid: String): Boolean = inspector.hasExtension(certificate, oid = oid)
 }
 
-private fun NSNumber.epochInstant(): Instant =
-    Instant.fromEpochSeconds(doubleValue.toLong())
+private fun NSNumber.epochInstant(): Instant = Instant.fromEpochSeconds(doubleValue.toLong())
 
-private fun Map<Any?, *>.boolFor(key: String): Boolean? =
-    (this[key] as? NSNumber)?.boolValue
+private fun Map<Any?, *>.boolFor(key: String): Boolean? = (this[key] as? NSNumber)?.boolValue
 
-private fun Map<Any?, *>.intFor(key: String): Int? =
-    (this[key] as? NSNumber)?.intValue
+private fun Map<Any?, *>.intFor(key: String): Int? = (this[key] as? NSNumber)?.intValue
 
 @Suppress("UNCHECKED_CAST")
-private fun Map<Any?, *>.toStringMap(): Map<String, String> =
-    buildMap {
-        this@toStringMap.forEach { (k, v) ->
-            val key = k as? String ?: return@forEach
-            val value = v as? String ?: return@forEach
-            put(key, value)
-        }
+private fun Map<Any?, *>.toStringMap(): Map<String, String> = buildMap {
+    this@toStringMap.forEach { (k, v) ->
+        val key = k as? String ?: return@forEach
+        val value = v as? String ?: return@forEach
+        put(key, value)
     }
+}

@@ -35,8 +35,7 @@ class EUWRPRCProvidersListTest {
     private val cnWrprcProvider = X500Name("CN=WRPRC Provider Test")
     private suspend fun evaluateProviderCertificateConstraints(
         certificate: X509Certificate,
-    ): CertificateConstraintEvaluation =
-        CertificateProfileValidatorJVM.validate(wrprcProviderCertificateProfile(), certificate)
+    ): CertificateConstraintEvaluation = CertificateProfileValidatorJVM.validate(wrprcProviderCertificateProfile(), certificate)
 
     @Test
     fun `WRPRC Provider certificate should require keyCertSign`() = runTest {

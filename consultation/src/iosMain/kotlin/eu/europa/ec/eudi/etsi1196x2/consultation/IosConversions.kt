@@ -52,5 +52,4 @@ public fun ByteArray.toNSData(): NSData {
  * reference identity, which is never what we want when matching DER-encoded
  * certificates, so always compare the underlying bytes.
  */
-internal fun NSData.contentEqualsData(other: NSData): Boolean =
-    this.toByteArray().contentEquals(other.toByteArray())
+internal fun NSData.contentEqualsData(other: NSData): Boolean = this.toByteArray().contentEquals(other.toByteArray())

@@ -406,8 +406,7 @@ public data class PublicKeyAlgorithmOptions(
 
     public companion object {
         /** Convenience factory accepting vararg requirements. */
-        public fun of(vararg algorithmOptions: AlgorithmRequirement): PublicKeyAlgorithmOptions =
-            PublicKeyAlgorithmOptions(algorithmOptions.toList())
+        public fun of(vararg algorithmOptions: AlgorithmRequirement): PublicKeyAlgorithmOptions = PublicKeyAlgorithmOptions(algorithmOptions.toList())
     }
 }
 
@@ -430,16 +429,14 @@ public data class PublicKeyInfo(
      *
      * @param algorithms list of algorithm names to check against
      */
-    public fun isAlgorithm(vararg algorithms: String): Boolean =
-        algorithm.uppercase() in algorithms.map { it.uppercase() }
+    public fun isAlgorithm(vararg algorithms: String): Boolean = algorithm.uppercase() in algorithms.map { it.uppercase() }
 
     /**
      * Checks if the key size meets a minimum requirement.
      *
      * @param minSize the minimum key size in bits
      */
-    public fun hasMinimumKeySize(minSize: Int): Boolean =
-        keySize != null && keySize >= minSize
+    public fun hasMinimumKeySize(minSize: Int): Boolean = keySize != null && keySize >= minSize
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -514,8 +511,7 @@ public sealed interface SubjectAlternativeName {
 
         override fun hashCode(): Int = address.contentHashCode()
 
-        override fun toString(): String =
-            address.joinToString(".") { it.toUByte().toString() }
+        override fun toString(): String = address.joinToString(".") { it.toUByte().toString() }
     }
 
     /**

@@ -37,53 +37,51 @@ import java.security.cert.X509Certificate
 
 @Suppress("unused")
 object IntegrationWithSdJwtVc {
-    fun <CHAIN : Any> IsChainTrustedForAttestation<CHAIN, *>.sdJwtVcIssuerTrust(): X509CertificateTrust<CHAIN> =
-        X509CertificateTrust { chain, claims ->
-            val vct =
-                claims[SdJwtVcSpec.VCT]
-                    ?.takeIf { it is JsonPrimitive && it.jsonPrimitive.isString }
-                    ?.jsonPrimitive?.contentOrNull
-                    ?.let { AttestationIdentifier.SDJwtVc(it) }
+    fun <CHAIN : Any> IsChainTrustedForAttestation<CHAIN, *>.sdJwtVcIssuerTrust(): X509CertificateTrust<CHAIN> = X509CertificateTrust { chain, claims ->
+        val vct =
+            claims[SdJwtVcSpec.VCT]
+                ?.takeIf { it is JsonPrimitive && it.jsonPrimitive.isString }
+                ?.jsonPrimitive?.contentOrNull
+                ?.let { AttestationIdentifier.SDJwtVc(it) }
 
-            val validation = vct?.let { issuance(chain, it) }
-            when (validation) {
-                is CertificationChainValidation.NotTrusted -> false
-                is CertificationChainValidation.Trusted<*> -> {
-                    if (validation.trustAnchor is TrustAnchor) {
-                        println("SD-JWT-VC signed by: ${(validation.trustAnchor as TrustAnchor).trustedCert.subjectX500Principal}")
-                    }
-                    true
+        val validation = vct?.let { issuance(chain, it) }
+        when (validation) {
+            is CertificationChainValidation.NotTrusted -> false
+
+            is CertificationChainValidation.Trusted<*> -> {
+                if (validation.trustAnchor is TrustAnchor) {
+                    println("SD-JWT-VC signed by: ${(validation.trustAnchor as TrustAnchor).trustedCert.subjectX500Principal}")
                 }
-                null -> false
+                true
             }
+
+            null -> false
         }
+    }
 
     fun <CHAIN : Any, TRUST_ANCHOR : Any> sdJwtVcVerificationMethod(
         isChainTrustedForAttestation: IsChainTrustedForAttestation<CHAIN, TRUST_ANCHOR>,
-    ): IssuerVerificationMethod.UsingX5c<CHAIN> =
-        IssuerVerificationMethod.usingX5c(
-            x509CertificateTrust = isChainTrustedForAttestation.sdJwtVcIssuerTrust(),
-        )
+    ): IssuerVerificationMethod.UsingX5c<CHAIN> = IssuerVerificationMethod.usingX5c(
+        x509CertificateTrust = isChainTrustedForAttestation.sdJwtVcIssuerTrust(),
+    )
 
     fun defaultSdJwtVcVerifier(
         isChainTrustedForAttestation: IsChainTrustedForAttestation<List<X509Certificate>, TrustAnchor>,
         typeMetadataPolicy: TypeMetadataPolicy,
         checkStatus: CheckWithTokenStatusList?,
-    ): SdJwtVcVerifier<JwtAndClaims> =
-        DefaultSdJwtOps.SdJwtVcVerifier(
-            issuerVerificationMethod = sdJwtVcVerificationMethod(isChainTrustedForAttestation),
-            typeMetadataPolicy = typeMetadataPolicy,
-            checkStatus = checkStatus,
-        )
+    ): SdJwtVcVerifier<JwtAndClaims> = DefaultSdJwtOps.SdJwtVcVerifier(
+        issuerVerificationMethod = sdJwtVcVerificationMethod(isChainTrustedForAttestation),
+        typeMetadataPolicy = typeMetadataPolicy,
+        checkStatus = checkStatus,
+    )
 
     fun nimbusSdJwtVcVerifier(
         isChainTrustedForAttestation: IsChainTrustedForAttestation<List<X509Certificate>, TrustAnchor>,
         typeMetadataPolicy: TypeMetadataPolicy,
         checkStatus: CheckWithTokenStatusList?,
-    ): SdJwtVcVerifier<SignedJWT> =
-        NimbusSdJwtOps.SdJwtVcVerifier(
-            issuerVerificationMethod = sdJwtVcVerificationMethod(isChainTrustedForAttestation),
-            typeMetadataPolicy = typeMetadataPolicy,
-            checkStatus = checkStatus,
-        )
+    ): SdJwtVcVerifier<SignedJWT> = NimbusSdJwtOps.SdJwtVcVerifier(
+        issuerVerificationMethod = sdJwtVcVerificationMethod(isChainTrustedForAttestation),
+        typeMetadataPolicy = typeMetadataPolicy,
+        checkStatus = checkStatus,
+    )
 }

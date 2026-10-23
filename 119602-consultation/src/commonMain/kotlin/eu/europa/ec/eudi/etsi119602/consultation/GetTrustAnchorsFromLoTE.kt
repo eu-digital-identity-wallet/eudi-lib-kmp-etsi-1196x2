@@ -90,23 +90,18 @@ public class GetTrustAnchorsFromLoTE<out TRUST_ANCHOR : Any>(
         return loaded ?: raiseLoadingProblems(result)
     }
 
-    private fun LoTELoadResult.toLoadedLoTE(): LoadedLoTE? =
-        list?.let { mainList -> LoadedLoTE(list = mainList.lote, otherLists = otherLists.map { it.lote }) }
+    private fun LoTELoadResult.toLoadedLoTE(): LoadedLoTE? = list?.let { mainList -> LoadedLoTE(list = mainList.lote, otherLists = otherLists.map { it.lote }) }
 
-    private fun LoadedLoTE.trustAnchorsFor(svcType: Uri): List<TRUST_ANCHOR> =
-        servicesOfType(svcType).flatMap { trustedService ->
-            trustedService.information.digitalIdentity.trustAnchors()
-        }
+    private fun LoadedLoTE.trustAnchorsFor(svcType: Uri): List<TRUST_ANCHOR> = servicesOfType(svcType).flatMap { trustedService ->
+        trustedService.information.digitalIdentity.trustAnchors()
+    }
 
-    private fun ListOfTrustedEntities.servicesOf(svcType: Uri): List<TrustedEntityService> =
-        entities.orEmpty()
-            .flatMap { it.services.filter { svc -> svc.information.typeIdentifier == svcType } }
+    private fun ListOfTrustedEntities.servicesOf(svcType: Uri): List<TrustedEntityService> = entities.orEmpty()
+        .flatMap { it.services.filter { svc -> svc.information.typeIdentifier == svcType } }
 
-    private fun LoadedLoTE.servicesOfType(svcType: Uri): List<TrustedEntityService> =
-        (listOf(list) + otherLists).flatMap { it.servicesOf(svcType) }
+    private fun LoadedLoTE.servicesOfType(svcType: Uri): List<TrustedEntityService> = (listOf(list) + otherLists).flatMap { it.servicesOf(svcType) }
 
-    private fun ServiceDigitalIdentity.trustAnchors(): List<TRUST_ANCHOR> =
-        createTrustAnchors(this)
+    private fun ServiceDigitalIdentity.trustAnchors(): List<TRUST_ANCHOR> = createTrustAnchors(this)
 
     private fun raiseLoadingProblems(result: LoTELoadResult): Nothing {
         val causes = mutableListOf<Throwable?>()

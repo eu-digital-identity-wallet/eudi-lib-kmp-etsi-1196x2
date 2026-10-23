@@ -31,8 +31,7 @@ import kotlin.time.Duration.Companion.hours
 
 object DIGIT {
 
-    private fun loteUrl(lote: String): Uri =
-        Uri.parse("https://acceptance.trust.tech.ec.europa.eu/lists/eudiw/$lote")
+    private fun loteUrl(lote: String): Uri = Uri.parse("https://acceptance.trust.tech.ec.europa.eu/lists/eudiw/$lote")
 
     val loteLocations = SupportedLists(
         pidProviders = loteUrl("pid-providers.json"),

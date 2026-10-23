@@ -61,12 +61,11 @@ public fun pidSigningCertificateProfile(at: Instant? = null): CertificateProfile
  */
 internal fun ProfileBuilder.pidProviderExplicitExtensionCriticality() {
     @Suppress("DuplicatedCode")
-    fun rfc5280AllowsEitherCriticality(oid: String) =
-        oid == RFC5280.EXT_BASIC_CONSTRAINTS ||
-            oid == RFC5280.EXT_KEY_USAGE ||
-            oid == RFC5280.EXT_EXTENDED_KEY_USAGE ||
-            oid == RFC5280.EXT_SUBJECT_ALT_NAME ||
-            oid == RFC5280.EXT_CERTIFICATE_POLICIES
+    fun rfc5280AllowsEitherCriticality(oid: String) = oid == RFC5280.EXT_BASIC_CONSTRAINTS ||
+        oid == RFC5280.EXT_KEY_USAGE ||
+        oid == RFC5280.EXT_EXTENDED_KEY_USAGE ||
+        oid == RFC5280.EXT_SUBJECT_ALT_NAME ||
+        oid == RFC5280.EXT_CERTIFICATE_POLICIES
     // basicConstraints, keyUsage, extendedKeyUsage, subjectAltName and certificatePolicies may be critical or
     // non-critical in an end-entity certificate: RFC 5280 recommends a critical keyUsage (§4.2.1.3), and allows
     // either criticality for basicConstraints (§4.2.1.9), extendedKeyUsage (§4.2.1.12), subjectAltName (§4.2.1.6)
@@ -120,16 +119,15 @@ internal fun ProfileBuilder.pidProviderIssuerAndSubject() {
 /**
  * ETSI TS 119 412-6, PID-4.3-01, PID-4.3-02
  */
-internal fun validateLegalOrNaturalPerson(attribute: String, dn: DistinguishedName?): CertificateConstraintEvaluation =
-    if (dn == null) {
-        CertificateConstraintEvaluation(listOf(CertificateConstraintsEvaluations.missingDN(attribute)))
+internal fun validateLegalOrNaturalPerson(attribute: String, dn: DistinguishedName?): CertificateConstraintEvaluation = if (dn == null) {
+    CertificateConstraintEvaluation(listOf(CertificateConstraintsEvaluations.missingDN(attribute)))
+} else {
+    // organization identifier is required for legal persons
+    // val isLegalPerson = dn[DistinguishedName.X500OIDs.ORG_IDENTIFIER] != null
+    val isLegalPerson = dn[DistinguishedName.X500OIDs.ORGANIZATION] != null
+    if (isLegalPerson) {
+        CertificateConstraintsEvaluations.legalPersonDN(attribute, dn)
     } else {
-        // organization identifier is required for legal persons
-        // val isLegalPerson = dn[DistinguishedName.X500OIDs.ORG_IDENTIFIER] != null
-        val isLegalPerson = dn[DistinguishedName.X500OIDs.ORGANIZATION] != null
-        if (isLegalPerson) {
-            CertificateConstraintsEvaluations.legalPersonDN(attribute, dn)
-        } else {
-            CertificateConstraintsEvaluations.naturalPersonDN(attribute, dn)
-        }
+        CertificateConstraintsEvaluations.naturalPersonDN(attribute, dn)
     }
+}

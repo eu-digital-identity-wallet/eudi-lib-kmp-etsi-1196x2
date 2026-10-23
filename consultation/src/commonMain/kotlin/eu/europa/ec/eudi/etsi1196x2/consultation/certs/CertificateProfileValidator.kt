@@ -77,8 +77,7 @@ public interface CertificateProfileValidator<CERT : Any> {
         public operator fun <CERT : Any> invoke(
             operations: CertificateOperations<CERT>,
             dispatcher: CoroutineDispatcher = consultationPlatform().ioDispatcher,
-        ): CertificateProfileValidator<CERT> =
-            invoke(CertificateProfileInterpreter(operations, dispatcher))
+        ): CertificateProfileValidator<CERT> = invoke(CertificateProfileInterpreter(operations, dispatcher))
 
         /**
          * Creates a [CertificateProfileValidator] using the provided [CertificateOperations].
@@ -88,8 +87,7 @@ public interface CertificateProfileValidator<CERT : Any> {
          */
         public operator fun <CERT : Any> invoke(
             interpreter: CertificateProfileInterpreter<CERT>,
-        ): CertificateProfileValidator<CERT> =
-            DefaultCertificateValidator(interpreter)
+        ): CertificateProfileValidator<CERT> = DefaultCertificateValidator(interpreter)
     }
 }
 
@@ -115,82 +113,81 @@ public interface CertificateProfileInterpreter<CERT : Any> {
         public operator fun <CERT : Any> invoke(
             operations: CertificateOperations<CERT>,
             dispatcher: CoroutineDispatcher,
-        ): CertificateProfileInterpreter<CERT> =
-            object : CertificateProfileInterpreter<CERT> {
-                override suspend fun <T> interpret(
-                    op: CertificateOperationsAlgebra<T>,
-                    certificate: CERT,
-                ): T = withContext(dispatcher) {
-                    @Suppress("UNCHECKED_CAST")
-                    when (op) {
-                        is CertificateOperationsAlgebra.GetBasicConstraints ->
-                            operations.getBasicConstraints(certificate) as T
+        ): CertificateProfileInterpreter<CERT> = object : CertificateProfileInterpreter<CERT> {
+            override suspend fun <T> interpret(
+                op: CertificateOperationsAlgebra<T>,
+                certificate: CERT,
+            ): T = withContext(dispatcher) {
+                @Suppress("UNCHECKED_CAST")
+                when (op) {
+                    is CertificateOperationsAlgebra.GetBasicConstraints ->
+                        operations.getBasicConstraints(certificate) as T
 
-                        is CertificateOperationsAlgebra.GetKeyUsage ->
-                            operations.getKeyUsage(certificate) as T
+                    is CertificateOperationsAlgebra.GetKeyUsage ->
+                        operations.getKeyUsage(certificate) as T
 
-                        is CertificateOperationsAlgebra.GetValidity ->
-                            operations.getValidityPeriod(certificate) as T
+                    is CertificateOperationsAlgebra.GetValidity ->
+                        operations.getValidityPeriod(certificate) as T
 
-                        is CertificateOperationsAlgebra.GetPolicies ->
-                            operations.getCertificatePolicies(certificate) as T
+                    is CertificateOperationsAlgebra.GetPolicies ->
+                        operations.getCertificatePolicies(certificate) as T
 
-                        is CertificateOperationsAlgebra.CheckSelfSigned ->
-                            operations.isSelfSigned(certificate) as T
+                    is CertificateOperationsAlgebra.CheckSelfSigned ->
+                        operations.isSelfSigned(certificate) as T
 
-                        is CertificateOperationsAlgebra.GetAia ->
-                            operations.getAiaExtension(certificate) as T
+                    is CertificateOperationsAlgebra.GetAia ->
+                        operations.getAiaExtension(certificate) as T
 
-                        is CertificateOperationsAlgebra.GetQcStatements ->
-                            operations.getQcStatements(certificate)
-                                .filter { it.statementId == op.statementId } as T
+                    is CertificateOperationsAlgebra.GetQcStatements ->
+                        operations.getQcStatements(certificate)
+                            .filter { it.statementId == op.statementId } as T
 
-                        // New algebra type handlers
-                        is CertificateOperationsAlgebra.GetSubject ->
-                            operations.getSubject(certificate) as T
+                    // New algebra type handlers
+                    is CertificateOperationsAlgebra.GetSubject ->
+                        operations.getSubject(certificate) as T
 
-                        is CertificateOperationsAlgebra.GetIssuer ->
-                            operations.getIssuer(certificate) as T
+                    is CertificateOperationsAlgebra.GetIssuer ->
+                        operations.getIssuer(certificate) as T
 
-                        is CertificateOperationsAlgebra.GetSubjectAltNames ->
-                            operations.getSubjectAltNames(certificate) as T
+                    is CertificateOperationsAlgebra.GetSubjectAltNames ->
+                        operations.getSubjectAltNames(certificate) as T
 
-                        is CertificateOperationsAlgebra.GetCrlDistributionPoints ->
-                            operations.getCrlDistributionPoints(certificate) as T
+                    is CertificateOperationsAlgebra.GetCrlDistributionPoints ->
+                        operations.getCrlDistributionPoints(certificate) as T
 
-                        is CertificateOperationsAlgebra.GetAuthorityKeyIdentifier ->
-                            operations.getAuthorityKeyIdentifier(certificate) as T
+                    is CertificateOperationsAlgebra.GetAuthorityKeyIdentifier ->
+                        operations.getAuthorityKeyIdentifier(certificate) as T
 
-                        is CertificateOperationsAlgebra.GetSerialNumber ->
-                            operations.getSerialNumber(certificate) as T
+                    is CertificateOperationsAlgebra.GetSerialNumber ->
+                        operations.getSerialNumber(certificate) as T
 
-                        is CertificateOperationsAlgebra.GetVersion ->
-                            operations.getVersion(certificate) as T
+                    is CertificateOperationsAlgebra.GetVersion ->
+                        operations.getVersion(certificate) as T
 
-                        is CertificateOperationsAlgebra.GetSubjectPublicKeyInfo ->
-                            operations.getSubjectPublicKeyInfo(certificate) as T
+                    is CertificateOperationsAlgebra.GetSubjectPublicKeyInfo ->
+                        operations.getSubjectPublicKeyInfo(certificate) as T
 
-                        is CertificateOperationsAlgebra.GetAllQcStatements ->
-                            operations.getQcStatements(certificate) as T
+                    is CertificateOperationsAlgebra.GetAllQcStatements ->
+                        operations.getQcStatements(certificate) as T
 
-                        is CertificateOperationsAlgebra.HasExtension ->
-                            operations.hasExtension(certificate, op.oid) as T
+                    is CertificateOperationsAlgebra.HasExtension ->
+                        operations.hasExtension(certificate, op.oid) as T
 
-                        is CertificateOperationsAlgebra.GetSubjectKeyIdentifier ->
-                            operations.getSubjectKeyIdentifier(certificate) as T
+                    is CertificateOperationsAlgebra.GetSubjectKeyIdentifier ->
+                        operations.getSubjectKeyIdentifier(certificate) as T
 
-                        is CertificateOperationsAlgebra.GetExtensionCriticality ->
-                            operations.getExtensionCriticality(certificate) as T
+                    is CertificateOperationsAlgebra.GetExtensionCriticality ->
+                        operations.getExtensionCriticality(certificate) as T
 
-                        is CertificateOperationsAlgebra.GetCombined<*, *, *> -> {
-                            val a = interpret(op.first, certificate)
-                            val b = interpret(op.second, certificate)
-                            @Suppress("UNCHECKED_CAST")
-                            (op.combine as (Any?, Any?) -> T)(a, b)
-                        }
+                    is CertificateOperationsAlgebra.GetCombined<*, *, *> -> {
+                        val a = interpret(op.first, certificate)
+                        val b = interpret(op.second, certificate)
+                        @Suppress("UNCHECKED_CAST")
+                        (op.combine as (Any?, Any?) -> T)(a, b)
                     }
                 }
             }
+        }
     }
 }
 
@@ -203,8 +200,7 @@ private class DefaultCertificateValidator<CERT : Any>(
     override suspend fun <T> validate(
         constraint: CertificateConstraint<T>,
         certificate: CERT,
-    ): CertificateConstraintEvaluation =
-        constraint.evaluate(interpreter.interpret(constraint.op, certificate))
+    ): CertificateConstraintEvaluation = constraint.evaluate(interpreter.interpret(constraint.op, certificate))
 
     override suspend fun validate(
         profile: CertificateProfile,
@@ -224,12 +220,11 @@ private class DefaultCertificateValidator<CERT : Any>(
         profile: CertificateProfile,
         certificates: Iterable<CERT>,
         getCertificateInfo: (CERT) -> String,
-    ): Map<String, CertificateConstraintEvaluation> =
-        buildMap {
-            certificates.forEach { certificate ->
-                put(getCertificateInfo(certificate), validate(profile, certificate))
-            }
+    ): Map<String, CertificateConstraintEvaluation> = buildMap {
+        certificates.forEach { certificate ->
+            put(getCertificateInfo(certificate), validate(profile, certificate))
         }
+    }
 
     override suspend fun ensureAllMet(
         profile: CertificateProfile,

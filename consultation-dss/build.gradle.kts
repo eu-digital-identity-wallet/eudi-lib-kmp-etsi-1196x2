@@ -1,5 +1,7 @@
+import com.android.build.api.withAndroid
 import com.vanniktech.maven.publish.JavadocJar
 import com.vanniktech.maven.publish.KotlinMultiplatform
+import com.vanniktech.maven.publish.SourcesJar
 import org.jetbrains.dokka.gradle.engine.parameters.VisibilityModifier
 import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
@@ -8,7 +10,7 @@ import java.net.URI
 
 plugins {
     alias(libs.plugins.kotlin.multiplatform)
-    alias(libs.plugins.android.library)
+    alias(libs.plugins.android.kotlin.multiplatform.library)
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.kover)
     alias(libs.plugins.spotless)
@@ -21,11 +23,16 @@ repositories {
     google()
 }
 
+group = findProperty("group")!!.toString()
+
 kotlin {
     explicitApiWarning()
-    jvmToolchain(libs.versions.java.get().toInt())
+    jvmToolchain(
+        libs.versions.java
+            .get()
+            .toInt(),
+    )
 
-    @OptIn(ExperimentalKotlinGradlePluginApi::class)
     compilerOptions {
         apiVersion = KotlinVersion.KOTLIN_2_2
         optIn =
@@ -41,17 +48,43 @@ kotlin {
     jvm()
 
     // Android target
-    androidTarget {
+    android {
+        namespace = "eu.europa.ec.eudi.etsi1196x2.consultation.dss"
+        compileSdk = findProperty("android.compileSdk")!!.toString().toInt()
+        minSdk = findProperty("android.minSdk")!!.toString().toInt()
+
         // Set JVM target to 17 to match Java compatibility
-        // Using direct property access instead of deprecated kotlinOptions
-        JvmTarget.fromTarget(libs.versions.java.get())
-            .let { javaTarget ->
-                compilations.all {
-                    compileTaskProvider.configure {
-                        compilerOptions.jvmTarget.set(javaTarget)
-                    }
-                }
+        compilerOptions {
+            jvmTarget = JvmTarget.fromTarget(libs.versions.java.get())
+        }
+
+        packaging {
+            resources {
+                excludes +=
+                    listOf(
+                        "META-INF/DEPENDENCIES",
+                        "META-INF/LICENSE",
+                        "META-INF/LICENSE.txt",
+                        "META-INF/LICENSE.md",
+                        "META-INF/NOTICE",
+                        "META-INF/NOTICE.txt",
+                        "META-INF/NOTICE.md",
+                        "META-INF/sun-jaxb.episode",
+                        "META-INF/versions/**",
+                    )
+                pickFirsts +=
+                    listOf(
+                        "policy/tsl-constraint.xml",
+                        "xsd/bindings.xml",
+                        "xsd/**",
+                    )
             }
+        }
+
+        withDeviceTest {
+            instrumentationRunner = "eu.europa.ec.eudi.etsi1196x2.consultation.dss.DssAndroidJUnitRunner"
+            execution = "HOST"
+        }
     }
 
     // Set up targets
@@ -64,7 +97,7 @@ kotlin {
             group("jvmAndAndroid") {
                 // Provide which targets would be part of this group
                 withJvm()
-                withAndroidTarget()
+                withAndroid()
             }
         }
     }
@@ -86,15 +119,16 @@ kotlin {
         }
 
         @Suppress("UNUSED")
-        val jvmAndAndroidMain by getting {
-            dependencies {
-                api(project.dependencies.platform(libs.dss.bom))
-                implementation(libs.dss.validation)
-                implementation(libs.dss.service)
-                api(libs.dss.tsl.validation)
-                implementation(libs.dss.utils)
+        val jvmAndAndroidMain =
+            getByName("jvmAndAndroidMain") {
+                dependencies {
+                    api(project.dependencies.platform(libs.dss.bom))
+                    implementation(libs.dss.validation)
+                    implementation(libs.dss.service)
+                    api(libs.dss.tsl.validation)
+                    implementation(libs.dss.utils)
+                }
             }
-        }
 
         androidMain {
             dependencies {
@@ -109,65 +143,24 @@ kotlin {
         }
 
         @Suppress("UNUSED")
-        val jvmAndAndroidTest by getting {
-            dependencies {
-                implementation(libs.slf4j.simple)
-                implementation(libs.dss.utils.guava)
+        val jvmAndAndroidTest =
+            getByName("jvmAndAndroidTest") {
+                dependencies {
+                    implementation(libs.slf4j.simple)
+                    implementation(libs.dss.utils.guava)
+                }
             }
-        }
 
         @Suppress("UNUSED")
-        val androidInstrumentedTest by getting {
-            dependencies {
-                implementation("androidx.test:runner:1.6.2")
-                implementation("androidx.test.ext:junit:1.2.1")
-                implementation(libs.dss.utils.guava)
-                implementation(libs.slf4j.simple)
+        val androidDeviceTest =
+            getByName("androidDeviceTest") {
+                dependencies {
+                    implementation("androidx.test:runner:1.6.2")
+                    implementation("androidx.test.ext:junit:1.2.1")
+                    implementation(libs.dss.utils.guava)
+                    implementation(libs.slf4j.simple)
+                }
             }
-        }
-    }
-}
-
-// Android configuration
-android {
-    namespace = "eu.europa.ec.eudi.etsi1196x2.consultation.dss"
-    group = properties["group"].toString()
-    compileSdk = properties["android.targetSdk"].toString().toInt()
-
-    defaultConfig {
-        minSdk = properties["android.minSdk"].toString().toInt()
-        testInstrumentationRunner = "eu.europa.ec.eudi.etsi1196x2.consultation.dss.DssAndroidJUnitRunner"
-    }
-
-    compileOptions {
-        JavaVersion.toVersion(libs.versions.java.get().toInt())
-            .let { javaVersion ->
-                sourceCompatibility = javaVersion
-                targetCompatibility = javaVersion
-            }
-    }
-
-    packaging {
-        resources {
-            excludes +=
-                listOf(
-                    "META-INF/DEPENDENCIES",
-                    "META-INF/LICENSE",
-                    "META-INF/LICENSE.txt",
-                    "META-INF/LICENSE.md",
-                    "META-INF/NOTICE",
-                    "META-INF/NOTICE.txt",
-                    "META-INF/NOTICE.md",
-                    "META-INF/sun-jaxb.episode",
-                    "META-INF/versions/**",
-                )
-            pickFirsts +=
-                listOf(
-                    "policy/tsl-constraint.xml",
-                    "xsd/bindings.xml",
-                    "xsd/**",
-                )
-        }
     }
 }
 
@@ -199,7 +192,7 @@ spotless {
 //
 dokka {
     // used as project name in the header
-    moduleName = properties["POM_NAME"].toString()
+    moduleName = findProperty("POM_NAME")!!.toString()
     moduleVersion = project.version.toString()
 
     dokkaSourceSets.configureEach {
@@ -207,7 +200,7 @@ dokka {
 
         val remoteSourceUrl =
             System.getenv()["GIT_REF_NAME"]?.let {
-                URI.create("${properties["POM_SCM_URL"]}/tree/$it/${project.layout.projectDirectory.asFile.name}/src")
+                URI.create("${findProperty("POM_SCM_URL")!!}/tree/$it/${project.layout.projectDirectory.asFile.name}/src")
             }
         remoteSourceUrl
             ?.let {
@@ -224,7 +217,7 @@ mavenPublishing {
     configure(
         KotlinMultiplatform(
             javadocJar = JavadocJar.Dokka(tasks.dokkaGeneratePublicationHtml),
-            sourcesJar = true,
+            sourcesJar = SourcesJar.Sources(),
         ),
     )
 
@@ -237,7 +230,7 @@ mavenPublishing {
     pom {
         ciManagement {
             system = "github"
-            url = "${project.properties["POM_SCM_URL"]}/actions"
+            url = "${findProperty("POM_SCM_URL")!!}/actions"
         }
     }
 }

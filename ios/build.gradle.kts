@@ -103,7 +103,9 @@ kmmbridge {
 // Build PKIXBridge.xcframework before cinterop runs. The script invokes xcrun/swiftc/lipo
 // directly (no .xcodeproj wrapping) and produces ios-arm64 + ios-arm64_x86_64-simulator slices.
 // Gated on macOS — non-Darwin CI hosts skip iOS targets entirely.
-val buildPKIXBridge by tasks.registering(Exec::class) {
+val buildPKIXBridge = tasks.register<Exec>("buildPKIXBridge") {
+    description = "Build PKIXBridge.xcframework before cinterop runs."
+
     val pkixBridgeDir = projectDir.resolve("cinterop")
     workingDir = pkixBridgeDir
     commandLine("./scripts/build-xcframework.sh")

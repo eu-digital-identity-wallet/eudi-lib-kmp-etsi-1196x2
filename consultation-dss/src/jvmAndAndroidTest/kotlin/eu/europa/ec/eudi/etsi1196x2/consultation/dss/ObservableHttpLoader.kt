@@ -23,7 +23,9 @@ interface GetCounter {
     fun resetCallCount(): Int
 }
 
-class ObservableHttpLoader(val proxied: DataLoader) : DataLoader by proxied, GetCounter {
+class ObservableHttpLoader(val proxied: DataLoader) :
+    DataLoader by proxied,
+    GetCounter {
     private val _callCount = AtomicInteger(0)
     override val callCount: Int get() = _callCount.get()
 

@@ -31,26 +31,22 @@ import kotlin.test.fail
 class EUDIRefImplProfilesIosTest {
 
     @Test
-    fun testPidProviderProfile() =
-        pidSigningCertificateProfile().testCertificateExpectedToFail(
-            EUDIRefImplEnvTestFixtures.pidProviderSigningCertificateNotCompliant,
-            "does not contain any QCType",
-        )
+    fun testPidProviderProfile() = pidSigningCertificateProfile().testCertificateExpectedToFail(
+        EUDIRefImplEnvTestFixtures.pidProviderSigningCertificateNotCompliant,
+        "does not contain any QCType",
+    )
 
     @Test
-    fun testWalletProviderProfile() =
-        walletProviderSigningCertificateProfile().testCertificateExpectedToFail(
-            EUDIRefImplEnvTestFixtures.walletProviderSigningCertificateNotCompliant,
-            "does not contain any QCType",
-        )
+    fun testWalletProviderProfile() = walletProviderSigningCertificateProfile().testCertificateExpectedToFail(
+        EUDIRefImplEnvTestFixtures.walletProviderSigningCertificateNotCompliant,
+        "does not contain any QCType",
+    )
 
     @Test
-    fun testIssuerAccessCertificate() =
-        wrpAccessCertificateProfile().testCertificate(EUDIRefImplEnvTestFixtures.issuerAccessCertificate)
+    fun testIssuerAccessCertificate() = wrpAccessCertificateProfile().testCertificate(EUDIRefImplEnvTestFixtures.issuerAccessCertificate)
 
     @Test
-    fun testVerifierAccessCertificate() =
-        wrpAccessCertificateProfile().testCertificate(EUDIRefImplEnvTestFixtures.verifierAccessCertificate)
+    fun testVerifierAccessCertificate() = wrpAccessCertificateProfile().testCertificate(EUDIRefImplEnvTestFixtures.verifierAccessCertificate)
 
     // Runs the profile evaluation via the iOS validator (CertificateProfileValidatorIos →
     // CertificateOperationsIos → PKIXCertificateInspector → in-house ASN.1/X.509 parser).

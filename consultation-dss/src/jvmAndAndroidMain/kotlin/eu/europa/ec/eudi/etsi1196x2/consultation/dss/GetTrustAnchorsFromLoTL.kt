@@ -48,11 +48,10 @@ public class GetTrustAnchorsFromLoTL(
     public var lastValidationSummary: TLValidationJobSummary? = null
         private set
 
-    override suspend fun invoke(query: LOTLSource): NonEmptyList<TrustAnchor>? =
-        withContext(dssOptions.validateJobDispatcher + CoroutineName("DSS-LOTL-${query.url}")) {
-            val trustAnchors = runValidationJobFor(query)
-            NonEmptyList.nelOrNull(trustAnchors)
-        }
+    override suspend fun invoke(query: LOTLSource): NonEmptyList<TrustAnchor>? = withContext(dssOptions.validateJobDispatcher + CoroutineName("DSS-LOTL-${query.url}")) {
+        val trustAnchors = runValidationJobFor(query)
+        NonEmptyList.nelOrNull(trustAnchors)
+    }
 
     /**
      * Runs the DSS validation job for the given LOTL source.
@@ -65,34 +64,32 @@ public class GetTrustAnchorsFromLoTL(
      * @param lotlSource the LOTL source to validate
      * @return list of trust anchors extracted from the validated trusted lists
      */
-    private fun runValidationJobFor(lotlSource: LOTLSource): List<TrustAnchor> =
-        with(TrustedListsCertificateSource()) {
-            val job = createValidationJob(lotlSource)
-            job.onlineRefresh()
-            lastValidationSummary = job.summary
-            logValidationSummary(lastValidationSummary!!)
-            certificates.map { it.toTrustAnchor() }
-        }
+    private fun runValidationJobFor(lotlSource: LOTLSource): List<TrustAnchor> = with(TrustedListsCertificateSource()) {
+        val job = createValidationJob(lotlSource)
+        job.onlineRefresh()
+        lastValidationSummary = job.summary
+        logValidationSummary(lastValidationSummary!!)
+        certificates.map { it.toTrustAnchor() }
+    }
 
     private fun TrustedListsCertificateSource.createValidationJob(
         lotlSource: LOTLSource,
-    ): TLValidationJob =
-        TLValidationJob().apply {
-            setListOfTrustedListSources(lotlSource)
-            setOnlineDataLoader(dssOptions.loader)
-            setTrustedListCertificateSource(this@createValidationJob)
-            setSynchronizationStrategy(dssOptions.synchronizationStrategy)
-            setCacheCleaner(
-                CacheCleaner().apply {
-                    setCleanMemory(dssOptions.cleanMemory)
-                    setCleanFileSystem(dssOptions.cleanFileSystem)
-                    setDSSFileLoader(dssOptions.loader)
-                },
-            )
-            if (dssOptions.executorService != null) {
-                setExecutorService(dssOptions.executorService)
-            }
+    ): TLValidationJob = TLValidationJob().apply {
+        setListOfTrustedListSources(lotlSource)
+        setOnlineDataLoader(dssOptions.loader)
+        setTrustedListCertificateSource(this@createValidationJob)
+        setSynchronizationStrategy(dssOptions.synchronizationStrategy)
+        setCacheCleaner(
+            CacheCleaner().apply {
+                setCleanMemory(dssOptions.cleanMemory)
+                setCleanFileSystem(dssOptions.cleanFileSystem)
+                setDSSFileLoader(dssOptions.loader)
+            },
+        )
+        if (dssOptions.executorService != null) {
+            setExecutorService(dssOptions.executorService)
         }
+    }
 
     private fun logValidationSummary(summary: TLValidationJobSummary) {
         if (log.isInfoEnabled) {
@@ -100,62 +97,58 @@ public class GetTrustAnchorsFromLoTL(
         }
     }
 
-    private fun CertificateToken.toTrustAnchor(): TrustAnchor =
-        TrustAnchor(certificate, null)
+    private fun CertificateToken.toTrustAnchor(): TrustAnchor = TrustAnchor(certificate, null)
 }
 
-private fun logMsg(summary: TLValidationJobSummary): String =
-    buildString {
-        appendLine("=== LOTL/TL Validation Summary ===")
+private fun logMsg(summary: TLValidationJobSummary): String = buildString {
+    appendLine("=== LOTL/TL Validation Summary ===")
 
-        val lotlInfos = summary.lotlInfos
-        if (lotlInfos.isEmpty()) {
-            appendLine("No LOTLs were processed!")
-        } else {
-            appendLine("Processed ${lotlInfos.size} LOTL(s):")
-            lotlInfos.forEach { appendLine(logMsg(it)) }
-        }
-
-        val otherTLInfos = summary.otherTLInfos
-        if (otherTLInfos.isEmpty()) {
-            appendLine("No standalone TLs (only LOTL-discovered TLs expected)")
-        } else {
-            appendLine("Processed ${otherTLInfos.size} standalone TL(s):")
-            otherTLInfos.forEach { logMsg(it) }
-        }
-
-        appendLine("Total processed LOTLs: ${summary.numberOfProcessedLOTLs}")
-        appendLine("Total processed TLs: ${summary.numberOfProcessedTLs}")
-        appendLine("=== End Validation Summary ===")
+    val lotlInfos = summary.lotlInfos
+    if (lotlInfos.isEmpty()) {
+        appendLine("No LOTLs were processed!")
+    } else {
+        appendLine("Processed ${lotlInfos.size} LOTL(s):")
+        lotlInfos.forEach { appendLine(logMsg(it)) }
     }
 
-private fun logMsg(lotl: LOTLInfo): String =
-    buildString {
-        val parsing = lotl.parsingCacheInfo
-        appendLine("  LOTL: ${lotl.url}")
-        appendLine("    Download: ${lotl.downloadCacheInfo}")
-        appendLine("    Parsing: ${lotl.parsingCacheInfo}")
-        appendLine("    Validation: ${lotl.validationCacheInfo}")
-        appendLine("    Territory: ${parsing?.territory}")
-        appendLine("    Sequence: ${parsing?.sequenceNumber}")
-        appendLine("    Version: ${parsing?.version}")
-        appendLine("    TL pointers: ${parsing?.tlOtherPointers?.size}")
-        appendLine("    LOTL pointers: ${parsing?.lotlOtherPointers?.size}")
-        appendLine("    Certificates: ${parsing?.certNumber}")
+    val otherTLInfos = summary.otherTLInfos
+    if (otherTLInfos.isEmpty()) {
+        appendLine("No standalone TLs (only LOTL-discovered TLs expected)")
+    } else {
+        appendLine("Processed ${otherTLInfos.size} standalone TL(s):")
+        otherTLInfos.forEach { logMsg(it) }
     }
 
-private fun logMsg(tl: TLInfo): String =
-    buildString {
-        val parsing = tl.parsingCacheInfo
-        appendLine("  TL: ${tl.url}")
-        appendLine("    Download: ${tl.downloadCacheInfo}")
-        appendLine("    Parsing: ${tl.parsingCacheInfo}")
-        appendLine("    Validation: ${tl.validationCacheInfo}")
-        appendLine("    Synchronized: ${parsing?.isSynchronized}")
-        appendLine("    Territory: ${parsing?.territory}")
-        appendLine("    Sequence: ${parsing?.sequenceNumber}")
-        appendLine("    Version: ${parsing?.version}")
-        appendLine("    TSPs: ${parsing?.tspNumber}")
-        appendLine("    Services: ${parsing?.tsNumber}")
-        appendLine("    Certificates: ${parsing?.certNumber}")
-    }
+    appendLine("Total processed LOTLs: ${summary.numberOfProcessedLOTLs}")
+    appendLine("Total processed TLs: ${summary.numberOfProcessedTLs}")
+    appendLine("=== End Validation Summary ===")
+}
+
+private fun logMsg(lotl: LOTLInfo): String = buildString {
+    val parsing = lotl.parsingCacheInfo
+    appendLine("  LOTL: ${lotl.url}")
+    appendLine("    Download: ${lotl.downloadCacheInfo}")
+    appendLine("    Parsing: ${lotl.parsingCacheInfo}")
+    appendLine("    Validation: ${lotl.validationCacheInfo}")
+    appendLine("    Territory: ${parsing?.territory}")
+    appendLine("    Sequence: ${parsing?.sequenceNumber}")
+    appendLine("    Version: ${parsing?.version}")
+    appendLine("    TL pointers: ${parsing?.tlOtherPointers?.size}")
+    appendLine("    LOTL pointers: ${parsing?.lotlOtherPointers?.size}")
+    appendLine("    Certificates: ${parsing?.certNumber}")
+}
+
+private fun logMsg(tl: TLInfo): String = buildString {
+    val parsing = tl.parsingCacheInfo
+    appendLine("  TL: ${tl.url}")
+    appendLine("    Download: ${tl.downloadCacheInfo}")
+    appendLine("    Parsing: ${tl.parsingCacheInfo}")
+    appendLine("    Validation: ${tl.validationCacheInfo}")
+    appendLine("    Synchronized: ${parsing?.isSynchronized}")
+    appendLine("    Territory: ${parsing?.territory}")
+    appendLine("    Sequence: ${parsing?.sequenceNumber}")
+    appendLine("    Version: ${parsing?.version}")
+    appendLine("    TSPs: ${parsing?.tspNumber}")
+    appendLine("    Services: ${parsing?.tsNumber}")
+    appendLine("    Certificates: ${parsing?.certNumber}")
+}

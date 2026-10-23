@@ -129,20 +129,19 @@ public class ValidateCertificateChainUsingPKIXJvm(
     override suspend fun invoke(
         chain: List<X509Certificate>,
         trustAnchors: NonEmptyList<TrustAnchor>,
-    ): CertificationChainValidation<TrustAnchor> =
-        withContext(coroutineContext) {
-            require(chain.isNotEmpty()) { "Chain must not be empty" }
-            try {
-                val pkixParameters = PKIXParameters(trustAnchors.list.toSet()).apply(customization)
-                val certPath = certificateFactory.generateCertPath(chain)
-                val result = certPathValidator.validate(certPath, pkixParameters)
-                result.trusted()
-            } catch (e: CertPathValidatorException) {
-                e.notTrusted()
-            } catch (e: InvalidAlgorithmParameterException) {
-                e.notTrusted()
-            }
+    ): CertificationChainValidation<TrustAnchor> = withContext(coroutineContext) {
+        require(chain.isNotEmpty()) { "Chain must not be empty" }
+        try {
+            val pkixParameters = PKIXParameters(trustAnchors.list.toSet()).apply(customization)
+            val certPath = certificateFactory.generateCertPath(chain)
+            val result = certPathValidator.validate(certPath, pkixParameters)
+            result.trusted()
+        } catch (e: CertPathValidatorException) {
+            e.notTrusted()
+        } catch (e: InvalidAlgorithmParameterException) {
+            e.notTrusted()
         }
+    }
 
     public companion object {
 
@@ -200,25 +199,23 @@ public class ValidateCertificateChainUsingPKIXJvm(
             certificateFactory: CertificateFactory = JvmSecurity.DefaultX509Factory,
             certPathValidator: CertPathValidator = JvmSecurity.DefaultPKIXValidator,
             revocationCheckerCustomization: PKIXRevocationChecker.() -> Unit,
-        ): ValidateCertificateChainUsingPKIXJvm =
-            ValidateCertificateChainUsingPKIXJvm(
-                dispatcher = dispatcher,
-                certificateFactory = certificateFactory,
-                certPathValidator = certPathValidator,
-                customization = {
-                    isRevocationEnabled = true
-                    val revocationChecker = certPathValidator.revocationChecker as? PKIXRevocationChecker
-                    checkNotNull(revocationChecker).apply(revocationCheckerCustomization)
-                    addCertPathChecker(revocationChecker)
-                },
-            )
+        ): ValidateCertificateChainUsingPKIXJvm = ValidateCertificateChainUsingPKIXJvm(
+            dispatcher = dispatcher,
+            certificateFactory = certificateFactory,
+            certPathValidator = certPathValidator,
+            customization = {
+                isRevocationEnabled = true
+                val revocationChecker = certPathValidator.revocationChecker as? PKIXRevocationChecker
+                checkNotNull(revocationChecker).apply(revocationCheckerCustomization)
+                addCertPathChecker(revocationChecker)
+            },
+        )
 
         private fun CertPathValidatorResult.trusted(): CertificationChainValidation.Trusted<TrustAnchor> {
             check(this is PKIXCertPathValidatorResult) { "Unexpected result type: ${this::class}" }
             return CertificationChainValidation.Trusted(trustAnchor)
         }
 
-        private fun Throwable.notTrusted(): CertificationChainValidation.NotTrusted =
-            CertificationChainValidation.NotTrusted(this)
+        private fun Throwable.notTrusted(): CertificationChainValidation.NotTrusted = CertificationChainValidation.NotTrusted(this)
     }
 }
