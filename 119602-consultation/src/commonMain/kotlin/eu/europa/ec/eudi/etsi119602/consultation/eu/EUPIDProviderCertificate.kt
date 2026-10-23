@@ -59,8 +59,7 @@ public fun pidSigningCertificateProfile(at: Instant? = null): CertificateProfile
  * ETSI TS 119 412-6, PID-4.1-02
  */
 internal fun ProfileBuilder.pidProviderExplicitExtensionCriticality() {
-    fun basicConstraintOrKeyUsage(oid: String) =
-        oid == RFC5280.EXT_BASIC_CONSTRAINTS || oid == RFC5280.EXT_KEY_USAGE
+    fun basicConstraintOrKeyUsage(oid: String) = oid == RFC5280.EXT_BASIC_CONSTRAINTS || oid == RFC5280.EXT_KEY_USAGE
     // basicConstraints and keyUsage may be either: RFC 5280 recommends a critical keyUsage and allows either for
     // basicConstraints in an end-entity certificate.
     extensionCriticality(mustBeCritical = false) { oid ->
@@ -112,16 +111,15 @@ internal fun ProfileBuilder.pidProviderIssuerAndSubject() {
 /**
  * ETSI TS 119 412-6, PID-4.3-01, PID-4.3-02
  */
-internal fun validateLegalOrNaturalPerson(attribute: String, dn: DistinguishedName?): CertificateConstraintEvaluation =
-    if (dn == null) {
-        CertificateConstraintEvaluation(listOf(CertificateConstraintsEvaluations.missingDN(attribute)))
+internal fun validateLegalOrNaturalPerson(attribute: String, dn: DistinguishedName?): CertificateConstraintEvaluation = if (dn == null) {
+    CertificateConstraintEvaluation(listOf(CertificateConstraintsEvaluations.missingDN(attribute)))
+} else {
+    // organization identifier is required for legal persons
+    // val isLegalPerson = dn[DistinguishedName.X500OIDs.ORG_IDENTIFIER] != null
+    val isLegalPerson = dn[DistinguishedName.X500OIDs.ORGANIZATION] != null
+    if (isLegalPerson) {
+        CertificateConstraintsEvaluations.legalPersonDN(attribute, dn)
     } else {
-        // organization identifier is required for legal persons
-        // val isLegalPerson = dn[DistinguishedName.X500OIDs.ORG_IDENTIFIER] != null
-        val isLegalPerson = dn[DistinguishedName.X500OIDs.ORGANIZATION] != null
-        if (isLegalPerson) {
-            CertificateConstraintsEvaluations.legalPersonDN(attribute, dn)
-        } else {
-            CertificateConstraintsEvaluations.naturalPersonDN(attribute, dn)
-        }
+        CertificateConstraintsEvaluations.naturalPersonDN(attribute, dn)
     }
+}

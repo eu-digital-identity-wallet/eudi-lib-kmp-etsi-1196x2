@@ -70,11 +70,10 @@ class IsChainTrustedUsingLoTLAndroidTest {
             isPivotSupport = false
         }
 
-        private fun pkixValidator(enableRevocation: Boolean, instant: Instant) =
-            ValidateCertificateChainUsingPKIXJvm(customization = {
-                isRevocationEnabled = enableRevocation
-                date = Date.from(instant)
-            })
+        private fun pkixValidator(enableRevocation: Boolean, instant: Instant) = ValidateCertificateChainUsingPKIXJvm(customization = {
+            isRevocationEnabled = enableRevocation
+            date = Date.from(instant)
+        })
 
         private val dssOptions = DssOptions.usingFileCacheDataLoader(
             fileCacheExpiration = 24.hours,

@@ -79,37 +79,33 @@ public object CertificateOperationsJvm : CertificateOperations<X509Certificate> 
      *
      * @return [eu.europa.ec.eudi.etsi1196x2.consultation.certs.KeyUsageBits] or null if keyUsage extension is not present
      */
-    public override fun getKeyUsage(certificate: X509Certificate): KeyUsageBits? =
-        certificate.keyUsage?.let { keyUsage ->
-            KeyUsageBits(
-                digitalSignature = keyUsage.getOrElse(0) { false },
-                nonRepudiation = keyUsage.getOrElse(1) { false },
-                keyEncipherment = keyUsage.getOrElse(2) { false },
-                dataEncipherment = keyUsage.getOrElse(3) { false },
-                keyAgreement = keyUsage.getOrElse(4) { false },
-                keyCertSign = keyUsage.getOrElse(5) { false },
-                crlSign = keyUsage.getOrElse(6) { false },
-                encipherOnly = keyUsage.getOrElse(7) { false },
-                decipherOnly = keyUsage.getOrElse(8) { false },
-            )
-        }
+    public override fun getKeyUsage(certificate: X509Certificate): KeyUsageBits? = certificate.keyUsage?.let { keyUsage ->
+        KeyUsageBits(
+            digitalSignature = keyUsage.getOrElse(0) { false },
+            nonRepudiation = keyUsage.getOrElse(1) { false },
+            keyEncipherment = keyUsage.getOrElse(2) { false },
+            dataEncipherment = keyUsage.getOrElse(3) { false },
+            keyAgreement = keyUsage.getOrElse(4) { false },
+            keyCertSign = keyUsage.getOrElse(5) { false },
+            crlSign = keyUsage.getOrElse(6) { false },
+            encipherOnly = keyUsage.getOrElse(7) { false },
+            decipherOnly = keyUsage.getOrElse(8) { false },
+        )
+    }
 
-    private fun X509Certificate.asHolder(): X509CertificateHolder =
-        JcaX509CertificateHolder(this)
+    private fun X509Certificate.asHolder(): X509CertificateHolder = JcaX509CertificateHolder(this)
 
-    private fun X509Certificate.extension(oid: ASN1ObjectIdentifier): Extension? =
-        asHolder().extensions?.getExtension(oid)
+    private fun X509Certificate.extension(oid: ASN1ObjectIdentifier): Extension? = asHolder().extensions?.getExtension(oid)
 
     /**
      * Extracts validity period information from an X509Certificate.
      *
      * @return [eu.europa.ec.eudi.etsi1196x2.consultation.certs.ValidityPeriod] with notBefore and notAfter timestamps
      */
-    public override fun getValidityPeriod(certificate: X509Certificate): ValidityPeriod =
-        ValidityPeriod(
-            notBefore = certificate.notBefore.toInstant().toKotlinInstant(),
-            notAfter = certificate.notAfter.toInstant().toKotlinInstant(),
-        )
+    public override fun getValidityPeriod(certificate: X509Certificate): ValidityPeriod = ValidityPeriod(
+        notBefore = certificate.notBefore.toInstant().toKotlinInstant(),
+        notAfter = certificate.notAfter.toInstant().toKotlinInstant(),
+    )
 
     /**
      * Extracts certificate policy OIDs from an X509Certificate.
@@ -131,8 +127,7 @@ public object CertificateOperationsJvm : CertificateOperations<X509Certificate> 
      *
      * @return true if self-signed, false otherwise
      */
-    public override fun isSelfSigned(certificate: X509Certificate): Boolean =
-        certificate.subjectX500Principal == certificate.issuerX500Principal
+    public override fun isSelfSigned(certificate: X509Certificate): Boolean = certificate.subjectX500Principal == certificate.issuerX500Principal
 
     /**
      * Extracts Authority Information Access (AIA) extension from an X509Certificate.
@@ -280,38 +275,36 @@ public object CertificateOperationsJvm : CertificateOperations<X509Certificate> 
      *
      * @return list of [SubjectAlternativeName] or null if extension is not present
      */
-    public override fun getSubjectAltNames(certificate: X509Certificate): List<SubjectAlternativeName>? =
-        try {
-            val sanExtension = certificate.extension(Extension.subjectAlternativeName)
-            if (sanExtension == null) {
-                null
-            } else {
-                val names = GeneralNames.getInstance(sanExtension.extnValue.octets)
-                val sanList = names.names.mapNotNull { generalName ->
-                    val type = generalName.tagNo
-                    val name = generalName.name
-                    val value = name.toString()
-
-                    when (type) {
-                        GeneralName.otherName -> SubjectAlternativeName.OtherName(type.toString(), value)
-                        GeneralName.rfc822Name -> SubjectAlternativeName.Email(value)
-                        GeneralName.dNSName -> SubjectAlternativeName.DNSName(value)
-                        GeneralName.x400Address -> SubjectAlternativeName.OtherName(type.toString(), value)
-                        GeneralName.directoryName -> SubjectAlternativeName.OtherName(type.toString(), value)
-                        GeneralName.ediPartyName -> SubjectAlternativeName.OtherName(type.toString(), value)
-                        GeneralName.uniformResourceIdentifier -> SubjectAlternativeName.Uri(value)
-                        GeneralName.iPAddress -> SubjectAlternativeName.IPAddress(ASN1OctetString.getInstance(name).octets)
-
-                        GeneralName.registeredID -> SubjectAlternativeName.RegisteredId(value)
-                        else -> SubjectAlternativeName.OtherName(type.toString(), value)
-                    }
-                }
-                sanList
-            }
-        } catch (e: Exception) {
-            logger.warn("Failed to parse SubjectAltNames from certificate: ${e.message}", e)
+    public override fun getSubjectAltNames(certificate: X509Certificate): List<SubjectAlternativeName>? = try {
+        val sanExtension = certificate.extension(Extension.subjectAlternativeName)
+        if (sanExtension == null) {
             null
+        } else {
+            val names = GeneralNames.getInstance(sanExtension.extnValue.octets)
+            val sanList = names.names.mapNotNull { generalName ->
+                val type = generalName.tagNo
+                val name = generalName.name
+                val value = name.toString()
+
+                when (type) {
+                    GeneralName.otherName -> SubjectAlternativeName.OtherName(type.toString(), value)
+                    GeneralName.rfc822Name -> SubjectAlternativeName.Email(value)
+                    GeneralName.dNSName -> SubjectAlternativeName.DNSName(value)
+                    GeneralName.x400Address -> SubjectAlternativeName.OtherName(type.toString(), value)
+                    GeneralName.directoryName -> SubjectAlternativeName.OtherName(type.toString(), value)
+                    GeneralName.ediPartyName -> SubjectAlternativeName.OtherName(type.toString(), value)
+                    GeneralName.uniformResourceIdentifier -> SubjectAlternativeName.Uri(value)
+                    GeneralName.iPAddress -> SubjectAlternativeName.IPAddress(ASN1OctetString.getInstance(name).octets)
+                    GeneralName.registeredID -> SubjectAlternativeName.RegisteredId(value)
+                    else -> SubjectAlternativeName.OtherName(type.toString(), value)
+                }
+            }
+            sanList
         }
+    } catch (e: Exception) {
+        logger.warn("Failed to parse SubjectAltNames from certificate: ${e.message}", e)
+        null
+    }
 
     /**
      * Extracts CRL Distribution Points from an X509Certificate.
@@ -409,16 +402,14 @@ public object CertificateOperationsJvm : CertificateOperations<X509Certificate> 
      *
      * @return [SerialNumber] as a byte array (always positive per RFC 5280)
      */
-    public override fun getSerialNumber(certificate: X509Certificate): SerialNumber =
-        SerialNumber(certificate.serialNumber.toByteArray())
+    public override fun getSerialNumber(certificate: X509Certificate): SerialNumber = SerialNumber(certificate.serialNumber.toByteArray())
 
     /**
      * Extracts the certificate version.
      *
      * @return [Version] (X509Certificate.version returns 1=v1, 2=v2, 3=v3; we convert to 0=v1, 1=v2, 2=v3)
      */
-    public override fun getVersion(certificate: X509Certificate): Version =
-        Version(certificate.version - 1) // Java returns 1-based, we use 0-based
+    public override fun getVersion(certificate: X509Certificate): Version = Version(certificate.version - 1) // Java returns 1-based, we use 0-based
 
     /**
      * Extracts subject public key information.
@@ -433,6 +424,7 @@ public object CertificateOperationsJvm : CertificateOperations<X509Certificate> 
         // Determine key size based on algorithm type
         val keySize = when (publicKey) {
             is RSAPublicKey -> publicKey.modulus.bitLength()
+
             is ECPublicKey -> {
                 // Try to get key size from params, otherwise use encoded length as fallback
                 val paramsSize = publicKey.params?.order?.bitLength()
@@ -468,9 +460,8 @@ public object CertificateOperationsJvm : CertificateOperations<X509Certificate> 
         PublicKeyInfo(certificate.publicKey.algorithm, null, null)
     }
 
-    public override fun hasExtension(certificate: X509Certificate, oid: String): Boolean =
-        runCatching { certificate.extension(ASN1ObjectIdentifier(oid)) != null }
-            .getOrDefault(false)
+    public override fun hasExtension(certificate: X509Certificate, oid: String): Boolean = runCatching { certificate.extension(ASN1ObjectIdentifier(oid)) != null }
+        .getOrDefault(false)
 
     public override fun getExtensionCriticality(certificate: X509Certificate): Map<String, Boolean> {
         val holder = certificate.asHolder()

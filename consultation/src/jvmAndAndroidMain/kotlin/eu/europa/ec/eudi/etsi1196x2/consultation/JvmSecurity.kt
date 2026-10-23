@@ -29,21 +29,17 @@ public object JvmSecurity {
     public val DefaultX509Factory: CertificateFactory
         get() = CertificateFactory.getInstance(X_509)
 
-    public fun x509CertFactory(provider: Provider): CertificateFactory =
-        CertificateFactory.getInstance(X_509, provider)
+    public fun x509CertFactory(provider: Provider): CertificateFactory = CertificateFactory.getInstance(X_509, provider)
 
-    public fun x509CertFactory(provider: String): CertificateFactory =
-        CertificateFactory.getInstance(X_509, provider)
+    public fun x509CertFactory(provider: String): CertificateFactory = CertificateFactory.getInstance(X_509, provider)
 
     private const val PKIX = "PKIX"
     public val DefaultPKIXValidator: CertPathValidator
         get() = CertPathValidator.getInstance(PKIX)
 
-    public fun pkixCertValidator(provider: Provider): CertPathValidator =
-        CertPathValidator.getInstance(PKIX, provider)
+    public fun pkixCertValidator(provider: Provider): CertPathValidator = CertPathValidator.getInstance(PKIX, provider)
 
-    public fun pkixCertValidator(provider: String): CertPathValidator =
-        CertPathValidator.getInstance(PKIX, provider)
+    public fun pkixCertValidator(provider: String): CertPathValidator = CertPathValidator.getInstance(PKIX, provider)
 
     public fun withRevocationEnabled(enabled: Boolean): PKIXParameters.() -> Unit = {
         isRevocationEnabled = enabled

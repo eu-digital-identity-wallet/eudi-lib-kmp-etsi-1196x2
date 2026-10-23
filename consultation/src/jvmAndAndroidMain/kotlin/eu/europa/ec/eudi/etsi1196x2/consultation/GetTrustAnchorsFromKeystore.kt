@@ -53,20 +53,17 @@ public class GetTrustAnchorsFromKeystore(
     private val keystore: KeyStore,
 ) : GetTrustAnchors<Regex, TrustAnchor> {
 
-    override suspend fun invoke(query: Regex): NonEmptyList<TrustAnchor>? =
-        withContext(dispatcher + CoroutineName("GetTrustAnchorsFromKeystore")) {
-            keystore.getTrustAnchors(query).let { NonEmptyList.nelOrNull(it) }
-        }
+    override suspend fun invoke(query: Regex): NonEmptyList<TrustAnchor>? = withContext(dispatcher + CoroutineName("GetTrustAnchorsFromKeystore")) {
+        keystore.getTrustAnchors(query).let { NonEmptyList.nelOrNull(it) }
+    }
 
-    private fun KeyStore.getTrustAnchors(query: Regex): List<TrustAnchor> =
-        buildList {
-            for (alias in aliases()) {
-                if (query.matches(alias)) {
-                    getCertificate(alias)?.trustAnchor()?.let { add(it) }
-                }
+    private fun KeyStore.getTrustAnchors(query: Regex): List<TrustAnchor> = buildList {
+        for (alias in aliases()) {
+            if (query.matches(alias)) {
+                getCertificate(alias)?.trustAnchor()?.let { add(it) }
             }
         }
+    }
 
-    private fun Certificate.trustAnchor(): TrustAnchor? =
-        (this as? X509Certificate)?.let { TrustAnchor(it, null) }
+    private fun Certificate.trustAnchor(): TrustAnchor? = (this as? X509Certificate)?.let { TrustAnchor(it, null) }
 }

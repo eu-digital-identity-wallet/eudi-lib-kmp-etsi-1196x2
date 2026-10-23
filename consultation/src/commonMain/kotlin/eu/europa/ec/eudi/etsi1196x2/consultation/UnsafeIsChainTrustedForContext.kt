@@ -44,20 +44,20 @@ internal class UnsafeIsChainTrustedForContext<in CHAIN : Any, CTX : Any, out TRU
     override suspend operator fun invoke(
         chain: CHAIN,
         verificationContext: CTX,
-    ): CertificationChainValidation<TRUST_ANCHOR>? =
-        when (val validation = primary(chain, verificationContext)) {
-            null -> null
-            is CertificationChainValidation.Trusted<TRUST_ANCHOR> -> validation
-            is CertificationChainValidation.NotTrusted ->
-                withContext(CoroutineName(name = "Recovering - $verificationContext")) {
-                    tryToRecover(chain, verificationContext, validation)
-                }
-        }
+    ): CertificationChainValidation<TRUST_ANCHOR>? = when (val validation = primary(chain, verificationContext)) {
+        null -> null
+
+        is CertificationChainValidation.Trusted<TRUST_ANCHOR> -> validation
+
+        is CertificationChainValidation.NotTrusted ->
+            withContext(CoroutineName(name = "Recovering - $verificationContext")) {
+                tryToRecover(chain, verificationContext, validation)
+            }
+    }
 
     private suspend fun tryToRecover(
         chain: CHAIN,
         verificationContext: CTX,
         notTrusted: CertificationChainValidation.NotTrusted,
-    ): CertificationChainValidation<TRUST_ANCHOR>? =
-        recovery(verificationContext, notTrusted)?.let { fallback -> fallback(chain, verificationContext) }
+    ): CertificationChainValidation<TRUST_ANCHOR>? = recovery(verificationContext, notTrusted)?.let { fallback -> fallback(chain, verificationContext) }
 }

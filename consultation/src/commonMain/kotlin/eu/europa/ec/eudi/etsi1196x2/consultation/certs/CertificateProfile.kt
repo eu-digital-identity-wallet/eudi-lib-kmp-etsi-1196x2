@@ -38,16 +38,14 @@ public data class CertificateConstraint<T>(
             first: CertificateOperationsAlgebra<A>,
             second: CertificateOperationsAlgebra<B>,
             evaluate: (Pair<A, B>) -> CertificateConstraintEvaluation,
-        ): CertificateConstraint<Pair<A, B>> =
-            combine(first, second, ::Pair, evaluate)
+        ): CertificateConstraint<Pair<A, B>> = combine(first, second, ::Pair, evaluate)
 
         public fun <A, B, C> combine(
             first: CertificateOperationsAlgebra<A>,
             second: CertificateOperationsAlgebra<B>,
             third: CertificateOperationsAlgebra<C>,
             evaluate: (Triple<A, B, C>) -> CertificateConstraintEvaluation,
-        ): CertificateConstraint<Triple<A, B, C>> =
-            combine(first, second, third, ::Triple, evaluate)
+        ): CertificateConstraint<Triple<A, B, C>> = combine(first, second, third, ::Triple, evaluate)
 
         public fun <A, B, C> combine(
             first: CertificateOperationsAlgebra<A>,
@@ -104,16 +102,14 @@ public sealed interface CertificateConstraintEvaluation {
     /**
      * The constraint is not satisfied.
      */
-    public data class Violated(public val violations: List<CertificateConstraintViolation>) :
-        CertificateConstraintEvaluation {
+    public data class Violated(public val violations: List<CertificateConstraintViolation>) : CertificateConstraintEvaluation {
         init {
             require(violations.isNotEmpty()) { "At least one violation is required" }
         }
     }
 
     public companion object {
-        public operator fun invoke(violations: List<CertificateConstraintViolation>): CertificateConstraintEvaluation =
-            if (violations.isEmpty()) Met else Violated(violations)
+        public operator fun invoke(violations: List<CertificateConstraintViolation>): CertificateConstraintEvaluation = if (violations.isEmpty()) Met else Violated(violations)
 
         public operator fun invoke(builder: MutableList<CertificateConstraintViolation>.() -> Unit): CertificateConstraintEvaluation {
             val violations = buildList(builder)
@@ -122,14 +118,14 @@ public sealed interface CertificateConstraintEvaluation {
     }
 }
 
-public operator fun CertificateConstraintEvaluation.plus(other: CertificateConstraintEvaluation): CertificateConstraintEvaluation =
-    when (this) {
-        is CertificateConstraintEvaluation.Met -> other
-        is CertificateConstraintEvaluation.Violated -> when (other) {
-            CertificateConstraintEvaluation.Met -> this
-            is CertificateConstraintEvaluation.Violated -> CertificateConstraintEvaluation(this.violations + other.violations)
-        }
+public operator fun CertificateConstraintEvaluation.plus(other: CertificateConstraintEvaluation): CertificateConstraintEvaluation = when (this) {
+    is CertificateConstraintEvaluation.Met -> other
+
+    is CertificateConstraintEvaluation.Violated -> when (other) {
+        CertificateConstraintEvaluation.Met -> this
+        is CertificateConstraintEvaluation.Violated -> CertificateConstraintEvaluation(this.violations + other.violations)
     }
+}
 
 @OptIn(ExperimentalContracts::class)
 public fun CertificateConstraintEvaluation.isMet(): Boolean {
@@ -367,8 +363,7 @@ public class ProfileBuilder {
     /**
      * Builds the certificate profile from the accumulated requirements.
      */
-    public fun toProfile(): CertificateProfile =
-        CertificateProfile(requirements.toList())
+    public fun toProfile(): CertificateProfile = CertificateProfile(requirements.toList())
 }
 
 /**
@@ -393,5 +388,4 @@ public annotation class CertificateProfileDsl
  * }
  * ```
  */
-public fun certificateProfile(builder: ProfileBuilder.() -> Unit): CertificateProfile =
-    ProfileBuilder().apply(builder).toProfile()
+public fun certificateProfile(builder: ProfileBuilder.() -> Unit): CertificateProfile = ProfileBuilder().apply(builder).toProfile()

@@ -69,8 +69,7 @@ class EudiwIosTest {
     // revocation response, so the bundled-anchor tests inject one with revocation disabled.
     private val offlinePkix = ValidateCertificateChainUsingPKIXIos(PKIXConfiguration(isRevocationEnabled = false))
 
-    private fun pidRootAnchors(): BundledAnchors =
-        BundledAnchors().apply { pid = listOf(E2eTestCerts.rootDer.toNSData()) }
+    private fun pidRootAnchors(): BundledAnchors = BundledAnchors().apply { pid = listOf(E2eTestCerts.rootDer.toNSData()) }
 
     @Test
     fun usingBundledAnchors_withCustomPkix_validatesAgainstBundledRoot_isTrusted() = runTest {

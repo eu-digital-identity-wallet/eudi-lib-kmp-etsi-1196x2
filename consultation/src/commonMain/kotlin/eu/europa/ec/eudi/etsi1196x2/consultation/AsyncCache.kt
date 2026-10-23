@@ -28,7 +28,8 @@ public class AsyncCache<A : Any, B>(
     private val maxCacheSize: Int,
     cleanupExpired: Boolean = true,
     private val supplier: suspend (A) -> B,
-) : suspend (A) -> B, Disposable {
+) : suspend (A) -> B,
+    Disposable {
 
     private val cacheScope = CoroutineScope(SupervisorJob() + cacheDispatcher)
 
