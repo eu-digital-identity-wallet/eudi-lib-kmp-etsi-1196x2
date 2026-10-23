@@ -54,8 +54,7 @@ public fun interface AttestationIdentifierPredicate {
      * @param other the other predicate to combine with the current one.
      * @return a new predicate that combines the current predicate with the other one.
      */
-    public infix fun or(other: AttestationIdentifierPredicate): AttestationIdentifierPredicate =
-        AttestationIdentifierPredicate { this.test(it) || other.test(it) }
+    public infix fun or(other: AttestationIdentifierPredicate): AttestationIdentifierPredicate = AttestationIdentifierPredicate { this.test(it) || other.test(it) }
 
     public companion object {
         /**
@@ -76,10 +75,9 @@ public fun interface AttestationIdentifierPredicate {
         public inline fun <reified AI : AttestationIdentifier> matchingRegex(
             regex: Regex,
             crossinline contentToMatch: (AI) -> String,
-        ): AttestationIdentifierPredicate =
-            AttestationIdentifierPredicate { identifier ->
-                identifier is AI && regex.matches(contentToMatch(identifier))
-            }
+        ): AttestationIdentifierPredicate = AttestationIdentifierPredicate { identifier ->
+            identifier is AI && regex.matches(contentToMatch(identifier))
+        }
 
         /**
          * Creates a predicate that matches an attestation identifier exactly.
@@ -87,8 +85,7 @@ public fun interface AttestationIdentifierPredicate {
          * @param identifier the identifier to match.
          * @return a predicate that matches the given identifier exactly.
          */
-        public fun equalsTo(identifier: AttestationIdentifier): AttestationIdentifierPredicate =
-            AttestationIdentifierPredicate { it == identifier }
+        public fun equalsTo(identifier: AttestationIdentifier): AttestationIdentifierPredicate = AttestationIdentifierPredicate { it == identifier }
 
         /**
          * Creates a predicate that matches any of the given identifiers.
@@ -96,8 +93,7 @@ public fun interface AttestationIdentifierPredicate {
          * @param identifiers the identifiers to match.
          * @return a predicate that matches any of the given identifiers.
          */
-        public fun any(identifiers: Set<AttestationIdentifier>): AttestationIdentifierPredicate =
-            AttestationIdentifierPredicate { it in identifiers }
+        public fun any(identifiers: Set<AttestationIdentifier>): AttestationIdentifierPredicate = AttestationIdentifierPredicate { it in identifiers }
 
         /**
          * Creates a predicate that matches [AttestationIdentifier.MDoc] attestations having a document type matching the given regex.
@@ -106,16 +102,14 @@ public fun interface AttestationIdentifierPredicate {
          *
          * @return a predicate that matches [AttestationIdentifier.MDoc] attestations with a document type matching the given regex.
          */
-        public fun mdocMatching(regex: Regex): AttestationIdentifierPredicate =
-            matchingRegex<AttestationIdentifier.MDoc>(regex, AttestationIdentifier.MDoc::docType)
+        public fun mdocMatching(regex: Regex): AttestationIdentifierPredicate = matchingRegex<AttestationIdentifier.MDoc>(regex, AttestationIdentifier.MDoc::docType)
 
         /**
          * Creates a predicate that matches [AttestationIdentifier.SDJwtVc] attestations having a vct claim matching the given regex.
          * @param regex the regex to match the vct claim against.
          * @return a predicate that matches [AttestationIdentifier.SDJwtVc] attestations with a vct claim matching the given regex.
          */
-        public fun sdJwtVcMatching(regex: Regex): AttestationIdentifierPredicate =
-            matchingRegex<AttestationIdentifier.SDJwtVc>(regex, AttestationIdentifier.SDJwtVc::vct)
+        public fun sdJwtVcMatching(regex: Regex): AttestationIdentifierPredicate = matchingRegex<AttestationIdentifier.SDJwtVc>(regex, AttestationIdentifier.SDJwtVc::vct)
     }
 }
 
@@ -181,15 +175,14 @@ public data class AttestationClassifications(
      * @param identifier the attestation identifier to classify.
      * @return a list of matches for the given identifier
      */
-    public fun match(identifier: AttestationIdentifier): List<Match> =
-        buildList {
-            if (pids.test(identifier)) add(Match.PID)
-            if (pubEAAs.test(identifier)) add(Match.PubEAA)
-            if (qEAAs.test(identifier)) add(Match.QEAA)
-            eaAs.forEach { (useCase, predicate) ->
-                if (predicate.test(identifier)) add(Match.EAA(useCase))
-            }
+    public fun match(identifier: AttestationIdentifier): List<Match> = buildList {
+        if (pids.test(identifier)) add(Match.PID)
+        if (pubEAAs.test(identifier)) add(Match.PubEAA)
+        if (qEAAs.test(identifier)) add(Match.QEAA)
+        eaAs.forEach { (useCase, predicate) ->
+            if (predicate.test(identifier)) add(Match.EAA(useCase))
         }
+    }
 
     /**
      * Represents the classification of an attestation identifier
@@ -226,21 +219,19 @@ public class IsChainTrustedForAttestation<in CHAIN : Any, TRUST_ANCHOR : Any>(
     private val classifications: AttestationClassifications,
 ) {
 
-    private fun issuanceOf(identifier: AttestationIdentifier): VerificationContext? =
-        classifications.classify(identifier)?.fold(
-            ifPid = VerificationContext.PID,
-            ifPubEaa = VerificationContext.PubEAA,
-            ifQEaa = VerificationContext.QEAA,
-            ifEaa = { useCase: String -> VerificationContext.EAA(useCase) },
-        )
+    private fun issuanceOf(identifier: AttestationIdentifier): VerificationContext? = classifications.classify(identifier)?.fold(
+        ifPid = VerificationContext.PID,
+        ifPubEaa = VerificationContext.PubEAA,
+        ifQEaa = VerificationContext.QEAA,
+        ifEaa = { useCase: String -> VerificationContext.EAA(useCase) },
+    )
 
-    private fun revocationContextOf(identifier: AttestationIdentifier): VerificationContext? =
-        classifications.classify(identifier)?.fold(
-            ifPid = VerificationContext.PIDStatus,
-            ifPubEaa = VerificationContext.PubEAAStatus,
-            ifQEaa = VerificationContext.QEAAStatus,
-            ifEaa = { useCase: String -> VerificationContext.EAAStatus(useCase) },
-        )
+    private fun revocationContextOf(identifier: AttestationIdentifier): VerificationContext? = classifications.classify(identifier)?.fold(
+        ifPid = VerificationContext.PIDStatus,
+        ifPubEaa = VerificationContext.PubEAAStatus,
+        ifQEaa = VerificationContext.QEAAStatus,
+        ifEaa = { useCase: String -> VerificationContext.EAAStatus(useCase) },
+    )
 
     /**
      * Validates a certificate chain for issuance of an attestation.
@@ -255,8 +246,7 @@ public class IsChainTrustedForAttestation<in CHAIN : Any, TRUST_ANCHOR : Any>(
     public suspend fun issuance(
         chain: CHAIN,
         identifier: AttestationIdentifier,
-    ): CertificationChainValidation<TRUST_ANCHOR>? =
-        issuanceOf(identifier)?.let { isChainTrustedForEUDIW(chain, it) }
+    ): CertificationChainValidation<TRUST_ANCHOR>? = issuanceOf(identifier)?.let { isChainTrustedForEUDIW(chain, it) }
 
     /**
      * Validates a certificate chain for revocation of an attestation.
@@ -271,6 +261,5 @@ public class IsChainTrustedForAttestation<in CHAIN : Any, TRUST_ANCHOR : Any>(
     public suspend fun revocation(
         chain: CHAIN,
         identifier: AttestationIdentifier,
-    ): CertificationChainValidation<TRUST_ANCHOR>? =
-        revocationContextOf(identifier)?.let { isChainTrustedForEUDIW(chain, it) }
+    ): CertificationChainValidation<TRUST_ANCHOR>? = revocationContextOf(identifier)?.let { isChainTrustedForEUDIW(chain, it) }
 }

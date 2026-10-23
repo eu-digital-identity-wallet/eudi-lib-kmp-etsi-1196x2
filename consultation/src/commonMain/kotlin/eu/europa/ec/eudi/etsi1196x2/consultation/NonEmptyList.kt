@@ -54,7 +54,6 @@ public value class NonEmptyList<out T>(public val list: List<T>) {
          * val empty = NonEmptyList.nelOrNull(emptyList())   // null
          * ```
          */
-        public fun <T> nelOrNull(list: List<T>): NonEmptyList<T>? =
-            if (list.isEmpty()) null else NonEmptyList(list)
+        public fun <T> nelOrNull(list: List<T>): NonEmptyList<T>? = if (list.isEmpty()) null else NonEmptyList(list)
     }
 }

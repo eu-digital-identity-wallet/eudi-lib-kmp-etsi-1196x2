@@ -134,18 +134,16 @@ class EUDIRefImplEnvTest {
     }
 
     @Test
-    fun testPidProviderSigningCertificateProfile() =
-        pidSigningCertificateProfile().testCertificateExpectedToFail(
-            EUDIRefImplEnvTestFixtures.pidProviderSigningCertificateNotCompliant,
-            "does not contain any QCType",
-        )
+    fun testPidProviderSigningCertificateProfile() = pidSigningCertificateProfile().testCertificateExpectedToFail(
+        EUDIRefImplEnvTestFixtures.pidProviderSigningCertificateNotCompliant,
+        "does not contain any QCType",
+    )
 
     @Test
-    fun testWalletProviderSigningCertificateProfile() =
-        walletProviderSigningCertificateProfile().testCertificateExpectedToFail(
-            EUDIRefImplEnvTestFixtures.walletProviderSigningCertificateNotCompliant,
-            "does not contain any QCType",
-        )
+    fun testWalletProviderSigningCertificateProfile() = walletProviderSigningCertificateProfile().testCertificateExpectedToFail(
+        EUDIRefImplEnvTestFixtures.walletProviderSigningCertificateNotCompliant,
+        "does not contain any QCType",
+    )
 
     @Test
     fun testIssuerAccessCertificate() = wrpAccessCertificateProfile().testCertificate(EUDIRefImplEnvTestFixtures.issuerAccessCertificate)
@@ -201,6 +199,5 @@ class EUDIRefImplEnvTest {
         }
     }
 
-    private fun x509Certificate(pem: String): X509Certificate =
-        JvmSecurity.DefaultX509Factory.generateCertificate(pem.byteInputStream()) as X509Certificate
+    private fun x509Certificate(pem: String): X509Certificate = JvmSecurity.DefaultX509Factory.generateCertificate(pem.byteInputStream()) as X509Certificate
 }

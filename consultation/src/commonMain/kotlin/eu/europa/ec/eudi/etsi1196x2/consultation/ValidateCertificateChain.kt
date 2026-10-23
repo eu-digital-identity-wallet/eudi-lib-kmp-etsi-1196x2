@@ -58,8 +58,7 @@ public fun interface ValidateCertificateChain<in CHAIN : Any, TRUST_ANCHOR : Any
  *
  * @see ValidateCertificateChain
  */
-public fun interface ValidateCertificateChainUsingPKIX<in CHAIN : Any, TRUST_ANCHOR : Any> :
-    ValidateCertificateChain<CHAIN, TRUST_ANCHOR>
+public fun interface ValidateCertificateChainUsingPKIX<in CHAIN : Any, TRUST_ANCHOR : Any> : ValidateCertificateChain<CHAIN, TRUST_ANCHOR>
 
 /**
  *
@@ -69,8 +68,7 @@ public fun interface ValidateCertificateChainUsingPKIX<in CHAIN : Any, TRUST_ANC
  *
  *  @see ValidateCertificateChain
  */
-public fun interface ValidateCertificateChainUsingDirectTrust<in CHAIN : Any, TRUST_ANCHOR : Any> :
-    ValidateCertificateChain<CHAIN, TRUST_ANCHOR> {
+public fun interface ValidateCertificateChainUsingDirectTrust<in CHAIN : Any, TRUST_ANCHOR : Any> : ValidateCertificateChain<CHAIN, TRUST_ANCHOR> {
 
     public companion object {
 
@@ -84,19 +82,18 @@ public fun interface ValidateCertificateChainUsingDirectTrust<in CHAIN : Any, TR
         public fun <CHAIN : Any, TRUST_ANCHOR : Any> comparingDER(
             headDer: (CHAIN) -> ByteArray,
             trustAnchorDer: (TRUST_ANCHOR) -> ByteArray,
-        ): ValidateCertificateChainUsingDirectTrust<CHAIN, TRUST_ANCHOR> =
-            ValidateCertificateChainUsingDirectTrust { chain, trustAnchors ->
-                val head = headDer(chain)
-                val trustAnchor = trustAnchors.list.firstOrNull { anchor ->
-                    val other = trustAnchorDer(anchor)
-                    head.contentEquals(other)
-                }
-                if (trustAnchor != null) {
-                    CertificationChainValidation.Trusted(trustAnchor)
-                } else {
-                    CertificationChainValidation.NotTrusted(IllegalStateException("Not trusted"))
-                }
+        ): ValidateCertificateChainUsingDirectTrust<CHAIN, TRUST_ANCHOR> = ValidateCertificateChainUsingDirectTrust { chain, trustAnchors ->
+            val head = headDer(chain)
+            val trustAnchor = trustAnchors.list.firstOrNull { anchor ->
+                val other = trustAnchorDer(anchor)
+                head.contentEquals(other)
             }
+            if (trustAnchor != null) {
+                CertificationChainValidation.Trusted(trustAnchor)
+            } else {
+                CertificationChainValidation.NotTrusted(IllegalStateException("Not trusted"))
+            }
+        }
     }
 }
 
@@ -114,8 +111,7 @@ public sealed interface CertificationChainValidation<out TRUST_ANCHOR : Any> {
      *
      * @param trustAnchor the trust anchor that matched the chain
      */
-    public data class Trusted<out TRUST_ANCHOR : Any>(val trustAnchor: TRUST_ANCHOR) :
-        CertificationChainValidation<TRUST_ANCHOR>
+    public data class Trusted<out TRUST_ANCHOR : Any>(val trustAnchor: TRUST_ANCHOR) : CertificationChainValidation<TRUST_ANCHOR>
 
     /**
      * The chain is not trusted
@@ -149,14 +145,12 @@ private class ValidateCertificateChainContraMap<C1 : Any, TA : Any, C2 : Any>(
     private val delegate: ValidateCertificateChain<C1, TA>,
     private val transform: (C2) -> C1,
 ) : ValidateCertificateChain<C2, TA> {
-    override suspend fun invoke(chain: C2, trustAnchors: NonEmptyList<TA>): CertificationChainValidation<TA> =
-        delegate(transform(chain), trustAnchors)
+    override suspend fun invoke(chain: C2, trustAnchors: NonEmptyList<TA>): CertificationChainValidation<TA> = delegate(transform(chain), trustAnchors)
 }
 
 public infix fun <C : Any, TA : Any> ValidateCertificateChain<C, TA>.or(
     other: ValidateCertificateChain<C, TA>,
-): ValidateCertificateChain<C, TA> =
-    ValidateCertificateChainUsingAlternatives(this, other)
+): ValidateCertificateChain<C, TA> = ValidateCertificateChainUsingAlternatives(this, other)
 
 private class ValidateCertificateChainUsingAlternatives<CHAIN : Any, TRUST_ANCHOR : Any>(
     private val primary: ValidateCertificateChain<CHAIN, TRUST_ANCHOR>,
@@ -165,11 +159,10 @@ private class ValidateCertificateChainUsingAlternatives<CHAIN : Any, TRUST_ANCHO
     override suspend fun invoke(
         chain: CHAIN,
         trustAnchors: NonEmptyList<TRUST_ANCHOR>,
-    ): CertificationChainValidation<TRUST_ANCHOR> =
-        when (val primary = primary(chain, trustAnchors)) {
-            is CertificationChainValidation.Trusted -> primary
-            is CertificationChainValidation.NotTrusted -> alternative(chain, trustAnchors)
-        }
+    ): CertificationChainValidation<TRUST_ANCHOR> = when (val primary = primary(chain, trustAnchors)) {
+        is CertificationChainValidation.Trusted -> primary
+        is CertificationChainValidation.NotTrusted -> alternative(chain, trustAnchors)
+    }
 }
 
 /**
@@ -188,10 +181,9 @@ private class ValidateCertificateChainUsingAlternatives<CHAIN : Any, TRUST_ANCHO
 public fun <TA : Any, CERT : Any> ValidateCertificateChain<List<CERT>, TA>.withEndEntityProfile(
     certificateProfileValidator: CertificateProfileValidator<CERT>,
     endEntityCertificateProfile: CertificateProfile,
-): ValidateCertificateChain<List<CERT>, TA> =
-    withEndEntityProfile(certificateProfileValidator, endEntityCertificateProfile) { chain ->
-        requireNotNull(chain.firstOrNull()) { "Chain cannot be empty" }
-    }
+): ValidateCertificateChain<List<CERT>, TA> = withEndEntityProfile(certificateProfileValidator, endEntityCertificateProfile) { chain ->
+    requireNotNull(chain.firstOrNull()) { "Chain cannot be empty" }
+}
 
 /**
  * Wraps this validator to first validate end-entity certificate constraints
@@ -206,13 +198,12 @@ public fun <CHAIN : Any, TA : Any, CERT : Any> ValidateCertificateChain<CHAIN, T
     certificateProfileValidator: CertificateProfileValidator<CERT>,
     endEntityCertificateProfile: CertificateProfile,
     endEntityCertificateOf: (CHAIN) -> CERT,
-): ValidateCertificateChain<CHAIN, TA> =
-    ValidateCertificateChainWithEndEntityProfile(
-        this,
-        endEntityCertificateProfile,
-        certificateProfileValidator,
-        endEntityCertificateOf,
-    )
+): ValidateCertificateChain<CHAIN, TA> = ValidateCertificateChainWithEndEntityProfile(
+    this,
+    endEntityCertificateProfile,
+    certificateProfileValidator,
+    endEntityCertificateOf,
+)
 
 private class ValidateCertificateChainWithEndEntityProfile<CHAIN : Any, TRUST_ANCHOR : Any, CERT : Any>(
     private val primary: ValidateCertificateChain<CHAIN, TRUST_ANCHOR>,
@@ -228,14 +219,14 @@ private class ValidateCertificateChainWithEndEntityProfile<CHAIN : Any, TRUST_AN
         val endEntityCertificate = endEntityCertificateOf(chain)
         return when (val evaluation = evaluateCertificateConstraints(endEntityCertificate)) {
             is CertificateConstraintEvaluation.Met -> primary(chain, trustAnchors)
+
             is CertificateConstraintEvaluation.Violated -> {
                 noTrustedDueToViolations(evaluation)
             }
         }
     }
 
-    private suspend fun evaluateCertificateConstraints(certificate: CERT): CertificateConstraintEvaluation =
-        certificateProfileValidator.validate(endEntityCertificateProfile, certificate)
+    private suspend fun evaluateCertificateConstraints(certificate: CERT): CertificateConstraintEvaluation = certificateProfileValidator.validate(endEntityCertificateProfile, certificate)
 
     private fun noTrustedDueToViolations(
         violated: CertificateConstraintEvaluation.Violated,

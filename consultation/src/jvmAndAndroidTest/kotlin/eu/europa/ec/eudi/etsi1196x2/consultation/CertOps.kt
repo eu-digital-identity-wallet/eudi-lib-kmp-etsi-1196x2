@@ -53,8 +53,7 @@ internal object CertOps {
         return Date((secs + (hoursInFuture * 60 * 60)) * 1000)
     }
 
-    private fun notBefore(d: Duration = Duration.ZERO): Instant =
-        (clock.now() + d)
+    private fun notBefore(d: Duration = Duration.ZERO): Instant = (clock.now() + d)
 
     fun genTrustAnchor(
         sigAlg: String,
@@ -99,20 +98,18 @@ internal object CertOps {
         keyPair: KeyPair,
         sigAlg: String,
         name: X500Name,
-    ): X509CertificateHolder {
-        return JcaX509v3CertificateBuilder(
-            name,
-            calculateSerialNumber(),
-            Date.from(notBefore().toJavaInstant()),
-            calculateDate(24 * 31),
-            name,
-            keyPair.public,
-        ).apply {
-            subjectKeyIdentifier(keyPair.public)
-            basicConstraints(BasicConstraints(true))
-            keyUsage(KeyUsage(KeyUsage.keyCertSign or KeyUsage.cRLSign))
-        }.build(sigAlg, keyPair.private)
-    }
+    ): X509CertificateHolder = JcaX509v3CertificateBuilder(
+        name,
+        calculateSerialNumber(),
+        Date.from(notBefore().toJavaInstant()),
+        calculateDate(24 * 31),
+        name,
+        keyPair.public,
+    ).apply {
+        subjectKeyIdentifier(keyPair.public)
+        basicConstraints(BasicConstraints(true))
+        keyUsage(KeyUsage(KeyUsage.keyCertSign or KeyUsage.cRLSign))
+    }.build(sigAlg, keyPair.private)
 
     /**
      * Build a sample V3 intermediate certificate that can be used as a CA
@@ -129,20 +126,19 @@ internal object CertOps {
         certKey: PublicKey,
         followingCACerts: Int = 0,
         subject: X500Name,
-    ): X509CertificateHolder =
-        JcaX509v3CertificateBuilder(
-            signerCert.subject,
-            calculateSerialNumber(),
-            Date.from(notBefore().toJavaInstant()),
-            calculateDate(24 * 31),
-            subject,
-            certKey,
-        ).apply {
-            authorityKeyIdentifier(signerCert)
-            subjectKeyIdentifier(certKey)
-            basicConstraints(BasicConstraints(followingCACerts)) // allow this cert to sign other certs
-            keyUsage(KeyUsage(KeyUsage.digitalSignature or KeyUsage.keyCertSign or KeyUsage.cRLSign))
-        }.build(sigAlg, signerKey)
+    ): X509CertificateHolder = JcaX509v3CertificateBuilder(
+        signerCert.subject,
+        calculateSerialNumber(),
+        Date.from(notBefore().toJavaInstant()),
+        calculateDate(24 * 31),
+        subject,
+        certKey,
+    ).apply {
+        authorityKeyIdentifier(signerCert)
+        subjectKeyIdentifier(certKey)
+        basicConstraints(BasicConstraints(followingCACerts)) // allow this cert to sign other certs
+        keyUsage(KeyUsage(KeyUsage.digitalSignature or KeyUsage.keyCertSign or KeyUsage.cRLSign))
+    }.build(sigAlg, signerKey)
 
     fun createEndEntity(
         signerCert: X509CertificateHolder,
@@ -152,25 +148,24 @@ internal object CertOps {
         subject: X500Name,
         qcStatements: List<QCStatement>? = null,
         keyUsage: KeyUsage? = KeyUsage(KeyUsage.digitalSignature),
-    ): X509CertificateHolder =
-        JcaX509v3CertificateBuilder(
-            signerCert.subject,
-            calculateSerialNumber(),
-            Date.from(notBefore().toJavaInstant()),
-            calculateDate(24 * 31),
-            subject,
-            certKey,
-        ).apply {
-            authorityKeyIdentifier(signerCert)
-            subjectKeyIdentifier(certKey)
-            basicConstraints(BasicConstraints(false)) // do not allow this cert to sign other certs
-            if (keyUsage != null) {
-                keyUsage(keyUsage)
-            }
-            qcStatements?.let {
-                addExtension(Extension.qCStatements, false, DERSequence(it.toTypedArray()))
-            }
-        }.build(sigAlg, signerKey)
+    ): X509CertificateHolder = JcaX509v3CertificateBuilder(
+        signerCert.subject,
+        calculateSerialNumber(),
+        Date.from(notBefore().toJavaInstant()),
+        calculateDate(24 * 31),
+        subject,
+        certKey,
+    ).apply {
+        authorityKeyIdentifier(signerCert)
+        subjectKeyIdentifier(certKey)
+        basicConstraints(BasicConstraints(false)) // do not allow this cert to sign other certs
+        if (keyUsage != null) {
+            keyUsage(keyUsage)
+        }
+        qcStatements?.let {
+            addExtension(Extension.qCStatements, false, DERSequence(it.toTypedArray()))
+        }
+    }.build(sigAlg, signerKey)
 
     /**
      * Builds a self-signed V3 certificate that copies the subject and serial number of
@@ -202,8 +197,7 @@ internal object CertOps {
         return cFact.generateCertificate(encoded.inputStream()) as X509Certificate
     }
 
-    private fun signer(sigAlg: String, privateKey: PrivateKey): ContentSigner =
-        Ctx.jcaContentSignerBuilder(sigAlg).build(privateKey)
+    private fun signer(sigAlg: String, privateKey: PrivateKey): ContentSigner = Ctx.jcaContentSignerBuilder(sigAlg).build(privateKey)
 
     private fun JcaX509v1CertificateBuilder.build(sigAlg: String, privateKey: PrivateKey): X509CertificateHolder {
         val signer = signer(sigAlg, privateKey)
@@ -249,22 +243,19 @@ private val extUtils = JcaX509ExtensionUtils()
 
 private class SecCtx(val provider: Provider? = null) {
 
-    fun certFactory(): CertificateFactory =
-        provider
-            ?.let { JvmSecurity.x509CertFactory(it) }
-            ?: JvmSecurity.DefaultX509Factory
+    fun certFactory(): CertificateFactory = provider
+        ?.let { JvmSecurity.x509CertFactory(it) }
+        ?: JvmSecurity.DefaultX509Factory
 
-    fun kpGenerator(): KeyPairGenerator =
-        provider
-            ?.let { KeyPairGenerator.getInstance("EC", provider) }
-            ?: KeyPairGenerator.getInstance("EC")
+    fun kpGenerator(): KeyPairGenerator = provider
+        ?.let { KeyPairGenerator.getInstance("EC", provider) }
+        ?: KeyPairGenerator.getInstance("EC")
 
     fun generateECPair(): KeyPair = kpGenerator().genKeyPair()
 
-    fun jcaContentSignerBuilder(sigAlg: String) =
-        JcaContentSignerBuilder(sigAlg).apply {
-            if (provider != null) {
-                setProvider(provider)
-            }
+    fun jcaContentSignerBuilder(sigAlg: String) = JcaContentSignerBuilder(sigAlg).apply {
+        if (provider != null) {
+            setProvider(provider)
         }
+    }
 }

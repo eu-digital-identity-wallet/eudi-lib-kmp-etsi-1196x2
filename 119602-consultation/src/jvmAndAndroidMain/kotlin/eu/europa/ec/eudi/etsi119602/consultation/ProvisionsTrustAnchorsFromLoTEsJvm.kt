@@ -28,15 +28,14 @@ public fun ProvisionTrustAnchorsFromLoTEs.Companion.eudiwJvm(
     continueOnProblem: ContinueOnProblem = ContinueOnProblem.Never,
     directTrust: ValidateCertificateChainUsingDirectTrust<List<X509Certificate>, TrustAnchor> = ValidateCertificateChainUsingDirectTrustJvm,
     pkix: ValidateCertificateChainUsingPKIX<List<X509Certificate>, TrustAnchor> = ValidateCertificateChainUsingPKIXJvm(),
-): ProvisionTrustAnchorsFromLoTEs<List<X509Certificate>, VerificationContext, TrustAnchor, X509Certificate> =
-    jvm(
-        loadLoTEAndPointers,
-        svcTypePerCtx,
-        ::defaultCreateTrustAnchors,
-        continueOnProblem,
-        directTrust,
-        pkix,
-    )
+): ProvisionTrustAnchorsFromLoTEs<List<X509Certificate>, VerificationContext, TrustAnchor, X509Certificate> = jvm(
+    loadLoTEAndPointers,
+    svcTypePerCtx,
+    ::defaultCreateTrustAnchors,
+    continueOnProblem,
+    directTrust,
+    pkix,
+)
 
 public fun <CTX : Any> ProvisionTrustAnchorsFromLoTEs.Companion.jvm(
     loadLoTEAndPointers: LoadLoTEAndPointers,
@@ -45,19 +44,17 @@ public fun <CTX : Any> ProvisionTrustAnchorsFromLoTEs.Companion.jvm(
     continueOnProblem: ContinueOnProblem = ContinueOnProblem.Never,
     directTrust: ValidateCertificateChainUsingDirectTrust<List<X509Certificate>, TrustAnchor> = ValidateCertificateChainUsingDirectTrustJvm,
     pkix: ValidateCertificateChainUsingPKIX<List<X509Certificate>, TrustAnchor> = ValidateCertificateChainUsingPKIXJvm(),
-): ProvisionTrustAnchorsFromLoTEs<List<X509Certificate>, CTX, TrustAnchor, X509Certificate> =
-    ProvisionTrustAnchorsFromLoTEs(
-        loadLoTEAndPointers,
-        svcTypePerCtx,
-        createTrustAnchors,
-        continueOnProblem = continueOnProblem,
-        directTrust = directTrust,
-        pkix = pkix,
-        certificateProfileValidator = CertificateProfileValidator(CertificateOperationsJvm),
-        endEntityCertificateOf = { checkNotNull(it.firstOrNull()) { "Chain cannot be empty" } },
-    )
+): ProvisionTrustAnchorsFromLoTEs<List<X509Certificate>, CTX, TrustAnchor, X509Certificate> = ProvisionTrustAnchorsFromLoTEs(
+    loadLoTEAndPointers,
+    svcTypePerCtx,
+    createTrustAnchors,
+    continueOnProblem = continueOnProblem,
+    directTrust = directTrust,
+    pkix = pkix,
+    certificateProfileValidator = CertificateProfileValidator(CertificateOperationsJvm),
+    endEntityCertificateOf = { checkNotNull(it.firstOrNull()) { "Chain cannot be empty" } },
+)
 
-public fun defaultCreateTrustAnchors(serviceDigitalIdentity: ServiceDigitalIdentity): List<TrustAnchor> =
-    serviceDigitalIdentity.x509Certificates.orEmpty().map {
-        TrustAnchor(it.x509Certificate(), null)
-    }
+public fun defaultCreateTrustAnchors(serviceDigitalIdentity: ServiceDigitalIdentity): List<TrustAnchor> = serviceDigitalIdentity.x509Certificates.orEmpty().map {
+    TrustAnchor(it.x509Certificate(), null)
+}

@@ -44,8 +44,7 @@ class EUPIDSigningCertificateProfileTests {
 
     private suspend fun evaluateCertificateConstraints(
         certificate: X509Certificate,
-    ): CertificateConstraintEvaluation =
-        CertificateProfileValidatorJVM.validate(pidSigningCertificateProfile(), certificate)
+    ): CertificateConstraintEvaluation = CertificateProfileValidatorJVM.validate(pidSigningCertificateProfile(), certificate)
 
     private val legalEntityPidProviderName = X500NameBuilder(BCStyle.INSTANCE).apply {
         addRDN(BCStyle.C, "EU")
@@ -540,21 +539,20 @@ class EUPIDSigningCertificateProfileTests {
         caIssuersUri: String? = "http://example.com/ca.crt",
         ocspUri: String? = "http://example.com/ocsp",
         customExtensions: List<Triple<String, Boolean, ASN1Encodable>> = emptyList(),
-    ) =
-        genCAIssuedEndEntityCertificate(
-            qcStatements = listOf(QCStatementInfo.QcType(ETSI119412Part6.ID_ETSI_QCT_PID)),
-            policyOids = listOf("1.2.3.4.5"),
-            caIssuersUri = caIssuersUri,
-            ocspUri = ocspUri,
-            subjectAltNameUri = subjectAltNameUri,
-            keyUsage = KeyUsage(KeyUsage.digitalSignature),
-            subject = legalEntityPidProviderName,
-            keyUsageCritical = keyUsageCritical,
-            basicConstraintsCritical = basicConstraintsCritical,
-            subjectAltNameCritical = subjectAltNameCritical,
-            certificatePoliciesCritical = certificatePoliciesCritical,
-            customExtensions = customExtensions,
-        )
+    ) = genCAIssuedEndEntityCertificate(
+        qcStatements = listOf(QCStatementInfo.QcType(ETSI119412Part6.ID_ETSI_QCT_PID)),
+        policyOids = listOf("1.2.3.4.5"),
+        caIssuersUri = caIssuersUri,
+        ocspUri = ocspUri,
+        subjectAltNameUri = subjectAltNameUri,
+        keyUsage = KeyUsage(KeyUsage.digitalSignature),
+        subject = legalEntityPidProviderName,
+        keyUsageCritical = keyUsageCritical,
+        basicConstraintsCritical = basicConstraintsCritical,
+        subjectAltNameCritical = subjectAltNameCritical,
+        certificatePoliciesCritical = certificatePoliciesCritical,
+        customExtensions = customExtensions,
+    )
 
     @Test
     fun `PID Provider certificate with a non-critical keyUsage is accepted`() = runTest {

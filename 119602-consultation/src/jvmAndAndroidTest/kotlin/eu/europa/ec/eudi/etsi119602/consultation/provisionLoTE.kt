@@ -28,16 +28,15 @@ fun getTrustAnchorsProvisioner(
     loadLoTE: LoadLoTE<String>,
     svcTypePerCtx: SupportedLists<LotEMeta<VerificationContext>> = SupportedLists.eu(),
     parseJwt: ParseJwt<JsonObject, ListOfTrustedEntitiesClaims> = ParseJwt(),
-): ProvisionTrustAnchorsFromLoTEs<List<X509Certificate>, VerificationContext, TrustAnchor, X509Certificate> =
-    ProvisionTrustAnchorsFromLoTEs.eudiwJvm(
-        loadLoTEAndPointers = LoadLoTEAndPointers(
-            constraints = LoadLoTEAndPointers.Constraints.DoNotLoadOtherPointers,
-            verifyJwtSignature = NotValidating,
-            loadLoTE = loadLoTE,
-            parseJwt = parseJwt,
-        ),
-        svcTypePerCtx = svcTypePerCtx,
-        pkix = ValidateCertificateChainUsingPKIXJvm.withRevocationChecker {
-            options = EnumSet.of(PKIXRevocationChecker.Option.PREFER_CRLS)
-        },
-    )
+): ProvisionTrustAnchorsFromLoTEs<List<X509Certificate>, VerificationContext, TrustAnchor, X509Certificate> = ProvisionTrustAnchorsFromLoTEs.eudiwJvm(
+    loadLoTEAndPointers = LoadLoTEAndPointers(
+        constraints = LoadLoTEAndPointers.Constraints.DoNotLoadOtherPointers,
+        verifyJwtSignature = NotValidating,
+        loadLoTE = loadLoTE,
+        parseJwt = parseJwt,
+    ),
+    svcTypePerCtx = svcTypePerCtx,
+    pkix = ValidateCertificateChainUsingPKIXJvm.withRevocationChecker {
+        options = EnumSet.of(PKIXRevocationChecker.Option.PREFER_CRLS)
+    },
+)

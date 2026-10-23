@@ -58,20 +58,19 @@ class QcTypeParsingTest {
         assertTrue(statements.isEmpty())
     }
 
-    private fun certificateWithQcStatements(vararg statements: QCStatement) =
-        with(CertOps) {
-            val issuerName = X500Name("CN=QcType Test Issuer")
-            val (issuerKeyPair, issuer) = genTrustAnchor(SIGN_ALG, issuerName)
-            val (_, endEntity) =
-                genEndEntity(
-                    issuer,
-                    issuerKeyPair.private,
-                    SIGN_ALG,
-                    X500Name("CN=QcType Test"),
-                    statements.toList(),
-                )
-            endEntity.toX509Certificate()
-        }
+    private fun certificateWithQcStatements(vararg statements: QCStatement) = with(CertOps) {
+        val issuerName = X500Name("CN=QcType Test Issuer")
+        val (issuerKeyPair, issuer) = genTrustAnchor(SIGN_ALG, issuerName)
+        val (_, endEntity) =
+            genEndEntity(
+                issuer,
+                issuerKeyPair.private,
+                SIGN_ALG,
+                X500Name("CN=QcType Test"),
+                statements.toList(),
+            )
+        endEntity.toX509Certificate()
+    }
 
     private fun qcTypeStatement(typeOids: List<String>): QCStatement {
         val typeIdentifiers = ASN1EncodableVector()

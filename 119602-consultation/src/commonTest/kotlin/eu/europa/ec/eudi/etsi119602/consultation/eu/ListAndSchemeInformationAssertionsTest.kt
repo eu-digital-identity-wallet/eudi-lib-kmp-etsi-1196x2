@@ -26,12 +26,11 @@ class ListAndSchemeInformationAssertionsTest {
 
     private val issueDate = Instant.parse("2026-01-01T00:00:00Z")
 
-    private fun listAndSchemeInformation(nextUpdate: Instant): ListAndSchemeInformation =
-        ListAndSchemeInformation.implicit(
-            schemeOperatorName = listOf(MultilanguageString.en("Test Scheme Operator")),
-            listIssueDateTime = issueDate,
-            nextUpdate = nextUpdate,
-        )
+    private fun listAndSchemeInformation(nextUpdate: Instant): ListAndSchemeInformation = ListAndSchemeInformation.implicit(
+        schemeOperatorName = listOf(MultilanguageString.en("Test Scheme Operator")),
+        listIssueDateTime = issueDate,
+        nextUpdate = nextUpdate,
+    )
 
     @Test
     fun `next update within the limit should pass`() {

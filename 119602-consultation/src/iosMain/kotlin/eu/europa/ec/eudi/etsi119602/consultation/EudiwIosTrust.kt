@@ -147,8 +147,7 @@ public object EudiwIosTrust {
             ValidateCertificateChainUsingDirectTrustIos,
         pkix: ValidateCertificateChainUsingPKIX<List<NSData>, NSData> =
             ValidateCertificateChainUsingPKIXIos.invoke(isRevocationEnabled = true),
-    ): ComposeChainTrust<List<NSData>, VerificationContext, NSData> =
-        buildNonCached(urls, verifyJwtSignature, defaultLoadLoTE(), directTrust, pkix)
+    ): ComposeChainTrust<List<NSData>, VerificationContext, NSData> = buildNonCached(urls, verifyJwtSignature, defaultLoadLoTE(), directTrust, pkix)
 
     /**
      * As [nonCached] `(urls:verifyJwtSignature:)`, but each LoTE is obtained from [loadLoTE] instead
@@ -168,8 +167,7 @@ public object EudiwIosTrust {
             ValidateCertificateChainUsingDirectTrustIos,
         pkix: ValidateCertificateChainUsingPKIX<List<NSData>, NSData> =
             ValidateCertificateChainUsingPKIXIos.invoke(isRevocationEnabled = true),
-    ): ComposeChainTrust<List<NSData>, VerificationContext, NSData> =
-        buildNonCached(urls, verifyJwtSignature, loadLoTE.asLoadLoTE(), directTrust, pkix)
+    ): ComposeChainTrust<List<NSData>, VerificationContext, NSData> = buildNonCached(urls, verifyJwtSignature, loadLoTE.asLoadLoTE(), directTrust, pkix)
 
     /**
      * Builds a **cached** validator, fetching each LoTE with the built-in Darwin (NSURLSession)
@@ -198,8 +196,7 @@ public object EudiwIosTrust {
             ValidateCertificateChainUsingDirectTrustIos,
         pkix: ValidateCertificateChainUsingPKIX<List<NSData>, NSData> =
             ValidateCertificateChainUsingPKIXIos.invoke(isRevocationEnabled = true),
-    ): CachedTrustValidator =
-        buildCached(urls, ttlHours, verifyJwtSignature, defaultLoadLoTE(), directTrust, pkix)
+    ): CachedTrustValidator = buildCached(urls, ttlHours, verifyJwtSignature, defaultLoadLoTE(), directTrust, pkix)
 
     /**
      * As [cached]`(urls:ttlHours:verifyJwtSignature:)` — same ownership contract — but each LoTE is
@@ -222,8 +219,7 @@ public object EudiwIosTrust {
             ValidateCertificateChainUsingDirectTrustIos,
         pkix: ValidateCertificateChainUsingPKIX<List<NSData>, NSData> =
             ValidateCertificateChainUsingPKIXIos.invoke(isRevocationEnabled = true),
-    ): CachedTrustValidator =
-        buildCached(urls, ttlHours, verifyJwtSignature, loadLoTE.asLoadLoTE(), directTrust, pkix)
+    ): CachedTrustValidator = buildCached(urls, ttlHours, verifyJwtSignature, loadLoTE.asLoadLoTE(), directTrust, pkix)
 
     /**
      * Swift-facing overload of [nonCached]`(urls:verifyJwtSignature:)` that accepts a
@@ -236,8 +232,7 @@ public object EudiwIosTrust {
             ValidateCertificateChainUsingDirectTrustIos,
         pkix: ValidateCertificateChainUsingPKIX<List<NSData>, NSData> =
             ValidateCertificateChainUsingPKIXIos.invoke(isRevocationEnabled = true),
-    ): ComposeChainTrust<List<NSData>, VerificationContext, NSData> =
-        nonCached(urls, verifyJwtSignature.asVerifyJwtSignature(), directTrust, pkix)
+    ): ComposeChainTrust<List<NSData>, VerificationContext, NSData> = nonCached(urls, verifyJwtSignature.asVerifyJwtSignature(), directTrust, pkix)
 
     /**
      * Swift-facing overload of [nonCached]`(urls:verifyJwtSignature:loadLoTE:)` that accepts a
@@ -251,8 +246,7 @@ public object EudiwIosTrust {
             ValidateCertificateChainUsingDirectTrustIos,
         pkix: ValidateCertificateChainUsingPKIX<List<NSData>, NSData> =
             ValidateCertificateChainUsingPKIXIos.invoke(isRevocationEnabled = true),
-    ): ComposeChainTrust<List<NSData>, VerificationContext, NSData> =
-        nonCached(urls, verifyJwtSignature.asVerifyJwtSignature(), loadLoTE, directTrust, pkix)
+    ): ComposeChainTrust<List<NSData>, VerificationContext, NSData> = nonCached(urls, verifyJwtSignature.asVerifyJwtSignature(), loadLoTE, directTrust, pkix)
 
     /**
      * Swift-facing overload of [cached]`(urls:ttlHours:verifyJwtSignature:)` that accepts a
@@ -266,8 +260,7 @@ public object EudiwIosTrust {
             ValidateCertificateChainUsingDirectTrustIos,
         pkix: ValidateCertificateChainUsingPKIX<List<NSData>, NSData> =
             ValidateCertificateChainUsingPKIXIos.invoke(isRevocationEnabled = true),
-    ): CachedTrustValidator =
-        cached(urls, ttlHours, verifyJwtSignature.asVerifyJwtSignature(), directTrust, pkix)
+    ): CachedTrustValidator = cached(urls, ttlHours, verifyJwtSignature.asVerifyJwtSignature(), directTrust, pkix)
 
     /**
      * Swift-facing overload of [cached]`(urls:ttlHours:verifyJwtSignature:loadLoTE:)` that accepts
@@ -282,8 +275,7 @@ public object EudiwIosTrust {
             ValidateCertificateChainUsingDirectTrustIos,
         pkix: ValidateCertificateChainUsingPKIX<List<NSData>, NSData> =
             ValidateCertificateChainUsingPKIXIos.invoke(isRevocationEnabled = true),
-    ): CachedTrustValidator =
-        cached(urls, ttlHours, verifyJwtSignature.asVerifyJwtSignature(), loadLoTE, directTrust, pkix)
+    ): CachedTrustValidator = cached(urls, ttlHours, verifyJwtSignature.asVerifyJwtSignature(), loadLoTE, directTrust, pkix)
 
     /**
      * Builds a validator backed by **bundled / hardcoded** certificate anchors instead of a
@@ -308,13 +300,12 @@ public object EudiwIosTrust {
     public fun usingBundledAnchors(
         anchors: BundledAnchors,
         method: BundledAnchorMethod,
-    ): ComposeChainTrust<List<NSData>, VerificationContext, NSData> =
-        usingBundledAnchors(
-            anchors = anchors,
-            method = method,
-            directTrust = ValidateCertificateChainUsingDirectTrustIos,
-            pkix = ValidateCertificateChainUsingPKIXIos(),
-        )
+    ): ComposeChainTrust<List<NSData>, VerificationContext, NSData> = usingBundledAnchors(
+        anchors = anchors,
+        method = method,
+        directTrust = ValidateCertificateChainUsingDirectTrustIos,
+        pkix = ValidateCertificateChainUsingPKIXIos(),
+    )
 
     /**
      * As [usingBundledAnchors]`(anchors:method:)`, but with the chain validators supplied by the
@@ -376,24 +367,22 @@ public object EudiwIosTrust {
         return ComposeChainTrust(getTrustAnchors.validator(anchorsByContext.keys, validateChain))
     }
 
-    private fun buildLocations(urls: TrustListUrls): SupportedLists<Uri> =
-        SupportedLists(
-            pidProviders = urls.pidProviders?.let(::Uri),
-            walletProviders = urls.walletProviders?.let(::Uri),
-            wrpacProviders = urls.wrpacProviders?.let(::Uri),
-            wrprcProviders = urls.wrprcProviders?.let(::Uri),
-            pubEaaProviders = urls.pubEaaProviders?.let(::Uri),
-            qeaProviders = urls.qeaProviders?.let(::Uri),
-            eaaProviders = buildMap { urls.mdlProviders?.let { put(mdlUseCase, Uri(it)) } },
-        )
+    private fun buildLocations(urls: TrustListUrls): SupportedLists<Uri> = SupportedLists(
+        pidProviders = urls.pidProviders?.let(::Uri),
+        walletProviders = urls.walletProviders?.let(::Uri),
+        wrpacProviders = urls.wrpacProviders?.let(::Uri),
+        wrprcProviders = urls.wrprcProviders?.let(::Uri),
+        pubEaaProviders = urls.pubEaaProviders?.let(::Uri),
+        qeaProviders = urls.qeaProviders?.let(::Uri),
+        eaaProviders = buildMap { urls.mdlProviders?.let { put(mdlUseCase, Uri(it)) } },
+    )
 
     // The baseline EU metadata has no mDL entry, so add one when an mDL URL is supplied.
     // mDL uses a null end-entity profile (the advertised DIGIT lists do not satisfy the strict ETSI
     // profiles), so its validation is pure direct trust / PKIX. Mirrors DIGIT.SVC_TYPE_PER_CTX.
-    private fun buildSvcTypePerCtx(mdlProvidersUrl: String?): SupportedLists<LotEMeta<VerificationContext>> =
-        SupportedLists.eu().let { baseline ->
-            if (mdlProvidersUrl != null) baseline.copy(eaaProviders = mapOf(mdlUseCase to mdlMeta())) else baseline
-        }
+    private fun buildSvcTypePerCtx(mdlProvidersUrl: String?): SupportedLists<LotEMeta<VerificationContext>> = SupportedLists.eu().let { baseline ->
+        if (mdlProvidersUrl != null) baseline.copy(eaaProviders = mapOf(mdlUseCase to mdlMeta())) else baseline
+    }
 
     private fun buildNonCached(
         urls: TrustListUrls,
@@ -401,15 +390,14 @@ public object EudiwIosTrust {
         loadLoTE: LoadLoTE<String>,
         directTrust: ValidateCertificateChainUsingDirectTrust<List<NSData>, NSData>,
         pkix: ValidateCertificateChainUsingPKIX<List<NSData>, NSData>,
-    ): ComposeChainTrust<List<NSData>, VerificationContext, NSData> =
-        ProvisionTrustAnchorsFromLoTEs
-            .eudiwIos(
-                loadLoTEAndPointers = buildLoadLoTEAndPointers(verifyJwtSignature, loadLoTE),
-                svcTypePerCtx = buildSvcTypePerCtx(urls.mdlProviders),
-                directTrust = directTrust,
-                pkix = pkix,
-            )
-            .nonCached(buildLocations(urls))
+    ): ComposeChainTrust<List<NSData>, VerificationContext, NSData> = ProvisionTrustAnchorsFromLoTEs
+        .eudiwIos(
+            loadLoTEAndPointers = buildLoadLoTEAndPointers(verifyJwtSignature, loadLoTE),
+            svcTypePerCtx = buildSvcTypePerCtx(urls.mdlProviders),
+            directTrust = directTrust,
+            pkix = pkix,
+        )
+        .nonCached(buildLocations(urls))
 
     private fun buildCached(
         urls: TrustListUrls,
@@ -442,12 +430,11 @@ public object EudiwIosTrust {
     private fun buildLoadLoTEAndPointers(
         verifyJwtSignature: VerifyJwtSignature,
         loadLoTE: LoadLoTE<String>,
-    ): LoadLoTEAndPointers =
-        LoadLoTEAndPointers(
-            constraints = LoadLoTEAndPointers.Constraints.DoNotLoadOtherPointers,
-            verifyJwtSignature = verifyJwtSignature,
-            loadLoTE = loadLoTE,
-        )
+    ): LoadLoTEAndPointers = LoadLoTEAndPointers(
+        constraints = LoadLoTEAndPointers.Constraints.DoNotLoadOtherPointers,
+        verifyJwtSignature = verifyJwtSignature,
+        loadLoTE = loadLoTE,
+    )
 
     private fun mdlMeta(): LotEMeta<VerificationContext> = LotEMeta(
         svcTypePerCtx = buildMap {
@@ -476,8 +463,7 @@ public object EudiwIosTrust {
     public suspend fun trustAnchors(
         validator: ComposeChainTrust<List<NSData>, VerificationContext, NSData>,
         context: VerificationContext,
-    ): List<NSData> =
-        validator.getTrustAnchors.invoke(context)?.list ?: emptyList()
+    ): List<NSData> = validator.getTrustAnchors.invoke(context)?.list ?: emptyList()
 
     /**
      * Validates a DER-encoded certificate [chain] for [context] using [validator].
@@ -494,26 +480,25 @@ public object EudiwIosTrust {
         validator: ComposeChainTrust<List<NSData>, VerificationContext, NSData>,
         chain: List<NSData>,
         context: VerificationContext,
-    ): IosValidationResult =
-        when (val outcome = validator.invoke(chain, context)) {
-            null -> IosValidationResult(
-                isTrusted = false,
-                matchedAnchor = null,
-                failureReason = "No validator configured for this context",
-            )
+    ): IosValidationResult = when (val outcome = validator.invoke(chain, context)) {
+        null -> IosValidationResult(
+            isTrusted = false,
+            matchedAnchor = null,
+            failureReason = "No validator configured for this context",
+        )
 
-            is CertificationChainValidation.Trusted -> IosValidationResult(
-                isTrusted = true,
-                matchedAnchor = outcome.trustAnchor,
-                failureReason = null,
-            )
+        is CertificationChainValidation.Trusted -> IosValidationResult(
+            isTrusted = true,
+            matchedAnchor = outcome.trustAnchor,
+            failureReason = null,
+        )
 
-            is CertificationChainValidation.NotTrusted -> IosValidationResult(
-                isTrusted = false,
-                matchedAnchor = null,
-                failureReason = outcome.cause.message ?: "Chain is not trusted",
-            )
-        }
+        is CertificationChainValidation.NotTrusted -> IosValidationResult(
+            isTrusted = false,
+            matchedAnchor = null,
+            failureReason = outcome.cause.message ?: "Chain is not trusted",
+        )
+    }
 }
 
 /**
@@ -530,16 +515,14 @@ public class CachedTrustValidator internal constructor(
 ) {
     /** Resolves the trust anchors (DER bytes) for [context]; served from cache within the TTL. */
     @Throws(Throwable::class)
-    public suspend fun trustAnchors(context: VerificationContext): List<NSData> =
-        EudiwIosTrust.trustAnchors(validator, context)
+    public suspend fun trustAnchors(context: VerificationContext): List<NSData> = EudiwIosTrust.trustAnchors(validator, context)
 
     /**
      * Validates a leaf-first DER [chain] for [context]; the anchor lookup is served from cache
      * within the TTL. Returns an [IosValidationResult] (not-trusted if the context is unsupported).
      */
     @Throws(Throwable::class)
-    public suspend fun validate(chain: List<NSData>, context: VerificationContext): IosValidationResult =
-        EudiwIosTrust.validate(validator, chain, context)
+    public suspend fun validate(chain: List<NSData>, context: VerificationContext): IosValidationResult = EudiwIosTrust.validate(validator, chain, context)
 
     /** Releases the in-memory caches. Call once when the validator is no longer needed. */
     public fun dispose(): Unit = scope.dispose()

@@ -116,16 +116,15 @@ private fun KeyUsageBits.matchesExactly(
     crlSign: Boolean = false,
     encipherOnly: Boolean = false,
     decipherOnly: Boolean = false,
-): Boolean =
-    this.digitalSignature == digitalSignature &&
-        this.nonRepudiation == nonRepudiation &&
-        this.keyEncipherment == keyEncipherment &&
-        this.dataEncipherment == dataEncipherment &&
-        this.keyAgreement == keyAgreement &&
-        this.keyCertSign == keyCertSign &&
-        this.crlSign == crlSign &&
-        this.encipherOnly == encipherOnly &&
-        this.decipherOnly == decipherOnly
+): Boolean = this.digitalSignature == digitalSignature &&
+    this.nonRepudiation == nonRepudiation &&
+    this.keyEncipherment == keyEncipherment &&
+    this.dataEncipherment == dataEncipherment &&
+    this.keyAgreement == keyAgreement &&
+    this.keyCertSign == keyCertSign &&
+    this.crlSign == crlSign &&
+    this.encipherOnly == encipherOnly &&
+    this.decipherOnly == decipherOnly
 
 //
 // Validity Period

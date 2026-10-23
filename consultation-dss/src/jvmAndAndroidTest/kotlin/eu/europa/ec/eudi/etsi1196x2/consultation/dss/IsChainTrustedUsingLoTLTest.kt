@@ -59,12 +59,11 @@ object EUDIRefDevEnv {
         return lotlSource
     }
 
-    fun dssOptions(httpLoader: DataLoader) =
-        DssOptions.usingFileCacheDataLoader(
-            fileCacheExpiration = 24.hours,
-            cacheDirectory = createTempDirectory("lotl-cache"),
-            httpLoader = httpLoader,
-        )
+    fun dssOptions(httpLoader: DataLoader) = DssOptions.usingFileCacheDataLoader(
+        fileCacheExpiration = 24.hours,
+        cacheDirectory = createTempDirectory("lotl-cache"),
+        httpLoader = httpLoader,
+    )
 
     val supportedLists = SupportedLists(
         pidProviders = lotlSource(PID_SVC_TYPE),
@@ -245,7 +244,9 @@ class IsChainTrustedUsingLoTLParallelTest {
         ttl: Duration,
         maxCacheSize: Int,
         proxied: DataLoader,
-    ) : DataLoader by proxied, Disposable, GetCounter {
+    ) : DataLoader by proxied,
+        Disposable,
+        GetCounter {
         private val _callCount = AtomicInteger(0)
         override val callCount: Int get() = _callCount.get()
         private val cache = AsyncCache<String, ByteArray>(
@@ -263,10 +264,9 @@ class IsChainTrustedUsingLoTLParallelTest {
 
         override fun resetCallCount(): Int = _callCount.getAndUpdate { 0 }
 
-        override fun get(url: String): ByteArray =
-            runBlocking {
-                cache.invoke(url)
-            }
+        override fun get(url: String): ByteArray = runBlocking {
+            cache.invoke(url)
+        }
 
         override fun dispose() {
             cache.dispose()
@@ -314,11 +314,9 @@ private data class ConsoleOutput(
             .split("\n")
             .filter { it.isNotBlank() }
 
-    fun containsError(keywords: List<String>): List<String> {
-        return allLines.filter { line ->
-            keywords.any { keyword ->
-                line.contains(keyword, ignoreCase = true)
-            }
+    fun containsError(keywords: List<String>): List<String> = allLines.filter { line ->
+        keywords.any { keyword ->
+            line.contains(keyword, ignoreCase = true)
         }
     }
 }

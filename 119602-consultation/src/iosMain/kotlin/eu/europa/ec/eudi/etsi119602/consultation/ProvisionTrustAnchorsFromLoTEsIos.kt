@@ -27,8 +27,7 @@ import platform.Foundation.NSData
  */
 public fun defaultCreateTrustAnchorsIos(
     serviceDigitalIdentity: ServiceDigitalIdentity,
-): List<NSData> =
-    serviceDigitalIdentity.x509Certificates.orEmpty().map { it.value.toNSData() }
+): List<NSData> = serviceDigitalIdentity.x509Certificates.orEmpty().map { it.value.toNSData() }
 
 /**
  * iOS factory for [ProvisionTrustAnchorsFromLoTEs] wired with concrete iOS types, mirroring
@@ -47,15 +46,14 @@ public fun ProvisionTrustAnchorsFromLoTEs.Companion.eudiwIos(
     continueOnProblem: ContinueOnProblem = ContinueOnProblem.Never,
     directTrust: ValidateCertificateChainUsingDirectTrust<List<NSData>, NSData>,
     pkix: ValidateCertificateChainUsingPKIX<List<NSData>, NSData>,
-): ProvisionTrustAnchorsFromLoTEs<List<NSData>, VerificationContext, NSData, NSData> =
-    ios(
-        loadLoTEAndPointers,
-        svcTypePerCtx,
-        ::defaultCreateTrustAnchorsIos,
-        continueOnProblem,
-        directTrust,
-        pkix,
-    )
+): ProvisionTrustAnchorsFromLoTEs<List<NSData>, VerificationContext, NSData, NSData> = ios(
+    loadLoTEAndPointers,
+    svcTypePerCtx,
+    ::defaultCreateTrustAnchorsIos,
+    continueOnProblem,
+    directTrust,
+    pkix,
+)
 
 /**
  * Generic iOS factory for [ProvisionTrustAnchorsFromLoTEs] over an arbitrary context type [CTX],
@@ -70,14 +68,13 @@ public fun <CTX : Any> ProvisionTrustAnchorsFromLoTEs.Companion.ios(
         ValidateCertificateChainUsingDirectTrustIos,
     pkix: ValidateCertificateChainUsingPKIX<List<NSData>, NSData> =
         ValidateCertificateChainUsingPKIXIos(),
-): ProvisionTrustAnchorsFromLoTEs<List<NSData>, CTX, NSData, NSData> =
-    ProvisionTrustAnchorsFromLoTEs(
-        loadLoTEAndPointers,
-        svcTypePerCtx,
-        createTrustAnchors,
-        continueOnProblem = continueOnProblem,
-        directTrust = directTrust,
-        pkix = pkix,
-        certificateProfileValidator = CertificateProfileValidatorIos(),
-        endEntityCertificateOf = { checkNotNull(it.firstOrNull()) { "Chain cannot be empty" } },
-    )
+): ProvisionTrustAnchorsFromLoTEs<List<NSData>, CTX, NSData, NSData> = ProvisionTrustAnchorsFromLoTEs(
+    loadLoTEAndPointers,
+    svcTypePerCtx,
+    createTrustAnchors,
+    continueOnProblem = continueOnProblem,
+    directTrust = directTrust,
+    pkix = pkix,
+    certificateProfileValidator = CertificateProfileValidatorIos(),
+    endEntityCertificateOf = { checkNotNull(it.firstOrNull()) { "Chain cannot be empty" } },
+)

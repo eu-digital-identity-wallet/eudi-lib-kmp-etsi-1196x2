@@ -71,9 +71,8 @@ public val EUPIDProvidersList: EUListOfTrustedEntitiesProfile =
 public fun pidProviderCACertificateProfile(
     at: Instant? = null,
     maxPathLen: Int? = null,
-): CertificateProfile =
-    certificateProfile {
-        ca(maxPathLen)
-        keyUsageCertSign()
-        validAt(at)
-    }
+): CertificateProfile = certificateProfile {
+    ca(maxPathLen)
+    keyUsageCertSign()
+    validAt(at)
+}

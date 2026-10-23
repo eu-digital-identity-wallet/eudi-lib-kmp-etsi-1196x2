@@ -66,10 +66,9 @@ public val EUWRPRCProvidersList: EUListOfTrustedEntitiesProfile =
 public fun wrprcProviderCertificateProfile(
     at: Instant? = null,
     maxPathLen: Int? = null,
-): CertificateProfile =
-    certificateProfile {
-        ca(maxPathLen)
-        keyUsageCertSign()
-        validAt(at)
-        policyIsPresent()
-    }
+): CertificateProfile = certificateProfile {
+    ca(maxPathLen)
+    keyUsageCertSign()
+    validAt(at)
+    policyIsPresent()
+}

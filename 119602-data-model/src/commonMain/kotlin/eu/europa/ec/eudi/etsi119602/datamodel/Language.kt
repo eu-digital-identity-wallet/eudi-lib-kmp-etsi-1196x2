@@ -22,7 +22,9 @@ import kotlin.jvm.JvmInline
 @JvmInline
 public value class Language
 @Throws(IllegalArgumentException::class)
-public constructor(public val value: String) {
+public constructor(
+    public val value: String,
+) {
     init {
         Assertions.requireNotBlank(value, ETSI19602.LANG)
         require(value.matches(ALPHA_2_PATTERN)) { "Invalid ${ETSI19602.LANG}" }

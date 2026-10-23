@@ -151,12 +151,11 @@ public object CertificateConstraintsEvaluations {
         // Self-signed certificates: no AIA check needed (pass silently)
     }
 
-    public fun notSelfSigned(isSelfSigned: Boolean): CertificateConstraintEvaluation =
-        CertificateConstraintEvaluation {
-            if (isSelfSigned) {
-                add(selfSignedCertificateNotAllowed)
-            }
+    public fun notSelfSigned(isSelfSigned: Boolean): CertificateConstraintEvaluation = CertificateConstraintEvaluation {
+        if (isSelfSigned) {
+            add(selfSignedCertificateNotAllowed)
         }
+    }
 
     public fun isVersion(
         version: Version,
@@ -167,18 +166,17 @@ public object CertificateConstraintsEvaluations {
         }
     }
 
-    public fun positiveSerialNumber(serialNumber: SerialNumber): CertificateConstraintEvaluation =
-        CertificateConstraintEvaluation {
-            // Serial number is already validated to be positive in the SerialNumber constructor
-            // This check is redundant but kept for explicit validation
-            if (serialNumber.value.isEmpty()) {
-                add(serialNumberNotPositive)
-            }
-            // Check MSB is 0 (positive number)
-            if (serialNumber.value[0].toInt() and 0x80 != 0) {
-                add(serialNumberNotPositive)
-            }
+    public fun positiveSerialNumber(serialNumber: SerialNumber): CertificateConstraintEvaluation = CertificateConstraintEvaluation {
+        // Serial number is already validated to be positive in the SerialNumber constructor
+        // This check is redundant but kept for explicit validation
+        if (serialNumber.value.isEmpty()) {
+            add(serialNumberNotPositive)
         }
+        // Check MSB is 0 (positive number)
+        if (serialNumber.value[0].toInt() and 0x80 != 0) {
+            add(serialNumberNotPositive)
+        }
+    }
 
     public fun naturalPersonDN(
         attribute: String,
@@ -347,6 +345,7 @@ public object CertificateConstraintsEvaluations {
                         add(certificateDoesNotContainRequiredQCType(requiredQcStatment.innerIdentifier, qcTypes))
                     }
                 }
+
                 is QCStatementInfo.OtherQcStatement -> {
                     if (requiredQcStatment !in otherQcStatements) {
                         add(certificateDoesNotContainRequiredQCStatement(requiredQcStatment.statementId, otherQcStatements))
@@ -380,23 +379,22 @@ public object CertificateConstraintsEvaluations {
         extensionsCriticality: Map<String, Boolean>,
         mustBeCritical: Boolean,
         filter: (String) -> Boolean,
-    ): CertificateConstraintEvaluation =
-        CertificateConstraintEvaluation {
-            fun violation(oid: String): CertificateConstraintViolation {
-                val reason = if (mustBeCritical) {
-                    "Extension $oid must be marked critical but is not"
-                } else {
-                    "Extension $oid must not be marked critical but is marked critical"
-                }
-                return CertificateConstraintViolation(reason)
+    ): CertificateConstraintEvaluation = CertificateConstraintEvaluation {
+        fun violation(oid: String): CertificateConstraintViolation {
+            val reason = if (mustBeCritical) {
+                "Extension $oid must be marked critical but is not"
+            } else {
+                "Extension $oid must not be marked critical but is marked critical"
             }
+            return CertificateConstraintViolation(reason)
+        }
 
-            extensionsCriticality.forEach { (oid, isCritical) ->
-                if (filter(oid) && isCritical != mustBeCritical) {
-                    add(violation(oid))
-                }
+        extensionsCriticality.forEach { (oid, isCritical) ->
+            if (filter(oid) && isCritical != mustBeCritical) {
+                add(violation(oid))
             }
         }
+    }
 
     public fun evaluateValidityAssuredShortTerm(
         maxShortTermDuration: Duration = 7.days,
@@ -422,25 +420,22 @@ public object CertificateConstraintsEvaluations {
         }
     }
 
-    public fun invalidValidityPeriodForValidityAssured(duration: Duration): CertificateConstraintViolation =
-        CertificateConstraintViolation(
-            "Validity-assured certificate must be short-term (<= 7 days). Actual: $duration",
-        )
+    public fun invalidValidityPeriodForValidityAssured(duration: Duration): CertificateConstraintViolation = CertificateConstraintViolation(
+        "Validity-assured certificate must be short-term (<= 7 days). Actual: $duration",
+    )
 
     public val missingNoRevocationAvailForValidityAssured: CertificateConstraintViolation
         get() = CertificateConstraintViolation(
             "Validity-assured certificate without CRLDP/OCSP must include noRevocationAvail extension (EN 319 412-2 GEN-4.3.11-2A, RFC 9608)",
         )
 
-    public fun certificateTypeMismatch(expected: String, actual: String): CertificateConstraintViolation =
-        CertificateConstraintViolation(
-            reason = "Certificate type mismatch: expected $expected but was $actual",
-        )
+    public fun certificateTypeMismatch(expected: String, actual: String): CertificateConstraintViolation = CertificateConstraintViolation(
+        reason = "Certificate type mismatch: expected $expected but was $actual",
+    )
 
-    public fun certificatePathLenExceedsMaximum(maxPathLen: Int, actualPathLen: Int): CertificateConstraintViolation =
-        CertificateConstraintViolation(
-            reason = "CA certificate pathLenConstraint ($actualPathLen) exceeds maximum allowed ($maxPathLen)",
-        )
+    public fun certificatePathLenExceedsMaximum(maxPathLen: Int, actualPathLen: Int): CertificateConstraintViolation = CertificateConstraintViolation(
+        reason = "CA certificate pathLenConstraint ($actualPathLen) exceeds maximum allowed ($maxPathLen)",
+    )
 
     public val certificateDoesNotContainAnyQCType: CertificateConstraintViolation
         get() = CertificateConstraintViolation(reason = "Certificate does not contain any QCType")
@@ -448,26 +443,24 @@ public object CertificateConstraintsEvaluations {
     public fun certificateDoesNotContainRequiredQCType(
         innerIdentifier: String,
         qcTypes: List<QCStatementInfo.QcType>,
-    ): CertificateConstraintViolation =
-        CertificateConstraintViolation(
-            reason = buildString {
-                val statementsStr = qcTypes.joinToString { it.innerIdentifier }
-                append("Certificate does not contain required QcType identified by '$innerIdentifier'.")
-                append("Available: $statementsStr")
-            },
-        )
+    ): CertificateConstraintViolation = CertificateConstraintViolation(
+        reason = buildString {
+            val statementsStr = qcTypes.joinToString { it.innerIdentifier }
+            append("Certificate does not contain required QcType identified by '$innerIdentifier'.")
+            append("Available: $statementsStr")
+        },
+    )
 
     public fun certificateDoesNotContainRequiredQCStatement(
         statementId: String,
         statements: List<QCStatementInfo.OtherQcStatement>,
-    ): CertificateConstraintViolation =
-        CertificateConstraintViolation(
-            reason = buildString {
-                val statementsStr = statements.joinToString { it.statementId }
-                append("Certificate does not contain required QCStatement '$statementId'.")
-                append("Available: $statementsStr")
-            },
-        )
+    ): CertificateConstraintViolation = CertificateConstraintViolation(
+        reason = buildString {
+            val statementsStr = statements.joinToString { it.statementId }
+            append("Certificate does not contain required QCStatement '$statementId'.")
+            append("Available: $statementsStr")
+        },
+    )
 
     public val certificateDoesNotContainKeyUsage: CertificateConstraintViolation
         get() = CertificateConstraintViolation(reason = "Certificate does not contain keyUsage extension")
@@ -477,10 +470,9 @@ public object CertificateConstraintsEvaluations {
             "CA certificate missing pathLenConstraint",
         )
 
-    public fun certificateMissingKeyUsage(keyUsage: String): CertificateConstraintViolation =
-        CertificateConstraintViolation(
-            "Certificate keyUsage missing required bits: $keyUsage",
-        )
+    public fun certificateMissingKeyUsage(keyUsage: String): CertificateConstraintViolation = CertificateConstraintViolation(
+        "Certificate keyUsage missing required bits: $keyUsage",
+    )
 
     public val keyUsageNotMarkedCritical: CertificateConstraintViolation
         get() = CertificateConstraintViolation(
@@ -490,28 +482,26 @@ public object CertificateConstraintsEvaluations {
     public fun certificateDoesNotContainAnyPolicy(
         policies: Collection<String>,
         oids: Collection<String>,
-    ): CertificateConstraintViolation =
-        CertificateConstraintViolation(
-            reason = buildString {
-                val policiesStr = policies.joinToString(", ")
-                val oidsStr = oids.joinToString(", ")
-                append("Certificate policies [$policiesStr] do not match any of the required policies: $oidsStr")
-            },
-        )
+    ): CertificateConstraintViolation = CertificateConstraintViolation(
+        reason = buildString {
+            val policiesStr = policies.joinToString(", ")
+            val oidsStr = oids.joinToString(", ")
+            append("Certificate policies [$policiesStr] do not match any of the required policies: $oidsStr")
+        },
+    )
 
     public fun certificateDoesNotContainPolicies(
         oids: Collection<String>? = null,
-    ): CertificateConstraintViolation =
-        CertificateConstraintViolation(
-            reason = buildString {
-                append("Certificate does not contain any certificate policies")
-                if (!oids.isNullOrEmpty()) {
-                    val oidsStr = oids.joinToString(", ")
-                    append("Required one of: $oidsStr")
-                }
-            },
+    ): CertificateConstraintViolation = CertificateConstraintViolation(
+        reason = buildString {
+            append("Certificate does not contain any certificate policies")
+            if (!oids.isNullOrEmpty()) {
+                val oidsStr = oids.joinToString(", ")
+                append("Required one of: $oidsStr")
+            }
+        },
 
-        )
+    )
 
     public val missingCertificatePoliciesExtension: CertificateConstraintViolation
         get() = CertificateConstraintViolation(
@@ -538,10 +528,9 @@ public object CertificateConstraintsEvaluations {
         )
 
     // Version violations
-    public fun certificateVersionMismatch(expected: Int, actual: Int): CertificateConstraintViolation =
-        CertificateConstraintViolation(
-            reason = "Certificate version mismatch: expected v${expected + 1} but was v${actual + 1}",
-        )
+    public fun certificateVersionMismatch(expected: Int, actual: Int): CertificateConstraintViolation = CertificateConstraintViolation(
+        reason = "Certificate version mismatch: expected v${expected + 1} but was v${actual + 1}",
+    )
 
     // Serial number violations
     public val serialNumberNotPositive: CertificateConstraintViolation
@@ -550,8 +539,7 @@ public object CertificateConstraintsEvaluations {
         )
 
     // Subject/Issuer DN violations
-    public fun missingDN(attribute: String): CertificateConstraintViolation =
-        CertificateConstraintViolation(reason = "Certificate $attribute DN is missing")
+    public fun missingDN(attribute: String): CertificateConstraintViolation = CertificateConstraintViolation(reason = "Certificate $attribute DN is missing")
 
     public fun missingCountryName(attribute: String): CertificateConstraintViolation = CertificateConstraintViolation(
         reason = "$attribute DN missing required countryName attribute (per ETSI EN 319 412-2/3)",
@@ -565,15 +553,13 @@ public object CertificateConstraintsEvaluations {
         reason = "$attribute DN missing required commonName attribute",
     )
 
-    public fun missingOrganizationName(attribute: String): CertificateConstraintViolation =
-        CertificateConstraintViolation(
-            reason = "$attribute DN missing required organizationName attribute (per ETSI EN 319 412-3)",
-        )
+    public fun missingOrganizationName(attribute: String): CertificateConstraintViolation = CertificateConstraintViolation(
+        reason = "$attribute DN missing required organizationName attribute (per ETSI EN 319 412-3)",
+    )
 
-    public fun missingOrganizationIdentifier(attribute: String): CertificateConstraintViolation =
-        CertificateConstraintViolation(
-            reason = "$attribute DN missing required organizationIdentifier attribute (per ETSI EN 319 412-3)",
-        )
+    public fun missingOrganizationIdentifier(attribute: String): CertificateConstraintViolation = CertificateConstraintViolation(
+        reason = "$attribute DN missing required organizationIdentifier attribute (per ETSI EN 319 412-3)",
+    )
 
     public fun missingSerialNumber(attribute: String): CertificateConstraintViolation = CertificateConstraintViolation(
         reason = "$attribute DN missing required serialNumber attribute (per ETSI EN 319 412-2)",
@@ -584,10 +570,9 @@ public object CertificateConstraintsEvaluations {
             reason = "Issuer DN missing required serialNumber attribute (per ETSI EN 319 412-2)",
         )
 
-    public fun serialNumberInvalidFormat(attribute: String): CertificateConstraintViolation =
-        CertificateConstraintViolation(
-            reason = "$attribute DN serialNumber has invalid format. Expected: XXXCC-identifier (per EN 319 412-1 clause 5.1.3)",
-        )
+    public fun serialNumberInvalidFormat(attribute: String): CertificateConstraintViolation = CertificateConstraintViolation(
+        reason = "$attribute DN serialNumber has invalid format. Expected: XXXCC-identifier (per EN 319 412-1 clause 5.1.3)",
+    )
 
     public val organizationIdentifierInvalidFormat: CertificateConstraintViolation
         get() = CertificateConstraintViolation(
@@ -625,16 +610,15 @@ public object CertificateConstraintsEvaluations {
     public fun publicKeyNotCompliant(
         pkInfo: PublicKeyInfo,
         options: PublicKeyAlgorithmOptions,
-    ): CertificateConstraintViolation =
-        CertificateConstraintViolation(
-            reason = buildString {
-                append("Public key (algorithm=${pkInfo.algorithm}, size=${pkInfo.keySize}) ")
-                append("does not satisfy any of the required options: ")
-                append(
-                    options.algorithmOptions.joinToString(", ") {
-                        "${it.algorithm} >= ${it.minimumKeySize} bits"
-                    },
-                )
-            },
-        )
+    ): CertificateConstraintViolation = CertificateConstraintViolation(
+        reason = buildString {
+            append("Public key (algorithm=${pkInfo.algorithm}, size=${pkInfo.keySize}) ")
+            append("does not satisfy any of the required options: ")
+            append(
+                options.algorithmOptions.joinToString(", ") {
+                    "${it.algorithm} >= ${it.minimumKeySize} bits"
+                },
+            )
+        },
+    )
 }

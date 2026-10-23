@@ -298,6 +298,5 @@ class LoadLoTEAndPointersTest {
         return "${base64Url("""{"alg":"none"}""")}.${base64Url(payload)}.signature" to lote
     }
 
-    private fun base64Url(value: String): String =
-        Base64.UrlSafe.withPadding(Base64.PaddingOption.ABSENT).encode(value.encodeToByteArray())
+    private fun base64Url(value: String): String = Base64.UrlSafe.withPadding(Base64.PaddingOption.ABSENT).encode(value.encodeToByteArray())
 }
