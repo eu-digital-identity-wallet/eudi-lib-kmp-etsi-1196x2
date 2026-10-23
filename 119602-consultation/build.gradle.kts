@@ -184,7 +184,7 @@ kotlin {
         val androidHostTest =
             getByName("androidHostTest") {
                 dependencies {
-                    implementation(libs.ktor.client.okhttp)
+                    implementation(libs.ktor.client.android)
                 }
             }
 
