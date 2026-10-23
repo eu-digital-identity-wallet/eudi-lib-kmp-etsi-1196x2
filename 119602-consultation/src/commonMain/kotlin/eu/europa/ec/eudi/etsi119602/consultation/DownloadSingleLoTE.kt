@@ -44,6 +44,7 @@ public class DownloadSingleLoTE(
             }
 
             HttpStatusCode.NotFound -> LoadLoTE.Outcome.NotFound(null)
+
             else -> error("Unexpected response status: ${httpResponse.status}")
         }
     }

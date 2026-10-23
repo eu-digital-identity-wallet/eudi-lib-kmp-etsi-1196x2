@@ -147,16 +147,15 @@ public data class SupportedLists<out INFO : Any>(
     val eaaProviders: Map<String, INFO> = emptyMap(),
 ) : Iterable<INFO> {
 
-    override fun iterator(): Iterator<INFO> =
-        buildList {
-            add(pidProviders)
-            add(walletProviders)
-            add(wrpacProviders)
-            add(wrprcProviders)
-            add(pubEaaProviders)
-            add(qeaProviders)
-            addAll(eaaProviders.values)
-        }.filterNotNull().iterator()
+    override fun iterator(): Iterator<INFO> = buildList {
+        add(pidProviders)
+        add(walletProviders)
+        add(wrpacProviders)
+        add(wrprcProviders)
+        add(pubEaaProviders)
+        add(qeaProviders)
+        addAll(eaaProviders.values)
+    }.filterNotNull().iterator()
 
     public companion object {
 
@@ -180,7 +179,6 @@ public data class SupportedLists<out INFO : Any>(
             )
         }
 
-        private fun <A : Any, B : Any, C : Any> ((A, B) -> C).forNullables(): (A?, B?) -> C? =
-            { a, b -> a?.let { na -> b?.let { nb -> this(na, nb) } } }
+        private fun <A : Any, B : Any, C : Any> ((A, B) -> C).forNullables(): (A?, B?) -> C? = { a, b -> a?.let { na -> b?.let { nb -> this(na, nb) } } }
     }
 }

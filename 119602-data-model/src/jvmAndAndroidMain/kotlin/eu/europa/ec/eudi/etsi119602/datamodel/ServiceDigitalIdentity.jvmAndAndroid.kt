@@ -28,10 +28,8 @@ public fun PKIObject.x509Certificate(provider: String? = null): X509Certificate 
 }
 
 @Throws(CertificateException::class, NoSuchProviderException::class)
-public fun PKIObject.x509Certificate(provider: Provider): X509Certificate =
-    CertificateFactory.getInstance(X_509, provider).x509CertificateOf(this)
+public fun PKIObject.x509Certificate(provider: Provider): X509Certificate = CertificateFactory.getInstance(X_509, provider).x509CertificateOf(this)
 
-public fun CertificateFactory.x509CertificateOf(pkiOb: PKIObject): X509Certificate =
-    generateCertificate(pkiOb.value.inputStream()) as X509Certificate
+public fun CertificateFactory.x509CertificateOf(pkiOb: PKIObject): X509Certificate = generateCertificate(pkiOb.value.inputStream()) as X509Certificate
 
 private const val X_509 = "X.509"

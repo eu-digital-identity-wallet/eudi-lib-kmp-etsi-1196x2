@@ -36,8 +36,7 @@ class EUWRPACProviderCertificateTest {
 
     private suspend fun evaluateProviderCertificateConstraints(
         certificate: X509Certificate,
-    ): CertificateConstraintEvaluation =
-        CertificateProfileValidatorJVM.validate(wrpacProviderCertificateProfile(), certificate)
+    ): CertificateConstraintEvaluation = CertificateProfileValidatorJVM.validate(wrpacProviderCertificateProfile(), certificate)
 
     @Test
     fun `WRPAC Provider certificate should require keyCertSign`() = runTest {

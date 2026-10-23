@@ -113,7 +113,9 @@ public class ConcurrentCacheDataLoader(
         ttl = httpCacheTtl,
         maxCacheSize = maxCacheSize,
     ) { url -> httpLoader.get(url) },
-) : DataLoader, DSSCacheFileLoader, Disposable by httpCache {
+) : DataLoader,
+    DSSCacheFileLoader,
+    Disposable by httpCache {
 
     init {
         require(fileCacheExpiration.isPositive() && fileCacheExpiration != Duration.INFINITE) {
@@ -190,10 +192,9 @@ public class ConcurrentCacheDataLoader(
         return FileDocument(cacheFile.toFile())
     }
 
-    override fun getDocumentFromCache(url: String): DSSDocument? =
-        cacheFileFor(url)
-            .takeIf { Files.exists(it) }
-            ?.let { FileDocument(it.toFile()) }
+    override fun getDocumentFromCache(url: String): DSSDocument? = cacheFileFor(url)
+        .takeIf { Files.exists(it) }
+        ?.let { FileDocument(it.toFile()) }
 
     override fun remove(url: String): Boolean {
         val cacheFile = cacheFileFor(url)

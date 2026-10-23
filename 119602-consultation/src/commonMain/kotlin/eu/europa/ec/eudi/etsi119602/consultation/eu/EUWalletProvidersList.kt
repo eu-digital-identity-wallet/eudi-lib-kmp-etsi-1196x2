@@ -85,9 +85,8 @@ public val EUWalletProvidersList: EUListOfTrustedEntitiesProfile =
  *                     - `2+`: This CA can issue multiple levels of intermediate CA certificates
  * @return a validator configured for Wallet Provider CA certificates
  */
-public fun walletProviderCACertificateProfile(at: Instant? = null, maxPathLen: Int? = null): CertificateProfile =
-    certificateProfile {
-        ca(maxPathLen)
-        keyUsageCertSign()
-        validAt(at)
-    }
+public fun walletProviderCACertificateProfile(at: Instant? = null, maxPathLen: Int? = null): CertificateProfile = certificateProfile {
+    ca(maxPathLen)
+    keyUsageCertSign()
+    validAt(at)
+}

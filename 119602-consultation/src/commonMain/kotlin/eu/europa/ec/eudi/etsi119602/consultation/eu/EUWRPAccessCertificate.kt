@@ -77,11 +77,13 @@ public fun wrpAccessCertificateProfile(
                 QCStatementInfo.OtherQcStatement(ETSI319412.QC_COMPLIANCE),
                 QCStatementInfo.OtherQcStatement(ETSI319412.QC_SSCD),
             )
+
             QCP_L_EUDIWRP -> listOf(
                 QCStatementInfo.OtherQcStatement(ETSI319412.QC_COMPLIANCE),
                 QCStatementInfo.OtherQcStatement(ETSI319412.QC_SSCD),
                 QCStatementInfo.QcType(ETSI319412.ID_ETSI_QCT_ESEAL),
             )
+
             else -> emptyList()
         }
     }
@@ -97,18 +99,16 @@ public fun wrpAccessCertificateProfile(
  * EN 319 412-2 GEN-4.1-2
  */
 internal fun ProfileBuilder.wrpacExplicitExtensionCriticality() {
-    fun basicConstraintOrKeyUsage(oid: String) =
-        oid == RFC5280.EXT_BASIC_CONSTRAINTS || oid == RFC5280.EXT_KEY_USAGE
+    fun basicConstraintOrKeyUsage(oid: String) = oid == RFC5280.EXT_BASIC_CONSTRAINTS || oid == RFC5280.EXT_KEY_USAGE
     // basicConstraints and keyUsage may be either: RFC 5280 recommends a critical keyUsage and allows either for
     // basicConstraints in an end-entity certificate.
     extensionCriticality(mustBeCritical = false) { oid ->
         !basicConstraintOrKeyUsage(oid)
     }
 }
-internal fun ProfileBuilder.wrpacSubjectAlternativeNames() =
-    subjectAltNames { subjectAltNames ->
-        validateSubjectAltNameForWRPAC(subjectAltNames)
-    }
+internal fun ProfileBuilder.wrpacSubjectAlternativeNames() = subjectAltNames { subjectAltNames ->
+    validateSubjectAltNameForWRPAC(subjectAltNames)
+}
 
 /**
  * WRPAC must not be a validity-assured short-term certificate.
@@ -135,13 +135,12 @@ internal fun ProfileBuilder.wrpacMustNotBeValidityAssuredShortTerm() {
     }
 }
 
-internal fun ProfileBuilder.wrpacSubject() =
-    combine(
-        CertificateOperationsAlgebra.GetPolicies,
-        CertificateOperationsAlgebra.GetSubject,
-    ) { (policies, subject) ->
-        validateSubjectForWRPAC(policies, subject)
-    }
+internal fun ProfileBuilder.wrpacSubject() = combine(
+    CertificateOperationsAlgebra.GetPolicies,
+    CertificateOperationsAlgebra.GetSubject,
+) { (policies, subject) ->
+    validateSubjectForWRPAC(policies, subject)
+}
 
 /**
  * Requires the certificate to contain a Subject Alternative Name with contact information.
@@ -151,29 +150,28 @@ internal fun ProfileBuilder.wrpacSubject() =
  */
 internal fun validateSubjectAltNameForWRPAC(
     subjectAltNames: List<SubjectAlternativeName>?,
-): CertificateConstraintEvaluation =
-    CertificateConstraintEvaluation {
-        if (subjectAltNames.isNullOrEmpty()) {
-            val missingSubjectAltName =
-                CertificateConstraintViolation("Certificate missing subjectAltName extension")
-            add(missingSubjectAltName)
-            return@CertificateConstraintEvaluation
-        }
-
-        val hasContactInfo = subjectAltNames.any { san ->
-            san is SubjectAlternativeName.Uri ||
-                san is SubjectAlternativeName.Email ||
-                san is SubjectAlternativeName.Telephone
-        }
-
-        if (!hasContactInfo) {
-            val subjectAltNameMissingContactInfo =
-                CertificateConstraintViolation(
-                    "subjectAltName extension missing required contact information (URI, email, or telephone per ETSI TS 119 411-8)",
-                )
-            add(subjectAltNameMissingContactInfo)
-        }
+): CertificateConstraintEvaluation = CertificateConstraintEvaluation {
+    if (subjectAltNames.isNullOrEmpty()) {
+        val missingSubjectAltName =
+            CertificateConstraintViolation("Certificate missing subjectAltName extension")
+        add(missingSubjectAltName)
+        return@CertificateConstraintEvaluation
     }
+
+    val hasContactInfo = subjectAltNames.any { san ->
+        san is SubjectAlternativeName.Uri ||
+            san is SubjectAlternativeName.Email ||
+            san is SubjectAlternativeName.Telephone
+    }
+
+    if (!hasContactInfo) {
+        val subjectAltNameMissingContactInfo =
+            CertificateConstraintViolation(
+                "subjectAltName extension missing required contact information (URI, email, or telephone per ETSI TS 119 411-8)",
+            )
+        add(subjectAltNameMissingContactInfo)
+    }
+}
 
 /**
  * Requires the subject DN attributes based on the certificate policy (natural person vs legal person).

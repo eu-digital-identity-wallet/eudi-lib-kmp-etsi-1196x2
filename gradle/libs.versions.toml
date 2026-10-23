@@ -1,20 +1,20 @@
 [versions]
 java = "17"
-kotlin = "2.2.21"
-android-library = "8.12.2"
-kotlinx-serialization = "1.9.0"
-kotlinx-coroutines = "1.10.2"
-kotlinx-datetime = "0.7.1"
-ktor = "3.3.3"
-maven-publish = "0.35.0"
-spotless = "8.2.1"
-ktlint = "1.2.1"
-kover = "0.9.8"
+kotlin = "2.4.20"
+android-kotlin-multiplatform-library = "9.1.1"
+kotlinx-serialization = "1.11.0"
+kotlinx-coroutines = "1.11.0"
+kotlinx-datetime = "0.8.0"
+ktor = "3.6.0"
+maven-publish = "0.37.0"
+spotless = "8.10.4"
+ktlint = "1.8.0"
+kover = "0.9.11"
 dokka = "2.2.0"
 dss = "6.5"
-atomicfu = "0.28.0"
+atomicfu = "0.33.0"
 bouncyCastle = "1.84"
-kotlinx-io = "0.8.2"
+kotlinx-io = "0.9.1"
 slf4j = "2.0.18"
 jaxb = "4.0.7"
 eudiLibJvmSdjwtKt = "0.20.1"
@@ -30,7 +30,7 @@ kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-t
 ktor-client-core = { module = "io.ktor:ktor-client-core", version.ref = "ktor" }
 ktor-client-content-negotiation = { module = "io.ktor:ktor-client-content-negotiation", version.ref = "ktor" }
 ktor-serialization-json = { module = "io.ktor:ktor-serialization-kotlinx-json", version.ref = "ktor" }
-ktor-client-okhttp = { module = "io.ktor:ktor-client-okhttp", version.ref = "ktor" }
+ktor-client-android = { module = "io.ktor:ktor-client-android", version.ref = "ktor" }
 ktor-client-java = { module = "io.ktor:ktor-client-java", version.ref = "ktor" }
 ktor-client-darwin = { module = "io.ktor:ktor-client-darwin", version.ref = "ktor" }
 dss-bom = { module = "eu.europa.ec.joinup.sd-dss:dss-bom", version.ref = "dss" }
@@ -49,12 +49,11 @@ eudi-lib-jvm-sdjwt = { module = "eu.europa.ec.eudi:eudi-lib-jvm-sdjwt-kt", versi
 
 [plugins]
 kotlin-multiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
-android-library = { id = "com.android.library", version.ref = "android-library" }
+android-kotlin-multiplatform-library = { id = "com.android.kotlin.multiplatform.library", version.ref = "android-kotlin-multiplatform-library" }
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
 maven-publish = { id = "com.vanniktech.maven.publish", version.ref = "maven-publish" }
 spotless = { id = "com.diffplug.spotless", version.ref = "spotless" }
 kover = { id = "org.jetbrains.kotlinx.kover", version.ref = "kover" }
 dokka = { id = "org.jetbrains.dokka", version.ref = "dokka" }
-atomicfu = { id = "org.jetbrains.kotlinx.atomicfu", version.ref = "atomicfu" }
 kmmbridge = { id = "co.touchlab.kmmbridge", version.ref = "kmmBridge" }
 kmmbridge-github = { id = "co.touchlab.kmmbridge.github", version.ref = "kmmBridge" }
