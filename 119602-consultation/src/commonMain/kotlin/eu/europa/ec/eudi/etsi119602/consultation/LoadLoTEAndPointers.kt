@@ -69,7 +69,17 @@ public class LoadLoTEAndPointers(
     private val loadLoTE: LoadLoTE<String>,
     private val clock: Clock = Clock.System,
     private val parseJwt: ParseJwt<JsonObject, ListOfTrustedEntitiesClaims> = ParseJwt(),
+    loTEEventListener: LoTEEventListener? = null,
 ) {
+
+    /**
+     * The listener notified with the [Event] of each processed LoTE step, so a caching loader
+     * can commit a fresh download only after it passed verification. When [loTEEventListener]
+     * is not provided, it is auto-wired from [loadLoTE] if the loader implements
+     * [LoTEEventListener] (e.g. [LoadSingleLoTEWithFileCache]).
+     */
+    private val loTEEventListener: LoTEEventListener? =
+        loTEEventListener ?: loadLoTE as? LoTEEventListener
 
     /**
      * Events emitted by the loader
@@ -118,17 +128,18 @@ public class LoadLoTEAndPointers(
 
         state.visitedUris.add(step.uri)
         try {
-            val event = when (val jwt = loadLoTE(step.uri)) {
+            val (jwtContent, event) = when (val jwt = loadLoTE(step.uri)) {
                 is LoadLoTE.Outcome.Loaded<String> -> {
                     state.downloadsCounter.incrementAndGet()
-                    verifySignatureAndParseJwt(step, jwt)
+                    jwt.content to verifySignatureAndParseJwt(step, jwt)
                 }
 
                 is LoadLoTE.Outcome.NotFound -> {
-                    resourceNotFoundInStep(step, jwt.cause)
+                    null to resourceNotFoundInStep(step, jwt.cause)
                 }
             }
 
+            loTEEventListener?.onEvent(step.uri, jwtContent, event)
             send(event)
 
             if (event is Event.LoTELoaded && constraints is Constraints.LoadOtherPointers) {
@@ -137,7 +148,9 @@ public class LoadLoTEAndPointers(
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            send(errorInStep(step, e))
+            val errorEvent = errorInStep(step, e)
+            loTEEventListener?.onEvent(step.uri, null, errorEvent)
+            send(errorEvent)
         } finally {
             state.visitedUris.remove(step.uri)
         }

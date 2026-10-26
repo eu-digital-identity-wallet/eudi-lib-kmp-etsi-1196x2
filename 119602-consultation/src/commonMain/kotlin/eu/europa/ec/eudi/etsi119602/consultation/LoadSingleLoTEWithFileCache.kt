@@ -40,6 +40,7 @@ import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
+import kotlin.coroutines.cancellation.CancellationException
 import kotlin.time.Clock
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.hours
@@ -51,7 +52,12 @@ import kotlin.time.Instant
  * This loader follows a "cache-aside" pattern:
  * 1. It first attempts to read the LoTE from [LoTEFileStore].
  * 2. If the cached LoTE is present and not expired, it is returned.
- * 3. Otherwise, if a [DownloadSingleLoTE] is provided, it downloads the LoTE, stores it in the cache, and returns it.
+ * 3. Otherwise, if a [DownloadSingleLoTE] is provided, it downloads the LoTE, stages it in memory, and returns it.
+ *
+ * A fresh download is not committed to the cache immediately. It is committed when the higher
+ * level emits [LoadLoTEAndPointers.Event.LoTELoaded] for it via [onEvent], and discarded on a
+ * verification [LoadLoTEAndPointers.Event.Problem], so a single non-conformant download cannot
+ * replace the last known good LoTE in the cache.
  *
  * This class is thread-safe and prevents redundant downloads of the same LoTE when accessed concurrently.
  *
@@ -69,7 +75,7 @@ public class LoadSingleLoTEWithFileCache internal constructor(
     private val fileCacheExpiration: Duration = 24.hours,
     private val ioDispatcher: CoroutineDispatcher = consultationPlatform().ioDispatcher,
     private val parseJwt: ParseJwt<JsonObject, ListOfTrustedEntitiesClaims> = ParseJwt(),
-) : LoadLoTE<String> {
+) : LoadLoTE<String>, LoTEEventListener {
 
     public constructor(
         cacheDirectory: Path,
@@ -88,6 +94,10 @@ public class LoadSingleLoTEWithFileCache internal constructor(
 
     private val mutex = Mutex()
 
+    private data class PendingDownload(val jwt: String, val metadata: LoTEFileMetadata)
+
+    private val pendingDownloads = mutableMapOf<Uri, PendingDownload>()
+
     override suspend fun invoke(uri: Uri): LoadLoTE.Outcome<String> = mutex.withLock {
         withContext(ioDispatcher) {
             // Try to read from cache
@@ -102,12 +112,58 @@ public class LoadSingleLoTEWithFileCache internal constructor(
             }
 
             downloadSingleLoTE
-                ?.let { downloadAndStore(it, uri) }
+                ?.let { downloadAndStage(it, uri) }
                 ?: LoadLoTE.Outcome.NotFound(null)
         }
     }
 
-    private suspend fun downloadAndStore(loadFromHttp: DownloadSingleLoTE, uri: Uri): LoadLoTE.Outcome<String> {
+    /**
+     * Commits a staged download to the file store on [LoadLoTEAndPointers.Event.LoTELoaded] and
+     * discards it on a verification [LoadLoTEAndPointers.Event.Problem].
+     *
+     * An event only takes effect when [jwt] matches the currently staged download for [uri]
+     * (content guard), so concurrent download/verification cycles for the same URI cannot
+     * commit or discard each other's downloads.
+     *
+     * On a [LoadLoTEAndPointers.Event.Problem] (and on a loaded LoTE whose
+     * [ListOfTrustedEntitiesClaims.sequenceNumber] regressed below the cached one) the
+     * previously cached copy is kept: its [LoTEFileMetadata.expiresAt] is extended to
+     * `min(nextUpdate, now + fileCacheExpiration)` so it keeps serving until its
+     * [ListOfTrustedEntitiesClaims.nextUpdate].
+     *
+     * Failures of the underlying file operations are ignored: a cache update failure must not
+     * turn a verified LoTE into an error (the next call simply re-downloads).
+     */
+    override suspend fun onEvent(uri: Uri, jwt: String?, event: LoadLoTEAndPointers.Event): Unit =
+        mutex.withLock {
+            withContext(ioDispatcher) {
+                try {
+                    val pending = pendingDownloads[uri]
+                    if (pending == null || jwt == null || pending.jwt != jwt) return@withContext
+                    when (event) {
+                        is LoadLoTEAndPointers.Event.LoTELoaded -> {
+                            pendingDownloads.remove(uri)
+                            if (isSequenceRegression(uri, pending.metadata)) {
+                                keepLastKnownGood(uri)
+                            } else {
+                                fileStore.write(uri, pending.jwt, pending.metadata)
+                            }
+                        }
+
+                        is LoadLoTEAndPointers.Event.Problem -> {
+                            pendingDownloads.remove(uri)
+                            keepLastKnownGood(uri)
+                        }
+                    }
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (_: Exception) {
+                    // A failed cache update must not turn a verified LoTE into an error.
+                }
+            }
+        }
+
+    private suspend fun downloadAndStage(loadFromHttp: DownloadSingleLoTE, uri: Uri): LoadLoTE.Outcome<String> {
         fun createMetadata(jwt: String): LoTEFileMetadata {
             val loadedAt = clock.now()
 
@@ -139,13 +195,40 @@ public class LoadSingleLoTEWithFileCache internal constructor(
         }
         return when (val httpResult = loadFromHttp(uri)) {
             is LoadLoTE.Outcome.Loaded -> {
-                // Store to cache with metadata
-                val metadata = createMetadata(httpResult.content)
-                fileStore.write(uri, httpResult.content, metadata)
+                // Stage the download; it is committed to the cache only when [onEvent] confirms
+                // that the higher level verified it.
+                pendingDownloads[uri] = PendingDownload(httpResult.content, createMetadata(httpResult.content))
                 httpResult
             }
 
             is LoadLoTE.Outcome.NotFound -> httpResult
+        }
+    }
+
+    /**
+     * True when the staged download's [ListOfTrustedEntitiesClaims.sequenceNumber] is lower than
+     * the cached one; both must be present for a comparison.
+     */
+    private suspend fun isSequenceRegression(uri: Uri, staged: LoTEFileMetadata): Boolean {
+        val old = fileStore.read(uri) ?: return false
+        val oldSequenceNumber = old.metadata.sequenceNumber ?: return false
+        val stagedSequenceNumber = staged.sequenceNumber ?: return false
+        return stagedSequenceNumber < oldSequenceNumber
+    }
+
+    /**
+     * Extends the [LoTEFileMetadata.expiresAt] of the cached copy of [uri] to
+     * `min(nextUpdate, now + fileCacheExpiration)` so it keeps serving until its
+     * [ListOfTrustedEntities.schemeInformation. nextUpdate]. Does nothing when there is no cached copy or
+     * its `nextUpdate` is already in the past.
+     */
+    private suspend fun keepLastKnownGood(uri: Uri) {
+        val old = fileStore.read(uri) ?: return
+        val nextUpdate = old.metadata.nextUpdate ?: return
+        val now = clock.now()
+        if (nextUpdate > now) {
+            val extended = old.metadata.copy(expiresAt = nextUpdate.coerceAtMost(now + fileCacheExpiration))
+            fileStore.write(uri, old.jwt, extended)
         }
     }
 }

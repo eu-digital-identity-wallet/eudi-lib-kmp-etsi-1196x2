@@ -177,6 +177,14 @@ useResources {
 }
 ```
 
+> [!NOTE]
+> **File cache safety.** When `loadLoTE` is a `LoadSingleLoTEWithFileCache`, a freshly
+> downloaded LoTE is only written to the file cache after `LoadLoTEAndPointers` has
+> verified it (valid signature, parseable, not expired). An unverified or stale
+> (lower sequence number) download is discarded, and the previously cached copy keeps
+> serving until its `nextUpdate`. This wiring is automatic; pass
+> `loTEEventListener` to `LoadLoTEAndPointers` only to override it.
+
 ### 3. Validate certificate chains
 
 ```kotlin
@@ -214,8 +222,9 @@ The module provides the following key abstractions for working with ETSI TS 119 
 🔍 **LoTE Discovery & Loading**
 
 - `ProvisionTrustAnchorsFromLoTEs`: **Main entry point** - High-level factory for provisioning trust anchors from LoTEs with built-in caching support (`cached()` for high-concurrency, `nonCached()` for simple scenarios)
-- `LoadLoTEAndPointers`: Loads LoTE documents and follows pointers to related lists with configurable depth limits
-- `LoadSingleLoTEWithFileCache`: File-cached implementation combining `DownloadSingleLoTE` with persistent storage
+- `LoadLoTEAndPointers`: Loads LoTE documents and follows pointers to related lists with configurable depth limits. Emits the `Event` of each processed LoTE step to a `LoTEEventListener` (auto-wired when `loadLoTE` is a `LoadSingleLoTEWithFileCache`)
+- `LoadSingleLoTEWithFileCache`: File-cached implementation combining `DownloadSingleLoTE` with persistent storage. Fresh downloads are staged in memory and only committed to the file cache once `Event.LoTELoaded` is received for the exact download; otherwise the last known good copy keeps serving (with its expiry extended until its `nextUpdate`)
+- `LoTEEventListener`: Callback that receives the `LoadLoTEAndPointers.Event` of each processed LoTE step, used to commit staged LoTE downloads to the file cache
 - `DownloadSingleLoTE`: HTTP client-based loader for fetching single LoTE documents
 - `GetTrustAnchorsFromLoTE`: Low-level extractor for trust anchors from LoTE documents (used internally by `ProvisionTrustAnchorsFromLoTEs`)
 
