@@ -13,6 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+@file:OptIn(SensitiveApi::class)
+
 package eu.europa.ec.eudi.etsi119602.consultation
 
 import eu.europa.ec.eudi.etsi119602.datamodel.CountryCode
@@ -21,10 +23,12 @@ import eu.europa.ec.eudi.etsi119602.datamodel.ListOfTrustedEntities
 import eu.europa.ec.eudi.etsi119602.datamodel.ListOfTrustedEntitiesClaims
 import eu.europa.ec.eudi.etsi119602.datamodel.MultilanguageString
 import eu.europa.ec.eudi.etsi119602.datamodel.Uri
+import eu.europa.ec.eudi.etsi1196x2.consultation.SensitiveApi
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respond
 import io.ktor.http.HttpStatusCode
+import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.runTest
 import kotlinx.io.files.Path
 import kotlinx.serialization.json.Json
@@ -32,7 +36,9 @@ import java.nio.file.Files
 import kotlin.io.encoding.Base64
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertIs
 import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.days
 import kotlin.time.Duration.Companion.hours
@@ -42,6 +48,10 @@ import kotlin.time.Instant
  * Covers the stage/commit behavior of [LoadSingleLoTEWithFileCache]: a fresh download is only
  * committed to the file store after the higher level emits [LoadLoTEAndPointers.Event.LoTELoaded]
  * for it, and a verification [LoadLoTEAndPointers.Event.Problem] keeps the last known good copy.
+ *
+ * Also covers the [LoTEFallbackProvider] behavior: the last known good LoTE is returned while its
+ * `nextUpdate` is in the future, so the higher level can re-verify and serve it when the fresh
+ * path fails.
  */
 class LoadSingleLoTEWithFileCacheTest {
 
@@ -225,6 +235,153 @@ class LoadSingleLoTEWithFileCacheTest {
 
         loader.onEvent(uri, jwt, LoadLoTEAndPointers.Event.LoTELoaded(lote, uri, 0))
         assertEquals(jwt, fileStore.read(uri)?.jwt, "an event without a pending download must be a no-op")
+    }
+
+    @Test
+    fun lastKnownGood_returnsValidCachedLote_andExtendsExpiry() = runTest {
+        val cacheDir = tempCacheDir()
+        val fileStore = LoTEFileStore(cacheDir)
+        val now = Clock.System.now()
+        val nextUpdate = now + 10.days
+        val (oldJwt, _) = loteJwt(1, nextUpdate)
+        fileStore.write(
+            uri,
+            oldJwt,
+            LoTEFileMetadata(
+                loadedAt = now - 2.days,
+                expiresAt = now - 1.hours,
+                nextUpdate = nextUpdate,
+                sequenceNumber = 1,
+            ),
+        )
+        val loader = LoadSingleLoTEWithFileCache(cacheDir, fileCacheExpiration = 30.days)
+
+        val result = loader.lastKnownGood(uri)
+
+        assertEquals(oldJwt, result)
+        val cached = assertNotNull(fileStore.read(uri))
+        assertEquals(oldJwt, cached.jwt)
+        assertEquals(
+            nextUpdate.toEpochMilliseconds(),
+            cached.metadata.expiresAt.toEpochMilliseconds(),
+            "the old entry must keep serving until its nextUpdate",
+        )
+    }
+
+    @Test
+    fun lastKnownGood_returnsNull_whenNextUpdatePassed() = runTest {
+        val cacheDir = tempCacheDir()
+        val fileStore = LoTEFileStore(cacheDir)
+        val now = Clock.System.now()
+        val nextUpdate = now - 1.days
+        val (oldJwt, _) = loteJwt(1, nextUpdate)
+        fileStore.write(
+            uri,
+            oldJwt,
+            LoTEFileMetadata(
+                loadedAt = now - 2.days,
+                expiresAt = now - 1.hours,
+                nextUpdate = nextUpdate,
+                sequenceNumber = 1,
+            ),
+        )
+        val loader = LoadSingleLoTEWithFileCache(cacheDir)
+
+        assertNull(loader.lastKnownGood(uri))
+    }
+
+    @Test
+    fun lastKnownGood_returnsNull_whenNothingCached() = runTest {
+        val cacheDir = tempCacheDir()
+        val loader = LoadSingleLoTEWithFileCache(cacheDir)
+
+        assertNull(loader.lastKnownGood(uri))
+    }
+
+    @Test
+    fun badDownload_fallsBackToLastKnownGood_whenUsedWithLoadLoTEAndPointers() = runTest {
+        val cacheDir = tempCacheDir()
+        val fileStore = LoTEFileStore(cacheDir)
+        val now = Clock.System.now()
+        val nextUpdate = now + 10.days
+        val (oldJwt, oldLote) = loteJwt(1, nextUpdate)
+        fileStore.write(
+            uri,
+            oldJwt,
+            LoTEFileMetadata(
+                loadedAt = now - 2.days,
+                expiresAt = now - 1.hours,
+                nextUpdate = nextUpdate,
+                sequenceNumber = 1,
+            ),
+        )
+        val (downloader, _) = mockDownloader(HttpStatusCode.OK to "not-a-jwt")
+        val loadLoTE = LoadSingleLoTEWithFileCache(
+            cacheDir,
+            downloadSingleLoTE = downloader,
+            fileCacheExpiration = 30.days,
+        )
+        val loader =
+            LoadLoTEAndPointers(
+                constraints = LoadLoTEAndPointers.Constraints.DoNotLoadOtherPointers,
+                verifyJwtSignature = NotValidating,
+                loadLoTE = loadLoTE,
+            )
+
+        val events = loader.invoke(uri).toList()
+
+        val event = assertIs<LoadLoTEAndPointers.Event.LoTELoaded>(events.single())
+        assertEquals(oldLote, event.lote)
+        val cached = assertNotNull(fileStore.read(uri))
+        assertEquals(oldJwt, cached.jwt)
+        assertEquals(
+            nextUpdate.toEpochMilliseconds(),
+            cached.metadata.expiresAt.toEpochMilliseconds(),
+            "the old entry must keep serving until its nextUpdate",
+        )
+    }
+
+    @Test
+    fun notFoundDownload_fallsBackToLastKnownGood_whenUsedWithLoadLoTEAndPointers() = runTest {
+        val cacheDir = tempCacheDir()
+        val fileStore = LoTEFileStore(cacheDir)
+        val now = Clock.System.now()
+        val nextUpdate = now + 10.days
+        val (oldJwt, oldLote) = loteJwt(1, nextUpdate)
+        fileStore.write(
+            uri,
+            oldJwt,
+            LoTEFileMetadata(
+                loadedAt = now - 2.days,
+                expiresAt = now - 1.hours,
+                nextUpdate = nextUpdate,
+                sequenceNumber = 1,
+            ),
+        )
+        val (downloader, _) = mockDownloader(HttpStatusCode.NotFound to "")
+        val loadLoTE = LoadSingleLoTEWithFileCache(
+            cacheDir,
+            downloadSingleLoTE = downloader,
+            fileCacheExpiration = 30.days,
+        )
+        val loader =
+            LoadLoTEAndPointers(
+                constraints = LoadLoTEAndPointers.Constraints.DoNotLoadOtherPointers,
+                verifyJwtSignature = NotValidating,
+                loadLoTE = loadLoTE,
+            )
+
+        val events = loader.invoke(uri).toList()
+
+        val event = assertIs<LoadLoTEAndPointers.Event.LoTELoaded>(events.single())
+        assertEquals(oldLote, event.lote)
+        val cached = assertNotNull(fileStore.read(uri))
+        assertEquals(oldJwt, cached.jwt)
+        assertEquals(
+            nextUpdate.toEpochMilliseconds(),
+            cached.metadata.expiresAt.toEpochMilliseconds(),
+            "the old entry must keep serving until its nextUpdate",
+        )
     }
 
     private fun tempCacheDir(): Path = Path(Files.createTempDirectory("lote-cache-test").toString())

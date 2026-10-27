@@ -59,6 +59,9 @@ import kotlin.time.Instant
  * verification [LoadLoTEAndPointers.Event.Problem], so a single non-conformant download cannot
  * replace the last known good LoTE in the cache.
  *
+ * This class also implements [LoTEFallbackProvider]: when the fresh path fails,
+ * [LoadLoTEAndPointers] can ask for the last known good LoTE and re-verify it before serving it.
+ *
  * This class is thread-safe and prevents redundant downloads of the same LoTE when accessed concurrently.
  *
  * @param fileStore the file store used for caching
@@ -75,7 +78,7 @@ public class LoadSingleLoTEWithFileCache internal constructor(
     private val fileCacheExpiration: Duration = 24.hours,
     private val ioDispatcher: CoroutineDispatcher = consultationPlatform().ioDispatcher,
     private val parseJwt: ParseJwt<JsonObject, ListOfTrustedEntitiesClaims> = ParseJwt(),
-) : LoadLoTE<String>, LoTEEventListener {
+) : LoadLoTE<String>, LoTEEventListener, LoTEFallbackProvider {
 
     public constructor(
         cacheDirectory: Path,
@@ -162,6 +165,41 @@ public class LoadSingleLoTEWithFileCache internal constructor(
                 }
             }
         }
+
+    /**
+     * Returns the cached LoTE for [uri] while its [ListOfTrustedEntitiesClaims.nextUpdate] is in
+     * the future, so [LoadLoTEAndPointers] can re-verify and serve it when the fresh path fails.
+     *
+     * The cache entry's [LoTEFileMetadata.expiresAt] is extended as a side effect, so a subsequent
+     * [invoke] serves the same entry from the cache instead of attempting another download.
+     * Failures of the underlying file operations are ignored: a cache read failure simply means
+     * that no fallback is available.
+     */
+    override suspend fun lastKnownGood(uri: Uri): String? = mutex.withLock {
+        withContext(ioDispatcher) {
+            try {
+                val old = fileStore.read(uri) ?: return@withContext null
+                val nextUpdate = old.metadata.nextUpdate ?: return@withContext null
+                val now = clock.now()
+                if (nextUpdate > now) {
+                    try {
+                        keepLastKnownGood(uri)
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (_: Exception) {
+                        // A failed cache update must not prevent serving the last known good LoTE.
+                    }
+                    old.jwt
+                } else {
+                    null
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                null
+            }
+        }
+    }
 
     private suspend fun downloadAndStage(loadFromHttp: DownloadSingleLoTE, uri: Uri): LoadLoTE.Outcome<String> {
         fun createMetadata(jwt: String): LoTEFileMetadata {
