@@ -31,15 +31,16 @@ import kotlin.io.encoding.Base64
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
+import kotlin.test.assertNull
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.days
 import kotlin.time.Instant
 
 /**
  * Covers the event listening of [LoadLoTEAndPointers]: the [LoadLoTEAndPointers.Event] of each
- * processed LoTE step is emitted to the [LoTEEventListener] (explicitly provided or auto-wired
- * from [loadLoTE]), so a caching loader can commit a fresh download only after it passed
- * verification.
+ * processed LoTE step is emitted to the [LoTEEventListener] (explicitly provided, or auto-wired
+ * when `loadLoTE` is a [LoadSingleLoTEWithFileCache] via the dedicated constructor), so a caching
+ * loader can commit a fresh download only after it passed verification.
  */
 class LoadLoTEAndPointersTest {
 
@@ -54,7 +55,7 @@ class LoadLoTEAndPointersTest {
             LoadLoTEAndPointers(
                 constraints = LoadLoTEAndPointers.Constraints.DoNotLoadOtherPointers,
                 verifyJwtSignature = NotValidating,
-                loadLoTE = LoadLoTE { LoadLoTE.Outcome.Loaded(jwt) },
+                loadLoTE = { LoadLoTE.Outcome.Loaded(jwt) },
                 clock = FakeClock(now),
                 loTEEventListener = listener,
             )
@@ -73,8 +74,8 @@ class LoadLoTEAndPointersTest {
         val loader =
             LoadLoTEAndPointers(
                 constraints = LoadLoTEAndPointers.Constraints.DoNotLoadOtherPointers,
-                verifyJwtSignature = VerifyJwtSignature { VerifyJwtSignature.Outcome.NotVerified(cause) },
-                loadLoTE = LoadLoTE { LoadLoTE.Outcome.Loaded(jwt) },
+                verifyJwtSignature = { VerifyJwtSignature.Outcome.NotVerified(cause) },
+                loadLoTE = { LoadLoTE.Outcome.Loaded(jwt) },
                 clock = FakeClock(now),
                 loTEEventListener = listener,
             )
@@ -94,7 +95,7 @@ class LoadLoTEAndPointersTest {
             LoadLoTEAndPointers(
                 constraints = LoadLoTEAndPointers.Constraints.DoNotLoadOtherPointers,
                 verifyJwtSignature = NotValidating,
-                loadLoTE = LoadLoTE { LoadLoTE.Outcome.Loaded(jwt) },
+                loadLoTE = { LoadLoTE.Outcome.Loaded(jwt) },
                 clock = FakeClock(now),
                 loTEEventListener = listener,
             )
@@ -113,7 +114,7 @@ class LoadLoTEAndPointersTest {
             LoadLoTEAndPointers(
                 constraints = LoadLoTEAndPointers.Constraints.DoNotLoadOtherPointers,
                 verifyJwtSignature = NotValidating,
-                loadLoTE = LoadLoTE { LoadLoTE.Outcome.Loaded(jwt) },
+                loadLoTE = { LoadLoTE.Outcome.Loaded(jwt) },
                 clock = FakeClock(now),
                 loTEEventListener = listener,
             )
@@ -143,35 +144,6 @@ class LoadLoTEAndPointersTest {
     }
 
     @Test
-    fun listener_isAutoWiredFromLoadLoTE() = runTest {
-        val (jwt, _) = loteJwt(nextUpdate = now + 30.days)
-        val loadLoTE =
-            object : LoadLoTE<String>, LoTEEventListener {
-                val calls = mutableListOf<RecordingListener.Call>()
-                override suspend fun invoke(uri: Uri): LoadLoTE.Outcome<String> = LoadLoTE.Outcome.Loaded(jwt)
-                override suspend fun onEvent(uri: Uri, jwt: String?, event: LoadLoTEAndPointers.Event) {
-                    calls += RecordingListener.Call(uri, jwt, event)
-                }
-            }
-        val loader =
-            LoadLoTEAndPointers(
-                constraints = LoadLoTEAndPointers.Constraints.DoNotLoadOtherPointers,
-                verifyJwtSignature = NotValidating,
-                loadLoTE = loadLoTE,
-                clock = FakeClock(now),
-            )
-
-        loader.invoke(uri).toList()
-
-        val event = assertIs<LoadLoTEAndPointers.Event.LoTELoaded>(loadLoTE.calls.single().event)
-        assertEquals(
-            listOf(RecordingListener.Call(uri, jwt, event)),
-            loadLoTE.calls,
-            "the listener must be auto-wired from a loadLoTE that implements LoTEEventListener",
-        )
-    }
-
-    @Test
     fun badFreshLoTE_fallsBackToLastKnownGood() = runTest {
         val freshJwt = "not-a-jwt"
         val (fallbackJwt, fallbackLote) = loteJwt(nextUpdate = now + 30.days)
@@ -181,7 +153,7 @@ class LoadLoTEAndPointersTest {
             LoadLoTEAndPointers(
                 constraints = LoadLoTEAndPointers.Constraints.DoNotLoadOtherPointers,
                 verifyJwtSignature = NotValidating,
-                loadLoTE = LoadLoTE { LoadLoTE.Outcome.Loaded(freshJwt) },
+                loadLoTE = { LoadLoTE.Outcome.Loaded(freshJwt) },
                 clock = FakeClock(now),
                 loTEEventListener = listener,
                 loTEFallbackProvider = fallback,
@@ -194,6 +166,7 @@ class LoadLoTEAndPointersTest {
         assertEquals(listOf(uri), fallback.calls)
         val listenerCall = listener.calls.single()
         assertEquals(freshJwt, listenerCall.jwt)
+        assertEquals(listenerCall.event as LoadLoTEAndPointers.Event.Problem, event.fallbackReason)
         assertIs<LoadLoTEAndPointers.Event.FailedToParseJwt>(listenerCall.event)
     }
 
@@ -219,6 +192,7 @@ class LoadLoTEAndPointersTest {
         assertEquals(listOf(uri), fallback.calls)
         val listenerCall = listener.calls.single()
         assertEquals(null, listenerCall.jwt)
+        assertEquals(listenerCall.event as LoadLoTEAndPointers.Event.Problem, event.fallbackReason)
         assertIs<LoadLoTEAndPointers.Event.ResourceNotFound>(listenerCall.event)
     }
 
@@ -230,7 +204,7 @@ class LoadLoTEAndPointersTest {
             LoadLoTEAndPointers(
                 constraints = LoadLoTEAndPointers.Constraints.DoNotLoadOtherPointers,
                 verifyJwtSignature = NotValidating,
-                loadLoTE = LoadLoTE { LoadLoTE.Outcome.Loaded("bad-fresh") },
+                loadLoTE = { LoadLoTE.Outcome.Loaded("bad-fresh") },
                 clock = FakeClock(now),
                 loTEEventListener = listener,
                 loTEFallbackProvider = fallback,
@@ -252,7 +226,7 @@ class LoadLoTEAndPointersTest {
             LoadLoTEAndPointers(
                 constraints = LoadLoTEAndPointers.Constraints.DoNotLoadOtherPointers,
                 verifyJwtSignature = NotValidating,
-                loadLoTE = LoadLoTE { LoadLoTE.Outcome.Loaded(jwt) },
+                loadLoTE = { LoadLoTE.Outcome.Loaded(jwt) },
                 clock = FakeClock(now),
                 loTEEventListener = listener,
                 loTEFallbackProvider = fallback,
@@ -262,6 +236,7 @@ class LoadLoTEAndPointersTest {
 
         val event = assertIs<LoadLoTEAndPointers.Event.LoTELoaded>(events.single())
         assertEquals(lote, event.lote)
+        assertNull(event.fallbackReason)
         assertEquals(emptyList<Uri>(), fallback.calls)
         assertEquals(listOf(RecordingListener.Call(uri, jwt, event)), listener.calls)
     }
@@ -274,7 +249,7 @@ class LoadLoTEAndPointersTest {
             LoadLoTEAndPointers(
                 constraints = LoadLoTEAndPointers.Constraints.DoNotLoadOtherPointers,
                 verifyJwtSignature = NotValidating,
-                loadLoTE = LoadLoTE { LoadLoTE.Outcome.Loaded("not-a-jwt") },
+                loadLoTE = { LoadLoTE.Outcome.Loaded("not-a-jwt") },
                 clock = FakeClock(now),
                 loTEEventListener = listener,
                 loTEFallbackProvider = fallback,
@@ -284,44 +259,6 @@ class LoadLoTEAndPointersTest {
 
         assertIs<LoadLoTEAndPointers.Event.FailedToParseJwt>(events.single())
         assertEquals(listOf(uri), fallback.calls)
-    }
-
-    @Test
-    fun fallback_isAutoWiredFromLoadLoTE() = runTest {
-        val freshJwt = "not-a-jwt"
-        val (fallbackJwt, fallbackLote) = loteJwt(nextUpdate = now + 30.days)
-        val listenerCalls = mutableListOf<RecordingListener.Call>()
-        val fallbackCalls = mutableListOf<Uri>()
-        val loadLoTE =
-            object : LoadLoTE<String>, LoTEEventListener, LoTEFallbackProvider {
-                override suspend fun invoke(uri: Uri): LoadLoTE.Outcome<String> =
-                    LoadLoTE.Outcome.Loaded(freshJwt)
-
-                override suspend fun onEvent(uri: Uri, jwt: String?, event: LoadLoTEAndPointers.Event) {
-                    listenerCalls += RecordingListener.Call(uri, jwt, event)
-                }
-
-                override suspend fun lastKnownGood(uri: Uri): String? {
-                    fallbackCalls += uri
-                    return fallbackJwt
-                }
-            }
-        val loader =
-            LoadLoTEAndPointers(
-                constraints = LoadLoTEAndPointers.Constraints.DoNotLoadOtherPointers,
-                verifyJwtSignature = NotValidating,
-                loadLoTE = loadLoTE,
-                clock = FakeClock(now),
-            )
-
-        val events = loader.invoke(uri).toList()
-
-        val event = assertIs<LoadLoTEAndPointers.Event.LoTELoaded>(events.single())
-        assertEquals(fallbackLote, event.lote)
-        assertEquals(listOf(uri), fallbackCalls)
-        val listenerCall = listenerCalls.single()
-        assertEquals(freshJwt, listenerCall.jwt)
-        assertIs<LoadLoTEAndPointers.Event.FailedToParseJwt>(listenerCall.event)
     }
 
     private class RecordingListener : LoTEEventListener {

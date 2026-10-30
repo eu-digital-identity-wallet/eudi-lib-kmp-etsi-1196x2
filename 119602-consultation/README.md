@@ -188,8 +188,11 @@ useResources {
 > **Fallback to the last known good LoTE.** When the fresh path for a LoTE fails (the
 > download fails, or the fresh content fails verification), `LoadLoTEAndPointers` asks
 > `loadLoTE` for the last known good LoTE through `LoTEFallbackProvider`, re-verifies it,
-> and emits `Event.LoTELoaded` for it while its `nextUpdate` is still in the future. This
-> wiring is also automatic when `loadLoTE` is a `LoadSingleLoTEWithFileCache`; pass
+> and emits `Event.LoTELoaded` for it while its `nextUpdate` is still in the future. The
+> emitted `Event.LoTELoaded` carries `fallbackReason` set to the problem that triggered the
+> fallback (null when the LoTE was freshly downloaded and verified, i.e. the fresh content
+> was committed to the file cache). This wiring is also automatic when `loadLoTE` is a
+> `LoadSingleLoTEWithFileCache`; pass
 > `loTEFallbackProvider` to `LoadLoTEAndPointers` only to override it.
 
 ### 3. Validate certificate chains
@@ -229,7 +232,7 @@ The module provides the following key abstractions for working with ETSI TS 119 
 🔍 **LoTE Discovery & Loading**
 
 - `ProvisionTrustAnchorsFromLoTEs`: **Main entry point** - High-level factory for provisioning trust anchors from LoTEs with built-in caching support (`cached()` for high-concurrency, `nonCached()` for simple scenarios)
-- `LoadLoTEAndPointers`: Loads LoTE documents and follows pointers to related lists with configurable depth limits. Emits the `Event` of each processed LoTE step to a `LoTEEventListener` (auto-wired when `loadLoTE` is a `LoadSingleLoTEWithFileCache`). When the fresh path fails, it falls back to the last known good LoTE from a `LoTEFallbackProvider` (also auto-wired when `loadLoTE` is a `LoadSingleLoTEWithFileCache`)
+- `LoadLoTEAndPointers`: Loads LoTE documents and follows pointers to related lists with configurable depth limits. Emits the `Event` of each processed LoTE step to a `LoTEEventListener` (auto-wired when `loadLoTE` is a `LoadSingleLoTEWithFileCache`). When the fresh path fails, it falls back to the last known good LoTE from a `LoTEFallbackProvider` (also auto-wired when `loadLoTE` is a `LoadSingleLoTEWithFileCache`), emitting `Event.LoTELoaded` with `fallbackReason` set to the problem that triggered the fallback
 - `LoadSingleLoTEWithFileCache`: File-cached implementation combining `DownloadSingleLoTE` with persistent storage. Fresh downloads are staged in memory and only committed to the file cache once `Event.LoTELoaded` is received for the exact download; otherwise the last known good copy keeps serving (with its expiry extended until its `nextUpdate`). Also provides the last known good LoTE to `LoadLoTEAndPointers` when the fresh path fails
 - `LoTEEventListener`: Callback that receives the `LoadLoTEAndPointers.Event` of each processed LoTE step, used to commit staged LoTE downloads to the file cache
 - `LoTEFallbackProvider`: Source of the last known good LoTE content used by `LoadLoTEAndPointers` when the fresh path for a LoTE fails

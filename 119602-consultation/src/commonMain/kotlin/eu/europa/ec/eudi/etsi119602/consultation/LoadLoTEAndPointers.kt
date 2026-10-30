@@ -73,32 +73,47 @@ public class LoadLoTEAndPointers(
     private val loadLoTE: LoadLoTE<String>,
     private val clock: Clock = Clock.System,
     private val parseJwt: ParseJwt<JsonObject, ListOfTrustedEntitiesClaims> = ParseJwt(),
-    loTEEventListener: LoTEEventListener? = null,
-    loTEFallbackProvider: LoTEFallbackProvider? = null,
+    private val loTEEventListener: LoTEEventListener? = null,
+    private val loTEFallbackProvider: LoTEFallbackProvider? = null,
 ) {
 
-    /**
-     * The listener notified with the [Event] of each processed LoTE step, so a caching loader
-     * can commit a fresh download only after it passed verification. When [loTEEventListener]
-     * is not provided, it is auto-wired from [loadLoTE] if the loader implements
-     * [LoTEEventListener] (e.g. [LoadSingleLoTEWithFileCache]).
-     */
-    private val loTEEventListener: LoTEEventListener? =
-        loTEEventListener ?: loadLoTE as? LoTEEventListener
-
-    /**
-     * The source of the last known good LoTE, used when the fresh path for a step fails. When
-     * [loTEFallbackProvider] is not provided, it is auto-wired from [loadLoTE] if the loader
-     * implements [LoTEFallbackProvider] (e.g. [LoadSingleLoTEWithFileCache]).
-     */
-    private val loTEFallbackProvider: LoTEFallbackProvider? =
-        loTEFallbackProvider ?: loadLoTE as? LoTEFallbackProvider
+    public constructor(
+        constraints: Constraints,
+        verifyJwtSignature: VerifyJwtSignature,
+        loadLoTE: LoadSingleLoTEWithFileCache,
+        clock: Clock = Clock.System,
+        parseJwt: ParseJwt<JsonObject, ListOfTrustedEntitiesClaims> = ParseJwt(),
+    ) : this(
+        constraints = constraints,
+        verifyJwtSignature = verifyJwtSignature,
+        loadLoTE = loadLoTE,
+        clock = clock,
+        parseJwt = parseJwt,
+        loTEEventListener = loadLoTE,
+        loTEFallbackProvider = loadLoTE,
+    )
 
     /**
      * Events emitted by the loader
      */
     public sealed interface Event {
-        public data class LoTELoaded(val lote: ListOfTrustedEntities, val sourceUri: Uri, val depth: Int) : Event
+        /**
+         * A LoTE was loaded and verified.
+         *
+         * @param lote the parsed List of Trusted Entities
+         * @param sourceUri the URI the LoTE was loaded from
+         * @param depth the recursion depth of this LoTE
+         * @param fallbackReason when non-null, the problem the fresh path failed with; this LoTE
+         * was re-verified from the [LoTEFallbackProvider] and served from the fallback. Null when
+         * the LoTE was freshly downloaded and verified.
+         */
+        public data class LoTELoaded(
+            val lote: ListOfTrustedEntities,
+            val sourceUri: Uri,
+            val depth: Int,
+            val fallbackReason: Problem? = null,
+        ) : Event
+
         public sealed interface Problem : Event
         public data class ResourceNotFound(val uri: Uri, val cause: Throwable?) : Problem
         public data class InvalidJWTSignature(val uri: Uri, val cause: Throwable?) : Problem
@@ -171,13 +186,12 @@ public class LoadLoTEAndPointers(
     }
 
     private suspend fun fallbackIfNeeded(step: Step, freshJwt: String?, event: Event): Event {
-        if (event is Event.LoTELoaded) return event
-        val fallback = loTEFallbackProvider ?: return event
+        if (event is Event.LoTELoaded || loTEFallbackProvider == null) return event
         return try {
-            val fallbackJwt = fallback.lastKnownGood(step.uri) ?: return event
+            val fallbackJwt = loTEFallbackProvider.lastKnownGood(step.uri) ?: return event
             if (fallbackJwt == freshJwt) return event
             val fallbackEvent = verifySignatureAndParseJwt(step, LoadLoTE.Outcome.Loaded(fallbackJwt))
-            fallbackEvent as? Event.LoTELoaded ?: event
+            (fallbackEvent as? Event.LoTELoaded)?.copy(fallbackReason = event as Event.Problem) ?: event
         } catch (e: CancellationException) {
             throw e
         } catch (_: Exception) {

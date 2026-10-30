@@ -82,6 +82,30 @@ class LoadSingleLoTEWithFileCacheTest {
     }
 
     @Test
+    fun verifiedDownload_isCommittedToCache_whenUsedWithLoadLoTEAndPointers() = runTest {
+        val cacheDir = tempCacheDir()
+        val fileStore = LoTEFileStore(cacheDir)
+        val (jwt, _) = loteJwt(1, Clock.System.now() + 30.days)
+        val (downloader, _) = mockDownloader(HttpStatusCode.OK to jwt)
+        val loadLoTE = LoadSingleLoTEWithFileCache(cacheDir, downloadSingleLoTE = downloader)
+        val loader =
+            LoadLoTEAndPointers(
+                constraints = LoadLoTEAndPointers.Constraints.DoNotLoadOtherPointers,
+                verifyJwtSignature = NotValidating,
+                loadLoTE = loadLoTE,
+            )
+
+        val events = loader.invoke(uri).toList()
+
+        assertIs<LoadLoTEAndPointers.Event.LoTELoaded>(events.single())
+        assertEquals(
+            jwt,
+            fileStore.read(uri)?.jwt,
+            "the listener wired by the LoadLoTEAndPointers constructor must commit the verified download",
+        )
+    }
+
+    @Test
     fun notVerifiedDownload_isDiscarded_andLastKnownGoodKept() = runTest {
         val cacheDir = tempCacheDir()
         val fileStore = LoTEFileStore(cacheDir)
@@ -332,6 +356,7 @@ class LoadSingleLoTEWithFileCacheTest {
 
         val event = assertIs<LoadLoTEAndPointers.Event.LoTELoaded>(events.single())
         assertEquals(oldLote, event.lote)
+        assertIs<LoadLoTEAndPointers.Event.FailedToParseJwt>(event.fallbackReason)
         val cached = assertNotNull(fileStore.read(uri))
         assertEquals(oldJwt, cached.jwt)
         assertEquals(
@@ -375,6 +400,7 @@ class LoadSingleLoTEWithFileCacheTest {
 
         val event = assertIs<LoadLoTEAndPointers.Event.LoTELoaded>(events.single())
         assertEquals(oldLote, event.lote)
+        assertIs<LoadLoTEAndPointers.Event.ResourceNotFound>(event.fallbackReason)
         val cached = assertNotNull(fileStore.read(uri))
         assertEquals(oldJwt, cached.jwt)
         assertEquals(
