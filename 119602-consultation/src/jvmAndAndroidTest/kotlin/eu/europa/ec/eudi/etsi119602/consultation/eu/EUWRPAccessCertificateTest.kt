@@ -20,10 +20,17 @@ import eu.europa.ec.eudi.etsi119602.consultation.CertOps.toX509Certificate
 import eu.europa.ec.eudi.etsi119602.consultation.ETSI119411Part8
 import eu.europa.ec.eudi.etsi1196x2.consultation.certs.*
 import kotlinx.coroutines.test.runTest
+import org.bouncycastle.asn1.ASN1Encodable
+import org.bouncycastle.asn1.DERIA5String
 import org.bouncycastle.asn1.DERNull
+import org.bouncycastle.asn1.DERSequence
 import org.bouncycastle.asn1.x500.X500Name
 import org.bouncycastle.asn1.x500.X500NameBuilder
 import org.bouncycastle.asn1.x500.style.BCStyle
+import org.bouncycastle.asn1.x509.AccessDescription
+import org.bouncycastle.asn1.x509.ExtendedKeyUsage
+import org.bouncycastle.asn1.x509.GeneralName
+import org.bouncycastle.asn1.x509.KeyPurposeId
 import java.security.cert.X509Certificate
 import java.util.*
 import kotlin.test.*
@@ -88,6 +95,9 @@ class EUWRPAccessCertificateTest {
         subjectAltNameUri: String? = "https://wallet-relying-party.example.com",
         keyUsageCritical: Boolean = true,
         basicConstraintsCritical: Boolean = true,
+        subjectAltNameCritical: Boolean = false,
+        certificatePoliciesCritical: Boolean = false,
+        customExtensions: List<Triple<String, Boolean, ASN1Encodable>> = emptyList(),
     ): X509Certificate {
         val (caKeyPair, caCert) = wrpacProvider()
         val (_, certHolder) = CertOps.genCAIssuedEndEntityCertificate(
@@ -103,6 +113,9 @@ class EUWRPAccessCertificateTest {
             subjectAltNameUri = subjectAltNameUri,
             keyUsageCritical = keyUsageCritical,
             basicConstraintsCritical = basicConstraintsCritical,
+            subjectAltNameCritical = subjectAltNameCritical,
+            certificatePoliciesCritical = certificatePoliciesCritical,
+            customExtensions = customExtensions,
         )
         return certHolder.toX509Certificate()
     }
@@ -201,6 +214,79 @@ class EUWRPAccessCertificateTest {
         )
         val evaluation = evaluateEndEntityCertificateConstraints(certificate)
         assertTrue(evaluation.isMet(), evaluation.reasons())
+    }
+
+    @Test
+    fun `WRPAC with a critical extendedKeyUsage is accepted`() = runTest {
+        val certificate = genCAIssuedEndEntityCertificate(
+            subject = legalPersonSubject,
+            policyOids = listOf(ETSI119411Part8.NCP_L_EUDIWRP),
+            customExtensions = listOf(
+                Triple(RFC5280.EXT_EXTENDED_KEY_USAGE, true, ExtendedKeyUsage(KeyPurposeId.id_kp_serverAuth)),
+            ),
+        )
+        val evaluation = evaluateEndEntityCertificateConstraints(certificate)
+        assertTrue(evaluation.isMet(), evaluation.reasons())
+    }
+
+    @Test
+    fun `WRPAC with a critical subjectAltName is accepted`() = runTest {
+        val certificate = genCAIssuedEndEntityCertificate(
+            subject = legalPersonSubject,
+            policyOids = listOf(ETSI119411Part8.NCP_L_EUDIWRP),
+            subjectAltNameCritical = true,
+        )
+        val evaluation = evaluateEndEntityCertificateConstraints(certificate)
+        assertTrue(evaluation.isMet(), evaluation.reasons())
+    }
+
+    @Test
+    fun `WRPAC with a critical certificatePolicies is accepted`() = runTest {
+        val certificate = genCAIssuedEndEntityCertificate(
+            subject = legalPersonSubject,
+            policyOids = listOf(ETSI119411Part8.NCP_L_EUDIWRP),
+            certificatePoliciesCritical = true,
+        )
+        val evaluation = evaluateEndEntityCertificateConstraints(certificate)
+        assertTrue(evaluation.isMet(), evaluation.reasons())
+    }
+
+    @Test
+    fun `WRPAC with a critical authorityInfoAccess is rejected`() = runTest {
+        // RFC 5280 §4.2.2.1: "Conforming CAs MUST mark this extension as non-critical."
+        val certificate = genCAIssuedEndEntityCertificate(
+            subject = legalPersonSubject,
+            policyOids = listOf(ETSI119411Part8.NCP_L_EUDIWRP),
+            caIssuersUri = null,
+            ocspUri = null,
+            customExtensions = listOf(
+                Triple(
+                    RFC5280.EXT_AUTHORITY_INFO_ACCESS,
+                    true,
+                    DERSequence(
+                        arrayOf(
+                            AccessDescription(
+                                AccessDescription.id_ad_caIssuers,
+                                GeneralName(
+                                    GeneralName.uniformResourceIdentifier,
+                                    DERIA5String("http://ca.example.com/ca.crt"),
+                                ),
+                            ),
+                            AccessDescription(
+                                AccessDescription.id_ad_ocsp,
+                                GeneralName(
+                                    GeneralName.uniformResourceIdentifier,
+                                    DERIA5String("http://ocsp.example.com/"),
+                                ),
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        )
+        val evaluation = evaluateEndEntityCertificateConstraints(certificate)
+        assertFalse(evaluation.isMet())
+        evaluation.assertSingleViolation { it.contains(RFC5280.EXT_AUTHORITY_INFO_ACCESS) }
     }
 
     @Test

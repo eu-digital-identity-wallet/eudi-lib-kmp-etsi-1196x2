@@ -122,6 +122,8 @@ object CertOps {
         withSKI: Boolean = true,
         keyUsageCritical: Boolean = true,
         basicConstraintsCritical: Boolean = true,
+        subjectAltNameCritical: Boolean = false,
+        certificatePoliciesCritical: Boolean = false,
     ): Pair<KeyPair, X509CertificateHolder> {
         val eeKp = Ctx.generateKeyPair(subjectKeyPairAlg, subjectKeySize)
         val eeCertHolder = createEndEntity(
@@ -142,6 +144,8 @@ object CertOps {
             withSKI,
             keyUsageCritical,
             basicConstraintsCritical,
+            subjectAltNameCritical,
+            certificatePoliciesCritical,
         )
         return eeKp to eeCertHolder
     }
@@ -218,6 +222,8 @@ object CertOps {
         withSKI: Boolean = true,
         keyUsageCritical: Boolean = true,
         basicConstraintsCritical: Boolean = true,
+        subjectAltNameCritical: Boolean = false,
+        certificatePoliciesCritical: Boolean = false,
     ): X509CertificateHolder =
         JcaX509v3CertificateBuilder(
             signerCert.subject,
@@ -234,13 +240,13 @@ object CertOps {
             basicConstraints(BasicConstraints(false), basicConstraintsCritical) // do not allow this cert to sign other certs
             keyUsage(keyUsage, keyUsageCritical)
             qcStatements?.let { qcStatements(it) }
-            certificatePolicies(policyOids ?: listOf())
+            certificatePolicies(policyOids ?: listOf(), certificatePoliciesCritical)
             authorityInformationAccess(caIssuersUri, ocspUri)
             if (crlDistributionPointUri != null) {
                 crlDistributionPoints(crlDistributionPointUri)
             }
             if (subjectAltNameUri != null) {
-                subjectAlternativeName(subjectAltNameUri)
+                subjectAlternativeName(subjectAltNameUri, subjectAltNameCritical)
             }
             customExtensions.forEach { (oid, critical, value) ->
                 addExtension(ASN1ObjectIdentifier(oid), critical, value)
@@ -310,7 +316,10 @@ private fun JcaX509v3CertificateBuilder.qcStatements(statements: List<QCStatemen
  *
  * @see [RFC 5280 Section 4.2.1.4](https://datatracker.ietf.org/doc/html/rfc5280#section-4.2.1.4)
  */
-private fun JcaX509v3CertificateBuilder.certificatePolicies(policyOids: List<String>) {
+private fun JcaX509v3CertificateBuilder.certificatePolicies(
+    policyOids: List<String>,
+    critical: Boolean = false,
+) {
     // CertificatePolicies ::= SEQUENCE SIZE (1..MAX) OF PolicyInformation
     // PolicyInformation ::= SEQUENCE {
     //   policyIdentifier   CertPolicyId,
@@ -319,7 +328,7 @@ private fun JcaX509v3CertificateBuilder.certificatePolicies(policyOids: List<Str
     val policyInfos = policyOids.map { oid ->
         PolicyInformation(ASN1ObjectIdentifier(oid))
     }
-    addExtension(Extension.certificatePolicies, false, DERSequence(policyInfos.toTypedArray()))
+    addExtension(Extension.certificatePolicies, critical, DERSequence(policyInfos.toTypedArray()))
 }
 
 /**
@@ -376,9 +385,12 @@ private fun JcaX509v3CertificateBuilder.crlDistributionPoints(uri: String) {
     addExtension(Extension.cRLDistributionPoints, false, CRLDistPoint(arrayOf(dp)))
 }
 
-private fun JcaX509v3CertificateBuilder.subjectAlternativeName(uri: String) {
+private fun JcaX509v3CertificateBuilder.subjectAlternativeName(
+    uri: String,
+    critical: Boolean = false,
+) {
     val generalName = GeneralName(GeneralName.uniformResourceIdentifier, DERIA5String(uri))
-    addExtension(Extension.subjectAlternativeName, false, DERSequence(arrayOf(generalName)))
+    addExtension(Extension.subjectAlternativeName, critical, DERSequence(arrayOf(generalName)))
 }
 
 /**
