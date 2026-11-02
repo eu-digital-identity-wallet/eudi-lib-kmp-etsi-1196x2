@@ -196,14 +196,97 @@ class EUPIDSigningCertificateProfileTests {
     }
 
     @Test
-    fun `CA-issued certificate should require digitalSignature key usage`() = runTest {
-        // Generate an end-entity certificate with keyCertSign instead of digitalSignature
+    fun `CA-issued certificate should reject keyUsage that is not one of types A B C or F`() = runTest {
+        // Generate an end-entity certificate with keyCertSign instead of a Type A/B/C/F setting
         val certificate = genCAIssuedEndEntityCertificate(
             qcStatements = listOf(QCStatementInfo.QcType(ETSI119412Part6.ID_ETSI_QCT_PID)),
             policyOids = listOf("1.2.3.4.5"),
             caIssuersUri = "http://example.com/ca.crt",
             ocspUri = "http://example.com/ocsp",
             keyUsage = KeyUsage(KeyUsage.keyCertSign), // wrong key usage
+            subject = legalEntityPidProviderName,
+        )
+
+        val constraintEvaluation = evaluateCertificateConstraints(certificate)
+
+        assertFalse(constraintEvaluation.isMet())
+        constraintEvaluation.assertSingleViolation { it.contains("keyUsage", ignoreCase = true) }
+    }
+
+    @Test
+    fun `CA-issued certificate with keyUsage Type A (nonRepudiation) is accepted`() = runTest {
+        // PID-4.4.1-01 allows Type A (nonRepudiation only) from table 1 of EN 319 412-2
+        val certificate = genCAIssuedEndEntityCertificate(
+            qcStatements = listOf(QCStatementInfo.QcType(ETSI119412Part6.ID_ETSI_QCT_PID)),
+            policyOids = listOf("1.2.3.4.5"),
+            caIssuersUri = "http://example.com/ca.crt",
+            ocspUri = "http://example.com/ocsp",
+            keyUsage = KeyUsage(KeyUsage.nonRepudiation), // Type A
+            subject = legalEntityPidProviderName,
+        )
+
+        val constraintEvaluation = evaluateCertificateConstraints(certificate)
+
+        assertTrue(constraintEvaluation.isMet(), "Type A keyUsage should be accepted: $constraintEvaluation")
+    }
+
+    @Test
+    fun `CA-issued certificate with keyUsage Type B is accepted`() = runTest {
+        val certificate = genCAIssuedEndEntityCertificate(
+            qcStatements = listOf(QCStatementInfo.QcType(ETSI119412Part6.ID_ETSI_QCT_PID)),
+            policyOids = listOf("1.2.3.4.5"),
+            caIssuersUri = "http://example.com/ca.crt",
+            ocspUri = "http://example.com/ocsp",
+            keyUsage = KeyUsage(KeyUsage.digitalSignature or KeyUsage.nonRepudiation), // Type B
+            subject = legalEntityPidProviderName,
+        )
+
+        val constraintEvaluation = evaluateCertificateConstraints(certificate)
+
+        assertTrue(constraintEvaluation.isMet(), "Type B keyUsage should be accepted: $constraintEvaluation")
+    }
+
+    @Test
+    fun `CA-issued certificate with keyUsage Type F (keyEncipherment) is accepted`() = runTest {
+        val certificate = genCAIssuedEndEntityCertificate(
+            qcStatements = listOf(QCStatementInfo.QcType(ETSI119412Part6.ID_ETSI_QCT_PID)),
+            policyOids = listOf("1.2.3.4.5"),
+            caIssuersUri = "http://example.com/ca.crt",
+            ocspUri = "http://example.com/ocsp",
+            keyUsage = KeyUsage(KeyUsage.digitalSignature or KeyUsage.nonRepudiation or KeyUsage.keyEncipherment), // Type F
+            subject = legalEntityPidProviderName,
+        )
+
+        val constraintEvaluation = evaluateCertificateConstraints(certificate)
+
+        assertTrue(constraintEvaluation.isMet(), "Type F keyUsage should be accepted: $constraintEvaluation")
+    }
+
+    @Test
+    fun `CA-issued certificate with keyUsage Type F (keyAgreement) is accepted`() = runTest {
+        val certificate = genCAIssuedEndEntityCertificate(
+            qcStatements = listOf(QCStatementInfo.QcType(ETSI119412Part6.ID_ETSI_QCT_PID)),
+            policyOids = listOf("1.2.3.4.5"),
+            caIssuersUri = "http://example.com/ca.crt",
+            ocspUri = "http://example.com/ocsp",
+            keyUsage = KeyUsage(KeyUsage.digitalSignature or KeyUsage.nonRepudiation or KeyUsage.keyAgreement), // Type F
+            subject = legalEntityPidProviderName,
+        )
+
+        val constraintEvaluation = evaluateCertificateConstraints(certificate)
+
+        assertTrue(constraintEvaluation.isMet(), "Type F keyUsage should be accepted: $constraintEvaluation")
+    }
+
+    @Test
+    fun `CA-issued certificate with mixed keyUsage (digitalSignature and keyCertSign) is rejected`() = runTest {
+        // digitalSignature alone is Type C, but combined with keyCertSign it matches none of types A, B, C or F
+        val certificate = genCAIssuedEndEntityCertificate(
+            qcStatements = listOf(QCStatementInfo.QcType(ETSI119412Part6.ID_ETSI_QCT_PID)),
+            policyOids = listOf("1.2.3.4.5"),
+            caIssuersUri = "http://example.com/ca.crt",
+            ocspUri = "http://example.com/ocsp",
+            keyUsage = KeyUsage(KeyUsage.digitalSignature or KeyUsage.keyCertSign), // mixed, not a valid setting
             subject = legalEntityPidProviderName,
         )
 
@@ -257,8 +340,8 @@ class EUPIDSigningCertificateProfileTests {
     }
 
     @Test
-    fun `Self-signed LP certificate should require digitalSignature key usage`() = runTest {
-        // Generate a self-signed certificate with keyCertSign instead of digitalSignature
+    fun `Self-signed LP certificate should reject keyUsage that is not one of types A B C or F`() = runTest {
+        // Generate a self-signed certificate with keyCertSign instead of a Type A/B/C/F setting
         val certificate = genSelfSignedEndEntityCertificate(
             qcStatements = listOf(QCStatementInfo.QcType(ETSI119412Part6.ID_ETSI_QCT_PID)),
             policyOids = listOf("1.2.3.4.5"),
@@ -268,13 +351,13 @@ class EUPIDSigningCertificateProfileTests {
 
         val constraintEvaluation = evaluateCertificateConstraints(certificate)
 
-        assertFalse(constraintEvaluation.isMet(), "Certificate without digitalSignature should fail")
+        assertFalse(constraintEvaluation.isMet(), "Certificate with keyCertSign only should fail")
         constraintEvaluation.assertSingleViolation { it.contains("keyUsage", ignoreCase = true) }
     }
 
     @Test
-    fun `Self-signed NP certificate should require digitalSignature key usage`() = runTest {
-        // Generate a self-signed certificate with keyCertSign instead of digitalSignature
+    fun `Self-signed NP certificate should reject keyUsage that is not one of types A B C or F`() = runTest {
+        // Generate a self-signed certificate with keyCertSign instead of a Type A/B/C/F setting
         val certificate = genSelfSignedEndEntityCertificate(
             qcStatements = listOf(QCStatementInfo.QcType(ETSI119412Part6.ID_ETSI_QCT_PID)),
             policyOids = listOf("1.2.3.4.5"),
@@ -284,8 +367,22 @@ class EUPIDSigningCertificateProfileTests {
 
         val constraintEvaluation = evaluateCertificateConstraints(certificate)
 
-        assertFalse(constraintEvaluation.isMet(), "Certificate without digitalSignature should fail")
+        assertFalse(constraintEvaluation.isMet(), "Certificate with keyCertSign only should fail")
         constraintEvaluation.assertSingleViolation { it.contains("keyUsage", ignoreCase = true) }
+    }
+
+    @Test
+    fun `Self-signed LP certificate with keyUsage Type A (nonRepudiation) is accepted`() = runTest {
+        val certificate = genSelfSignedEndEntityCertificate(
+            qcStatements = listOf(QCStatementInfo.QcType(ETSI119412Part6.ID_ETSI_QCT_PID)),
+            policyOids = listOf("1.2.3.4.5"),
+            keyUsage = KeyUsage(KeyUsage.nonRepudiation), // Type A
+            subject = legalEntityPidProviderName,
+        )
+
+        val constraintEvaluation = evaluateCertificateConstraints(certificate)
+
+        assertTrue(constraintEvaluation.isMet(), "Type A keyUsage should be accepted: $constraintEvaluation")
     }
 
     @Test

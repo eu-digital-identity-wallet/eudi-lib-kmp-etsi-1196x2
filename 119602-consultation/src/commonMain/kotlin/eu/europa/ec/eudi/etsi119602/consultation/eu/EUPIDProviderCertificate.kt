@@ -28,7 +28,8 @@ public fun pidSigningCertificateProfile(at: Instant? = null): CertificateProfile
     version3()
     endEntity()
     mandatoryQcType(innerIdentifier = ETSI119412Part6.ID_ETSI_QCT_PID)
-    keyUsageDigitalSignature()
+    // TS 119 412-6, PID-4.4.1-01:  One of Type : A, B, C, F
+    keyUsageOneOfETSI319412Types()
     pidProviderExplicitExtensionCriticality()
 
     validAt(at)

@@ -47,6 +47,7 @@ internal object CertOps {
     @Synchronized
     private fun calculateSerialNumber(): BigInteger = BigInteger.valueOf(serialNumberBase++)
 
+    @Suppress("SameParameterValue")
     private fun calculateDate(hoursInFuture: Int): Date {
         val secs = System.currentTimeMillis() / 1000
         return Date((secs + (hoursInFuture * 60 * 60)) * 1000)
@@ -83,9 +84,10 @@ internal object CertOps {
         sigAlg: String,
         subject: X500Name,
         qcStatements: List<QCStatement>? = null,
+        keyUsage: KeyUsage? = KeyUsage(KeyUsage.digitalSignature),
     ): Pair<KeyPair, X509CertificateHolder> {
         val eeKp = Ctx.generateECPair()
-        val eeCertHolder = createEndEntity(signerCert, signerKey, sigAlg, eeKp.public, subject, qcStatements)
+        val eeCertHolder = createEndEntity(signerCert, signerKey, sigAlg, eeKp.public, subject, qcStatements, keyUsage)
         return eeKp to eeCertHolder
     }
 
@@ -149,6 +151,7 @@ internal object CertOps {
         certKey: PublicKey,
         subject: X500Name,
         qcStatements: List<QCStatement>? = null,
+        keyUsage: KeyUsage? = KeyUsage(KeyUsage.digitalSignature),
     ): X509CertificateHolder =
         JcaX509v3CertificateBuilder(
             signerCert.subject,
@@ -161,7 +164,9 @@ internal object CertOps {
             authorityKeyIdentifier(signerCert)
             subjectKeyIdentifier(certKey)
             basicConstraints(BasicConstraints(false)) // do not allow this cert to sign other certs
-            keyUsage(KeyUsage(KeyUsage.digitalSignature))
+            if (keyUsage != null) {
+                keyUsage(keyUsage)
+            }
             qcStatements?.let {
                 addExtension(Extension.qCStatements, false, DERSequence(it.toTypedArray()))
             }

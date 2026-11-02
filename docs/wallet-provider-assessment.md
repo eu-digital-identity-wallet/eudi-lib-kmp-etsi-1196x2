@@ -8,7 +8,7 @@ The `walletProviderSigningCertificateProfile` function in `EUWalletProviderCerti
 
 **Key Findings:**
 
-- ✅ Correctly validates: end-entity certificate type (cA=FALSE), digitalSignature key usage (with criticality), validity period, QCStatement (id-etsi-qct-wal), certificate policies presence
+- ✅ Correctly validates: end-entity certificate type (cA=FALSE), keyUsage types A/B/C/F (WAL-5.1-01/PID-4.4.1-01, with criticality), validity period, QCStatement (id-etsi-qct-wal), certificate policies presence
 - ✅ AuthorityInfoAccess (AIA) extension enforced for CA-issued certificates (conditional on self-signed status)
 - ✅ KeyUsage extension criticality validated (per RFC 5280 4.2.1.3)
 - ✅ X.509 v3 explicitly validated (per RFC 5280)
@@ -44,7 +44,7 @@ public fun walletProviderSigningCertificateProfile(at: Instant? = null): Certifi
         endEntity()
         version3()
         mandatoryQcStatement(qcType = ETSI119412Part6.ID_ETSI_QCT_WAL, requireCompliance = true)
-        keyUsageDigitalSignature()
+keyUsageOneOfETSI319412Types()
         walletProviderExplicitExtensionCriticality()
         validAt(at)
         policyIsPresent()
@@ -86,8 +86,8 @@ internal fun ProfileBuilder.walletProviderExplicitExtensionCriticality() {
 |-------------------------------------|-------------------------|----------------------------------------------------------|--------|
 | X.509 v3 certificate                | RFC 5280                | `version3()`                                             | ✅      |
 | End-entity certificate (cA=FALSE)   | TS 119 412-6 WAL-5.1-01 | `endEntity()`                                            | ✅      |
-| Key Usage: digitalSignature         | TS 119 412-6 WAL-5.1-01 | `keyUsageDigitalSignature()`                             | ✅      |
-| Key Usage criticality               | RFC 5280 4.2.1.3        | `keyUsageDigitalSignature()` (validates critical flag)   | ✅      |
+| Key Usage: types A/B/C/F            | TS 119 412-6 WAL-5.1-01 | `keyUsageOneOfETSI319412Types()`                         | ✅      |
+| Key Usage criticality               | RFC 5280 4.2.1.3        | `keyUsageOneOfETSI319412Types()` (validates critical flag) | ✅    |
 | Validity at time of use             | TS 119 412-6 WAL-5.1-01 | `validAt(at)`                                            | ✅      |
 | QCStatement: id-etsi-qct-wal        | TS 119 412-6 WAL-5.1-01 | `mandatoryQcStatement(qcType = ID_ETSI_QCT_WAL, requireCompliance = true)` | ✅      |
 | Certificate Policy presence         | EN 319 412-2 §4.3.3     | `policyIsPresent()`                                      | ✅      |
@@ -129,7 +129,7 @@ internal fun ProfileBuilder.walletProviderExplicitExtensionCriticality() {
 
 | Extension                         | Presence       | Criticality | Compliance | Notes                                          |
 |-----------------------------------|----------------|-------------|------------|------------------------------------------------|
-| keyUsage                          | M              | C           | ✅        | digitalSignature bit and criticality validated |
+| keyUsage                          | M              | C           | ✅        | exactly one of types A/B/C/F (EN 319 412-2 table 1), criticality validated |
 | subjectKeyIdentifier              | M              | NC          | ✅        | Presence validated (WAL-5.1-01, PID-4.4.2-01)  |
 | AuthorityInfoAccess               | M(C)           | NC          | ✅        | Conditional (not self-signed)                  |
 | CertificatePolicies               | M              | NC          | ✅        | Presence validated (TSP-defined OIDs)          |
@@ -165,7 +165,7 @@ Wallet Provider certificates are issued to **legal persons** (Wallet Providers).
 
 **Breakdown by Implementation Status:**
 
-- ✅ **Fully Implemented (20 requirements)**: X.509 v3 certificate, end-entity certificate type, digitalSignature key usage bit, keyUsage criticality, validity period, QCStatement (id-etsi-qct-wal) with compliance flag, certificate policies presence, AIA for CA-issued certificates, serial number validation, public key algorithm/size (RSA 2048+, EC 256+, ECDSA 256+), issuer DN validation (legal person per WAL-5.1-01, PID-4.2-01), subject DN validation (legal person per WAL-5.1-01, PID-4.3-01/02), specific subject naming attributes (countryName, commonName, organizationName, organizationIdentifier with format), subject key identifier validation, and extension criticality control (only keyUsage and basicConstraints may be critical).
+- ✅ **Fully Implemented (20 requirements)**: X.509 v3 certificate, end-entity certificate type, keyUsage types A/B/C/F (WAL-5.1-01, PID-4.4.1-01), keyUsage criticality, validity period, QCStatement (id-etsi-qct-wal) with compliance flag, certificate policies presence, AIA for CA-issued certificates, serial number validation, public key algorithm/size (RSA 2048+, EC 256+, ECDSA 256+), issuer DN validation (legal person per WAL-5.1-01, PID-4.2-01), subject DN validation (legal person per WAL-5.1-01, PID-4.3-01/02), specific subject naming attributes (countryName, commonName, organizationName, organizationIdentifier with format), subject key identifier validation, and extension criticality control (only keyUsage and basicConstraints may be critical).
 
 - ⚠️ **Enhancement Opportunity (1 recommendation)**: Signature algorithm validation per EN 319 412-1 GEN-4.2.2-1 (advisory requirement - "should" not "shall"). Adding this validation would align with TS 119 312 best practices but is NOT required for ETSI compliance.
 
@@ -181,7 +181,7 @@ Wallet Provider certificates are issued to **legal persons** (Wallet Providers).
 
 2. **End-Entity Certificate Type**: Correctly validates that the certificate is an end-entity certificate (cA=FALSE) per **TS 119 412-6 WAL-5.1-01**.
 
-3. **Key Usage**: Validates the digitalSignature key usage bit per **TS 119 412-6 WAL-5.1-01**.
+3. **Key Usage**: Validates that the keyUsage extension contains exactly one of types A/B/C/F (EN 319 412-2 table 1) per **TS 119 412-6 WAL-5.1-01 (PID-4.4.1-01)**.
 
 4. **Certificate Policy**: Validates the presence of certificate policies per **EN 319 412-2 §4.3.3** (TSP-defined OIDs).
 

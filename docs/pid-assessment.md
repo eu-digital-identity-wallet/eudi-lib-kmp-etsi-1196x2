@@ -8,7 +8,7 @@ The `pidSigningCertificateProfile` function in `EUPIDProviderCertificate.kt` has
 
 **Key Findings:**
 
-- ✅ Correctly validates: end-entity certificate type (cA=FALSE), digitalSignature key usage (with criticality), validity period, QCStatement (id-etsi-qct-pid), certificate policies presence, issuer and subject DN attributes (natural vs legal person)
+- ✅ Correctly validates: end-entity certificate type (cA=FALSE), keyUsage types A/B/C/F (PID-4.4.1-01, with criticality), validity period, QCStatement (id-etsi-qct-pid), certificate policies presence, issuer and subject DN attributes (natural vs legal person)
 - ✅ AuthorityInfoAccess (AIA) extension enforced for CA-issued certificates (conditional on self-signed status)
 - ✅ KeyUsage extension criticality validated (per RFC 5280 4.2.1.3)
 - ✅ X.509 v3 explicitly validated (per RFC 5280)
@@ -44,7 +44,7 @@ public fun pidSigningCertificateProfile(at: Instant? = null): CertificateProfile
     version3()
     endEntity()
     mandatoryQcStatement(qcType = ETSI119412Part6.ID_ETSI_QCT_PID, requireCompliance = true)
-    keyUsageDigitalSignature()
+    keyUsageOneOfETSI319412Types()
     pidProviderExplicitExtensionCriticality()
 
     validAt(at)
@@ -149,8 +149,8 @@ internal fun validateLegalOrNaturalPerson(attribute: String, dn: DistinguishedNa
 |-------------------------------------|-------------------------|----------------------------------------------------------|--------|
 | X.509 v3 certificate                | RFC 5280                | `version3()`                                             | ✅      |
 | End-entity certificate (cA=FALSE)   | TS 119 412-6 PID-4.1-01 | `endEntity()`                                            | ✅      |
-| Key Usage: digitalSignature         | TS 119 412-6 PID-4.4.1-01 | `keyUsageDigitalSignature()`                             | ✅      |
-| Key Usage criticality               | RFC 5280 4.2.1.3        | `keyUsageDigitalSignature()` (validates critical flag)   | ✅      |
+| Key Usage: types A/B/C/F            | TS 119 412-6 PID-4.4.1-01 | `keyUsageOneOfETSI319412Types()`                         | ✅      |
+| Key Usage criticality               | RFC 5280 4.2.1.3        | `keyUsageOneOfETSI319412Types()` (validates critical flag) | ✅    |
 | Validity at time of use             | TS 119 412-6 PID-4.1-01 | `validAt(at)`                                            | ✅      |
 | QCStatement: id-etsi-qct-pid        | TS 119 412-6 PID-4.5-01 | `mandatoryQcStatement(qcType = ID_ETSI_QCT_PID, requireCompliance = true)` | ✅      |
 | Certificate Policy presence         | EN 319 412-2 §4.3.3     | `policyIsPresent()`                                      | ✅      |
@@ -194,7 +194,7 @@ internal fun validateLegalOrNaturalPerson(attribute: String, dn: DistinguishedNa
 
 | Extension                         | Presence       | Criticality | Compliance | Notes                                          |
 |-----------------------------------|----------------|-------------|------------|------------------------------------------------|
-| keyUsage                          | M              | C           | ✅        | digitalSignature bit and criticality validated |
+| keyUsage                          | M              | C           | ✅        | exactly one of types A/B/C/F (EN 319 412-2 table 1), criticality validated |
 | subjectKeyIdentifier              | M              | NC          | ✅        | Presence validated (PID-4.4.2-01)               |
 | AuthorityInfoAccess               | M(C)           | NC          | ✅        | Conditional (not self-signed)                  |
 | CertificatePolicies               | M              | NC          | ✅        | Presence validated (TSP-defined OIDs)          |
@@ -230,7 +230,7 @@ internal fun validateLegalOrNaturalPerson(attribute: String, dn: DistinguishedNa
 
 **Breakdown by Implementation Status:**
 
-- ✅ **Fully Implemented (23 requirements)**: X.509 v3 certificate, end-entity certificate type, digitalSignature key usage bit, keyUsage criticality, validity period, QCStatement (id-etsi-qct-pid) with compliance flag, certificate policies presence, AIA for CA-issued certificates, serial number validation, public key algorithm/size (RSA 2048+, EC 256+, ECDSA 256+), issuer DN validation (legal/natural person per PID-4.2-01), subject DN validation (legal/natural person per PID-4.3-01/02), specific subject naming attributes (countryName, commonName, serialNumber, name choice, organizationName, organizationIdentifier), self-signed certificate handling, subject key identifier validation, and extension criticality control (only keyUsage and basicConstraints may be critical per PID-4.1-02).
+- ✅ **Fully Implemented (23 requirements)**: X.509 v3 certificate, end-entity certificate type, keyUsage types A/B/C/F (PID-4.4.1-01), keyUsage criticality, validity period, QCStatement (id-etsi-qct-pid) with compliance flag, certificate policies presence, AIA for CA-issued certificates, serial number validation, public key algorithm/size (RSA 2048+, EC 256+, ECDSA 256+), issuer DN validation (legal/natural person per PID-4.2-01), subject DN validation (legal/natural person per PID-4.3-01/02), specific subject naming attributes (countryName, commonName, serialNumber, name choice, organizationName, organizationIdentifier), self-signed certificate handling, subject key identifier validation, and extension criticality control (only keyUsage and basicConstraints may be critical per PID-4.1-02).
 
 - ⚠️ **Enhancement Opportunity (1 recommendation)**: Signature algorithm validation per EN 319 412-1 GEN-4.2.2-1 (advisory requirement - "should" not "shall"). Adding this validation would align with TS 119 312 best practices but is NOT required for ETSI compliance.
 
@@ -246,7 +246,7 @@ internal fun validateLegalOrNaturalPerson(attribute: String, dn: DistinguishedNa
 
 2. **End-Entity Certificate Type**: Correctly validates that the certificate is an end-entity certificate (cA=FALSE) per **TS 119 412-6 PID-4.1-01**.
 
-3. **Key Usage**: Validates the digitalSignature key usage bit per **TS 119 412-6 PID-4.4.1-01**.
+3. **Key Usage**: Validates that the keyUsage extension contains exactly one of types A/B/C/F (EN 319 412-2 table 1) per **TS 119 412-6 PID-4.4.1-01**.
 
 4. **Certificate Policy**: Validates the presence of certificate policies per **EN 319 412-2 §4.3.3** (TSP-defined OIDs).
 

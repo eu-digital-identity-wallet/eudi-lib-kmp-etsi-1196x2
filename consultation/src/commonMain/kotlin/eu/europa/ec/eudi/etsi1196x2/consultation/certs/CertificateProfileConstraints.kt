@@ -72,6 +72,61 @@ public fun ProfileBuilder.mandatoryKeyUsage(
     }
 }
 
+/**
+ * The key usage extension shall be present and shall contain one (and only one) of the key usage
+ * settings Type A, Type B, Type C, or Type F defined in table 1 of ETSI EN 319 412-2:
+ *
+ * - Type A: nonRepudiation
+ * - Type B: nonRepudiation + digitalSignature
+ * - Type C: digitalSignature
+ * - Type F: nonRepudiation + digitalSignature + keyEncipherment or keyAgreement
+ */
+public fun ProfileBuilder.keyUsageOneOfETSI319412Types() {
+    keyUsage { keyUsage ->
+        CertificateConstraintEvaluation {
+            if (keyUsage == null) {
+                add(CertificateConstraintsEvaluations.certificateDoesNotContainKeyUsage)
+            } else {
+                val isOneOfAllowedTypes =
+                    keyUsage.matchesExactly(nonRepudiation = true) || // Type A
+                        keyUsage.matchesExactly(nonRepudiation = true, digitalSignature = true) || // Type B
+                        keyUsage.matchesExactly(digitalSignature = true) || // Type C
+                        keyUsage.matchesExactly(nonRepudiation = true, digitalSignature = true, keyEncipherment = true) || // Type F
+                        keyUsage.matchesExactly(nonRepudiation = true, digitalSignature = true, keyAgreement = true) // Type F
+                if (!isOneOfAllowedTypes) {
+                    add(
+                        CertificateConstraintViolation(
+                            "Certificate keyUsage must contain one (and only one) of the key usage settings " +
+                                "Type A, Type B, Type C or Type F (ETSI EN 319 412-2 table 1)",
+                        ),
+                    )
+                }
+            }
+        }
+    }
+}
+
+private fun KeyUsageBits.matchesExactly(
+    digitalSignature: Boolean = false,
+    nonRepudiation: Boolean = false,
+    keyEncipherment: Boolean = false,
+    dataEncipherment: Boolean = false,
+    keyAgreement: Boolean = false,
+    keyCertSign: Boolean = false,
+    crlSign: Boolean = false,
+    encipherOnly: Boolean = false,
+    decipherOnly: Boolean = false,
+): Boolean =
+    this.digitalSignature == digitalSignature &&
+        this.nonRepudiation == nonRepudiation &&
+        this.keyEncipherment == keyEncipherment &&
+        this.dataEncipherment == dataEncipherment &&
+        this.keyAgreement == keyAgreement &&
+        this.keyCertSign == keyCertSign &&
+        this.crlSign == crlSign &&
+        this.encipherOnly == encipherOnly &&
+        this.decipherOnly == decipherOnly
+
 //
 // Validity Period
 //
