@@ -28,6 +28,7 @@ public fun pidSigningCertificateProfile(at: Instant? = null): CertificateProfile
     version3()
     endEntity()
     mandatoryQcType(innerIdentifier = ETSI119412Part6.ID_ETSI_QCT_PID)
+    // TS 119 412-6, PID-4.4.1-01:  One of Type : A, B, C, F
     keyUsageOneOfETSI319412Types()
     pidProviderExplicitExtensionCriticality()
 
@@ -54,64 +55,6 @@ public fun pidSigningCertificateProfile(at: Instant? = null): CertificateProfile
     // Subject Key Identifier required (TS 119 412-6, PID-4.4.2-01)
     subjectKeyIdentifier()
 }
-
-/**
- * ETSI TS 119 412-6, PID-4.4.1-01 (applied to Wallet Provider certificates via WAL-5.1-01).
- *
- * The key usage extension shall be present and shall contain one (and only one) of the key usage
- * settings Type A, Type B, Type C, or Type F defined in table 1 of ETSI EN 319 412-2:
- *
- * - Type A: nonRepudiation
- * - Type B: nonRepudiation + digitalSignature
- * - Type C: digitalSignature
- * - Type F: nonRepudiation + digitalSignature + keyEncipherment or keyAgreement
- */
-internal fun ProfileBuilder.keyUsageOneOfETSI319412Types() {
-    keyUsage { keyUsage ->
-        CertificateConstraintEvaluation {
-            if (keyUsage == null) {
-                add(CertificateConstraintsEvaluations.certificateDoesNotContainKeyUsage)
-            } else {
-                val isOneOfAllowedTypes =
-                    keyUsage.matchesExactly(nonRepudiation = true) || // Type A
-                        keyUsage.matchesExactly(nonRepudiation = true, digitalSignature = true) || // Type B
-                        keyUsage.matchesExactly(digitalSignature = true) || // Type C
-                        keyUsage.matchesExactly(nonRepudiation = true, digitalSignature = true, keyEncipherment = true) || // Type F
-                        keyUsage.matchesExactly(nonRepudiation = true, digitalSignature = true, keyAgreement = true) // Type F
-                if (!isOneOfAllowedTypes) {
-                    add(
-                        CertificateConstraintViolation(
-                            "Certificate keyUsage must contain one (and only one) of the key usage settings " +
-                                "Type A, Type B, Type C or Type F (ETSI EN 319 412-2 table 1, " +
-                                "TS 119 412-6 PID-4.4.1-01)",
-                        ),
-                    )
-                }
-            }
-        }
-    }
-}
-
-private fun KeyUsageBits.matchesExactly(
-    digitalSignature: Boolean = false,
-    nonRepudiation: Boolean = false,
-    keyEncipherment: Boolean = false,
-    dataEncipherment: Boolean = false,
-    keyAgreement: Boolean = false,
-    keyCertSign: Boolean = false,
-    crlSign: Boolean = false,
-    encipherOnly: Boolean = false,
-    decipherOnly: Boolean = false,
-): Boolean =
-    this.digitalSignature == digitalSignature &&
-        this.nonRepudiation == nonRepudiation &&
-        this.keyEncipherment == keyEncipherment &&
-        this.dataEncipherment == dataEncipherment &&
-        this.keyAgreement == keyAgreement &&
-        this.keyCertSign == keyCertSign &&
-        this.crlSign == crlSign &&
-        this.encipherOnly == encipherOnly &&
-        this.decipherOnly == decipherOnly
 
 /**
  * ETSI TS 119 412-6, PID-4.1-02
