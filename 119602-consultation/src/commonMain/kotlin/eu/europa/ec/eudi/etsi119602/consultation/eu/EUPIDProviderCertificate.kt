@@ -60,12 +60,19 @@ public fun pidSigningCertificateProfile(at: Instant? = null): CertificateProfile
  * ETSI TS 119 412-6, PID-4.1-02
  */
 internal fun ProfileBuilder.pidProviderExplicitExtensionCriticality() {
-    fun basicConstraintOrKeyUsage(oid: String) =
-        oid == RFC5280.EXT_BASIC_CONSTRAINTS || oid == RFC5280.EXT_KEY_USAGE
-    // basicConstraints and keyUsage may be either: RFC 5280 recommends a critical keyUsage and allows either for
-    // basicConstraints in an end-entity certificate.
+    @Suppress("DuplicatedCode")
+    fun rfc5280AllowsEitherCriticality(oid: String) =
+        oid == RFC5280.EXT_BASIC_CONSTRAINTS ||
+            oid == RFC5280.EXT_KEY_USAGE ||
+            oid == RFC5280.EXT_EXTENDED_KEY_USAGE ||
+            oid == RFC5280.EXT_SUBJECT_ALT_NAME ||
+            oid == RFC5280.EXT_CERTIFICATE_POLICIES
+    // basicConstraints, keyUsage, extendedKeyUsage, subjectAltName and certificatePolicies may be critical or
+    // non-critical in an end-entity certificate: RFC 5280 recommends a critical keyUsage (§4.2.1.3), and allows
+    // either criticality for basicConstraints (§4.2.1.9), extendedKeyUsage (§4.2.1.12), subjectAltName (§4.2.1.6)
+    // and certificatePolicies (§4.2.1.4).
     extensionCriticality(mustBeCritical = false) { oid ->
-        !basicConstraintOrKeyUsage(oid)
+        !rfc5280AllowsEitherCriticality(oid)
     }
 }
 

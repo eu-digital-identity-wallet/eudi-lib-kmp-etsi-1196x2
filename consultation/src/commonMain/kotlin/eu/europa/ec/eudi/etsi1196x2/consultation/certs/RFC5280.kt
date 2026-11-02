@@ -114,6 +114,16 @@ public object RFC5280 {
     public const val EXT_CRL_DISTRIBUTION_POINTS: String = "2.5.29.31"
 
     /**
+     * id-ce-extKeyUsage OBJECT IDENTIFIER ::= { id-ce 37 }
+     *
+     * Identifies one or more purposes for which the public key in the certificate may be used.
+     * "This extension MAY, at the option of the certificate issuer, be either critical or non-critical."
+     *
+     * @see [RFC 5280 Section 4.2.1.12](https://datatracker.ietf.org/doc/html/rfc5280#section-4.2.1.12)
+     */
+    public const val EXT_EXTENDED_KEY_USAGE: String = "2.5.29.37"
+
+    /**
      * id-ce-authorityInfoAccess OBJECT IDENTIFIER ::= { id-pkix 1 1 }
      *
      * Indicates how to access information and services for the certification authority
