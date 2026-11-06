@@ -40,19 +40,25 @@ import Security
         super.init()
     }
 
-    /// OCSP-only chains are checked by SecTrust. SecTrust never returns a positive response from a CRL,
-    /// so `kSecRevocationRequirePositiveResponse` would reject every chain that relies on one: CRL and
-    /// mixed methods are checked per certificate in the bridge instead, in the method's order.
+    /// The checkers run per certificate, in order, after SecTrust has validated the path.
+    /// OCSP-only needs none: SecTrust checks it during evaluation (see `buildPolicies`). SecTrust never
+    /// returns a positive response from a CRL, so `kSecRevocationRequirePositiveResponse` would reject every
+    /// chain that relies on one: CRL and mixed methods are checked here instead.
     private func bridgeRevocationCheckers() throws -> [PKIXRevocationChecker] {
-        guard configuration.isRevocationEnabled, configuration.revocationMethod != .ocsp else { return [] }
+        guard configuration.isRevocationEnabled else { return [] }
+        switch configuration.revocationMethod {
+        case .ocsp: return []
+        case .crl: return [try requiredCrlChecker()]
+        case .anyPreferOCSP: return [ocspChecker, try requiredCrlChecker()]
+        case .anyPreferCRL: return [try requiredCrlChecker(), ocspChecker]
+        }
+    }
+
+    private func requiredCrlChecker() throws -> PKIXRevocationChecker {
         guard let crlChecker else {
             throw PKIXBridgeError.revocationCheckFailed(reason: "CRL revocation checking requires a CRL checker").asNSError()
         }
-        switch configuration.revocationMethod {
-        case .ocsp, .crl: return [crlChecker]
-        case .anyPreferOCSP: return [ocspChecker, crlChecker]
-        case .anyPreferCRL: return [crlChecker, ocspChecker]
-        }
+        return crlChecker
     }
 
     @objc public override convenience init() {
