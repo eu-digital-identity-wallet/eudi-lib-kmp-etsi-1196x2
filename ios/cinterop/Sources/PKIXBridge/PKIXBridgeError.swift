@@ -23,6 +23,7 @@ internal enum PKIXBridgeError: Error {
     case noTrustAnchorMatched
     case trustEvaluationFailed(underlying: Error?)
     case asn1ParseFailure(reason: String)
+    case revocationCheckFailed(reason: String)
 
     static let domain: String = "eu.europa.ec.eudi.etsi1196x2.consultation.pkix"
 
@@ -34,6 +35,7 @@ internal enum PKIXBridgeError: Error {
         case .noTrustAnchorMatched: return 3
         case .trustEvaluationFailed: return 4
         case .asn1ParseFailure: return 5
+        case .revocationCheckFailed: return 6
         }
     }
 
@@ -54,6 +56,8 @@ internal enum PKIXBridgeError: Error {
             return "Trust evaluation failed"
         case .asn1ParseFailure(let reason):
             return "ASN.1 parse failure: \(reason)"
+        case .revocationCheckFailed(let reason):
+            return "Revocation check failed: \(reason)"
         }
     }
 
