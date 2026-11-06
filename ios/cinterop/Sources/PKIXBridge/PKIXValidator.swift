@@ -20,10 +20,45 @@ import Security
 @objc public final class PKIXValidator: NSObject {
 
     private let configuration: PKIXConfiguration
+    private let crlChecker: PKIXRevocationChecker?
+    private let ocspChecker: PKIXRevocationChecker
 
-    @objc public init(configuration: PKIXConfiguration) {
+    /// Without a CRL checker, `.crl` and both mixed methods reject every chain.
+    @objc public convenience init(configuration: PKIXConfiguration) {
+        self.init(configuration: configuration, crlChecker: nil, ocspChecker: OCSPRevocationChecker())
+    }
+
+    /// - Parameter crlChecker: the client's CRL checker, required by `.crl` and both mixed methods.
+    @objc public convenience init(configuration: PKIXConfiguration, crlChecker: PKIXRevocationChecker) {
+        self.init(configuration: configuration, crlChecker: crlChecker, ocspChecker: OCSPRevocationChecker())
+    }
+
+    init(configuration: PKIXConfiguration, crlChecker: PKIXRevocationChecker?, ocspChecker: PKIXRevocationChecker) {
         self.configuration = configuration
+        self.crlChecker = crlChecker
+        self.ocspChecker = ocspChecker
         super.init()
+    }
+
+    /// The checkers run per certificate, in order, after SecTrust has validated the path.
+    /// OCSP-only needs none: SecTrust checks it during evaluation (see `buildPolicies`). SecTrust never
+    /// returns a positive response from a CRL, so `kSecRevocationRequirePositiveResponse` would reject every
+    /// chain that relies on one: CRL and mixed methods are checked here instead.
+    private func bridgeRevocationCheckers() throws -> [PKIXRevocationChecker] {
+        guard configuration.isRevocationEnabled else { return [] }
+        switch configuration.revocationMethod {
+        case .ocsp: return []
+        case .crl: return [try requiredCrlChecker()]
+        case .anyPreferOCSP: return [ocspChecker, try requiredCrlChecker()]
+        case .anyPreferCRL: return [try requiredCrlChecker(), ocspChecker]
+        }
+    }
+
+    private func requiredCrlChecker() throws -> PKIXRevocationChecker {
+        guard let crlChecker else {
+            throw PKIXBridgeError.revocationCheckFailed(reason: "CRL revocation checking requires a CRL checker").asNSError()
+        }
+        return crlChecker
     }
 
     @objc public override convenience init() {
@@ -55,6 +90,14 @@ import Security
 
         guard !trustAnchors.isEmpty else {
             safeCompletion(nil, PKIXBridgeError.invalidCertificate(reason: "Trust anchors must not be empty").asNSError())
+            return
+        }
+
+        let revocationCheckers: [PKIXRevocationChecker]
+        do {
+            revocationCheckers = try bridgeRevocationCheckers()
+        } catch {
+            safeCompletion(nil, PKIXBridgeError.trustEvaluationFailed(underlying: error).asNSError())
             return
         }
 
@@ -115,6 +158,14 @@ import Security
             safeCompletion(nil, PKIXBridgeError.noTrustAnchorMatched.asNSError())
             return
         }
+        if !revocationCheckers.isEmpty {
+            do {
+                try PKIXRevocation.check(chain: Self.certificateChain(of: secTrust), with: revocationCheckers)
+            } catch {
+                safeCompletion(nil, PKIXBridgeError.trustEvaluationFailed(underlying: error).asNSError())
+                return
+            }
+        }
         let anchorDer = SecCertificateCopyData(anchor) as NSData
         safeCompletion(anchorDer, nil)
     }
@@ -128,13 +179,20 @@ import Security
 
     private func buildPolicies() -> [SecPolicy] {
         var policies: [SecPolicy] = [SecPolicyCreateBasicX509()]
-        if configuration.isRevocationEnabled {
+        if configuration.isRevocationEnabled && configuration.revocationMethod == .ocsp {
             let flags = configuration.revocationMethod.secRevocationFlags
             if let revocation = SecPolicyCreateRevocation(flags) {
                 policies.append(revocation)
             }
         }
         return policies
+    }
+
+    private static func certificateChain(of trust: SecTrust) -> [SecCertificate] {
+        if #available(iOS 15.0, macOS 12.0, *) {
+            return SecTrustCopyCertificateChain(trust) as? [SecCertificate] ?? []
+        }
+        return (0..<SecTrustGetCertificateCount(trust)).compactMap { SecTrustGetCertificateAtIndex(trust, $0) }
     }
 
     private static func matchedAnchor(in trust: SecTrust) -> SecCertificate? {

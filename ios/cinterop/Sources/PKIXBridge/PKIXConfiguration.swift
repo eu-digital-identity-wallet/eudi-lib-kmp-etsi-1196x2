@@ -17,10 +17,11 @@
 import Foundation
 import Security
 
-/// Revocation mechanism(s) `SecTrust` may use when `PKIXConfiguration.isRevocationEnabled` is `true`.
+/// Revocation mechanism(s) used when `PKIXConfiguration.isRevocationEnabled` is `true`.
 ///
-/// Each case maps onto the `kSecRevocation*` flags accepted by `SecPolicyCreateRevocation`.
-/// `kSecRevocationRequirePositiveResponse` is always set
+/// A definitive response is always required. OCSP is checked by `SecTrust`
+/// (`kSecRevocationRequirePositiveResponse`); CRLs are checked by a CRL checker the client
+/// supplies to `PKIXValidator`, because `SecTrust` never reports a positive response from a CRL.
 @objc public enum PKIXRevocationMethod: Int {
 
     /// Online Certificate Status Protocol only (`kSecRevocationOCSPMethod`).
@@ -28,18 +29,15 @@ import Security
     @objc(PKIXRevocationMethodOCSP)
     case ocsp = 0
 
-    /// Certificate Revocation Lists only (`kSecRevocationCRLMethod`), fetched from the
-    /// certificate's CRL Distribution Points extension.
+    /// Certificate Revocation Lists only, checked by the client's CRL checker.
     @objc(PKIXRevocationMethodCRL)
     case crl = 1
 
-    /// Either OCSP or CRL, whichever the certificate advertises; OCSP is tried first when both
-    /// are available (`kSecRevocationOCSPMethod | kSecRevocationCRLMethod`).
+    /// Per certificate, OCSP first; CRL when OCSP cannot establish the status.
     @objc(PKIXRevocationMethodAnyPreferOCSP)
     case anyPreferOCSP = 2
 
-    /// Either OCSP or CRL, but CRL is tried first when both are available
-    /// (`kSecRevocationOCSPMethod | kSecRevocationCRLMethod | kSecRevocationPreferCRL`).
+    /// Per certificate, CRL first; OCSP when the CRL cannot establish the status.
     @objc(PKIXRevocationMethodAnyPreferCRL)
     case anyPreferCRL = 3
 }
