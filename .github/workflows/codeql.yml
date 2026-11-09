@@ -45,6 +45,12 @@ jobs:
           distribution: temurin
           java-version: '17'
 
+      # Download the Gradle distribution before CodeQL tracing starts.
+      # Don't use setup-gradle here: restored build cache would skip compilation, leaving CodeQL nothing to trace
+      - name: Prefetch Gradle distribution
+        if: matrix.language == 'java-kotlin'
+        run: ./gradlew --version
+
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v4
         with:
