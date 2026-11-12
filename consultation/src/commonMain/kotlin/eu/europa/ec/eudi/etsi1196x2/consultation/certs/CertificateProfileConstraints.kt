@@ -218,7 +218,7 @@ public fun ProfileBuilder.subjectNaturalPerson() {
 }
 
 public fun ProfileBuilder.subjectLegalPerson() {
-    subject { subject -> CertificateConstraintsEvaluations.legalPersonDN("Subject", subject) }
+    subject { subject -> CertificateConstraintsEvaluations.legalPersonSubjectDN(subject) }
 }
 
 public fun ProfileBuilder.issuerNaturalPerson() {
@@ -226,7 +226,7 @@ public fun ProfileBuilder.issuerNaturalPerson() {
 }
 
 public fun ProfileBuilder.issuerLegalPerson() {
-    issuer { issuer -> CertificateConstraintsEvaluations.legalPersonDN("Issuer", issuer) }
+    issuer { issuer -> CertificateConstraintsEvaluations.legalPersonIssuerDN(issuer) }
 }
 
 //

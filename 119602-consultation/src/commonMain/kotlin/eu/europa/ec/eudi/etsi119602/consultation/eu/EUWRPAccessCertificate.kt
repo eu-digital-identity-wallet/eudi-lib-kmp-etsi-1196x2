@@ -208,7 +208,7 @@ internal fun validateSubjectForWRPAC(
     }
 
     val legalPersonEvaluation =
-        if (isLegalPerson) CertificateConstraintsEvaluations.legalPersonDN("Subject", subject) else CertificateConstraintEvaluation.Met
+        if (isLegalPerson) CertificateConstraintsEvaluations.legalPersonSubjectDN(subject) else CertificateConstraintEvaluation.Met
 
     val naturalPersonEvaluation =
         if (isNaturalPerson) CertificateConstraintsEvaluations.naturalPersonDN("Subject", subject) else CertificateConstraintEvaluation.Met
