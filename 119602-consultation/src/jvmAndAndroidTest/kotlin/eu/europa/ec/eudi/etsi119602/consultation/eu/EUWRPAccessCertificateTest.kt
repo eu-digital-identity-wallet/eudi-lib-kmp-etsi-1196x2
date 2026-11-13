@@ -73,6 +73,25 @@ class EUWRPAccessCertificateTest {
         // Missing SERIALNUMBER
     }.build()
 
+    // Subject DN for a legal person missing organizationIdentifier (for testing GEN-6.6.1-05 /
+    // EN 319 412-3 LEG-4.2.1-2 mandatory organizationIdentifier requirement, issue #149)
+    private val legalPersonSubjectMissingOrganizationIdentifier = X500NameBuilder(BCStyle.INSTANCE).apply {
+        addRDN(BCStyle.C, "EU")
+        addRDN(BCStyle.O, "WRPAC Provider")
+        addRDN(BCStyle.CN, "Wallet Relying Party Registry")
+        // Missing ORGANIZATION_IDENTIFIER
+    }.build()
+
+    // Issuer DN for a legal person (WRPAC Provider CA) missing organizationIdentifier.
+    // Per EN 319 412-2 GEN-4.2.3.1-3, organizationIdentifier is only mandatory for issuer DNs
+    // when a registration number is known to exist, so its absence alone must not be flagged.
+    private val wrpacProviderNameMissingOrganizationIdentifier = X500NameBuilder(BCStyle.INSTANCE).apply {
+        addRDN(BCStyle.C, "EU")
+        addRDN(BCStyle.O, "Wallet Relying Party Authority")
+        addRDN(BCStyle.CN, "Wallet Relying Party Authority")
+        // Missing ORGANIZATION_IDENTIFIER
+    }.build()
+
     private suspend fun evaluateEndEntityCertificateConstraints(
         certificate: X509Certificate,
     ): CertificateConstraintEvaluation = CertificateProfileValidatorJVM.validate(wrpAccessCertificateProfile(), certificate)
@@ -444,6 +463,41 @@ class EUWRPAccessCertificateTest {
 
         assertFalse(evaluation.isMet())
         evaluation.assertSingleViolation { it.contains("serialNumber", ignoreCase = true) }
+    }
+
+    // Issue #149: Per ETSI TS 119 411-8 GEN-6.6.1-05 and EN 319 412-3 LEG-4.2.1-2,
+    // organizationIdentifier is mandatory for legal-person WRPAC subjects.
+    @Test
+    fun `WRPAC should reject legal person subject missing organizationIdentifier`() = runTest {
+        val certificate = genCAIssuedEndEntityCertificate(
+            subject = legalPersonSubjectMissingOrganizationIdentifier,
+            policyOids = listOf(ETSI119411Part8.NCP_L_EUDIWRP),
+        )
+        val evaluation = evaluateEndEntityCertificateConstraints(certificate)
+
+        assertFalse(evaluation.isMet(), "Legal person subject without organizationIdentifier must be rejected")
+        evaluation.assertSingleViolation { it.contains("organizationIdentifier", ignoreCase = true) && it.contains("missing", ignoreCase = true) }
+    }
+
+    // Issue #149 (analysis): organizationIdentifier is only conditionally mandatory for issuer DNs
+    // (EN 319 412-2 GEN-4.2.3.1-3), so a WRPAC Provider CA issuer without it must still be accepted.
+    @Test
+    fun `WRPAC should accept legal person certificate when issuer is missing organizationIdentifier`() = runTest {
+        val (caKeyPair, caCert) = wrpacProvider(subject = wrpacProviderNameMissingOrganizationIdentifier)
+        val (_, certHolder) = CertOps.genCAIssuedEndEntityCertificate(
+            signerCert = caCert,
+            signerKey = caKeyPair.private,
+            sigAlg = "SHA256withECDSA",
+            subject = legalPersonSubject,
+            policyOids = listOf(ETSI119411Part8.NCP_L_EUDIWRP),
+            caIssuersUri = "http://ca.example.com/ca.crt",
+            ocspUri = "http://ocsp.example.com/",
+            subjectAltNameUri = "https://wallet-relying-party.example.com",
+        )
+        val certificate = certHolder.toX509Certificate()
+        val evaluation = evaluateEndEntityCertificateConstraints(certificate)
+
+        assertTrue(evaluation.isMet(), "Issuer missing organizationIdentifier alone must not cause rejection: ${evaluation.reasons()}")
     }
 
     @Test

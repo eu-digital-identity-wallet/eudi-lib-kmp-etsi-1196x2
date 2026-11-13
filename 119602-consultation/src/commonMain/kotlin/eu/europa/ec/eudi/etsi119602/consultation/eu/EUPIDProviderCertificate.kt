@@ -17,6 +17,7 @@ package eu.europa.ec.eudi.etsi119602.consultation.eu
 
 import eu.europa.ec.eudi.etsi119602.consultation.ETSI119412Part6
 import eu.europa.ec.eudi.etsi1196x2.consultation.certs.*
+import eu.europa.ec.eudi.etsi1196x2.consultation.certs.CertificateConstraintsEvaluations
 import kotlin.time.Instant
 
 /**
@@ -102,16 +103,36 @@ internal fun ProfileBuilder.pidProviderIssuerAndSubject() {
 
         if (isSelfSigned) {
             check(issuer == subject) { "Self-signed certificate must have the same issuer and subject" }
-            validateLegalOrNaturalPerson("Subject", subject)
+            validateSubjectLegalOrNaturalPerson(subject)
         } else {
             fun CertificateConstraintEvaluation.vs() = when (this) {
                 CertificateConstraintEvaluation.Met -> emptyList()
                 is CertificateConstraintEvaluation.Violated -> violations
             }
             CertificateConstraintEvaluation {
-                addAll(validateLegalOrNaturalPerson("Issuer", issuer).vs())
-                addAll(validateLegalOrNaturalPerson("Subject", subject).vs())
+                addAll(validateIssuerLegalOrNaturalPerson(issuer).vs())
+                addAll(validateSubjectLegalOrNaturalPerson(subject).vs())
             }
+        }
+    }
+}
+
+/**
+ * ETSI TS 119 412-6, PID-4.2-01
+ */
+internal fun validateIssuerLegalOrNaturalPerson(dn: DistinguishedName?): CertificateConstraintEvaluation {
+    val attribute = "Issuer"
+    return if (dn == null) {
+        CertificateConstraintEvaluation(listOf(CertificateConstraintsEvaluations.missingDN(attribute)))
+    } else {
+        // organization is required for legal persons
+        val isLegalPerson = dn[DistinguishedName.X500OIDs.ORGANIZATION] != null
+        if (isLegalPerson) {
+            // organizationIdentifier is conditionally mandatory for issuer DNs
+            // (EN 319 412-2 GEN-4.2.3.1-3) and therefore not enforced here.
+            CertificateConstraintsEvaluations.legalPersonIssuerDN(dn)
+        } else {
+            CertificateConstraintsEvaluations.naturalPersonDN(attribute, dn)
         }
     }
 }
@@ -119,15 +140,19 @@ internal fun ProfileBuilder.pidProviderIssuerAndSubject() {
 /**
  * ETSI TS 119 412-6, PID-4.3-01, PID-4.3-02
  */
-internal fun validateLegalOrNaturalPerson(attribute: String, dn: DistinguishedName?): CertificateConstraintEvaluation = if (dn == null) {
-    CertificateConstraintEvaluation(listOf(CertificateConstraintsEvaluations.missingDN(attribute)))
-} else {
-    // organization identifier is required for legal persons
-    // val isLegalPerson = dn[DistinguishedName.X500OIDs.ORG_IDENTIFIER] != null
-    val isLegalPerson = dn[DistinguishedName.X500OIDs.ORGANIZATION] != null
-    if (isLegalPerson) {
-        CertificateConstraintsEvaluations.legalPersonDN(attribute, dn)
+internal fun validateSubjectLegalOrNaturalPerson(dn: DistinguishedName?): CertificateConstraintEvaluation {
+    val attribute = "Subject"
+    return if (dn == null) {
+        CertificateConstraintEvaluation(listOf(CertificateConstraintsEvaluations.missingDN(attribute)))
     } else {
-        CertificateConstraintsEvaluations.naturalPersonDN(attribute, dn)
+        // organization is required for legal persons
+        val isLegalPerson = dn[DistinguishedName.X500OIDs.ORGANIZATION] != null
+        if (isLegalPerson) {
+            // organizationIdentifier is unconditionally mandatory for subject DNs
+            // (EN 319 412-3 LEG-4.2.1-2).
+            CertificateConstraintsEvaluations.legalPersonSubjectDN(dn)
+        } else {
+            CertificateConstraintsEvaluations.naturalPersonDN(attribute, dn)
+        }
     }
 }

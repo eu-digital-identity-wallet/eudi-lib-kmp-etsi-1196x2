@@ -34,6 +34,8 @@ import org.bouncycastle.asn1.x509.ExtendedKeyUsage
 import org.bouncycastle.asn1.x509.GeneralName
 import org.bouncycastle.asn1.x509.KeyPurposeId
 import org.bouncycastle.asn1.x509.KeyUsage
+import org.bouncycastle.cert.X509CertificateHolder
+import java.security.KeyPair
 import java.security.cert.X509Certificate
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -60,6 +62,16 @@ class EUPIDSigningCertificateProfileTests {
         addRDN(BCStyle.SERIALNUMBER, "PASGR-839201")
     }.build()
 
+    // Legal entity PID Provider subject missing organizationIdentifier (issue #149:
+    // organizationIdentifier is mandatory for legal-person subjects per EN 319 412-3 LEG-4.2.1-2 /
+    // PID-4.3-02).
+    private val legalEntityPidProviderNameMissingOrganizationIdentifier = X500NameBuilder(BCStyle.INSTANCE).apply {
+        addRDN(BCStyle.C, "EU")
+        addRDN(BCStyle.O, "PID Provider Organization")
+        addRDN(BCStyle.CN, "PID Provider")
+        // Missing ORGANIZATION_IDENTIFIER
+    }.build()
+
     private val ca = CertOps.genTrustAnchor(
         sigAlg = "SHA256withECDSA",
         subject = X500NameBuilder(BCStyle.INSTANCE).apply {
@@ -67,6 +79,21 @@ class EUPIDSigningCertificateProfileTests {
             addRDN(BCStyle.O, "Test CA Organization")
             addRDN(BCStyle.ORGANIZATION_IDENTIFIER, "LEIEU-12312312")
             addRDN(BCStyle.CN, "Test CA")
+        }.build(),
+        policyOids = null,
+        pathLenConstraint = null,
+    )
+
+    // CA (issuer) that is a legal person missing organizationIdentifier. Per EN 319 412-2
+    // GEN-4.2.3.1-3, organizationIdentifier is only conditionally mandatory for issuer DNs
+    // (issue #149 analysis), so its absence alone must not fail validation.
+    private val caMissingOrganizationIdentifier = CertOps.genTrustAnchor(
+        sigAlg = "SHA256withECDSA",
+        subject = X500NameBuilder(BCStyle.INSTANCE).apply {
+            addRDN(BCStyle.C, "EU")
+            addRDN(BCStyle.O, "Test CA Organization")
+            addRDN(BCStyle.CN, "Test CA")
+            // Missing ORGANIZATION_IDENTIFIER
         }.build(),
         policyOids = null,
         pathLenConstraint = null,
@@ -86,9 +113,10 @@ class EUPIDSigningCertificateProfileTests {
         subjectAltNameCritical: Boolean = false,
         certificatePoliciesCritical: Boolean = false,
         customExtensions: List<Triple<String, Boolean, ASN1Encodable>> = emptyList(),
+        issuer: Pair<KeyPair, X509CertificateHolder> = ca,
     ): X509Certificate {
         val sigAlg = "SHA256withECDSA"
-        val (caKeyPair, caCert) = ca
+        val (caKeyPair, caCert) = issuer
         val (_, certHolder) = CertOps.genCAIssuedEndEntityCertificate(
             signerCert = caCert,
             signerKey = caKeyPair.private,
@@ -490,6 +518,66 @@ class EUPIDSigningCertificateProfileTests {
         val constraintEvaluation = evaluateCertificateConstraints(certificate)
 
         assertTrue(constraintEvaluation.isMet(), "Valid self-signed certificate should pass: $constraintEvaluation")
+    }
+
+    // Issue #149: Per ETSI EN 319 412-3 LEG-4.2.1-2 (PID-4.3-02), organizationIdentifier is
+    // mandatory for legal-person PID Provider subjects.
+    @Test
+    fun `CA-issued LP certificate should reject subject missing organizationIdentifier`() = runTest {
+        val certificate = genCAIssuedEndEntityCertificate(
+            qcStatements = listOf(QCStatementInfo.QcType(ETSI119412Part6.ID_ETSI_QCT_PID)),
+            policyOids = listOf("1.2.3.4.5"),
+            caIssuersUri = "http://example.com/ca.crt",
+            ocspUri = "http://example.com/ocsp",
+            keyUsage = KeyUsage(KeyUsage.digitalSignature),
+            subject = legalEntityPidProviderNameMissingOrganizationIdentifier,
+        )
+
+        val constraintEvaluation = evaluateCertificateConstraints(certificate)
+
+        assertFalse(constraintEvaluation.isMet(), "Legal person subject without organizationIdentifier must be rejected")
+        constraintEvaluation.assertSingleViolation {
+            it.contains("organizationIdentifier", ignoreCase = true) && it.contains("missing", ignoreCase = true)
+        }
+    }
+
+    @Test
+    fun `Self-signed LP certificate should reject subject missing organizationIdentifier`() = runTest {
+        val certificate = genSelfSignedEndEntityCertificate(
+            qcStatements = listOf(QCStatementInfo.QcType(ETSI119412Part6.ID_ETSI_QCT_PID)),
+            policyOids = listOf("1.2.3.4.5"),
+            keyUsage = KeyUsage(KeyUsage.digitalSignature),
+            subject = legalEntityPidProviderNameMissingOrganizationIdentifier,
+        )
+
+        val constraintEvaluation = evaluateCertificateConstraints(certificate)
+
+        assertFalse(constraintEvaluation.isMet(), "Legal person subject without organizationIdentifier must be rejected")
+        constraintEvaluation.assertSingleViolation {
+            it.contains("organizationIdentifier", ignoreCase = true) && it.contains("missing", ignoreCase = true)
+        }
+    }
+
+    // Issue #149 (analysis): organizationIdentifier is only conditionally mandatory for issuer DNs
+    // (EN 319 412-2 GEN-4.2.3.1-3), so a CA issuer without it must still be accepted.
+    @Test
+    fun `CA-issued LP certificate should be accepted when issuer is missing organizationIdentifier`() = runTest {
+        val certificate = genCAIssuedEndEntityCertificate(
+            qcStatements = listOf(QCStatementInfo.QcType(ETSI119412Part6.ID_ETSI_QCT_PID)),
+            policyOids = listOf("1.2.3.4.5"),
+            caIssuersUri = "http://example.com/ca.crt",
+            ocspUri = "http://example.com/ocsp",
+            keyUsage = KeyUsage(KeyUsage.digitalSignature),
+            subject = legalEntityPidProviderName,
+            issuer = caMissingOrganizationIdentifier,
+        )
+
+        val constraintEvaluation = evaluateCertificateConstraints(certificate)
+
+        assertTrue(
+            constraintEvaluation.isMet(),
+            "Issuer missing organizationIdentifier alone must not cause rejection: $constraintEvaluation",
+        )
     }
 
     @Test

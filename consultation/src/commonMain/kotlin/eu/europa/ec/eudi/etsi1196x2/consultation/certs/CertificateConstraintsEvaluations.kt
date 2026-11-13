@@ -217,10 +217,22 @@ public object CertificateConstraintsEvaluations {
         }
     }
 
-    public fun legalPersonDN(
-        attribute: String,
+    /**
+     * Validates the DN attributes of a legal person, where `organizationIdentifier` is not
+     * unconditionally mandatory.
+     *
+     * Intended for **issuer** DNs: per ETSI EN 319 412-2, clause 4.2.3.1 (GEN-4.2.3.1-2/3),
+     * a legal-person issuer DN must contain `countryName`, `organizationName` and `commonName`;
+     * `organizationIdentifier` is only required when an appropriate registration number is known
+     * to exist, so its absence is not flagged here. When present, its format is still validated.
+     *
+     * For **subject** DNs of legal persons use [legalPersonSubjectDN] instead, where
+     * `organizationIdentifier` is always mandatory.
+     */
+    public fun legalPersonIssuerDN(
         dn: DistinguishedName?,
     ): CertificateConstraintEvaluation = CertificateConstraintEvaluation {
+        val attribute = "Issuer"
         if (dn == null) {
             add(missingDN(attribute))
             return@CertificateConstraintEvaluation
@@ -241,12 +253,57 @@ public object CertificateConstraintsEvaluations {
             add(missingCommonName(attribute))
         }
 
-        // organizationIdentifier is mandatory
+        // organizationIdentifier is not unconditionally mandatory for issuers (EN 319 412-2
+        // GEN-4.2.3.1-3); validate its format only when present.
         val organizationIdentifier = dn.organizationIdentifier
         if (!organizationIdentifier.isNullOrBlank()) {
             if (!isValidOrgId(organizationIdentifier)) {
                 add(organizationIdentifierInvalidFormat)
             }
+        }
+    }
+
+    /**
+     * Validates the DN attributes of a legal person subject, where `organizationIdentifier` is
+     * mandatory.
+     *
+     * Per ETSI EN 319 412-3, clause 4.2.1 (LEG-4.2.1-2), the subject field of a legal-person
+     * certificate shall include at least `countryName`, `organizationName`,
+     * `organizationIdentifier` and `commonName`. This is reinforced for Wallet Relying Party
+     * Access Certificates by ETSI TS 119 411-8, clause 6.6.1 (GEN-6.6.1-05), which additionally
+     * mandates the EN 319 412-1 clause 5.1.4 encoding.
+     */
+    public fun legalPersonSubjectDN(
+        dn: DistinguishedName?,
+    ): CertificateConstraintEvaluation = CertificateConstraintEvaluation {
+        val attribute = "Subject"
+        if (dn == null) {
+            add(missingDN(attribute))
+            return@CertificateConstraintEvaluation
+        }
+
+        // countryName is mandatory
+        if (dn.country.isNullOrBlank()) {
+            add(missingCountryName(attribute))
+        }
+
+        // organizationName is mandatory
+        if (dn.organization.isNullOrBlank()) {
+            add(missingOrganizationName(attribute))
+        }
+
+        // commonName is mandatory
+        if (dn.commonName.isNullOrBlank()) {
+            add(missingCommonName(attribute))
+        }
+
+        // organizationIdentifier is mandatory for legal person subjects
+        // (EN 319 412-3 LEG-4.2.1-2; TS 119 411-8 GEN-6.6.1-05)
+        val organizationIdentifier = dn.organizationIdentifier
+        if (organizationIdentifier.isNullOrBlank()) {
+            add(missingOrganizationIdentifier(attribute))
+        } else if (!isValidOrgId(organizationIdentifier)) {
+            add(organizationIdentifierInvalidFormat)
         }
     }
 
