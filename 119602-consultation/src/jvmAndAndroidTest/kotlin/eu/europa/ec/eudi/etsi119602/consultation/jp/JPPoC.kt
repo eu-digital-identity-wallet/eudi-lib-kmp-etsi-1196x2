@@ -113,7 +113,7 @@ class JPLoTEDownloaderTest {
             val verifier = run {
                 val loadLoTE = LoadSingleLoTEWithFileCache(
                     fileStore = fileStore,
-                    downloadSingleLoTE = DownloadSingleLoTE(httpClient),
+                    loadLoTE = DownloadSingleLoTE(httpClient),
                     fileCacheExpiration = 24.hours,
                 )
                 // Get the LoTEs, organized them as EUDIW verification contexts

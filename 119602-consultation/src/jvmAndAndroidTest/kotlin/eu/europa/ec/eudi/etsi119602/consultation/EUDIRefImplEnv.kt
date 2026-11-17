@@ -108,7 +108,7 @@ class EUDIRefImplEnvTest {
     ): ComposeChainTrust<List<X509Certificate>, VerificationContext, TrustAnchor> {
         val loadLoTE = LoadSingleLoTEWithFileCache(
             fileStore = fileStore,
-            downloadSingleLoTE = DownloadSingleLoTE(httpClient),
+            loadLoTE = DownloadSingleLoTE(httpClient),
             fileCacheExpiration = 24.hours,
 
         )

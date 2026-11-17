@@ -52,7 +52,9 @@ import kotlin.time.Instant
  * This loader follows a "cache-aside" pattern:
  * 1. It first attempts to read the LoTE from [LoTEFileStore].
  * 2. If the cached LoTE is present and not expired, it is returned.
- * 3. Otherwise, if a [DownloadSingleLoTE] is provided, it downloads the LoTE, stages it in memory, and returns it.
+ * 3. Otherwise, if a loader is provided (typically [DownloadSingleLoTE], but any [LoadLoTE] of
+ *    the raw JWT works), it loads the LoTE, stages it in
+ *    memory, and returns it.
  *
  * A fresh download is not committed to the cache immediately. It is committed when the higher
  * level emits [LoadLoTEAndPointers.Event.LoTELoaded] for it via [onEvent], and discarded on a
@@ -65,7 +67,8 @@ import kotlin.time.Instant
  * This class is thread-safe and prevents redundant downloads of the same LoTE when accessed concurrently.
  *
  * @param fileStore the file store used for caching
- * @param downloadSingleLoTE optional service to download the LoTE if not in cache or expired
+ * @param loadLoTE optional loader of the raw LoTE JWT, used when the LoTE is not in the
+ *        cache or has expired. Typically [DownloadSingleLoTE] or any [LoadLoTE] of `String` is accepted.
  * @param clock the clock used to determine cache expiration
  * @param fileCacheExpiration the default duration after which a cached LoTE expires if no nextUpdate is present
  * @param ioDispatcher the dispatcher used for I/O operations
@@ -73,7 +76,7 @@ import kotlin.time.Instant
  */
 public class LoadSingleLoTEWithFileCache internal constructor(
     private val fileStore: LoTEFileStore,
-    private val downloadSingleLoTE: DownloadSingleLoTE? = null,
+    private val loadLoTE: LoadLoTE<String>? = null,
     private val clock: Clock = Clock.System,
     private val fileCacheExpiration: Duration = 24.hours,
     private val ioDispatcher: CoroutineDispatcher = consultationPlatform().ioDispatcher,
@@ -85,13 +88,13 @@ public class LoadSingleLoTEWithFileCache internal constructor(
     public constructor(
         cacheDirectory: Path,
         fileSystem: FileSystem = SystemFileSystem,
-        downloadSingleLoTE: DownloadSingleLoTE? = null,
+        loadLoTE: LoadLoTE<String>? = null,
         clock: Clock = Clock.System,
         fileCacheExpiration: Duration = 24.hours,
         ioDispatcher: CoroutineDispatcher = consultationPlatform().ioDispatcher,
     ) : this(
         LoTEFileStore(cacheDirectory, fileSystem, ioDispatcher),
-        downloadSingleLoTE,
+        loadLoTE,
         clock,
         fileCacheExpiration,
         ioDispatcher,
@@ -116,7 +119,7 @@ public class LoadSingleLoTEWithFileCache internal constructor(
                 // Cache expired, will re-download
             }
 
-            downloadSingleLoTE
+            loadLoTE
                 ?.let { downloadAndStage(it, uri) }
                 ?: LoadLoTE.Outcome.NotFound(null)
         }
@@ -202,7 +205,7 @@ public class LoadSingleLoTEWithFileCache internal constructor(
         }
     }
 
-    private suspend fun downloadAndStage(loadFromHttp: DownloadSingleLoTE, uri: Uri): LoadLoTE.Outcome<String> {
+    private suspend fun downloadAndStage(loadFromHttp: LoadLoTE<String>, uri: Uri): LoadLoTE.Outcome<String> {
         fun createMetadata(jwt: String): LoTEFileMetadata {
             val loadedAt = clock.now()
 

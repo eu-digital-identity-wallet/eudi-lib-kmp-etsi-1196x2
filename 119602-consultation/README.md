@@ -98,7 +98,7 @@ val httpClient = HttpClient(Java)
 
 val loadLoTE = LoadSingleLoTEWithFileCache(
   cacheDirectory = Path(Files.createTempDirectory("lote-cache").toString()),
-  downloadSingleLoTE = DownloadSingleLoTE(httpClient),
+  loadLoTE = DownloadSingleLoTE(httpClient),
   fileCacheExpiration = 24.hours
 )
 
@@ -233,7 +233,7 @@ The module provides the following key abstractions for working with ETSI TS 119 
 
 - `ProvisionTrustAnchorsFromLoTEs`: **Main entry point** - High-level factory for provisioning trust anchors from LoTEs with built-in caching support (`cached()` for high-concurrency, `nonCached()` for simple scenarios)
 - `LoadLoTEAndPointers`: Loads LoTE documents and follows pointers to related lists with configurable depth limits. Emits the `Event` of each processed LoTE step to a `LoTEEventListener` (auto-wired when `loadLoTE` is a `LoadSingleLoTEWithFileCache`). When the fresh path fails, it falls back to the last known good LoTE from a `LoTEFallbackProvider` (also auto-wired when `loadLoTE` is a `LoadSingleLoTEWithFileCache`), emitting `Event.LoTELoaded` with `fallbackReason` set to the problem that triggered the fallback
-- `LoadSingleLoTEWithFileCache`: File-cached implementation combining `DownloadSingleLoTE` with persistent storage. Fresh downloads are staged in memory and only committed to the file cache once `Event.LoTELoaded` is received for the exact download; otherwise the last known good copy keeps serving (with its expiry extended until its `nextUpdate`). Also provides the last known good LoTE to `LoadLoTEAndPointers` when the fresh path fails
+- `LoadSingleLoTEWithFileCache`: File-cached implementation that wraps any `LoadLoTE<String>` (typically `DownloadSingleLoTE`) with persistent storage. Fresh downloads are staged in memory and only committed to the file cache once `Event.LoTELoaded` is received for the exact download; otherwise the last known good copy keeps serving (with its expiry extended until its `nextUpdate`). Also provides the last known good LoTE to `LoadLoTEAndPointers` when the fresh path fails
 - `LoTEEventListener`: Callback that receives the `LoadLoTEAndPointers.Event` of each processed LoTE step, used to commit staged LoTE downloads to the file cache
 - `LoTEFallbackProvider`: Source of the last known good LoTE content used by `LoadLoTEAndPointers` when the fresh path for a LoTE fails
 - `DownloadSingleLoTE`: HTTP client-based loader for fetching single LoTE documents
