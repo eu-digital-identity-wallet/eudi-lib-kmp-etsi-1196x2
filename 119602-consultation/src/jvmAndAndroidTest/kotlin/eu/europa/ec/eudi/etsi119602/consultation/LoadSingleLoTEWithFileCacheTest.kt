@@ -63,7 +63,7 @@ class LoadSingleLoTEWithFileCacheTest {
         val fileStore = LoTEFileStore(cacheDir)
         val (jwt, lote) = loteJwt(1, Clock.System.now() + 30.days)
         val (downloader, requests) = mockDownloader(HttpStatusCode.OK to jwt)
-        val loader = LoadSingleLoTEWithFileCache(cacheDir, downloadSingleLoTE = downloader)
+        val loader = LoadSingleLoTEWithFileCache(cacheDir, loadLoTE = downloader)
 
         val loaded = (loader.invoke(uri) as LoadLoTE.Outcome.Loaded).content
         assertEquals(jwt, loaded)
@@ -82,12 +82,51 @@ class LoadSingleLoTEWithFileCacheTest {
     }
 
     @Test
+    fun customLoader_isStagedAndCommittedLikeDownloadSingleLoTE() = runTest {
+        val cacheDir = tempCacheDir()
+        val fileStore = LoTEFileStore(cacheDir)
+        val (jwt, lote) = loteJwt(1, Clock.System.now() + 30.days)
+        val requests = mutableListOf<Uri>()
+        // Any LoadLoTE<String> (e.g. a platform HTTP loader), not only DownloadSingleLoTE
+        val customLoader = LoadLoTE { requested ->
+            requests += requested
+            LoadLoTE.Outcome.Loaded(jwt)
+        }
+        val loader = LoadSingleLoTEWithFileCache(cacheDir, loadLoTE = customLoader)
+
+        assertEquals(jwt, (loader.invoke(uri) as LoadLoTE.Outcome.Loaded).content)
+        assertEquals(listOf(uri), requests)
+        assertNull(fileStore.read(uri), "a fresh load must not be committed before verification")
+
+        loader.onEvent(uri, jwt, LoadLoTEAndPointers.Event.LoTELoaded(lote, uri, 0))
+
+        assertEquals(jwt, assertNotNull(fileStore.read(uri)).jwt)
+        assertEquals(jwt, (loader.invoke(uri) as LoadLoTE.Outcome.Loaded).content)
+        assertEquals(1, requests.size, "a valid cache entry must not trigger the custom loader again")
+    }
+
+    @Test
+    fun customLoader_notFound_isPassedThrough_andNothingIsCached() = runTest {
+        val cacheDir = tempCacheDir()
+        val fileStore = LoTEFileStore(cacheDir)
+        val cause = IllegalStateException("not here")
+        val loader = LoadSingleLoTEWithFileCache(
+            cacheDir,
+            loadLoTE = LoadLoTE { LoadLoTE.Outcome.NotFound(cause) },
+        )
+
+        val outcome = assertIs<LoadLoTE.Outcome.NotFound>(loader.invoke(uri))
+        assertEquals(cause, outcome.cause)
+        assertNull(fileStore.read(uri))
+    }
+
+    @Test
     fun verifiedDownload_isCommittedToCache_whenUsedWithLoadLoTEAndPointers() = runTest {
         val cacheDir = tempCacheDir()
         val fileStore = LoTEFileStore(cacheDir)
         val (jwt, _) = loteJwt(1, Clock.System.now() + 30.days)
         val (downloader, _) = mockDownloader(HttpStatusCode.OK to jwt)
-        val loadLoTE = LoadSingleLoTEWithFileCache(cacheDir, downloadSingleLoTE = downloader)
+        val loadLoTE = LoadSingleLoTEWithFileCache(cacheDir, loadLoTE = downloader)
         val loader =
             LoadLoTEAndPointers(
                 constraints = LoadLoTEAndPointers.Constraints.DoNotLoadOtherPointers,
@@ -122,7 +161,7 @@ class LoadSingleLoTEWithFileCacheTest {
             ),
         )
         val (downloader, _) = mockDownloader(HttpStatusCode.OK to "not-a-jwt")
-        val loader = LoadSingleLoTEWithFileCache(cacheDir, downloadSingleLoTE = downloader)
+        val loader = LoadSingleLoTEWithFileCache(cacheDir, loadLoTE = downloader)
 
         val badJwt = (loader.invoke(uri) as LoadLoTE.Outcome.Loaded).content
         assertEquals("not-a-jwt", badJwt)
@@ -153,7 +192,7 @@ class LoadSingleLoTEWithFileCacheTest {
         val (downloader, _) = mockDownloader(HttpStatusCode.OK to "not-a-jwt")
         val loader = LoadSingleLoTEWithFileCache(
             cacheDir,
-            downloadSingleLoTE = downloader,
+            loadLoTE = downloader,
             fileCacheExpiration = 30.days,
         )
         val badJwt = (loader.invoke(uri) as LoadLoTE.Outcome.Loaded).content
@@ -190,7 +229,7 @@ class LoadSingleLoTEWithFileCacheTest {
         )
         val (stagedJwt, stagedLote) = loteJwt(3, now + 30.days)
         val (downloader, _) = mockDownloader(HttpStatusCode.OK to stagedJwt)
-        val loader = LoadSingleLoTEWithFileCache(cacheDir, downloadSingleLoTE = downloader)
+        val loader = LoadSingleLoTEWithFileCache(cacheDir, loadLoTE = downloader)
         val staged = (loader.invoke(uri) as LoadLoTE.Outcome.Loaded).content
         assertEquals(stagedJwt, staged)
 
@@ -222,7 +261,7 @@ class LoadSingleLoTEWithFileCacheTest {
         )
         val (stagedJwt, stagedLote) = loteJwt(2, now + 30.days)
         val (downloader, _) = mockDownloader(HttpStatusCode.OK to stagedJwt)
-        val loader = LoadSingleLoTEWithFileCache(cacheDir, downloadSingleLoTE = downloader)
+        val loader = LoadSingleLoTEWithFileCache(cacheDir, loadLoTE = downloader)
         val staged = (loader.invoke(uri) as LoadLoTE.Outcome.Loaded).content
         assertEquals(stagedJwt, staged)
 
@@ -342,7 +381,7 @@ class LoadSingleLoTEWithFileCacheTest {
         val (downloader, _) = mockDownloader(HttpStatusCode.OK to "not-a-jwt")
         val loadLoTE = LoadSingleLoTEWithFileCache(
             cacheDir,
-            downloadSingleLoTE = downloader,
+            loadLoTE = downloader,
             fileCacheExpiration = 30.days,
         )
         val loader =
@@ -386,7 +425,7 @@ class LoadSingleLoTEWithFileCacheTest {
         val (downloader, _) = mockDownloader(HttpStatusCode.NotFound to "")
         val loadLoTE = LoadSingleLoTEWithFileCache(
             cacheDir,
-            downloadSingleLoTE = downloader,
+            loadLoTE = downloader,
             fileCacheExpiration = 30.days,
         )
         val loader =
