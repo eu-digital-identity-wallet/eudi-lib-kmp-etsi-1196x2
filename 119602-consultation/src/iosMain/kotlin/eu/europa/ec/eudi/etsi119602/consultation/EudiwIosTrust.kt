@@ -15,10 +15,10 @@
  */
 package eu.europa.ec.eudi.etsi119602.consultation
 
-import eu.europa.ec.eudi.etsi119602.consultation.eu.EUMDLProvidersListSpec
 import eu.europa.ec.eudi.etsi119602.consultation.eu.ServiceDigitalIdentityCertificateType
 import eu.europa.ec.eudi.etsi119602.datamodel.Uri
 import eu.europa.ec.eudi.etsi1196x2.consultation.*
+import eu.europa.ec.eudi.etsi1196x2.consultation.certs.CertificateProfile
 import platform.Foundation.NSData
 import kotlin.time.Duration.Companion.hours
 
@@ -65,15 +65,28 @@ public enum class BundledAnchorMethod {
  * urls.mdlProviders    = DIGITTrustLists.mdlProviders
  * ```
  */
-public class TrustListUrls {
-    public var pidProviders: String? = null
-    public var walletProviders: String? = null
-    public var wrpacProviders: String? = null
-    public var wrprcProviders: String? = null
-    public var pubEaaProviders: String? = null
-    public var qeaProviders: String? = null
-    public var mdlProviders: String? = null
+public class TrustLists {
+    public var pidProviders: TrustList? = null
+    public var walletProviders: TrustList? = null
+    public var wrpacProviders: TrustList? = null
+    public var wrprcProviders: TrustList? = null
+    public var pubEaaProviders: TrustList? = null
+    public var qEaaProviders: TrustList? = null
+    public var eaaProviders: List<EAATrustList>? = null
 }
+
+public data class TrustList(
+    public var url: String,
+    public var issuanceService: String,
+    public var revocationService: String?,
+    public var certificateProfile: CertificateProfile?,
+    public var serviceDigitalIdentityCertificateType: ServiceDigitalIdentityCertificateType,
+)
+
+public data class EAATrustList(
+    public var useCase: String,
+    public var trustList: TrustList,
+)
 
 /**
  * Bundled (hardcoded) DER certificate anchor configuration for [EudiwIosTrust.usingBundledAnchors].
@@ -91,8 +104,8 @@ public class BundledAnchors {
     public var wrpac: List<NSData>? = null
     public var wrprc: List<NSData>? = null
     public var pubEaa: List<NSData>? = null
-    public var qea: List<NSData>? = null
-    public var mdl: List<NSData>? = null
+    public var qEaa: List<NSData>? = null
+    public var eaa: Map<String, List<NSData>>? = null
 }
 
 /**
@@ -114,7 +127,7 @@ public fun interface IosLoadLoTE {
  * It wires together: a Darwin [io.ktor.client.HttpClient] → [DownloadSingleLoTE] →
  * [LoadLoTEAndPointers] → [ProvisionTrustAnchorsFromLoTEs.eudiwIos] → [ComposeChainTrust.nonCached],
  * and exposes Swift-friendly entry points that avoid Kotlin value classes ([Uri], [NonEmptyList])
- * at the boundary — LoTE locations are passed via [TrustListUrls] and trust anchors come back as
+ * at the boundary — LoTE locations are passed via [TrustLists] and trust anchors come back as
  * a plain list of DER [NSData].
  *
  * [nonCached] and [cached] each have an overload taking an [IosLoadLoTE], for callers that must
@@ -125,29 +138,22 @@ public fun interface IosLoadLoTE {
 public object EudiwIosTrust {
 
     /**
-     * The use-case key under which the mDL list is registered (in both the locations and the
-     * service-type metadata). Swift consumers select the mDL context with
-     * `VerificationContextEAA(useCase: EudiwIosTrust.shared.mdlUseCase)`.
-     */
-    public val mdlUseCase: String get() = "mdl"
-
-    /**
-     * Builds a non-cached validator for the LoTE download URLs in [urls], fetching each LoTE with
-     * the built-in Darwin (NSURLSession) downloader. Leave any context `null` in [urls] to skip it.
+     * Builds a non-cached validator for the LoTE download URLs in [trustLists], fetching each LoTE with
+     * the built-in Darwin (NSURLSession) downloader. Leave any context `null` in [trustLists] to skip it.
      * Suitable for low-concurrency use (e.g. one validation per screen).
      *
-     * @param urls the LoTE download URLs for each context; leave any context `null` to skip it
+     * @param trustLists the LoTE download URLs for each context; leave any context `null` to skip it
      * @param verifyJwtSignature verifies each downloaded LoTE JWT — supply a real implementation in
      *        production; this is a required, explicit choice so trust is never silently bypassed.
      */
     public fun nonCached(
-        urls: TrustListUrls,
+        trustLists: TrustLists,
         verifyJwtSignature: VerifyJwtSignature,
         directTrust: ValidateCertificateChainUsingDirectTrust<List<NSData>, NSData> =
             ValidateCertificateChainUsingDirectTrustIos,
         pkix: ValidateCertificateChainUsingPKIX<List<NSData>, NSData> =
             ValidateCertificateChainUsingPKIXIos.invoke(isRevocationEnabled = true),
-    ): ComposeChainTrust<List<NSData>, VerificationContext, NSData> = buildNonCached(urls, verifyJwtSignature, defaultLoadLoTE(), directTrust, pkix)
+    ): ComposeChainTrust<List<NSData>, VerificationContext, NSData> = buildNonCached(trustLists, verifyJwtSignature, defaultLoadLoTE(), directTrust, pkix)
 
     /**
      * As [nonCached] `(urls:verifyJwtSignature:)`, but each LoTE is obtained from [loadLoTE] instead
@@ -160,21 +166,21 @@ public object EudiwIosTrust {
      *        [LoadLoTE.Outcome.NotFound] rather than thrown.
      */
     public fun nonCached(
-        urls: TrustListUrls,
+        trustLists: TrustLists,
         verifyJwtSignature: VerifyJwtSignature,
         loadLoTE: IosLoadLoTE,
         directTrust: ValidateCertificateChainUsingDirectTrust<List<NSData>, NSData> =
             ValidateCertificateChainUsingDirectTrustIos,
         pkix: ValidateCertificateChainUsingPKIX<List<NSData>, NSData> =
             ValidateCertificateChainUsingPKIXIos.invoke(isRevocationEnabled = true),
-    ): ComposeChainTrust<List<NSData>, VerificationContext, NSData> = buildNonCached(urls, verifyJwtSignature, loadLoTE.asLoadLoTE(), directTrust, pkix)
+    ): ComposeChainTrust<List<NSData>, VerificationContext, NSData> = buildNonCached(trustLists, verifyJwtSignature, loadLoTE.asLoadLoTE(), directTrust, pkix)
 
     /**
      * Builds a **cached** validator, fetching each LoTE with the built-in Darwin (NSURLSession)
      * downloader: trust anchors are resolved from the LoTEs once per context and
      * kept in memory for [ttlHours] hours, so repeated [CachedTrustValidator.trustAnchors] /
      * [CachedTrustValidator.validate] calls within that window are served without re-downloading.
-     * Leave any context `null` in [urls] to skip it.
+     * Leave any context `null` in [trustLists] to skip it.
      *
      * Suited to higher-concurrency use (a wallet validating many credentials). The returned
      * [CachedTrustValidator] **owns** the in-memory cache: hold it for the session and call
@@ -182,27 +188,27 @@ public object EudiwIosTrust {
      * disposing leaks the cache for the process lifetime — fine for an app-lifetime singleton, not
      * for per-screen handles.
      *
-     * @param urls the LoTE download URLs for each context; leave any context `null` to skip it
+     * @param trustLists the LoTE download URLs for each context; leave any context `null` to skip it
      * @param ttlHours cache time-to-live in hours (e.g. `24.0`); a plain `Double` to avoid Kotlin's
      *        `Duration` value class at the Swift boundary.
      * @param verifyJwtSignature verifies each downloaded LoTE JWT — supply a real implementation in
      *        production; this is a required, explicit choice so trust is never silently bypassed.
      */
     public fun cached(
-        urls: TrustListUrls,
+        trustLists: TrustLists,
         ttlHours: Double,
         verifyJwtSignature: VerifyJwtSignature,
         directTrust: ValidateCertificateChainUsingDirectTrust<List<NSData>, NSData> =
             ValidateCertificateChainUsingDirectTrustIos,
         pkix: ValidateCertificateChainUsingPKIX<List<NSData>, NSData> =
             ValidateCertificateChainUsingPKIXIos.invoke(isRevocationEnabled = true),
-    ): CachedTrustValidator = buildCached(urls, ttlHours, verifyJwtSignature, defaultLoadLoTE(), directTrust, pkix)
+    ): CachedTrustValidator = buildCached(trustLists, ttlHours, verifyJwtSignature, defaultLoadLoTE(), directTrust, pkix)
 
     /**
      * As [cached]`(urls:ttlHours:verifyJwtSignature:)` — same ownership contract — but each LoTE is
      * obtained from [loadLoTE] instead of the built-in downloader, and only on a cache miss.
      *
-     * @param urls the LoTE download URLs for each context; leave any context `null` to skip it
+     * @param trustLists the LoTE download URLs for each context; leave any context `null` to skip it
      * @param ttlHours cache time-to-live in hours (e.g. `24.0`); a plain `Double` to avoid Kotlin's
      *        `Duration` value class at the Swift boundary.
      * @param verifyJwtSignature verifies each downloaded LoTE JWT — supply a real implementation in
@@ -211,7 +217,7 @@ public object EudiwIosTrust {
      *        [LoadLoTE.Outcome.NotFound] rather than thrown.
      */
     public fun cached(
-        urls: TrustListUrls,
+        trustLists: TrustLists,
         ttlHours: Double,
         verifyJwtSignature: VerifyJwtSignature,
         loadLoTE: IosLoadLoTE,
@@ -219,55 +225,55 @@ public object EudiwIosTrust {
             ValidateCertificateChainUsingDirectTrustIos,
         pkix: ValidateCertificateChainUsingPKIX<List<NSData>, NSData> =
             ValidateCertificateChainUsingPKIXIos.invoke(isRevocationEnabled = true),
-    ): CachedTrustValidator = buildCached(urls, ttlHours, verifyJwtSignature, loadLoTE.asLoadLoTE(), directTrust, pkix)
+    ): CachedTrustValidator = buildCached(trustLists, ttlHours, verifyJwtSignature, loadLoTE.asLoadLoTE(), directTrust, pkix)
 
     /**
      * Swift-facing overload of [nonCached]`(urls:verifyJwtSignature:)` that accepts a
      * [VerifyJwtSignatureCallback]
      */
     public fun nonCached(
-        urls: TrustListUrls,
+        trustLists: TrustLists,
         verifyJwtSignature: VerifyJwtSignatureCallback,
         directTrust: ValidateCertificateChainUsingDirectTrust<List<NSData>, NSData> =
             ValidateCertificateChainUsingDirectTrustIos,
         pkix: ValidateCertificateChainUsingPKIX<List<NSData>, NSData> =
             ValidateCertificateChainUsingPKIXIos.invoke(isRevocationEnabled = true),
-    ): ComposeChainTrust<List<NSData>, VerificationContext, NSData> = nonCached(urls, verifyJwtSignature.asVerifyJwtSignature(), directTrust, pkix)
+    ): ComposeChainTrust<List<NSData>, VerificationContext, NSData> = nonCached(trustLists, verifyJwtSignature.asVerifyJwtSignature(), directTrust, pkix)
 
     /**
      * Swift-facing overload of [nonCached]`(urls:verifyJwtSignature:loadLoTE:)` that accepts a
      * [VerifyJwtSignatureCallback].
      */
     public fun nonCached(
-        urls: TrustListUrls,
+        trustLists: TrustLists,
         verifyJwtSignature: VerifyJwtSignatureCallback,
         loadLoTE: IosLoadLoTE,
         directTrust: ValidateCertificateChainUsingDirectTrust<List<NSData>, NSData> =
             ValidateCertificateChainUsingDirectTrustIos,
         pkix: ValidateCertificateChainUsingPKIX<List<NSData>, NSData> =
             ValidateCertificateChainUsingPKIXIos.invoke(isRevocationEnabled = true),
-    ): ComposeChainTrust<List<NSData>, VerificationContext, NSData> = nonCached(urls, verifyJwtSignature.asVerifyJwtSignature(), loadLoTE, directTrust, pkix)
+    ): ComposeChainTrust<List<NSData>, VerificationContext, NSData> = nonCached(trustLists, verifyJwtSignature.asVerifyJwtSignature(), loadLoTE, directTrust, pkix)
 
     /**
      * Swift-facing overload of [cached]`(urls:ttlHours:verifyJwtSignature:)` that accepts a
      * [VerifyJwtSignatureCallback].
      */
     public fun cached(
-        urls: TrustListUrls,
+        trustLists: TrustLists,
         ttlHours: Double,
         verifyJwtSignature: VerifyJwtSignatureCallback,
         directTrust: ValidateCertificateChainUsingDirectTrust<List<NSData>, NSData> =
             ValidateCertificateChainUsingDirectTrustIos,
         pkix: ValidateCertificateChainUsingPKIX<List<NSData>, NSData> =
             ValidateCertificateChainUsingPKIXIos.invoke(isRevocationEnabled = true),
-    ): CachedTrustValidator = cached(urls, ttlHours, verifyJwtSignature.asVerifyJwtSignature(), directTrust, pkix)
+    ): CachedTrustValidator = cached(trustLists, ttlHours, verifyJwtSignature.asVerifyJwtSignature(), directTrust, pkix)
 
     /**
      * Swift-facing overload of [cached]`(urls:ttlHours:verifyJwtSignature:loadLoTE:)` that accepts
      * a [VerifyJwtSignatureCallback].
      */
     public fun cached(
-        urls: TrustListUrls,
+        trustLists: TrustLists,
         ttlHours: Double,
         verifyJwtSignature: VerifyJwtSignatureCallback,
         loadLoTE: IosLoadLoTE,
@@ -275,15 +281,14 @@ public object EudiwIosTrust {
             ValidateCertificateChainUsingDirectTrustIos,
         pkix: ValidateCertificateChainUsingPKIX<List<NSData>, NSData> =
             ValidateCertificateChainUsingPKIXIos.invoke(isRevocationEnabled = true),
-    ): CachedTrustValidator = cached(urls, ttlHours, verifyJwtSignature.asVerifyJwtSignature(), loadLoTE, directTrust, pkix)
+    ): CachedTrustValidator = cached(trustLists, ttlHours, verifyJwtSignature.asVerifyJwtSignature(), loadLoTE, directTrust, pkix)
 
     /**
      * Builds a validator backed by **bundled / hardcoded** certificate anchors instead of a
      * downloaded LoTE — no network, JWT, or LoTE is involved. This is the iOS counterpart of the
      * JVM `IsChainTrustedForContext.usingKeyStore(...)`.
      *
-     * Set only the contexts you need on [anchors]; leave the rest `null`. The mDL context is
-     * registered under [mdlUseCase] (i.e. `VerificationContext.EAA("mdl")`).
+     * Set only the contexts you need on [anchors]; leave the rest `null`.
      *
      * No ETSI end-entity profile is applied — these contexts validate purely by [method] — so bundled
      * CA anchors are not rejected by the strict EUDI end-entity profiles.
@@ -351,8 +356,10 @@ public object EudiwIosTrust {
             anchors.wrpac?.let { put(VerificationContext.WalletRelyingPartyAccessCertificate, it) }
             anchors.wrprc?.let { put(VerificationContext.WalletRelyingPartyRegistrationCertificate, it) }
             anchors.pubEaa?.let { put(VerificationContext.PubEAA, it) }
-            anchors.qea?.let { put(VerificationContext.QEAA, it) }
-            anchors.mdl?.let { put(VerificationContext.EAA(mdlUseCase), it) }
+            anchors.qEaa?.let { put(VerificationContext.QEAA, it) }
+            anchors.eaa.orEmpty().forEach {
+                put(VerificationContext.EAA(it.key), it.value)
+            }
         }
 
         val getTrustAnchors = GetTrustAnchors<VerificationContext, NSData> { ctx ->
@@ -367,25 +374,51 @@ public object EudiwIosTrust {
         return ComposeChainTrust(getTrustAnchors.validator(anchorsByContext.keys, validateChain))
     }
 
-    private fun buildLocations(urls: TrustListUrls): SupportedLists<Uri> = SupportedLists(
-        pidProviders = urls.pidProviders?.let(::Uri),
-        walletProviders = urls.walletProviders?.let(::Uri),
-        wrpacProviders = urls.wrpacProviders?.let(::Uri),
-        wrprcProviders = urls.wrprcProviders?.let(::Uri),
-        pubEaaProviders = urls.pubEaaProviders?.let(::Uri),
-        qeaProviders = urls.qeaProviders?.let(::Uri),
-        eaaProviders = buildMap { urls.mdlProviders?.let { put(mdlUseCase, Uri(it)) } },
+    private fun buildLocations(trustLists: TrustLists): SupportedLists<Uri> = SupportedLists(
+        pidProviders = trustLists.pidProviders?.url?.let(::Uri),
+        walletProviders = trustLists.walletProviders?.url?.let(::Uri),
+        wrpacProviders = trustLists.wrpacProviders?.url?.let(::Uri),
+        wrprcProviders = trustLists.wrprcProviders?.url?.let(::Uri),
+        pubEaaProviders = trustLists.pubEaaProviders?.url?.let(::Uri),
+        qeaProviders = trustLists.qEaaProviders?.url?.let(::Uri),
+        eaaProviders = trustLists.eaaProviders.orEmpty().associate { it.useCase to Uri(it.trustList.url) },
     )
 
     // The baseline EU metadata has no mDL entry, so add one when an mDL URL is supplied.
     // mDL uses a null end-entity profile (the advertised DIGIT lists do not satisfy the strict ETSI
     // profiles), so its validation is pure direct trust / PKIX. Mirrors DIGIT.SVC_TYPE_PER_CTX.
-    private fun buildSvcTypePerCtx(mdlProvidersUrl: String?): SupportedLists<LotEMeta<VerificationContext>> = SupportedLists.eu().let { baseline ->
-        if (mdlProvidersUrl != null) baseline.copy(eaaProviders = mapOf(mdlUseCase to mdlMeta())) else baseline
-    }
+    private fun buildSvcTypePerCtx(trustLists: TrustLists): SupportedLists<LotEMeta<VerificationContext>> = SupportedLists(
+        pidProviders = trustLists.pidProviders?.toLotEMeta(
+            issuanceContext = VerificationContext.PID,
+            revocationContext = VerificationContext.PIDStatus,
+        ),
+        walletProviders = trustLists.walletProviders?.toLotEMeta(
+            issuanceContext = VerificationContext.WalletProviderAttestation,
+            revocationContext = VerificationContext.WalletOrKeyStorageStatus,
+        ),
+        wrpacProviders = trustLists.wrpacProviders?.toLotEMeta(
+            issuanceContext = VerificationContext.WalletRelyingPartyAccessCertificate,
+            revocationContext = null,
+        ),
+        wrprcProviders = trustLists.wrprcProviders?.toLotEMeta(
+            issuanceContext = VerificationContext.WalletRelyingPartyRegistrationCertificate,
+            revocationContext = VerificationContext.WalletRelyingPartyRegistrationCertificateStatus,
+        ),
+        pubEaaProviders = trustLists.pubEaaProviders?.toLotEMeta(
+            issuanceContext = VerificationContext.PubEAA,
+            revocationContext = VerificationContext.PubEAAStatus,
+        ),
+        qeaProviders = trustLists.qEaaProviders?.toLotEMeta(
+            issuanceContext = VerificationContext.QEAA,
+            revocationContext = VerificationContext.QEAAStatus,
+        ),
+        eaaProviders = trustLists.eaaProviders.orEmpty().associate {
+            it.useCase to it.toLotEMeta()
+        },
+    )
 
     private fun buildNonCached(
-        urls: TrustListUrls,
+        trustLists: TrustLists,
         verifyJwtSignature: VerifyJwtSignature,
         loadLoTE: LoadLoTE<String>,
         directTrust: ValidateCertificateChainUsingDirectTrust<List<NSData>, NSData>,
@@ -393,14 +426,14 @@ public object EudiwIosTrust {
     ): ComposeChainTrust<List<NSData>, VerificationContext, NSData> = ProvisionTrustAnchorsFromLoTEs
         .eudiwIos(
             loadLoTEAndPointers = buildLoadLoTEAndPointers(verifyJwtSignature, loadLoTE),
-            svcTypePerCtx = buildSvcTypePerCtx(urls.mdlProviders),
+            svcTypePerCtx = buildSvcTypePerCtx(trustLists),
             directTrust = directTrust,
             pkix = pkix,
         )
-        .nonCached(buildLocations(urls))
+        .nonCached(buildLocations(trustLists))
 
     private fun buildCached(
-        urls: TrustListUrls,
+        trustLists: TrustLists,
         ttlHours: Double,
         verifyJwtSignature: VerifyJwtSignature,
         loadLoTE: LoadLoTE<String>,
@@ -411,13 +444,13 @@ public object EudiwIosTrust {
         val validator = ProvisionTrustAnchorsFromLoTEs
             .eudiwIos(
                 loadLoTEAndPointers = buildLoadLoTEAndPointers(verifyJwtSignature, loadLoTE),
-                svcTypePerCtx = buildSvcTypePerCtx(urls.mdlProviders),
+                svcTypePerCtx = buildSvcTypePerCtx(trustLists),
                 directTrust = directTrust,
                 pkix = pkix,
             )
             .cached(
                 disposableScope = scope,
-                loteLocationsSupported = buildLocations(urls),
+                loteLocationsSupported = buildLocations(trustLists),
                 ttl = ttlHours.hours,
             )
         return CachedTrustValidator(scope, validator)
@@ -434,20 +467,6 @@ public object EudiwIosTrust {
         constraints = LoadLoTEAndPointers.Constraints.DoNotLoadOtherPointers,
         verifyJwtSignature = verifyJwtSignature,
         loadLoTE = loadLoTE,
-    )
-
-    private fun mdlMeta(): LotEMeta<VerificationContext> = LotEMeta(
-        svcTypePerCtx = buildMap {
-            put(
-                VerificationContext.EAA(mdlUseCase),
-                LotEMeta.SvcAndEEProfile(Uri(EUMDLProvidersListSpec.SVC_TYPE_ISSUANCE), null),
-            )
-            put(
-                VerificationContext.EAAStatus(mdlUseCase),
-                LotEMeta.SvcAndEEProfile(Uri(EUMDLProvidersListSpec.SVC_TYPE_REVOCATION), null),
-            )
-        },
-        serviceDigitalIdentityCertificateType = ServiceDigitalIdentityCertificateType.EndEntityOrCA,
     )
 
     /**
@@ -527,3 +546,28 @@ public class CachedTrustValidator internal constructor(
     /** Releases the in-memory caches. Call once when the validator is no longer needed. */
     public fun dispose(): Unit = scope.dispose()
 }
+
+private fun TrustList.toLotEMeta(
+    issuanceContext: VerificationContext,
+    revocationContext: VerificationContext?,
+): LotEMeta<VerificationContext> = LotEMeta(
+    buildMap {
+        put(issuanceContext, LotEMeta.SvcAndEEProfile(Uri(issuanceService), certificateProfile))
+        val revocationService = revocationService
+        if (null != revocationContext && null != revocationService) {
+            put(revocationContext, LotEMeta.SvcAndEEProfile(Uri(revocationService), null))
+        }
+    },
+    serviceDigitalIdentityCertificateType,
+)
+
+private fun EAATrustList.toLotEMeta(): LotEMeta<VerificationContext> = LotEMeta(
+    buildMap {
+        put(VerificationContext.EAA(useCase), LotEMeta.SvcAndEEProfile(Uri(trustList.issuanceService), trustList.certificateProfile))
+        val revocationService = trustList.revocationService
+        if (null != revocationService) {
+            put(VerificationContext.EAAStatus(useCase), LotEMeta.SvcAndEEProfile(Uri(revocationService), null))
+        }
+    },
+    trustList.serviceDigitalIdentityCertificateType,
+)

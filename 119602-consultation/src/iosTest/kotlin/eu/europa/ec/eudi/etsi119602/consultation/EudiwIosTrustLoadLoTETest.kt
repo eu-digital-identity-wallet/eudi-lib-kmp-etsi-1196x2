@@ -18,10 +18,12 @@
 package eu.europa.ec.eudi.etsi119602.consultation
 
 import eu.europa.ec.eudi.etsi119602.consultation.eu.EUMDLProvidersListSpec
+import eu.europa.ec.eudi.etsi119602.consultation.eu.ServiceDigitalIdentityCertificateType
 import eu.europa.ec.eudi.etsi119602.datamodel.*
 import eu.europa.ec.eudi.etsi1196x2.consultation.SensitiveApi
 import eu.europa.ec.eudi.etsi1196x2.consultation.ValidateCertificateChainUsingPKIXIos
 import eu.europa.ec.eudi.etsi1196x2.consultation.VerificationContext
+import eu.europa.ec.eudi.etsi1196x2.consultation.certs.CertificateProfile
 import eu.europa.ec.eudi.etsi1196x2.consultation.toByteArray
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
@@ -41,9 +43,22 @@ import kotlin.time.Duration.Companion.days
 class EudiwIosTrustLoadLoTETest {
 
     private val mdlUrl = "https://example.test/mdl"
-    private val mdlContext = VerificationContext.EAA(EudiwIosTrust.mdlUseCase)
+    private val mdlContext = VerificationContext.EAA("mDL")
 
-    private val urls = TrustListUrls().apply { mdlProviders = mdlUrl }
+    private val urls = TrustLists().apply {
+        eaaProviders = listOf(
+            EAATrustList(
+                useCase = "mDL",
+                trustList = TrustList(
+                    url = mdlUrl,
+                    issuanceService = EUMDLProvidersListSpec.SVC_TYPE_ISSUANCE,
+                    revocationService = EUMDLProvidersListSpec.SVC_TYPE_REVOCATION,
+                    certificateProfile = null,
+                    serviceDigitalIdentityCertificateType = ServiceDigitalIdentityCertificateType.EndEntityOrCA,
+                ),
+            ),
+        )
+    }
 
     private class RecordingLoadLoTE(private val jwt: String) : IosLoadLoTE {
         val requestedUris: MutableList<String> = mutableListOf()
@@ -58,7 +73,7 @@ class EudiwIosTrustLoadLoTETest {
         val loadLoTE = RecordingLoadLoTE(mdlLoTEJwt(E2eTestCerts.rootDer))
 
         val validator = EudiwIosTrust.nonCached(
-            urls = urls,
+            trustLists = urls,
             verifyJwtSignature = NotValidating,
             loadLoTE = loadLoTE,
             pkix = ValidateCertificateChainUsingPKIXIos.invoke(isRevocationEnabled = false),
@@ -103,13 +118,13 @@ class EudiwIosTrustLoadLoTETest {
     fun overloadsWithoutLoadLoTE_stillAssemble() {
         val loadLoTE = RecordingLoadLoTE(mdlLoTEJwt(E2eTestCerts.rootDer))
         EudiwIosTrust.nonCached(
-            urls = urls,
+            trustLists = urls,
             verifyJwtSignature = NotValidating,
             loadLoTE = loadLoTE,
             pkix = ValidateCertificateChainUsingPKIXIos.invoke(isRevocationEnabled = false),
         )
         EudiwIosTrust.cached(
-            urls = urls,
+            trustLists = urls,
             ttlHours = 1.0,
             verifyJwtSignature = NotValidating,
             pkix = ValidateCertificateChainUsingPKIXIos.invoke(isRevocationEnabled = false),
