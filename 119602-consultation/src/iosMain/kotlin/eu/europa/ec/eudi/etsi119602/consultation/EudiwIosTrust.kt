@@ -117,7 +117,7 @@ public class TrustLists {
  * @param revocationService the service type identifier whose services provide the status/revocation
  *        anchors, or `null` if the list has no status context
  * @param certificateProfile the end-entity certificate profile enforced for the issuance context;
- *        `null` applies no profile (pure direct trust / PKIX)
+ *        `null` applies no profile (pure direct trust / PKIX). See [EUCertificateProfiles] for the EU profiles
  * @param serviceDigitalIdentityCertificateType whether the listed certificates are end-entity
  *        (direct trust), CA (PKIX), or either
  */
