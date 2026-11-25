@@ -18,13 +18,12 @@
 package eu.europa.ec.eudi.etsi119602.consultation
 
 import eu.europa.ec.eudi.etsi119602.consultation.eu.EUMDLProvidersListSpec
-import eu.europa.ec.eudi.etsi119602.consultation.eu.ServiceDigitalIdentityCertificateType
 import eu.europa.ec.eudi.etsi119602.datamodel.*
 import eu.europa.ec.eudi.etsi1196x2.consultation.SensitiveApi
 import eu.europa.ec.eudi.etsi1196x2.consultation.ValidateCertificateChainUsingPKIXIos
 import eu.europa.ec.eudi.etsi1196x2.consultation.VerificationContext
-import eu.europa.ec.eudi.etsi1196x2.consultation.certs.CertificateProfile
 import eu.europa.ec.eudi.etsi1196x2.consultation.toByteArray
+import eu.europa.ec.eudi.etsi1196x2.consultation.toNSData
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
 import kotlin.io.encoding.Base64
@@ -46,18 +45,7 @@ class EudiwIosTrustLoadLoTETest {
     private val mdlContext = VerificationContext.EAA("mDL")
 
     private val urls = TrustLists().apply {
-        eaaProviders = listOf(
-            EAATrustList(
-                useCase = "mDL",
-                trustList = TrustList(
-                    url = mdlUrl,
-                    issuanceService = EUMDLProvidersListSpec.SVC_TYPE_ISSUANCE,
-                    revocationService = EUMDLProvidersListSpec.SVC_TYPE_REVOCATION,
-                    certificateProfile = null,
-                    serviceDigitalIdentityCertificateType = ServiceDigitalIdentityCertificateType.EndEntityOrCA,
-                ),
-            ),
-        )
+        eaaProviders = listOf(EUTrustLists.mdl(mdlUrl, useCase = "mDL"))
     }
 
     private class RecordingLoadLoTE(private val jwt: String) : IosLoadLoTE {
@@ -132,10 +120,46 @@ class EudiwIosTrustLoadLoTETest {
     }
 
     /**
-     * A compact JWT whose payload is an mDL LoTE advertising [certificate] as the digital identity
-     * of a single issuance service. The signature is never checked, so a placeholder is enough.
+     * Issue #224: a PubEAA LoTE configured via [EUTrustLists.pubEaa] is loaded, and its Issuance and
+     * Revocation services become the [VerificationContext.PubEAA] / [VerificationContext.PubEAAStatus]
+     * anchors.
      */
-    private fun mdlLoTEJwt(certificate: ByteArray): String {
+    @Test
+    fun pubEaa_lote_providesIssuanceAndRevocationAnchors() = runTest {
+        val pubEaaUrl = "https://example.test/pubeaa"
+        val loadLoTE = RecordingLoadLoTE(
+            loteJwt(
+                E2eTestCerts.rootDer to ETSI19602.EU_PUB_EAA_PROVIDERS_SVC_TYPE_ISSUANCE,
+                E2eTestCerts.leafDer to ETSI19602.EU_PUB_EAA_PROVIDERS_SVC_TYPE_REVOCATION,
+            ),
+        )
+        val validator = EudiwIosTrust.nonCached(
+            trustLists = TrustLists().apply { pubEaaProviders = EUTrustLists.pubEaa(pubEaaUrl) },
+            verifyJwtSignature = NotValidating,
+            loadLoTE = loadLoTE,
+            pkix = ValidateCertificateChainUsingPKIXIos.invoke(isRevocationEnabled = false),
+        )
+
+        val issuance = EudiwIosTrust.trustAnchors(validator, VerificationContext.PubEAA)
+        val status = EudiwIosTrust.trustAnchors(validator, VerificationContext.PubEAAStatus)
+
+        assertEquals(listOf(pubEaaUrl), loadLoTE.requestedUris.distinct(), "the PubEAA LoTE must be fetched")
+        assertTrue(issuance.single().toByteArray().contentEquals(E2eTestCerts.rootDer))
+        assertTrue(status.single().toByteArray().contentEquals(E2eTestCerts.leafDer))
+
+        // A chain issued under the listed CA validates for PubEAA (PKIX, since the list is EndEntityOrCA).
+        val result = EudiwIosTrust.validate(validator, listOf(E2eTestCerts.leafDer.toNSData()), VerificationContext.PubEAA)
+        assertTrue(result.isTrusted, "expected trusted, got: ${result.failureReason}")
+    }
+
+    /** A JWT whose payload is an mDL LoTE advertising [certificate] as a single issuance service. */
+    private fun mdlLoTEJwt(certificate: ByteArray): String = loteJwt(certificate to EUMDLProvidersListSpec.SVC_TYPE_ISSUANCE)
+
+    /**
+     * A compact JWT whose payload is a LoTE with one trusted entity offering one service per
+     * (certificate, service type) pair. The signature is never checked, so a placeholder is enough.
+     */
+    private fun loteJwt(vararg services: Pair<ByteArray, String>): String {
         val now = Clock.System.now()
         val lote = ListOfTrustedEntities(
             schemeInformation = ListAndSchemeInformation.implicit(
@@ -147,7 +171,7 @@ class EudiwIosTrustLoadLoTETest {
             entities = listOf(
                 TrustedEntity(
                     information = TrustedEntityInformation(
-                        name = listOf(MultilanguageString.en("Test mDL Provider")),
+                        name = listOf(MultilanguageString.en("Test Provider")),
                         address = TEAddress(
                             postalAddresses = listOf(
                                 PostalAddress(
@@ -162,17 +186,17 @@ class EudiwIosTrustLoadLoTETest {
                         ),
                         informationURI = listOf(MultiLanguageURI.en(Uri.parse("https://example.test/info"))),
                     ),
-                    services = listOf(
+                    services = services.map { (certificate, svcType) ->
                         TrustedEntityService(
                             information = ServiceInformation(
-                                name = listOf(MultilanguageString.en("Test mDL Issuance")),
+                                name = listOf(MultilanguageString.en("Test service $svcType")),
                                 digitalIdentity = ServiceDigitalIdentity(
                                     x509Certificates = listOf(PKIObject(value = certificate)),
                                 ),
-                                typeIdentifier = Uri.parse(EUMDLProvidersListSpec.SVC_TYPE_ISSUANCE),
+                                typeIdentifier = Uri.parse(svcType),
                             ),
-                        ),
-                    ),
+                        )
+                    },
                 ),
             ),
         )
