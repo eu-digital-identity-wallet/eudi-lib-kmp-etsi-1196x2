@@ -129,13 +129,17 @@ class EudiwIosTest {
             ValidateCertificateChainUsingDirectTrustIos(chain, anchors)
         }
         val validator = EudiwIosTrust.usingBundledAnchors(
-            anchors = BundledAnchors().apply { mdl = listOf(leaf) },
+            anchors = BundledAnchors().apply {
+                eaa = mapOf(
+                    "mDL" to listOf(leaf),
+                )
+            },
             method = BundledAnchorMethod.DIRECT_TRUST,
             directTrust = recordingDirectTrust,
             pkix = recordingPkix,
         )
 
-        val result = EudiwIosTrust.validate(validator, listOf(leaf), VerificationContext.EAA(EudiwIosTrust.mdlUseCase))
+        val result = EudiwIosTrust.validate(validator, listOf(leaf), VerificationContext.EAA("mDL"))
 
         assertTrue(result.isTrusted, "expected trusted (pinned leaf), got: ${result.failureReason}")
         assertEquals(1, directTrustInvocations)
@@ -147,11 +151,15 @@ class EudiwIosTest {
         val leaf = E2eTestCerts.leafDer.toNSData()
         // Direct trust performs no revocation checking, so the default overload runs offline.
         val validator = EudiwIosTrust.usingBundledAnchors(
-            anchors = BundledAnchors().apply { mdl = listOf(leaf) },
+            anchors = BundledAnchors().apply {
+                eaa = mapOf(
+                    "mDL" to listOf(leaf),
+                )
+            },
             method = BundledAnchorMethod.DIRECT_TRUST,
         )
 
-        val result = EudiwIosTrust.validate(validator, listOf(leaf), VerificationContext.EAA(EudiwIosTrust.mdlUseCase))
+        val result = EudiwIosTrust.validate(validator, listOf(leaf), VerificationContext.EAA("mDL"))
 
         assertTrue(result.isTrusted, "expected trusted (pinned leaf), got: ${result.failureReason}")
     }
